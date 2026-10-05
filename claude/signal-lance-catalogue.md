@@ -239,7 +239,7 @@ The rule we keep from the research: **stealth costs your EW.** A suit running an
 
 | System | HP | Hides | Scales with | Draw / heat | Trade |
 |---|---|---|---|---|---|
-| **Photonic cloak** | S + I | VIS −70% | Range (best far away) | Draw 4, IR e +2 | Lidar and thermal still see you |
+| **Photonic cloak** | S ×2 | VIS −70% | Range (best far away) | Draw 4, IR e +2 | Lidar and thermal still see you |
 | **Still-skin** | I + O | All channels −50% | Movement (best still, gone when sprinting) | Draw 5, IR e +3 | Freezes you in place |
 | **Null-field** | S ×2 | EM Visibility −80%, EF e −80% | — | Draw 6, IR e +4 | No radar of your own while on |
 | **Thermal hold** | I | IR e to 0 while on | Turns held | Heat banks; release = big IR spike | Must vent eventually |
@@ -417,9 +417,12 @@ Gear has a maker. Markets sell their own maker's stock, gated by standing. The b
 | **Corporate security** | Clean, precise, expensive | Low SND, low IR; high draw | LPI radar, adaptive camo, coilguns, cryo skin, composite plate |
 | **Foundry clans** | Heavy, loud, tough | High SND and MAG; low draw | Laminated plate, autocannon, heavy mortar, hot cores, steel frames |
 | **Undercity syndicates** | Tricks, unreliable | Cheap; arrives Worn | Spoofers, decoys, ghost pattern, tag darts, mines, ghillie wraps |
+| **Old Army** | Rugged, dated, reliable | Mid signature, **high MAG** (steel everything); never arrives Failing | Steel frames, std reactors, autocannon, marksman rifle, light mortar, laminated plate, datalinks. Sold by quartermasters who remember your unit: gated by **company reputation**, not district standing, so your backstory becomes a supply line |
 | **Broker (neutral)** | Generic "Std" | Average everything | The baseline row of every family; no exclusives; a markup |
 
-Names and feels are a proposal (open question 7 in the construction doc).
+Agreed with Jamie (2026-10-05).
+
+**Frames by source:** Broker: Warden, Jackal, Mule (steel only) · Corporate: Wisp, Ferret, Lantern (composite) · Foundry: Bulwark, Bastion (steel/alloy) · Syndicate: Sapper, Jackal variant · Old Army: Warden and Mule variants (steel, reliable) · Contract reward: Wraith.
 
 ---
 
