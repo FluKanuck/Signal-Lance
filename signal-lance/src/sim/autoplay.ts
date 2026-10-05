@@ -3,7 +3,7 @@
 import { TUNE } from '../tune.ts';
 import { G } from './state.ts';
 import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist,
-         cmdSelect, cmdFire, cmdUplink, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar } from './turns.ts';
+         cmdSelect, cmdFire, cmdUplink, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp } from './turns.ts';
 
 export const AUTO_DT = 0.05;
 export const AUTO = { loud: false }; // R13: --loud = SPRINT every move, pulse radar whenever it can
@@ -13,6 +13,7 @@ export function runAct() { for (let n = 0; G.act && G.mode === 'hunt' && n < 200
 
 export function playerTurn() {
   let moved = false;
+  if (AUTO.loud && sensorsUp(G.p) && canPay(G.p, TUNE.AP_RADAR, TUNE.RADAR_EN)) { cmdRadar(); runAct(); } // R13 --loud: pulse every activation it can
   for (let k = 0; k < 12 && G.mode === 'hunt'; k++) {
     const c = playerTarget();
     if (c && G.sel !== c) cmdSelect(c); // select + turn to face it (free once a turn)
@@ -20,7 +21,8 @@ export function playerTurn() {
     if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') { cmdFire(); runAct(); continue; }
     if (uplinkBlock() === '') { cmdUplink(); continue; }
     if (!moved && upDist(G.p) > TUNE.UPLINK_RADIUS + 0.5) {
-      cmdMoveMode('NORMAL'); cmdTarget(G.up.x, G.up.y); moved = true;
+      cmdMoveMode(AUTO.loud ? 'SPRINT' : 'NORMAL'); cmdTarget(G.up.x, G.up.y); moved = true;
+      if (AUTO.loud && G.plan && !G.plan.path && G.plan.why !== 'LEGS') { cmdMoveMode('NORMAL'); cmdTarget(G.up.x, G.up.y); } // can't afford any sprint
       if (G.plan && !G.plan.path && G.plan.why === 'LEGS') { cmdMoveMode('CREEP'); cmdTarget(G.up.x, G.up.y); } // R12: legs gone = creep
       if (G.plan && G.plan.path) { cmdMove(); runAct(); continue; }
     }

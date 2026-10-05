@@ -5,10 +5,15 @@
 //   npm run sim -- --comp ambush --games 20   one composition only (name, case-insensitive)
 //   npm run sim -- --contracts 20      R11: 20 contracts (seeds 1..20), the scripted lance always takes job 1
 //   npm run sim -- --seed 123456 -v    replay one seed (its own rolled composition, or --comp to force), one line per turn
+//   --loud                             R13: the scripted mechs SPRINT every move and pulse radar every activation they can
+//   --set SOUND_RANGE.NORMAL=4         try a tune value for this run (repeatable)
+//   --pack                             R13 s2: the pack on (alarm, converge, press the wound)
+//   --both                             R13 s2: with --contracts, run normal then --loud and compare (flags if loud isn't riskier)
+//   --check                            exit 1 if any FLAG or WARNING was printed (run before shipping)
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
-import { playOut as autoPlayOut } from '../src/sim/autoplay.ts';
+import { playOut as autoPlayOut, AUTO } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
@@ -16,17 +21,47 @@ const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0
 const GAMES = arg('--games', 10), ONE = arg('--seed', -1), VERBOSE = argv.includes('-v');
 const sarg = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : ''; };
 const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0);
+AUTO.loud = argv.includes('--loud');
+if (argv.includes('--pack')) TUNE.PACK_ENABLED = true; // R13 s2: the pack on (as the splash toggle does)
+const BOTH = argv.includes('--both'); // R13 s2: run --contracts twice, normal then --loud, and compare
+// --set KEY=VALUE (repeatable, dotted paths ok): try a tune value without editing tune.ts, e.g. --set SOUND_RANGE.NORMAL=4
+argv.forEach((k, i) => {
+  if (k !== '--set') return;
+  const [path, v] = argv[i + 1].split('='), keys = path.split('.'); let o: any = TUNE;
+  for (const key of keys.slice(0, -1)) o = o[key];
+  const last = keys[keys.length - 1];
+  if (!(last in o)) throw new Error('--set: unknown tune key ' + path);
+  o[last] = v === 'true' ? true : v === 'false' ? false : Number(v);
+  console.log(`  (--set ${path} = ${o[last]})`);
+});
 const MAX_TURNS = 80;
-const LOAD = { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 }; // the game's default loadout
-const LOAD_A = { ...LOAD, mortar: 1 }; // R9: scripted A carries a mortar (9/10 slots)
+// --check: remember every FLAG / WARNING line, exit 1 at the end if there were any
+const FLAGS: string[] = [], log0 = console.log;
+console.log = (...a: any[]) => { const t = a.join(' '); if (/FLAG:|WARNING:/.test(t)) FLAGS.push(t.trim()); log0(...a); };
+// the game's default loadout; R13 --loud swaps ECM for radar (both 2 slots) so it has something to pulse
+const loadB = () => AUTO.loud ? { armour: 1, radar: 1, passive: 1, ecm: 0, ammo: 2, cells: 0, mortar: 0 } : { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 };
+const loadA = () => ({ ...loadB(), mortar: 1 }); // R9: scripted A carries a mortar (9/10 slots)
 
 function playGame(seed: number, comp?: string) {
-  rollEnemy(seed, comp); newHunt([{ ...LOAD_A }, { ...LOAD }]); // R7 s2: two scripted mechs, same loadout
+  rollEnemy(seed, comp); newHunt([loadA(), loadB()]); // R7 s2: two scripted mechs, same loadout
   return playOut(seed);
 }
 // play the already-started hunt to its end (or a stall)
 function playOut(seed: number) {
-  autoPlayOut(MAX_TURNS, VERBOSE ? (t, who) => console.log(`  R${t} ${who} ${Math.round(upDist(unitById(who)))}t from uplink, hits ${G.lance.map((m: any) => m.id + m.hits).join(' ')} | ` + G.units.map((u: any) => `${u.type[0]}:${u.dead ? 'X' : u.state + ' h' + u.hits}`).join(' ') + ` | uplink ${G.up.prog}/${TUNE.UPLINK_TURNS}`) : undefined);
+  allOn3 = false;
+  autoPlayOut(MAX_TURNS, (t, who) => { if (G.turn <= 3 && !allOn3) allOn3 = everyoneOnLance(); if (VERBOSE) verboseLine(t, who); });
+  return summary(seed);
+}
+// R13 s2: does every living field unit hold a contact (own or shared) on a lance mech right now?
+let allOn3 = false;
+function everyoneOnLance() {
+  const live = G.units.filter((u: any) => !u.dead);
+  return live.length > 1 && live.every((u: any) => u.ec.some((c: any) => c.on && G.lance.some((m: any) => m.id === c.id)));
+}
+function verboseLine(t: number, who: string) {
+  console.log(`  R${t} ${who} ${Math.round(upDist(unitById(who)))}t from uplink, hits ${G.lance.map((m: any) => m.id + m.hits).join(' ')} | ` + G.units.map((u: any) => `${u.type[0]}:${u.dead ? 'X' : u.state + (u.pack ? '/' + u.pack : '') + ' h' + u.hits}`).join(' ') + ` | uplink ${G.up.prog}/${TUNE.UPLINK_TURNS}`);
+}
+function summary(seed: number) {
   const outcome = G.mode === 'hunt' ? 'STALL' : G.outcome;
   const units = G.units.map((u: any) => ({ type: u.type, found: u.found, acted: u.acted, dead: u.dead, shots: u.shots, zoned: u.zoned, ft: u.found ? u.foundTurn : 0, mobile: u.mobile }));
   const mt = G.lance.reduce((a: any, m: any) => ({ s: a.s + m.mShots, h: a.h + m.mHits, k: a.k + m.mKills, f: a.f + m.mFriendly, ns: a.ns + (m.mNS || 0), nh: a.nh + (m.mNH || 0), os: a.os + (m.mOS || 0), oh: a.oh + (m.mOH || 0), nu: a.nu + (m.mNU || 0), ou: a.ou + (m.mOU || 0) }), { s: 0, h: 0, k: 0, f: 0, ns: 0, nh: 0, os: 0, oh: 0, nu: 0, ou: 0 });
@@ -79,15 +114,16 @@ function greedy() {
 }
 // R11: whole contracts. The scripted lance always takes job 1 (A with mortar, as above).
 function contracts(n: number) {
-  const res: any[] = [], shots: any[] = [], parts: any[] = [];
+  const res: any[] = [], shots: any[] = [], parts: any[] = [], hunts: any[] = [];
   for (let c = 1; c <= n; c++) {
-    newContract(c, [{ ...LOAD_A }, { ...LOAD }]);
+    newContract(c, [loadA(), loadB()]);
     const entering: any[] = []; let stall = false;
     while (G.ct.status === 'ACTIVE') {
       entering.push({ n: G.ct.hunt, carry: JSON.parse(JSON.stringify(G.ct.carry)) });
       takeJob(0);
       const r = playOut(G.ct.huntSeed);
       shots.push(...G.shotLog); parts.push(...G.partLog); // R12
+      hunts.push(huntStats()); // R13
       if (r.outcome === 'STALL') { stall = true; break; }
       if (VERBOSE) console.log(`  C${c} H${G.ct.hunt} ${r.comp}: ${r.outcome} kills ${r.kills}/${r.units.length} | ` + Object.keys(G.ct.carry).map(k => k + ' ' + dmgWord(G.ct.carry[k])).join(', '));
       if (G.ct.status === 'ACTIVE') { rollJobs(); greedy(); }
@@ -124,11 +160,45 @@ function contracts(n: number) {
   const st = res.filter(r => r.status === 'STALL');
   console.log(st.length ? '  stalls over 80 rounds: ' + st.map(r => `contract ${r.c} H${r.reached}`).join(', ') : '  stalls over 80 rounds: none');
   hitReport(shots, parts);
+  soundReport(hunts);
+  last = { failed: res.filter(r => r.status === 'FAILED').length, complete: res.filter(r => r.status === 'COMPLETE').length, lost: hunts.reduce((a, h) => a + h.lost, 0), n: res.length };
   const h1 = res.filter(r => r.reached === 1).length;
   if (h1 >= res.length * 0.8) console.log('  FLAG: nearly every contract ends in hunt 1 (carry-over barely tested)');
   const anyCarried = res.some(r => r.entering.some((x: any) => x.n > 1 && Object.values(x.carry).some((m: any) => m.dead || m.hits < m.maxHits)));
   if (!anyCarried) console.log('  FLAG: nothing is ever carried (stakes are zero)');
   if (VERBOSE) for (const r of res) console.log(`    contract ${r.c}: ${r.status} ` + r.results.map((h: any) => `H${h.n} ${h.comp} ${h.outcome} ${h.kills}/${h.total} [${h.out.join(', ')}]`).join(' | '));
+}
+
+let last = { failed: 0, complete: 0, lost: 0, n: 0 }; // R13: the latest contracts() summary (--both compares two)
+// R13: this hunt's sound / emissions numbers (read right after the hunt ends)
+function huntStats() {
+  const P = G.firstLog.filter((f: any) => f.side === 'P'), E = G.firstLog.filter((f: any) => f.side === 'E');
+  const firstOnLance = E.length ? Math.min(...E.map((f: any) => f.turn)) : 0;
+  return { P, E, es: JSON.parse(JSON.stringify(G.emitStat)), firstOnLance,
+    heardLance: G.lance.reduce((a: number, m: any) => a + (m.heardN || 0), 0), heardField: G.units.reduce((a: number, u: any) => a + (u.heardN || 0), 0),
+    loudest: Math.max(0, ...G.lance.map((m: any) => m.loudest || 0)), sprints: G.lance.reduce((a: number, m: any) => a + (m.sprints || 0), 0),
+    alarms: G.alarmLog.length, allOn3, lost: G.lance.filter((m: any) => m.dead).length,
+    pack: G.units.reduce((a: any, u: any) => { for (const k of ['HUNT', 'SEARCH', 'LEASH']) a[k] += (u.packN && u.packN[k]) || 0; return a; }, { HUNT: 0, SEARCH: 0, LEASH: 0 }) };
+}
+function soundReport(H: any[]) {
+  const pc = (a: number, b: number) => b ? Math.round(100 * a / b) + '%' : '-';
+  for (const [side, name] of [['P', 'lance'], ['E', 'field']]) {
+    const F = H.flatMap(h => h[side]), snd = F.filter((f: any) => f.src === 'SOUND').length;
+    const by: Record<string, number> = {}; for (const f of F) by[f.src] = (by[f.src] || 0) + 1;
+    const es = H.reduce((a, h) => ({ n: a.n + h.es[side].n, sum: a.sum + h.es[side].sum }), { n: 0, sum: 0 });
+    console.log(`  SOUND ${name}: first contacts ${F.length}, by sound ${snd} (${pc(snd, F.length)}) [` + Object.entries(by).sort().map(([k, v]) => `${k} ${v}`).join(', ') + `] | avg EMIT at activation ${(es.sum / Math.max(1, es.n)).toFixed(1)}`);
+    if (F.length && !snd) console.log(`  FLAG: sound never made a first contact for the ${name}`);
+    if (F.length && snd > F.length / 2) console.log(`  FLAG: sound is more than half of the ${name}'s first contacts (drowning out the sensors)`);
+  }
+  const avg = (k: string) => (H.reduce((a, h) => a + h[k], 0) / Math.max(1, H.length)).toFixed(1);
+  const fol = H.filter(h => h.firstOnLance);
+  if (TUNE.PACK_ENABLED) {
+    const P = H.reduce((a, h) => ({ HUNT: a.HUNT + h.pack.HUNT, SEARCH: a.SEARCH + h.pack.SEARCH, LEASH: a.LEASH + h.pack.LEASH }), { HUNT: 0, SEARCH: 0, LEASH: 0 });
+    const n = P.HUNT + P.SEARCH + P.LEASH, on3 = H.filter(h => h.allOn3).length;
+    console.log(`  PACK per hunt: alarms ${(H.reduce((a, h) => a + h.alarms, 0) / Math.max(1, H.length)).toFixed(1)} | patrol activations HUNT ${pc(P.HUNT, n)}, SEARCH ${pc(P.SEARCH, n)}, LEASH ${pc(P.LEASH, n)} | whole field on the lance by round 3: ${on3}/${H.length} hunts (${pc(on3, H.length)})`);
+    if (H.length && on3 / H.length >= 0.75) console.log('  FLAG: the whole field is on the lance by round 3 in most hunts (the alarm is too strong)');
+  }
+  console.log(`  SOUND per hunt: field heard the lance ${avg('heardLance')}×, lance heard the field ${avg('heardField')}×, lance sprints ${avg('sprints')}, loudest ${avg('loudest')} | first contact on the lance, avg round ${(fol.reduce((a, h) => a + h.firstOnLance, 0) / Math.max(1, fol.length)).toFixed(1)}`);
 }
 
 // R12: to-hit and hit-location summary over every gun shot (both sides)
@@ -150,7 +220,12 @@ function hitReport(shots: any[], parts: any[]) {
   for (const [k, f] of [['cover', (r: any) => r.cover], ['moved', (r: any) => r.moved], ['range', (r: any) => r.range], ['sig', (r: any) => r.sig]] as any) if (!shots.some(f)) console.log(`  FLAG: factor ${k} never applied`);
 }
 
-if (CONTRACTS > 0) {
+if (CONTRACTS > 0 && BOTH) {
+  log0('######## NORMAL'); AUTO.loud = false; contracts(CONTRACTS); const a = last;
+  log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;
+  console.log(`== NORMAL vs LOUD: failed ${a.failed} vs ${b.failed} | complete ${a.complete} vs ${b.complete} | mechs lost ${a.lost} vs ${b.lost}`);
+  if (b.lost < a.lost * 1.15 && b.failed <= a.failed) console.log('  FLAG: --loud does not lose noticeably more than normal (getting loud still carries no risk)');
+} else if (CONTRACTS > 0) {
   contracts(CONTRACTS);
 } else if (ONE >= 0) {
   const r = playGame(ONE, COMP || undefined); console.log(JSON.stringify(r)); report(r.comp + ' seed ' + ONE, [r]);
@@ -164,4 +239,8 @@ if (CONTRACTS > 0) {
     for (const r of all) by[r.outcome] = (by[r.outcome] || 0) + 1;
     console.log(`== ALL: games ${all.length} | ` + Object.entries(by).map(([k, v]) => `${k} ${v}`).join(' | '));
   }
+}
+if (argv.includes('--check')) {
+  if (FLAGS.length) { log0(`CHECK FAILED: ${FLAGS.length} flag(s)`); (globalThis as any).process.exitCode = 1; }
+  else log0('CHECK OK: no flags');
 }

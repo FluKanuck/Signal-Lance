@@ -14,10 +14,10 @@ export const TUNE = {
   SLOTS: 10,            // loadout slots on the mech
   // --- signature (arbitrary units) ---
   SIG_STILL: 0.5,       // standing still
-  SIG_MOVE: 2.0,        // added while moving
-  SIG_CREEP: 0.4,       // added instead of SIG_MOVE while creeping
-  CREEP_SIG_MULT: 0.5,  // whole signature × this while creeping (R4 run6: creep = quieter, not silent)
-  SIG_FIRE: 6.0,        // added briefly after each shot
+  SIG_MOVE: 2.0,        // UNUSED from R13 (movement is Sound now, not a passive emission). Was: added while moving
+  SIG_CREEP: 0.4,       // UNUSED from R13. Was: added instead of SIG_MOVE while creeping
+  CREEP_SIG_MULT: 0.5,  // UNUSED from R13. Was: whole signature × this while creeping (R4 run6: creep = quieter, not silent)
+  SIG_FIRE: 6.0,        // UNUSED from R13 (the gun's firing spike is Sound now). Was: added briefly after each shot
   SIG_FIRE_TIME: 1.0,   // seconds the firing spike lasts
   SIG_RADAR: 12.0,      // added while radar is on
   SIG_ARMOUR: 1.0,      // added per armour plate
@@ -98,14 +98,33 @@ export const TUNE = {
   RADAR_PULSE_TIME: 0.6,// seconds of sim a radar pulse runs, radar on
   RADAR_HOLD: 1.6,      // seconds of sim a clear-LOS radar fix stays "tracked" (was 0.1)
   // --- Round 4 step 2: Signal (both mechs, same rules). Brief's SIG_* names → SIGNAL_* (SIG_RADAR is taken) ---
+  // R13: this pool is now EMISSIONS ("EMIT" on screen; unit.emit in code), electronic sources only (radar, ECM,
+  // uplink). The SIGNAL_* names are kept so the TWEAK LOG history still matches.
   SIGNAL_MAX: 100,      // Signal range 0..MAX
   SIGNAL_RADAR: 30,     // Signal added per radar pulse
   SIGNAL_ECM: 15,       // Signal added per turn while ECM is on (incl. the turn you switch it on)
-  SIGNAL_MOVE_PER_TILE: { CREEP: 0, NORMAL: 2, SPRINT: 5 }, // Signal added per tile moved
+  SIGNAL_MOVE_PER_TILE: { CREEP: 0, NORMAL: 0, SPRINT: 0 }, // UNUSED from R13 (all 0: movement is Sound now). Was CREEP 0, NORMAL 2, SPRINT 5 per tile
   SIGNAL_DECAY: 25,     // Signal lost at the start of the owner's turn
   SIGNAL_UNC_QUIET: 1.5,// others' fix uncertainty on you × this at Signal 0...
   SIGNAL_UNC_LOUD: 0.4, // ...× this at SIGNAL_MAX (linear in between)
   SIGNAL_EMIT: 0.05,    // emission added per Signal point: Signal carries to passive sensors, even standing still
+  // --- Round 13 step 1: Sound. Separate from Emissions: it never accumulates. Each unit has ONE sound radius, the
+  // loudest event of its current activation, cleared at the start of its next activation. Ignores walls. ---
+  SOUND_RANGE: {        // tiles; the radius each event is heard at (any unit of the other side inside gets a sound contact)
+    CREEP: 2,           // a creeping move
+    NORMAL: 6,          // a normal move
+    SPRINT: 9,          // a sprint: louder than walking, but doesn't carry as far as a gunshot
+    SHOT: 12,           // a gun shot
+    MORTAR: 14,         // a mortar launch
+  },
+  SOUND_UNC: 5,         // tiles; uncertainty of a sound contact (never enough for a gun lock or an aimed lob on its own)
+  // --- Round 13 step 2: the pack (alarm, converge, press the wound). Off unless the tester splash / runner --pack turns it on ---
+  PACK_ENABLED: false,  // master switch for everything below (the view sets it from the splash toggle)
+  ALARM_RADIUS_BASE: 8, // tiles; a field unit that senses a lance mech alerts every other field unit within this...
+  ALARM_RADIUS_EMIT: 8, // ...+ this × the mech's effective Emissions / SIGNAL_MAX (a loud mech pulls in units from further)
+  ALARM_UNC_ADD: 2,     // tiles; a shared contact = the alarming unit's estimate, this much fuzzier (never a lock)
+  PACK_SEARCH_ACTIVATIONS: 2, // a patrol whose contact faded searches its last estimate for this many of its activations
+  PACK_SPRINT_ON_WOUNDED: true, // a patrol SPRINTs (if it has the Energy) toward a target that is BADLY or worse, or has no LEGS
   // --- Round 5: uplink objective (player only uses UPLINK; the bot knows where it is) ---
   UPLINK_CANDIDATES: [  // hand-picked open street tiles {x, y} + the name INTEL uses; none in walled pockets
     { x: 15, y: 3,  name: 'NW lane' },
@@ -175,7 +194,7 @@ export const TUNE = {
   MORTAR_SCATTER_PER_UNC: 0.6, // ...impact lands at a seeded random point inside that circle around the fix centre
   MORTAR_SPLASH: 1,         // tiles; every unit (yours too) within this of the impact is damaged
   MORTAR_DMG: 1,            // armour plates of damage per splash (× ARMOUR_HITS = hits)
-  SIG_MORTAR: 30,           // Signal added to the firing mech per shot
+  SIG_MORTAR: 30,           // UNUSED from R13 (a mortar launch is Sound now: SOUND_RANGE.MORTAR). Was: Signal added to the firing mech per shot
   MORTAR_BLIND_UNC: 6,      // R9 run1: tiles; a blind lob (tapped map spot, no fix) scatters as if the fix were this fuzzy (≈4.1-tile circle)
   MORTAR_FLASH_UNC: 4,      // tiles; the targeted unit's flash contact on the firer (fuzzier than a gun's FLASH_UNC)
   // --- Round 10: signal terrain. Rolled zones change how a unit STANDING IN ONE is seen (both sides, same rules) ---

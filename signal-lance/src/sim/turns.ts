@@ -4,8 +4,9 @@ import { G, hooks, finishHunt, unitById, livingMechs, isMech, setActive } from '
 import { rand } from './rng.ts';
 import { updateSensors, cx, cy, killContact, muzzleFlash } from './sensors.ts';
 import { bestContact, enemyDecide } from './bot.ts';
-import { effSignal, zoneType } from './zones.ts';
+import { effEmit, zoneType } from './zones.ts';
 import { hitChance, rollPart, damagePart, partGone } from './combat.ts';
+import { makeSound, clearSound } from './sound.ts';
 
 // ============================ UPDATE ==================================
 export function moveAlong(m, speed, dt) {
@@ -89,9 +90,9 @@ export function step(dt) {
 // the shell lands. Only the acting mech moves; both sides' sensors run.
 export const MODE_SPEED = { CREEP: TUNE.CREEP_SPEED, NORMAL: TUNE.PLAYER_SPEED, SPRINT: TUNE.SPRINT_SPEED };
 export function canPay(m, ap, en) { return m.ap >= ap && m.en >= en; }
-export function addSignal(m, n) { m.signal = Math.max(0, Math.min(TUNE.SIGNAL_MAX, m.signal + n)); }
+export function addEmit(m, n) { m.emit = Math.max(0, Math.min(TUNE.SIGNAL_MAX, m.emit + n)); }
 // multiplier on the uncertainty of anyone's fix on mech m (loud = easier to pin down)
-export function signalUnc(m) { const k = effSignal(m) / TUNE.SIGNAL_MAX; // R10: QUIET reads Signal × SIG_MULT
+export function emitUnc(m) { const k = effEmit(m) / TUNE.SIGNAL_MAX; // R10: QUIET reads Signal × SIG_MULT
   return TUNE.SIGNAL_UNC_QUIET + (TUNE.SIGNAL_UNC_LOUD - TUNE.SIGNAL_UNC_QUIET) * k; }
 export function pay(m, ap, en) { m.ap -= ap; m.en -= en; }
 // One mech or field unit starts its own turn / activation: AP, Energy regen, Signal decay, ECM upkeep.
@@ -99,9 +100,11 @@ export function beginUnit(m) {
   m.ap = Math.min(TUNE.AP_BANK_MAX, m.ap + TUNE.AP_PER_TURN);
   m.en = Math.min(m.enMax, m.en + TUNE.ENERGY_REGEN);
   m.turnShots = 0; m.mUsed = 0; m.freeTurns = TUNE.FREE_TURNS; m.movedT = 0; // R12: "target moved" counts this activation's tiles
-  addSignal(m, -TUNE.SIGNAL_DECAY);
+  const es = G.emitStat[isMech(m) ? 'P' : 'E']; es.n++; es.sum += m.emit; // R13: Emissions at activation start (runner)
+  addEmit(m, -TUNE.SIGNAL_DECAY);
+  clearSound(m); // R13: last activation's sound is gone
   if (partGone(m, 'SENSORS')) m.mask = false; // R12: no ECM without sensors
-  if (m.mask) { if (canPay(m, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(m, TUNE.AP_ECM, TUNE.ECM_EN); addSignal(m, TUNE.SIGNAL_ECM); } else m.mask = false; }
+  if (m.mask) { if (canPay(m, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(m, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(m, TUNE.SIGNAL_ECM); } else m.mask = false; }
 }
 // ---- R7 s2: initiative. Each round every living unit rolls INIT_BASE[type] + 0..INIT_ROLL; higher first,
 // ties to the player (then list order). Each unit acts on its own activation; END TURN passes it on.
@@ -128,7 +131,7 @@ export function nextActivation() {
     hooks.activate();
   } else {
     G.phase = 'ENEMY'; G.ei = G.units.indexOf(m);
-    m.moved = m.pulsed = m.turned = false;
+    m.moved = m.pulsed = m.turned = m.packCounted = false;
     m.holdTurns = m.holding ? m.holdTurns + 1 : 0; m.holding = false;
     if (m.pulseCD > 0) m.pulseCD--;
     G.ewait = TUNE.ENEMY_ACT_PAUSE;
@@ -215,11 +218,11 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
   if (len < 0.25) return r;
   r.path = r.cut ? clipPath(full, len) : full; r.len = len;
   r.ap = Math.ceil(len / tpa - 1e-6); r.en = Math.ceil(len * ept - 1e-6);
-  r.sg = Math.round(len * TUNE.SIGNAL_MOVE_PER_TILE[mode]);
+  r.snd = TUNE.SOUND_RANGE[mode]; // R13: the sound radius this move will make (Emissions no longer rise with moves)
   return r;
 }
 export function doMove(m, pl) {
-  pay(m, pl.ap, pl.en); addSignal(m, pl.sg);
+  pay(m, pl.ap, pl.en); makeSound(m, pl.mode);
   m.path = pl.path; m.pi = 1; m.creep = pl.mode === 'CREEP';
   startAct({ k: 'MOVE', m, speed: MODE_SPEED[pl.mode] });
 }
@@ -229,7 +232,7 @@ export function replan() {
 }
 // ---- radar pulse ----
 export function doPulse(m, x, y) {
-  pay(m, TUNE.AP_RADAR, TUNE.RADAR_EN); addSignal(m, TUNE.SIGNAL_RADAR);
+  pay(m, TUNE.AP_RADAR, TUNE.RADAR_EN); addEmit(m, TUNE.SIGNAL_RADAR);
   if (x !== null && x !== undefined) faceTo(m, x, y);
   m.radarOn = true;
   startAct({ k: 'PULSE', m, t: TUNE.RADAR_PULSE_TIME });
@@ -243,7 +246,7 @@ export function shootBlock(m, c, uncMax, range) {
   if (m.turnShots >= TUNE.SHOTS_PER_TURN) return 'CAP';
   if (m.ap < TUNE.AP_SHOT) return 'AP';
   const x = cx(c), y = cy(c);
-  if (c.lost > c.gap || c.unc > uncMax * T) return 'FUZZY';
+  if (c.snd || c.shr || c.lost > c.gap || c.unc > uncMax * T) return 'FUZZY'; // R13: a sound-only or shared contact never locks
   if (Math.hypot(x - m.x, y - m.y) > range * T) return 'RANGE';
   if (tilesCrossed(m.x, m.y, x, y, 1) !== 0) return 'LOS';
   return '';
@@ -259,7 +262,7 @@ export function doShot(m, c) {
   let ax = cx(c), ay = cy(c);
   if (rec && rec.roll && tgt) { ax = tgt.x; ay = tgt.y; } // a rolled hit lands on the unit itself, so the shown % is the real chance
   else if (rec && !rec.roll) { const a = rand() * 6.2832, d = (TUNE.HIT_RADIUS + 0.4 + rand() * 0.6) * T; ax += Math.cos(a) * d; ay += Math.sin(a) * d; }
-  fire(m, ax, ay, rec);
+  fire(m, ax, ay, rec); makeSound(m, 'SHOT');
   if (rec) { G.shotLog.push(rec); G.lastShot[rec.mech ? 'P' : 'E'] = rec; }
   muzzleFlash(m, unitById(c.id)); // R7: the target sees where the shot came from
   startAct({ k: 'SHOT', m, t: 0.05 });
@@ -271,7 +274,7 @@ export function mortarBlock(m, c) {
   if (m.shells <= 0) return 'SHELLS';
   if (m.mUsed >= TUNE.MORTAR_PER_ACTIVATION) return 'CAP';
   if (m.ap < TUNE.AP_MORTAR) return 'AP';
-  if (c.unc > TUNE.MORTAR_MAX_UNC * T) return 'FUZZY';
+  if (c.snd || c.unc > TUNE.MORTAR_MAX_UNC * T) return 'FUZZY'; // R13: no aimed lob on a sound-only contact (blind lobs still work)
   const d = Math.hypot(cx(c) - m.x, cy(c) - m.y);
   if (d < TUNE.MORTAR_MIN_RANGE * T) return 'CLOSE';
   if (d > TUNE.MORTAR_MAX_RANGE * T) return 'RANGE';
@@ -301,7 +304,7 @@ export function doMortarBlind(m, x, y) { m.mBlind++; lob(m, x, y, (TUNE.MORTAR_S
 // a blind lob has none, so every field unit the splash hits gets the flash instead.
 function lob(m, ax, ay, r, target) {
   pay(m, TUNE.AP_MORTAR, 0); m.mUsed++; m.shells--; m.mShots++;
-  addSignal(m, TUNE.SIG_MORTAR); m.fireT = TUNE.SIG_FIRE_TIME; // loud: Signal, plus the firing spike passive sensors hear
+  makeSound(m, 'MORTAR'); m.fireT = TUNE.SIG_FIRE_TIME; // R13: loud as Sound (no Emissions); fireT is display only now
   const a = rand() * 6.2832, k = Math.sqrt(rand()) * r;
   const ix = ax + Math.cos(a) * k, iy = ay + Math.sin(a) * k, sp = TUNE.MORTAR_SPLASH * T, dmg = TUNE.MORTAR_DMG * TUNE.ARMOUR_HITS;
   let hit = false; const struck = [];
@@ -331,7 +334,7 @@ export function uplinkBlock() {
 }
 export function doUplink() {
   const p = G.p, U = G.up;
-  pay(p, TUNE.AP_UPLINK, 0); addSignal(p, TUNE.SIG_UPLINK); U.used = true; U.prog++;
+  pay(p, TUNE.AP_UPLINK, 0); addEmit(p, TUNE.SIG_UPLINK); U.used = true; U.prog++;
   if (U.prog >= TUNE.UPLINK_TURNS) { G.winBy = 'UPLINK'; finishHunt('WIN'); }
 }
 
@@ -344,14 +347,14 @@ export function cmdMove() { if (G.plan && G.plan.path) doMove(G.p, G.plan); }
 export function cmdUplink() { if (uplinkBlock() === '') doUplink(); }
 export function sensorsUp(m) { return !partGone(m, 'SENSORS'); } // R12: radar / ECM / ghost need sensors
 export function cmdRadar() {
-  if (!sensorsUp(G.p)) return;
+  if (!G.p.load.radar || !sensorsUp(G.p)) return; // R13: the module is needed (the view only hid the button)
   if (!canPay(G.p, TUNE.AP_RADAR, TUNE.RADAR_EN)) return;
   const c = G.sel && G.sel.on ? G.sel : null; // selected contact: turn to face it first
   doPulse(G.p, c ? cx(c) : null, c ? cy(c) : null);
 }
 export function cmdEcm() {
   if (G.p.mask) G.p.mask = false;
-  else if (sensorsUp(G.p) && canPay(G.p, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(G.p, TUNE.AP_ECM, TUNE.ECM_EN); addSignal(G.p, TUNE.SIGNAL_ECM); G.p.mask = true; }
+  else if (sensorsUp(G.p) && canPay(G.p, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(G.p, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(G.p, TUNE.SIGNAL_ECM); G.p.mask = true; }
 }
 export function canGhost() { return !G.ghost.on && sensorsUp(G.p) && canPay(G.p, TUNE.AP_ECM, TUNE.GHOST_COST); }
 export function cmdGhost(x, y) {

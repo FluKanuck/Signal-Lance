@@ -3,7 +3,7 @@ import { TUNE } from '../tune.ts';
 import { T, isSolid } from './world.ts';
 import { rand } from './rng.ts';
 import { G } from './state.ts';
-import { effSignal } from './zones.ts';
+import { effEmit } from './zones.ts';
 
 // ============================ PARTS ===================================
 // u.kind: 'MECH' or a FIELD_TYPES key. u.parts / u.pmax: hits left / at full, per part. u.hits stays the
@@ -83,7 +83,7 @@ export function inCover(sx, sy, tx, ty) {
 // Hit chance (%) for shooter on target unit, aimed at contact c's fix centre. Returns the parts of the sum too.
 export function hitChance(sh, tgt, c) {
   const rangeT = Math.hypot(c.tx - sh.x, c.ty - sh.y) / T;
-  const sig = TUNE.HIT_SIG_MAX * effSignal(tgt) / TUNE.SIGNAL_MAX;
+  const sig = TUNE.HIT_SIG_MAX * effEmit(tgt) / TUNE.SIGNAL_MAX;
   const range = -TUNE.HIT_RANGE_PER_TILE * Math.max(0, rangeT - TUNE.HIT_RANGE_FREE);
   const moved = -Math.min(TUNE.HIT_MOVED_MAX, TUNE.HIT_MOVED_PER_TILE * (tgt.movedT || 0));
   const cover = inCover(sh.x, sh.y, tgt.x, tgt.y) ? -TUNE.HIT_COVER : 0;

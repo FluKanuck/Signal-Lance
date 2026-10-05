@@ -5,7 +5,8 @@ import { uplinkBlock, upDist, shootBlock, playerTarget, mortarBlock, mortarBlind
 import { partsRead, hitText, PART_ABBR } from '../sim/combat.ts';
 import { unitById } from '../sim/state.ts';
 import { V } from './state.ts';
-import { zoneOf, effSignal } from '../sim/zones.ts';
+import { zoneOf, effEmit } from '../sim/zones.ts';
+import { soundRadius } from '../sim/sound.ts';
 
 // ============================ HUD =====================================
 export const $ = (id): any => document.getElementById(id);
@@ -37,17 +38,20 @@ export function updateHud(dt) {
   const pips = '<span id="ap">' + '●'.repeat(p.ap) + '○'.repeat(Math.max(0, TUNE.AP_BANK_MAX - p.ap)) + '</span>';
   $('hud').innerHTML = turn + '<br>AP ' + pips + '  (+' + TUNE.AP_PER_TURN + '/turn)' +
     '<br>EN <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.en / p.enMax) + '%"></div></span> ' + Math.round(p.en) + '/' + p.enMax + '  (+' + TUNE.ENERGY_REGEN + '/turn)' +
-    '<br>SIGNAL <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.signal / TUNE.SIGNAL_MAX) + '%;background:#f93"></div></span> ' + Math.round(p.signal) + '  (−' + TUNE.SIGNAL_DECAY + '/turn)' +
+    '<br>EMIT <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.emit / TUNE.SIGNAL_MAX) + '%;background:#f93"></div></span> ' + Math.round(p.emit) + '  (−' + TUNE.SIGNAL_DECAY + '/turn)' +
+      '  <b style="color:' + (p.sound ? '#e8f4ff' : '#778') + '">SOUND ' + (p.sound ? Math.round(soundRadius(p) * 10) / 10 : '–') + '</b>' + // R13: this activation's sound radius
+
     '<br><b>' + p.id + '</b> ' + partsRead(p) + (other ? '  <span style="color:#aab">' + other.id + ' ' + (other.dead ? 'destroyed' : partsRead(other)) + '</span>' : '') + // R12: per-part read
-    '<br>' + (G.load.ammo ? '  AMMO ' + p.ammo : '') + (G.load.mortar ? '  SHELLS ' + p.shells : '') + '  KILLS ' + G.kills + '/' + G.units.length + '  T ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  HEARD ~' + Math.round(heardRange(p)) + 't' : '  SILENT') + zoneHud(p) +
+    '<br>' + (G.load.ammo ? '  AMMO ' + p.ammo : '') + (G.load.mortar ? '  SHELLS ' + p.shells : '') + '  KILLS ' + G.kills + '/' + G.units.length + '  T ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  EMIT heard ~' + Math.round(heardRange(p)) + 't' : '  EMIT silent') + zoneHud(p) +
     (G.load.ecm ? '  ECM ' + (p.mask ? 'ON' : 'off') + (G.ghost.on ? '  GHOST ' + G.ghost.turns + 't' : '') : '') +
     oddsLine(p) + shotLine('P') + shotLine('E') +
     (G.splash ? '<br><b style="color:' + (G.splash.hit ? '#f63' : '#aaa') + '">SPLASH: ' + (G.splash.hit ? 'hit' : 'miss') + '</b>' : '') +
     '<br>UPLINK <span style="color:#fc3">' + '◆'.repeat(G.up.prog) + '◇'.repeat(Math.max(0, TUNE.UPLINK_TURNS - G.up.prog)) + '</span> ' + G.up.name +
       (uplinkBlock() !== 'RANGE' ? '  <b>IN RANGE</b>' : '  ' + Math.round(upDist(p)) + 't away') +
 
-    (V.dbg ? '<br>DBG ' + (G.ct ? 'ct ' + G.ct.seed + ' H' + G.ct.hunt + ' · hunt ' : '') + 'seed ' + G.seed + ' · ' + G.comp.NAME + '  ' + G.units.map(u => u.type.slice(0, 4) + (u.dead ? ' X' : ' ' + u.state + ' S' + Math.round(u.signal))).join(' | ') +
-      '<br>DBG zones ' + G.zones.map(z => z.type[0] + ':' + z.name).join(', ') + '  me eff S' + Math.round(effSignal(p)) +
+    (V.dbg ? '<br>DBG ' + (G.ct ? 'ct ' + G.ct.seed + ' H' + G.ct.hunt + ' · hunt ' : '') + 'seed ' + G.seed + ' · ' + G.comp.NAME + '  ' + G.units.map(u => u.type.slice(0, 4) + (u.dead ? ' X' : ' ' + u.state + (u.pack ? '/' + u.pack + (u.packTgt ? '→' + u.packTgt : '') : '') + ' E' + Math.round(u.emit) + ' snd' + Math.round(soundRadius(u)) + ' heard[' + u.ec.filter(c => c.on && (c.snd || c.shr)).map(c => c.id + (c.snd ? 's' : 'a')).join(',') + ']')).join(' | ') + // R13: EMIT, sound, sound(s)/alarm(a) contacts
+      '<br>DBG pack ' + (TUNE.PACK_ENABLED ? 'ON' : 'off') + ' · alarms ' + G.alarmLog.length + (G.alarmLog.length ? ' (last R' + G.alarmLog[G.alarmLog.length - 1].turn + ' ' + G.alarmLog[G.alarmLog.length - 1].from + '→' + G.alarmLog[G.alarmLog.length - 1].to.join(',') + ' on ' + G.alarmLog[G.alarmLog.length - 1].mech + ')' : '') + ' · lance snd ' + G.lance.map(m => m.id + Math.round(soundRadius(m))).join(' ') +
+      '<br>DBG zones ' + G.zones.map(z => z.type[0] + ':' + z.name).join(', ') + '  me eff S' + Math.round(effEmit(p)) +
       dbgShot('P') + dbgShot('E') +
       '<br>DBG sig ' + G.units.map(u => u.dead ? '-' : u.type[0] + sig(u).toFixed(1) + ' ' + detStrength(p, u).toFixed(2) + '/' + detStrength(u, p).toFixed(2)).join('  ') + '  (sig me→it/it→me)' : '');
 }
@@ -76,7 +80,7 @@ export function syncButtons() {
   // move modes + MOVE
   for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) {
     const lab = { CREEP: 'CREEP', NORMAL: 'NORM', SPRINT: 'SPRINT' }[m];
-    setBtn(id, lab, TUNE.MOVE_TILES_PER_AP[m] + 't/AP ' + TUNE.MOVE_ENERGY_PER_TILE[m] + 'EN/t', free, G.pmode === m);
+    setBtn(id, lab, TUNE.MOVE_TILES_PER_AP[m] + 't/AP ' + TUNE.MOVE_ENERGY_PER_TILE[m] + 'EN · snd ' + TUNE.SOUND_RANGE[m], free, G.pmode === m); // R13: the sound it makes
   }
   const pl = G.plan;
   if (V.faceArm) setBtn('bMove', 'CANCEL', 'face', free, true);
@@ -84,7 +88,7 @@ export function syncButtons() {
   // radar pulse
   $('bRadar').hidden = !G.load.radar;
   let w = costWhy(TUNE.AP_RADAR, TUNE.RADAR_EN);
-  setBtn('bRadar', 'RADAR', w || TUNE.AP_RADAR + 'AP ' + TUNE.RADAR_EN + 'EN +' + TUNE.SIGNAL_RADAR + 'S', free && !w);
+  setBtn('bRadar', 'RADAR', w || TUNE.AP_RADAR + 'AP ' + TUNE.RADAR_EN + 'EN +' + TUNE.SIGNAL_RADAR + 'EMIT', free && !w);
   // ECM + ghost
   $('bEcm').hidden = $('bGhost').hidden = !G.load.ecm;
   w = costWhy(TUNE.AP_ECM, TUNE.ECM_EN);
@@ -107,6 +111,6 @@ export function syncButtons() {
   setBtn('bEnd', 'END TURN', '', free);
   // Round 5: uplink
   w = G.mode === 'hunt' ? uplinkBlock() : 'RANGE';
-  setBtn('bUp', 'UPLINK', w || TUNE.AP_UPLINK + 'AP +' + TUNE.SIG_UPLINK + 'S', free && !w);
+  setBtn('bUp', 'UPLINK', w || TUNE.AP_UPLINK + 'AP +' + TUNE.SIG_UPLINK + 'EMIT', free && !w);
   hudT = 0;
 }

@@ -4,22 +4,24 @@ import { newContract, previewJob, takeJob, rollJobs, dmgWord, lanceText, contrac
 import { V } from './state.ts';
 import { $, fmtTime } from './hud.ts';
 import { partsRead, shotsText } from '../sim/combat.ts';
+import { soundText } from '../sim/sound.ts';
+import { setPack } from '../sim/pack.ts';
 import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r12-s1';  // cover tune kept on the same tag so logs survive
+export const BUILD = 'r13-s1';  // R13: Sound vs Emissions + the pack (behind the splash toggle)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
 // ============================ LOADOUT / RESULT / RUN LOG ==============
 export const MODS = [
   { k: 'armour',  name: 'Armour plate',  slots: 2, max: 5,  desc: '+3 hits · +1 signature' },
-  { k: 'radar',   name: 'Active radar',  slots: 2, max: 1,  desc: 'pulse ' + TUNE.AP_RADAR + ' AP + ' + TUNE.RADAR_EN + ' EN · cone, sees through 4 walls · very loud' },
+  { k: 'radar',   name: 'Active radar',  slots: 2, max: 1,  desc: 'pulse ' + TUNE.AP_RADAR + ' AP + ' + TUNE.RADAR_EN + ' EN · cone, sees through 4 walls · +' + TUNE.SIGNAL_RADAR + ' EMIT' },
   { k: 'passive', name: 'Passive suite', slots: 2, max: 1,  desc: 'bearing lines · cross two for a fix' },
   { k: 'ecm',     name: 'ECM pod',       slots: 2, max: 1,  desc: 'mask (' + TUNE.AP_ECM + ' AP + ' + TUNE.ECM_EN + ' EN a turn) or ghost · jams' },
-  { k: 'ammo',    name: 'Autocannon',    slots: 1, max: 10, desc: '10 rounds per slot · shots are loud' },
+  { k: 'ammo',    name: 'Autocannon',    slots: 1, max: 10, desc: '10 rounds per slot · a shot is heard ' + TUNE.SOUND_RANGE.SHOT + ' tiles away' },
   { k: 'cells',   name: 'Energy cell',   slots: 1, max: 10, desc: '+' + TUNE.ENERGY_CELL + ' Energy' },
-  { k: 'mortar',  name: 'Mortar',        slots: 1, max: 1,  desc: TUNE.MORTAR_SHELLS + ' shells · ' + TUNE.AP_MORTAR + ' AP · fires on a fix, no LoS · loud' }, // R9
+  { k: 'mortar',  name: 'Mortar',        slots: 1, max: 1,  desc: TUNE.MORTAR_SHELLS + ' shells · ' + TUNE.AP_MORTAR + ' AP · fires on a fix, no LoS · heard ' + TUNE.SOUND_RANGE.MORTAR + ' tiles away' }, // R9
 ];
 // localStorage wrapped: falls back to memory if unavailable
 export const store = {
@@ -88,7 +90,7 @@ export function zoneText() {
 }
 export function enemySummary() { return 'field ' + G.units.map(u => u.type[0] + (u.dead ? 'x' : '')).join(''); }
 function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
-export function killText() { return 'kills ' + G.kills + '/' + G.units.length + zoneText() + mortarText() + shotsText(); } // R12: shots/hits, parts lost
+export function killText() { return 'kills ' + G.kills + '/' + G.units.length + zoneText() + mortarText() + shotsText() + soundText(); } // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
 // R9: "· mortar 3/5 hits, 2 kills (A)" — shells that hit the field / shells fired, kills, who carried it
 export function mortarText() {
   const ms = G.lance.filter(m => m.load.mortar);
@@ -169,7 +171,7 @@ export function saveAndNext() {
 let ctN = store.get('signalLance.ctN', 0) | 0; // contract number for the log (C3)
 // " · +140 cr (bought A repair×2)" for this hunt's log line
 function huntCr() { const r = G.ct.results[G.ct.results.length - 1]; return r ? ' · +' + r.pay + ' cr' + (r.buys.length ? ' (bought ' + buysText(r.buys) + ')' : '') : ''; }
-function testerTag() { const t = store.get('signalLance.tester', ''); return t ? '[' + t + '] ' : ''; }
+function testerTag() { const t = store.get('signalLance.tester', ''); return (t ? '[' + t + '] ' : '') + (TUNE.PACK_ENABLED ? '[PACK] ' : ''); } // R13: pack runs are tagged
 function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + TUNE.CONTRACT_HUNTS + ' · ' : ''; }
 // "C3 COMPLETE 2/3 · lost B in H2"
 function contractLine() {
@@ -261,6 +263,10 @@ $('bSend2').addEventListener('click', sendLog);
 // Tester splash (every page load) and basics screen
 let basicsFrom = 'splash';
 $('tester').value = store.get('signalLance.tester', '');
+// R13 s2: the pack toggle (remembered; tags the log). OFF first: play Sound vs Emissions on its own, then turn it on.
+function showPack() { $('bPack').textContent = 'THE PACK: ' + (TUNE.PACK_ENABLED ? 'ON' : 'OFF'); $('bPack').classList.toggle('on', TUNE.PACK_ENABLED); }
+setPack(!!store.get('signalLance.pack', false)); showPack();
+$('bPack').addEventListener('click', () => { setPack(!TUNE.PACK_ENABLED); store.set('signalLance.pack', TUNE.PACK_ENABLED); showPack(); });
 $('tester').addEventListener('change', () => store.set('signalLance.tester', $('tester').value.trim()));
 $('bCont').addEventListener('click', () => { store.set('signalLance.tester', $('tester').value.trim()); $('tester').blur(); $('splash').hidden = true; });
 $('bBasics').addEventListener('click', () => { basicsFrom = 'splash'; $('splash').hidden = true; $('basics').hidden = false; $('basics').scrollTop = 0; });

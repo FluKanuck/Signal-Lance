@@ -6,7 +6,16 @@ import { bestContact } from '../sim/bot.ts';
 import { heardRange, canSee, cx, cy } from '../sim/sensors.ts';
 import { upDist, playerTarget, mortarBlock, mortarScatter } from '../sim/turns.ts';
 import { V } from './state.ts';
-import { zoneAtTile, effSignal, zoneType } from '../sim/zones.ts';
+import { zoneAtTile, effEmit, zoneType } from '../sim/zones.ts';
+import { soundRadius } from '../sim/sound.ts';
+
+// R13: a sound ring (pale, solid, with short ticks so it reads as "waves", not the dashed orange EMIT ring)
+function soundRing(x, y, r, z, alpha, label?) {
+  ctx.strokeStyle = 'rgba(232,244,255,' + alpha + ')'; ctx.lineWidth = 2 / z;
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.stroke();
+  ctx.beginPath(); for (let k = 0; k < 16; k++) { const a = k * 0.3927, c = Math.cos(a), s = Math.sin(a); ctx.moveTo(x + c * (r - 5 / z), y + s * (r - 5 / z)); ctx.lineTo(x + c * (r + 5 / z), y + s * (r + 5 / z)); } ctx.stroke();
+  if (label) { ctx.fillStyle = 'rgba(232,244,255,' + Math.min(1, alpha + 0.3) + ')'; ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText(label, x + r * 0.71 + 4 / z, y - r * 0.71 - 4 / z); }
+}
 
 // ============================ RENDER ==================================
 export const cv: any = document.getElementById('cv'), ctx = cv.getContext('2d');
@@ -84,7 +93,11 @@ export function render() {
       const q = pl.path[pl.path.length - 1];
       ctx.beginPath(); ctx.moveTo(q.x - 7, q.y - 7); ctx.lineTo(q.x + 7, q.y + 7); ctx.moveTo(q.x + 7, q.y - 7); ctx.lineTo(q.x - 7, q.y + 7); ctx.stroke();
       ctx.fillStyle = '#fff'; ctx.font = 'bold ' + (13 / z) + 'px monospace';
-      ctx.fillText(pl.ap + 'AP ' + pl.en + 'EN +' + pl.sg + 'S' + (pl.cut ? ' cut' : ''), q.x + 10, q.y - 10);
+      // R13: the sound this move will make, as a faint ring at the destination (QUIET ground there muffles it)
+      const sr = pl.snd * (zoneAtTile(Math.floor(q.x / T), Math.floor(q.y / T))?.type === 'QUIET' ? TUNE.ZONE_TYPES.QUIET.SIG_MULT : 1);
+      soundRing(q.x, q.y, sr * T, z, 0.22);
+      ctx.fillStyle = '#fff'; ctx.font = 'bold ' + (13 / z) + 'px monospace';
+      ctx.fillText(pl.ap + 'AP ' + pl.en + 'EN snd ' + Math.round(sr * 10) / 10 + (pl.cut ? ' cut' : ''), q.x + 10, q.y - 10);
     }
   }
   // path
@@ -102,7 +115,7 @@ export function render() {
     { const a0 = Math.atan2(e.fy, e.fx), h = TUNE.EYES_HALF_ANG * Math.PI / 180; // eyes arc
       ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.arc(e.x, e.y, TUNE.EYES_RANGE * T, a0 - h, a0 + h); ctx.closePath(); ctx.stroke(); ctx.globalAlpha = 1; }
     ctx.font = (12 / z) + 'px monospace';
-    ctx.fillText(e.type + ' ' + e.state + (e.radarOn ? ' RDR' : '') + ' h' + e.hits + ' a' + e.ammo + ' AP' + e.ap + ' EN' + Math.round(e.en) + ' SGN' + Math.round(e.signal) + (zoneType(e) ? ' ' + zoneType(e) + ' eff' + Math.round(effSignal(e)) + (zoneType(e) === 'QUIET' ? ' sig×' + TUNE.ZONE_TYPES.QUIET.SIG_MULT : ' unc×' + TUNE.ZONE_TYPES.NOISE.UNC_MULT + '≥' + TUNE.ZONE_TYPES.NOISE.UNC_FLOOR + 't') : ''), e.x + 14, e.y - 12);
+    ctx.fillText(e.type + ' ' + e.state + (e.radarOn ? ' RDR' : '') + ' h' + e.hits + ' a' + e.ammo + ' AP' + e.ap + ' EN' + Math.round(e.en) + ' EMIT' + Math.round(e.emit) + ' snd' + Math.round(soundRadius(e)) + (e.pack ? ' ' + e.pack + (e.packTgt ? '→' + e.packTgt : '') : '') + (zoneType(e) ? ' ' + zoneType(e) + ' eff' + Math.round(effEmit(e)) + (zoneType(e) === 'QUIET' ? ' sig×' + TUNE.ZONE_TYPES.QUIET.SIG_MULT : ' unc×' + TUNE.ZONE_TYPES.NOISE.UNC_MULT + '≥' + TUNE.ZONE_TYPES.NOISE.UNC_FLOOR + 't') : ''), e.x + 14, e.y - 12);
     ctx.globalAlpha = 0.3;
     for (const b of e.eb) if (b.on) { ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(b.ang) * 40 * T, b.y + Math.sin(b.ang) * 40 * T); ctx.stroke(); }
     ctx.globalAlpha = 1;
@@ -152,6 +165,16 @@ export function render() {
   for (const m of G.lance) if (m !== p && !m.dead) { const r = heardRange(m) * T; if (r > 0) { ctx.strokeStyle = 'rgba(255,150,50,0.2)'; ctx.lineWidth = 2 / z; ctx.setLineDash([8 / z, 6 / z]); ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]); } }
   const hr = p.dead ? 0 : heardRange(p) * T;
   if (hr > 0) { ctx.strokeStyle = 'rgba(255,150,50,0.45)'; ctx.lineWidth = 2 / z; ctx.setLineDash([8 / z, 6 / z]); ctx.beginPath(); ctx.arc(p.x, p.y, hr, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]); }
+  // R13: sound ring (this activation's sound; gone when it clears at the mech's next activation)
+  for (const m of G.lance) if (!m.dead && m.sound > 0) soundRing(m.x, m.y, soundRadius(m) * T, z, m === p ? 0.55 : 0.3, m.id + ' SOUND ' + Math.round(soundRadius(m) * 10) / 10);
+  // R13 s2 DBG: this round's alarms, a line from the alarming unit to each unit it alerted
+  if (V.dbg) for (const a of G.alarmLog) {
+    if (a.turn !== G.turn) continue;
+    const f = unitById(a.from); if (!f) continue;
+    ctx.strokeStyle = 'rgba(255,60,200,0.7)'; ctx.lineWidth = 2 / z; ctx.setLineDash([3 / z, 4 / z]);
+    for (const id of a.to) { const t = unitById(id); if (t) { ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(t.x, t.y); ctx.stroke(); } }
+    ctx.setLineDash([]);
+  }
   // radar cone (blue)
   for (const m of G.lance) if (m.radarOn) {
     const a0 = Math.atan2(m.fy, m.fx), h = TUNE.RADAR_HALF_ANG * Math.PI / 180;
@@ -186,7 +209,8 @@ export function render() {
       const u = unitById(c.id), seen = u && !G.lance.includes(u) && !u.dead && G.lance.some(m => !m.dead && canSee(m, u, TUNE.EYES_RANGE));
       let d = '';
       if (seen) d = partsRead(u); // R12: per-part read while seen
-      if (c.type) { ctx.fillStyle = '#fff'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText(c.type, x + 14, y + 4); }
+      const lab = c.type || (c.snd ? 'SOUND' : ''); // R13: a pure sound contact says so until eyes type it
+      if (lab) { ctx.fillStyle = c.type ? '#fff' : '#e8f4ff'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText(lab, x + 14, y + 4); }
       if (d) { ctx.fillStyle = '#fff'; ctx.font = (11 / z) + 'px monospace'; ctx.fillText(d, x + 14, y + 4 + 13 / z); }
     }
     if (G.sel === c) { ctx.strokeStyle = '#ff0'; ctx.lineWidth = 3 / z; ctx.strokeRect(x - 12, y - 12, 24, 24); }

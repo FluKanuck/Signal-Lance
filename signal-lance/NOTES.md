@@ -13,6 +13,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
 - `src/view/`: `render.ts` (canvas), `hud.ts` (HUD and buttons), `input.ts` (touch/mouse),
   `screens.ts` (loadout, result, run log, localStorage), `state.ts` (camera and other view-only state),
   `brief.ts` (tester splash, basics, end-of-hunt questions: update TEST + QUESTIONS every round).
+- R13: `src/sim/sound.ts` (Sound), `src/sim/pack.ts` (alarm, pack target), `src/sim/autoplay.ts` (the scripted
+  player, shared by the runner and the tests). `test/` holds the Vitest tests (`npm test`).
 - `src/main.ts`: wiring and the frame loop.
 - `npm run build` → `dist/signal-lance.html` (one self-contained file; republish it to the artifact).
 
@@ -467,6 +469,30 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Refit (step 1 only): REPAIR fixes the part missing the most hits (destroyed counts; ties go CORE, LEGS, WEAPON,
      SENSORS), still under REFIT_CAP on total hits. REBUILD splits the capped hit pool across parts the same way.
    - Runner: scripted mechs fall back to CREEP when legs are gone (without it they stood still and stalled).
+   R13 (Loud gets company) ASSUMPTIONS
+   - Emissions = the old Signal pool (unit.emit, "EMIT"); TUNE keeps the SIGNAL_* names so the tweak history matches.
+   - Passive sensors hear electronic emissions only (Jamie, 2026-10-05): sig() drops SIG_MOVE / SIG_CREEP / SIG_FIRE /
+     CREEP_SIG_MULT, and emitting() is radar on or EMIT > 0. Footsteps and gunfire are Sound.
+   - Sound timing: one radius per unit, the loudest event of its current activation (never a sum), cleared at the start
+     of that unit's next activation, so everyone else gets exactly one round to hear it. A move's sound is set at its
+     start, by its mode.
+   - Sound ignores walls. Hearing is continuous while the sound lasts: a listener inside the radius keeps a contact at
+     the sounder's true position + one offset rolled when the sound grows (held, so it doesn't jitter), SOUND_UNC wide.
+   - A sound contact never loosens a better live fix (eyes / radar / tighter cross-fix). It is flagged c.snd and can
+     never lock a gun or an aimed lob, even if its circle shrank (explicit, not just via SOUND_UNC > the lock limits).
+   - QUIET multiplies the sounder's radius by ZONE_TYPES.QUIET.SIG_MULT where it stands now; the move preview uses the
+     destination's zone. NOISE fuzzes sound contacts on a unit inside, as for any non-eyes fix.
+   - Contacts record the sense that made them (src); every new contact goes in G.firstLog for the runner.
+   - cmdRadar now needs the radar module in the sim (before, only the view hid the button).
+   - Pack: a field unit's OWN fix on a mech (EYES, RADAR, PASSIVE, SOUND, FLASH) alerts other field units within
+     ALARM_RADIUS of the alarming unit. No relay: shared (ALARM) contacts never raise alarms. Shared contacts never lock
+     (c.shr), never loosen a better own fix, and don't get NOISE applied twice.
+   - Alarms counted once per (alarming unit, mech) per round (log line, runner).
+   - Pack target pick: pickPackTarget() (most parts destroyed, then fewest CORE hits, ties nearest). A patrol also
+     shoots its pack target first when it can lock it, else its best contact as before.
+   - HUNT keeps the usual HOLD patience for a healthy target in HOLD_DIST; a wounded target (BADLY or LEGS gone) gets no
+     patience. SEARCH ends early when the patrol reaches the estimate.
+   - The pack is a splash toggle (localStorage signalLance.pack), OFF by default; pack runs are tagged [PACK] in the log.
 ```
 
 ## TWEAK LOG
@@ -721,4 +747,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            overall hit 48% → 59%). Round wrapped right after; untested | not rated
    round12 END | wrapped after 1 contract (3 hunts), step 2 not started. AI parked (see report): hurt mech in a dead end,
            3 patrols alive, none followed; a shot patrol kept walking (its WPN had just been destroyed) | - | -
+   round13 build | R12: "enemies felt dumb", "no risk in having high signal", sprint noise stacks and lingers | NEW
+           Signal split: Emissions (electronic only; SIGNAL_MOVE_PER_TILE all 0, SIG_MORTAR / SIG_MOVE / SIG_CREEP /
+           SIG_FIRE / CREEP_SIG_MULT unused) + Sound (SOUND_RANGE CREEP 2, NORMAL 6, SPRINT 9, SHOT 12, MORTAR 14;
+           SOUND_UNC 5). Pack behind PACK_ENABLED (ALARM_RADIUS_BASE 8, ALARM_RADIUS_EMIT 8, ALARM_UNC_ADD 2,
+           PACK_SEARCH_ACTIVATIONS 2, PACK_SPRINT_ON_WOUNDED true). Runner (20 contracts, pack off): field first contacts
+           by sound 70% (FLAG > 50%); NORMAL 4 / SPRINT 7 gives 48%. Not changed yet, Jamie to decide. BUILD r13-s1 | -
 ```

@@ -46,6 +46,6 @@ export function zoneAtTile(tx, ty) { if (tx < 0 || ty < 0 || tx >= W) return nul
 export function zoneOf(m) { return m ? zoneAtTile(Math.floor(m.x / T), Math.floor(m.y / T)) : null; }
 export function zoneType(m) { const z = zoneOf(m); return z ? z.type : ''; }
 // QUIET: the Signal others read off this unit (its own bar keeps the true value).
-export function effSignal(m) { return (m.signal || 0) * (zoneType(m) === 'QUIET' ? TUNE.ZONE_TYPES.QUIET.SIG_MULT : 1); }
+export function effEmit(m) { return (m.emit || 0) * (zoneType(m) === 'QUIET' ? TUNE.ZONE_TYPES.QUIET.SIG_MULT : 1); }
 // NOISE: uncertainty of any non-eyes fix on this unit (world units in → world units out).
 export function noiseUnc(m, u) { const Z = TUNE.ZONE_TYPES.NOISE; return zoneType(m) === 'NOISE' ? Math.max(u * Z.UNC_MULT, Z.UNC_FLOOR * T) : u; }

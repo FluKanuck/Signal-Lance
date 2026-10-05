@@ -2,17 +2,19 @@ import { TUNE } from '../tune.ts';
 import { T, tilesCrossed } from './world.ts';
 import { rand } from './rng.ts';
 import { G, hooks, unitById } from './state.ts';
-import { signalUnc } from './turns.ts';
-import { effSignal, noiseUnc, zoneType } from './zones.ts';
+import { emitUnc } from './turns.ts';
+import { effEmit, noiseUnc, zoneType } from './zones.ts';
 import { eyesRange } from './combat.ts';
+import { hearSounds } from './sound.ts';
+import { raiseAlarm } from './pack.ts';
 
 // ============================ SIGNATURE / DETECTION ===================
+// R13: electronic only. Moving and firing no longer reach passive sensors (they make Sound instead, see sound.ts).
 export function sig(m) {
-  return (TUNE.SIG_STILL + (m.moving ? (m.creep ? TUNE.SIG_CREEP : TUNE.SIG_MOVE) : 0) + (m.fireT > 0 ? TUNE.SIG_FIRE : 0) +
-          (m.radarOn ? TUNE.SIG_RADAR : 0) + m.armour * TUNE.SIG_ARMOUR + effSignal(m) * TUNE.SIGNAL_EMIT) * (m.mask ? TUNE.ECM_MASK_MULT : 1) * (m.moving && m.creep ? TUNE.CREEP_SIG_MULT : 1);
+  return (TUNE.SIG_STILL + (m.radarOn ? TUNE.SIG_RADAR : 0) + m.armour * TUNE.SIG_ARMOUR + effEmit(m) * TUNE.SIGNAL_EMIT) * (m.mask ? TUNE.ECM_MASK_MULT : 1);
 }
-// Passive sensors hear a mech that is moving, firing, pulsing radar, or still carrying Signal.
-export function emitting(m) { return m.moving || m.fireT > 0 || m.radarOn || effSignal(m) > 0; } // R10: QUIET reads Signal × SIG_MULT
+// Passive sensors hear a unit pulsing radar or still carrying Emissions (R13: not moving or firing any more).
+export function emitting(m) { return m.radarOn || effEmit(m) > 0; } // R10: QUIET reads Emissions × SIG_MULT
 // Open-ground range (tiles) at which passive hears m right now, standing still (0 = silent).
 export function heardRange(m) { const s = emitting(m) ? sig(m) : 0; return s > TUNE.DET_THRESH ? TUNE.DET_FALLOFF * Math.sqrt(s / TUNE.DET_THRESH - 1) : 0; }
 export function jamSig(m) { return m.jamming ? TUNE.SIG_JAM : 0; }
@@ -44,12 +46,13 @@ export function inRadar(o, m) {
 // A fix on source `id` at (x,y), velocity (vx,vy), best-case uncertainty measU (world units).
 // exact (eyes/radar): snaps to the fix. Otherwise (triangulation): blends toward it and
 // the circle shrinks toward measU while fixes keep coming.
-export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?) {
+// src (R13): which sense made this fix: EYES, RADAR, PASSIVE, FLASH, SOUND, GHOST (first-contact stats; c.snd).
+export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, src = '') {
   const tgt = unitById(id); // Signal: a loud target is pinned down tighter (not the ghost)
-  if (tgt && !noSignal) measU *= signalUnc(tgt);
+  if (tgt && !noSignal) measU *= emitUnc(tgt);
   // R10 NOISE: any fix on a unit standing in noise, except eyes, is fuzzier (× UNC_MULT, floor UNC_FLOOR) and its
   // centre carries a real error inside that circle (held RADAR_JIT_TIME, so a fix doesn't jump every frame).
-  if (tgt && !eyes && zoneType(tgt) === 'NOISE') {
+  if (tgt && !eyes && src !== 'ALARM' && zoneType(tgt) === 'NOISE') { // R13: a shared contact already carries the alarmer's noise
     measU = noiseUnc(tgt, measU);
     const j = tgt.njit || (tgt.njit = { x: 0, y: 0, at: -1e9 });
     if (G.time - j.at >= TUNE.RADAR_JIT_TIME || j.at > G.time) { const a = rand() * 6.2832, r = 0.7 * Math.sqrt(rand()); j.x = Math.cos(a) * r; j.y = Math.sin(a) * r; j.at = G.time; }
@@ -60,10 +63,14 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?) 
   if (!c) {
     if (!free) return null;
     c = free; c.on = true; c.id = id; c.dmg = ''; c.type = ''; c.unc = Math.max(TUNE.UNC_ACQUIRE * T, measU); c.tx = x; c.ty = y;
+    G.firstLog.push({ side: list === G.pc ? 'P' : 'E', src, turn: G.turn }); // R13: every new contact and the sense that made it (runner)
   }
+  c.snd = src === 'SOUND'; // R13: true while the latest fix is sound only (never a lock; "SOUND" label)
+  c.shr = src === 'ALARM';  // R13 s2: true while the latest fix is a shared alarm contact (never a lock)
   if (exact) { c.unc = measU; c.tx = x; c.ty = y; }
   else { c.tx += (x - c.tx) * TUNE.TRI_BLEND; c.ty += (y - c.ty) * TUNE.TRI_BLEND; }
   c.vx = vx; c.vy = vy; c.minU = measU; c.lost = 0; c.gap = exact ? 0.1 : TUNE.TRACK_GAP;
+  raiseAlarm(list, c, src); // R13 s2: no-op unless the pack is on and this is a field unit's own fix on a mech
   return c;
 }
 export function ageContacts(list, dt) {
@@ -103,7 +110,7 @@ export function addBearing(pool, o, m, list, id, tri) {
   }
   if (best > 0) {
     const u = Math.max(TUNE.TRI_UNC_MIN * T, dist * Math.tan(TUNE.BEARING_ERR * Math.PI / 180) * 2 / best);
-    observe(list, id, ix, iy, u, 0, 0, false);
+    observe(list, id, ix, iy, u, 0, 0, false, false, false, 'PASSIVE');
   }
 }
 export function ageBearings(pool, dt) { for (const b of pool) if (b.on && (b.age += dt) > TUNE.BEARING_LIFE) b.on = false; }
@@ -112,14 +119,14 @@ export function ageBearings(pool, dt) { for (const b of pool) if (b.on && (b.age
 // Radar fix on m: exact with clear LOS, fuzzy (with a real, re-rolling error) through walls.
 export function radarFix(o, m, list, id, jit, vx, vy, dt) {
   const w = inRadar(o, m);
-  if (w === 0) { const c = observe(list, id, m.x, m.y, TUNE.RADAR_UNC * T, vx, vy, true); if (c) c.gap = TUNE.RADAR_HOLD; }
+  if (w === 0) { const c = observe(list, id, m.x, m.y, TUNE.RADAR_UNC * T, vx, vy, true, false, false, 'RADAR'); if (c) c.gap = TUNE.RADAR_HOLD; }
   else if (w > 0) {
     if ((jit.t -= dt) <= 0) {
       const a = rand() * 6.2832, r = 0.7 * Math.sqrt(rand());
       jit.x = Math.cos(a) * r; jit.y = Math.sin(a) * r; jit.t = TUNE.RADAR_JIT_TIME;
     }
     const u = (TUNE.RADAR_UNC + w * TUNE.RADAR_WALL_UNC) * T;
-    observe(list, id, m.x + jit.x * u, m.y + jit.y * u, u, vx, vy, false);
+    observe(list, id, m.x + jit.x * u, m.y + jit.y * u, u, vx, vy, false, false, false, 'RADAR');
   }
 }
 // R7: the player senses every living field unit; every field unit senses the player (+ ghost) on its own.
@@ -137,7 +144,7 @@ export function updateSensors(dt) {
     // ---- the lance senses this unit (one shared contact picture) ----
     const v = e.moving ? e.spd * T : 0;
     for (const p of mechs) {
-      if (canSee(p, e, eyesRange(p))) { const c = observe(G.pc, e.id, e.x, e.y, TUNE.UNC_EYES * T, e.fx * v, e.fy * v, true, false, true); if (c) c.type = e.type; } // R7 run1: eyes identify the type
+      if (canSee(p, e, eyesRange(p))) { const c = observe(G.pc, e.id, e.x, e.y, TUNE.UNC_EYES * T, e.fx * v, e.fy * v, true, false, true, 'EYES'); if (c) c.type = e.type; } // R7 run1: eyes identify the type
       else if (p.radarOn) radarFix(p, e, G.pc, e.id, e.pjit, e.fx * v, e.fy * v, dt);
       if (p.tick) {
         const s = emitting(e) ? sig(e) : 0;
@@ -150,7 +157,7 @@ export function updateSensors(dt) {
     if (tick) e.bearT = TUNE.BEARING_EVERY;
     for (const p of mechs) {
       const pv = p.moving ? p.spd * T : 0;
-      if (canSee(e, p, eyesRange(e))) observe(e.ec, p.id, p.x, p.y, TUNE.UNC_EYES * T, p.fx * pv, p.fy * pv, true, false, true);
+      if (canSee(e, p, eyesRange(e))) observe(e.ec, p.id, p.x, p.y, TUNE.UNC_EYES * T, p.fx * pv, p.fy * pv, true, false, true, 'EYES');
       else if (e.radarOn) radarFix(e, p, e.ec, p.id, e.ejit, p.fx * pv, p.fy * pv, dt);
       const radarNew = p.radarOn && !(e.heard && e.heard[p.id]);
       (e.heard || (e.heard = {}))[p.id] = p.radarOn;
@@ -163,10 +170,11 @@ export function updateSensors(dt) {
     if (g.on) {
       // radar is fooled by the ghost; only a unit's own eyes expose it
       if (canSee(e, g, eyesRange(e))) { g.on = false; for (const u of G.units) killContact(u.ec, 'G'); hooks.sync(); }
-      else observe(e.ec, 'G', g.x, g.y, TUNE.GHOST_UNC * T, 0, 0, false);
+      else observe(e.ec, 'G', g.x, g.y, TUNE.GHOST_UNC * T, 0, 0, false, false, false, 'GHOST');
     }
     ageBearings(e.eb, dt); ageContacts(e.ec, dt);
   }
+  hearSounds(); // R13: sound contacts, both sides
   ageBearings(G.pb, dt); ageContacts(G.pc, dt);
   for (const c of G.pc) if (c.on) { const u = unitById(c.id); if (u) { if (!u.found) u.foundTurn = G.turn; u.found = true; } } // R10: first round found (runner)
 }
@@ -176,6 +184,6 @@ export function muzzleFlash(shooter, target, uncTiles = TUNE.FLASH_UNC) { // R9:
   if (!target || target.dead) return;
   const list = G.lance.includes(target) ? G.pc : target.ec, u = uncTiles * T;
   const a = rand() * 6.2832, r = 0.7 * Math.sqrt(rand());
-  observe(list, shooter.id, shooter.x + Math.cos(a) * r * u, shooter.y + Math.sin(a) * r * u, u, 0, 0, true, true);
+  observe(list, shooter.id, shooter.x + Math.cos(a) * r * u, shooter.y + Math.sin(a) * r * u, u, 0, 0, true, true, false, 'FLASH');
 }
 export function killContact(list, id) { for (const c of list) if (c.on && c.id === id) c.on = false; }

@@ -40,6 +40,9 @@ export const G: any = {
   up: { x: 0, y: 0, name: '', prog: 0, used: false }, winBy: '',   // Round 5: this run's uplink point (world coords), progress, used this turn; WIN reason
   zones: [],        // R10: this run's rolled signal terrain (see zones.ts)
   ct: null,         // R11: the running contract (see contract.ts)
+  emitStat: { P: { n: 0, sum: 0 }, E: { n: 0, sum: 0 } }, // R13: Emissions sampled at each activation start, per side (runner)
+  alarmLog: [], // R13 s2: every alarm { from, to: [ids], mech, turn, t } (log line, DBG lines, runner)
+  firstLog: [], // R13: every new contact { side 'P'|'E', src (the sense), turn } (runner)
   shotLog: [], partLog: [], lastShot: { P: null, E: null }, // R12: every gun shot (runner/log), parts destroyed, last shot per side (DBG)
   seed: 1, // R6: this run's RNG seed (shown in DBG for replay in the runner)
 };
@@ -51,8 +54,9 @@ function makeUnit(type: string, i: number) {
   const F = TUNE.FIELD_TYPES[type];
   const u: any = {
     id: 'U' + i, type, ft: F, x: 0, y: 0, fx: 1, fy: 0, path: null, pi: 0, moving: false, spd: 0, creep: false,
-    armour: F.ARMOUR, hits: 0, maxHits: 0, ammo: F.AMMO, en: 0, enMax: 0, ap: 0, turnShots: 0, freeTurns: 0, signal: 0,
+    armour: F.ARMOUR, hits: 0, maxHits: 0, ammo: F.AMMO, en: 0, enMax: 0, ap: 0, turnShots: 0, freeTurns: 0, emit: 0,
     radarOn: false, mask: false, jamming: false, fireT: 0, dead: false, shots: 0, landed: 0,
+    sound: 0, heardBy: [], sndOff: { x: 0, y: 0 }, // R13: this activation's sound radius (see sound.ts)
     hasRadar: F.RADAR, passive: F.PASSIVE, hasEcm: 0, mobile: F.MOBILE,
     state: F.MOBILE ? 'PATROL' : 'WATCH', pulseCD: 0, tgtX: 0, tgtY: 0, ptx: -1, pty: -1, gx: 0, gy: 0,
     moved: false, pulsed: false, holding: false, holdTurns: 0, patienceTurns: 0, goalX: -1, goalY: -1, goalK: '',
@@ -69,7 +73,8 @@ export function isMech(m) { return G.lance.includes(m); }
 export function setActive(m) { G.p = m; G.load = m.load; }
 function makeMech(id: string, load) {
   const m: any = { id, load: { ...load }, x: 0, y: 0, fx: 1, fy: 0, path: null, pi: 0, moving: false, spd: 0, creep: false,
-    radarOn: false, mask: false, jamming: false, fireT: 0, dead: false, shots: 0, landed: 0, ap: 0, turnShots: 0, freeTurns: 0, signal: 0, bearT: 0 };
+    radarOn: false, mask: false, jamming: false, fireT: 0, dead: false, shots: 0, landed: 0, ap: 0, turnShots: 0, freeTurns: 0, emit: 0, bearT: 0,
+    sound: 0, heardBy: [], sndOff: { x: 0, y: 0 } }; // R13: this activation's sound radius (see sound.ts)
   m.armour = load.armour; initParts(m, 'MECH', TUNE.PLAYER_HITS + load.armour * TUNE.ARMOUR_HITS); // R12: parts
   m.ammo = load.ammo * TUNE.AMMO_PER_SLOT;
   // R9 mortar: shells left, shots this activation, and stats (shots, hits on the field, kills, friendly hits)
@@ -160,7 +165,7 @@ export function newHunt(loads?, prep?: () => void) {
   G.sel = null; G.splash = null; // R9: last mortar splash (view shows it briefly)
   G.act = null; G.turn = 1; G.planT = null; G.plan = null;
   G.time = 0;
-  G.shotLog = []; G.partLog = []; G.lastShot = { P: null, E: null };
+  G.shotLog = []; G.partLog = []; G.firstLog = []; G.alarmLog = []; G.emitStat = { P: { n: 0, sum: 0 }, E: { n: 0, sum: 0 } }; G.lastShot = { P: null, E: null };
   G.mode = 'hunt';
   if (prep) prep();
   startRound();
