@@ -17,6 +17,7 @@ import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
 import { playOut as autoPlayOut, AUTO } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
+import { idTick, idSummary } from '../src/sim/ids.ts';
 import { scenarioByName, startScenario, leaveScenario, SCENARIOS } from '../src/sim/scenarios.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
@@ -164,6 +165,7 @@ function contracts(n: number) {
   console.log(st.length ? '  stalls over 80 rounds: ' + st.map(r => `contract ${r.c} H${r.reached}`).join(', ') : '  stalls over 80 rounds: none');
   hitReport(shots, parts);
   soundReport(hunts);
+  idReport(hunts);
   last = { failed: res.filter(r => r.status === 'FAILED').length, complete: res.filter(r => r.status === 'COMPLETE').length, lost: hunts.reduce((a, h) => a + h.lost, 0), n: res.length };
   const h1 = res.filter(r => r.reached === 1).length;
   if (h1 >= res.length * 0.8) console.log('  FLAG: nearly every contract ends in hunt 1 (carry-over barely tested)');
@@ -180,6 +182,7 @@ function huntStats() {
   return { P, E, es: JSON.parse(JSON.stringify(G.emitStat)), firstOnLance,
     heardLance: G.lance.reduce((a: number, m: any) => a + (m.heardN || 0), 0), heardField: G.units.reduce((a: number, u: any) => a + (u.heardN || 0), 0),
     loudest: Math.max(0, ...G.lance.map((m: any) => m.loudest || 0)), sprints: G.lance.reduce((a: number, m: any) => a + (m.sprints || 0), 0),
+    ids: (idTick(false), idSummary()), // R14: per field unit: read? narrowed? ID'd, right, before eyes
     alarms: G.alarmLog.length, allOn3, lost: G.lance.filter((m: any) => m.dead).length,
     pack: G.units.reduce((a: any, u: any) => { for (const k of ['HUNT', 'SEARCH', 'LEASH']) a[k] += (u.packN && u.packN[k]) || 0; return a; }, { HUNT: 0, SEARCH: 0, LEASH: 0 }) };
 }
@@ -204,6 +207,17 @@ function soundReport(H: any[]) {
   console.log(`  SOUND per hunt: field heard the lance ${avg('heardLance')}×, lance heard the field ${avg('heardField')}×, lance sprints ${avg('sprints')}, loudest ${avg('loudest')} | first contact on the lance, avg round ${(fol.reduce((a, h) => a + h.firstOnLance, 0) / Math.max(1, fol.length)).toFixed(1)}`);
 }
 
+// R14: reading the signature. Over every field unit the lance ever had a contact on.
+function idReport(H: any[]) {
+  const U = H.flatMap(h => h.ids).filter((u: any) => u.contacted || u.read), pc = (a: number, b: number) => b ? Math.round(100 * a / b) + '%' : '-';
+  const read = U.filter((u: any) => u.read), one = read.filter((u: any) => u.firstN === 1), narrowed = read.filter((u: any) => u.single >= 0);
+  const ids = U.filter((u: any) => u.id), right = ids.filter((u: any) => u.right), pre = ids.filter((u: any) => u.beforeEyes);
+  const avgR = narrowed.length ? (narrowed.reduce((a: number, u: any) => a + u.single, 0) / narrowed.length).toFixed(1) : '-';
+  console.log(`  ID: contacts ${U.length}, with a reading ${read.length} | ID'd before eyes ${pre.length}/${U.length} (${pc(pre.length, U.length)}) | right ${right.length}/${ids.length} (${pc(right.length, ids.length)}), wrong ${ids.length - right.length}`);
+  console.log(`  ID: narrowed to one variant ${narrowed.length}/${read.length} (${pc(narrowed.length, read.length)}), from the first reading ${one.length} (${pc(one.length, read.length)}) | avg rounds from first reading to one variant ${avgR}`);
+  if (read.length && one.length / read.length > 0.8) console.log('  FLAG: more than 80% of contacts narrow to one variant from the first reading (too easy)');
+  if (read.length && narrowed.length / read.length < 0.2) console.log('  FLAG: fewer than 20% of contacts ever narrow to one variant (unreadable)');
+}
 // R12: to-hit and hit-location summary over every gun shot (both sides)
 function hitReport(shots: any[], parts: any[]) {
   const pc = (L: any[]) => L.length ? `${L.filter(r => r.hit).length}/${L.length} (${Math.round(100 * L.filter(r => r.hit).length / L.length)}%)` : 'none';
@@ -233,7 +247,7 @@ function scenarioRuns(name: string, n: number) {
     allOn3 = false;
     autoPlayOut(MAX_TURNS, (t, who) => { if (VERBOSE) verboseLine(t, who); });
     const h = huntStats();
-    res.push({ seed: s0.seed + i, outcome: G.mode === 'hunt' ? 'STALL' : G.outcome, turns: G.turn, kills: G.kills, n: G.units.length, ...h });
+    res.push({ seed: s0.seed + i, mt: G.lance.reduce((a: number, m: any) => a + m.mShots, 0), mh: G.lance.reduce((a: number, m: any) => a + m.mHits, 0), outcome: G.mode === 'hunt' ? 'STALL' : G.outcome, turns: G.turn, kills: G.kills, n: G.units.length, ...h });
     leaveScenario();
   }
   const by: Record<string, number> = {}; for (const r of res) by[r.outcome] = (by[r.outcome] || 0) + 1;
@@ -242,6 +256,8 @@ function scenarioRuns(name: string, n: number) {
   console.log(`  avg rounds ${avg('turns')} · kills ${avg('kills')}/${res[0].n} · mechs lost ${avg('lost')} · field heard the lance ${avg('heardLance')}x · alarms ${avg('alarms')} · first contact on the lance R${avg('firstOnLance')} · sprints ${avg('sprints')}`);
   const src: Record<string, number> = {}; // the sense behind each hunt's first field contact on the lance
   for (const r of res) { const f = r.E.slice().sort((a: any, b: any) => a.turn - b.turn)[0]; if (f) src[f.src] = (src[f.src] || 0) + 1; }
+  const I = res.flatMap(r => r.ids), idd = I.filter((u: any) => u.id);
+  console.log(`  ID: units read ${I.filter((u: any) => u.read).length}/${I.length}, narrowed to one ${I.filter((u: any) => u.single >= 0).length}, ID'd ${idd.length} (right ${idd.filter((u: any) => u.right).length}, before eyes ${idd.filter((u: any) => u.beforeEyes).length}) | mortar ${res.reduce((a, r) => a + r.mt, 0)} shots, ${res.reduce((a, r) => a + r.mh, 0)} hits`);
   console.log('  field found the lance first by: ' + (Object.entries(src).map(([k, v]) => `${k} ${v}`).join(', ') || 'never'));
   if (res.some(r => r.outcome === 'STALL')) console.log('  WARNING: stalls ' + res.filter(r => r.outcome === 'STALL').map(r => 'seed ' + r.seed).join(', '));
   if (VERBOSE) for (const r of res) console.log(`    seed ${r.seed}: ${r.outcome} in ${r.turns} rounds, kills ${r.kills}, lost ${r.lost}, alarms ${r.alarms}`);

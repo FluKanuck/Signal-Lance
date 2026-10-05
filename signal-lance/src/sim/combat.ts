@@ -4,6 +4,7 @@ import { T, isSolid } from './world.ts';
 import { rand } from './rng.ts';
 import { G } from './state.ts';
 import { effEmit } from './zones.ts';
+import { idBonus } from './ids.ts';
 
 // ============================ PARTS ===================================
 // u.kind: 'MECH' or a FIELD_TYPES key. u.parts / u.pmax: hits left / at full, per part. u.hits stays the
@@ -91,14 +92,15 @@ export function hitChance(sh, tgt, c) {
   const range = -TUNE.HIT_RANGE_PER_TILE * Math.max(0, rangeT - TUNE.HIT_RANGE_FREE);
   const moved = -Math.min(TUNE.HIT_MOVED_MAX, TUNE.HIT_MOVED_PER_TILE * (tgt.movedT || 0));
   const cover = inCover(sh.x, sh.y, tgt.x, tgt.y) ? -TUNE.HIT_COVER : 0;
-  const raw = TUNE.HIT_BASE + sig + range + moved + cover;
+  const id = G.lance.includes(sh) ? idBonus(tgt) : 0; // R14: a right call before eyes (the lance only)
+  const raw = TUNE.HIT_BASE + sig + range + moved + cover + id;
   const pct = Math.round(Math.max(TUNE.HIT_MIN, Math.min(TUNE.HIT_MAX, raw)));
-  return { pct, base: TUNE.HIT_BASE, sig: Math.round(sig), range: Math.round(range), moved: Math.round(moved), cover, rangeT, movedT: tgt.movedT || 0 };
+  return { pct, base: TUNE.HIT_BASE, sig: Math.round(sig), range: Math.round(range), moved: Math.round(moved), cover, id, rangeT, movedT: tgt.movedT || 0 };
 }
 // "base 75 · sig +6 · range −12 · moved −8 · cover −25" (only the terms that apply, base always)
 export function hitText(h) {
   const f = (k, v) => v ? ' · ' + k + ' ' + (v > 0 ? '+' : '−') + Math.abs(v) : '';
-  return 'base ' + h.base + f('sig', h.sig) + f('range', h.range) + f('moved', h.moved) + f('cover', h.cover);
+  return 'base ' + h.base + f('sig', h.sig) + f('range', h.range) + f('moved', h.moved) + f('cover', h.cover) + f('ID', h.id || 0);
 }
 
 // ============================ REPORTING ===============================

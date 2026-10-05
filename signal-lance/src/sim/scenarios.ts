@@ -22,6 +22,37 @@ export type Scenario = {
 };
 
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 14 (read the signature). Pack off. ----
+  {
+    name: 'Look-alikes', round: 14, seed: 1401,
+    tryThis: 'Two contacts behind the blocks to the north, both with a small radio (EMIT low). One is a scout patrol, one a gun turret. Wait a round for the tell, ID both from the CARD, then go.',
+    uplink: [45, 14],
+    lance: [{ tile: [36, 16], face: [36, 5] }, { tile: [35, 16], face: [36, 5] }],
+    field: [
+      { type: 'PATROL', variant: 'scout', tile: [36, 8], state: 'PATROL' },
+      { type: 'TURRET', variant: 'gun', tile: [42, 6] },
+    ],
+    question: { q: 'Before you saw them, did you…', a: ['Wait for the tell', 'Guess', 'Ignore the card'] },
+  },
+  {
+    name: 'Quiet gun', round: 14, seed: 1402,
+    tryThis: 'Something guards the street to the uplink. Before you cross, creep and listen: cross its bearings and watch it a few rounds. ID it, then pick how to cross.',
+    uplink: [38, 22],
+    lance: [{ tile: [20, 16] }, { tile: [19, 16] }],
+    field: [{ type: 'TURRET', variant: 'gun', tile: [30, 22], face: [22, 22] }],
+    question: { q: 'Did a right or wrong ID change what you did next?', a: ['Yes, right call helped', 'Yes, wrong call cost me', 'No'] },
+  },
+  {
+    name: 'Twin pulse', round: 14, seed: 1403,
+    tryThis: 'Two emplacements pulse radar behind the blocks. Cross their bearings, ID them from the pulse rhythm, then MORTAR the frozen track before you ever see them (A has the mortar).',
+    uplink: [61, 19],
+    lance: [{ tile: [48, 22], load: { mortar: 1 } }, { tile: [47, 22] }],
+    field: [
+      { type: 'EMPLACEMENT', variant: 'search', tile: [46, 10] },
+      { type: 'EMPLACEMENT', variant: 'relay', tile: [52, 11] },
+    ],
+    question: { q: 'Did the ID let you lob before eyes?', a: ['Yes, it hit', 'Yes, it missed', 'No, couldn’t line it up', 'Didn’t try'] },
+  },
   // ---- Round 13 (the pack). Both with PACK_ENABLED. ----
   {
     name: 'Earshot', round: 13, seed: 1301,
@@ -83,11 +114,11 @@ export function startScenario(s: Scenario) {
     });
     setActive(G.lance[0]);
     G.units = s.field.map((f, i) => {
-      const u = makeUnit(f.type, i), p = ctr(f.tile);
+      const u = makeUnit(f.type, i, f.variant), p = ctr(f.tile);
       u.x = u.gx = p.x; u.y = u.gy = p.y; face(u, f.face, up);
       if (f.state) u.state = f.state;
       u.zoned = zoneAtTile(f.tile[0], f.tile[1])?.type || '';
-      if (u.hasRadar) u.pulseCD = TUNE.EMPL_PULSE_TURNS;
+      if (u.hasRadar) u.pulseCD = u.pulseN;
       return u;
     });
   });

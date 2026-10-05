@@ -8,6 +8,7 @@ import { upDist, playerTarget, mortarBlock, mortarScatter } from '../sim/turns.t
 import { V } from './state.ts';
 import { zoneAtTile, effEmit, zoneType } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
+import { traitLines, frozen } from '../sim/ids.ts';
 
 // R13: a sound ring (pale, solid, with short ticks so it reads as "waves", not the dashed orange EMIT ring)
 function soundRing(x, y, r, z, alpha, label?) {
@@ -17,6 +18,12 @@ function soundRing(x, y, r, z, alpha, label?) {
   if (label) { ctx.fillStyle = 'rgba(232,244,255,' + Math.min(1, alpha + 0.3) + ')'; ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText(label, x + r * 0.71 + 4 / z, y - r * 0.71 - 4 / z); }
 }
 
+// R14: the contact's name on the map
+export function contactLabel(c) {
+  const o = G.obs[c.id], d = G.ids[c.id], u = unitById(c.id);
+  const name = o && o.var && u ? u.type + ' ' + o.var : d ? d.v + '?' : c.snd ? '' : 'UNKNOWN';
+  return c.snd ? (name ? name + ' · SOUND' : 'SOUND') : name;
+}
 // ============================ RENDER ==================================
 export const cv: any = document.getElementById('cv'), ctx = cv.getContext('2d');
 export let vw = 0, vh = 0, dpr = 1;
@@ -115,7 +122,7 @@ export function render() {
     { const a0 = Math.atan2(e.fy, e.fx), h = TUNE.EYES_HALF_ANG * Math.PI / 180; // eyes arc
       ctx.globalAlpha = 0.5; ctx.beginPath(); ctx.moveTo(e.x, e.y); ctx.arc(e.x, e.y, TUNE.EYES_RANGE * T, a0 - h, a0 + h); ctx.closePath(); ctx.stroke(); ctx.globalAlpha = 1; }
     ctx.font = (12 / z) + 'px monospace';
-    ctx.fillText(e.type + ' ' + e.state + (e.radarOn ? ' RDR' : '') + ' h' + e.hits + ' a' + e.ammo + ' AP' + e.ap + ' EN' + Math.round(e.en) + ' EMIT' + Math.round(e.emit) + ' snd' + Math.round(soundRadius(e)) + (e.pack ? ' ' + e.pack + (e.packTgt ? '→' + e.packTgt : '') : '') + (zoneType(e) ? ' ' + zoneType(e) + ' eff' + Math.round(effEmit(e)) + (zoneType(e) === 'QUIET' ? ' sig×' + TUNE.ZONE_TYPES.QUIET.SIG_MULT : ' unc×' + TUNE.ZONE_TYPES.NOISE.UNC_MULT + '≥' + TUNE.ZONE_TYPES.NOISE.UNC_FLOOR + 't') : ''), e.x + 14, e.y - 12);
+    ctx.fillText(e.type + ' ' + e.variant + ' ' + e.state + (e.radarOn ? ' RDR' : '') + ' h' + e.hits + ' a' + e.ammo + ' AP' + e.ap + ' EN' + Math.round(e.en) + ' EMIT' + Math.round(e.emit) + ' snd' + Math.round(soundRadius(e)) + (e.pack ? ' ' + e.pack + (e.packTgt ? '→' + e.packTgt : '') : '') + (zoneType(e) ? ' ' + zoneType(e) + ' eff' + Math.round(effEmit(e)) + (zoneType(e) === 'QUIET' ? ' sig×' + TUNE.ZONE_TYPES.QUIET.SIG_MULT : ' unc×' + TUNE.ZONE_TYPES.NOISE.UNC_MULT + '≥' + TUNE.ZONE_TYPES.NOISE.UNC_FLOOR + 't') : ''), e.x + 14, e.y - 12);
     ctx.globalAlpha = 0.3;
     for (const b of e.eb) if (b.on) { ctx.beginPath(); ctx.moveTo(b.x, b.y); ctx.lineTo(b.x + Math.cos(b.ang) * 40 * T, b.y + Math.sin(b.ang) * 40 * T); ctx.stroke(); }
     ctx.globalAlpha = 1;
@@ -199,7 +206,7 @@ export function render() {
   for (const c of G.pc) {
     if (!c.on) continue;
     const lost = c.lost > c.gap, a = 1 - Math.max(0, c.lost - c.gap) / TUNE.CONTACT_LINGER, x = cx(c), y = cy(c);
-    ctx.globalAlpha = Math.max(0.1, a);
+    ctx.globalAlpha = Math.max(frozen(c.id) ? 0.55 : 0.1, a); // R14: a frozen (ID'd static) track stays readable
     ctx.strokeStyle = ctx.fillStyle = lost ? '#f90' : '#f33';
     ctx.lineWidth = 2 / z;
     ctx.beginPath(); ctx.arc(x, y, c.unc, 0, 6.2832); ctx.stroke();
@@ -209,9 +216,17 @@ export function render() {
       const u = unitById(c.id), seen = u && !G.lance.includes(u) && !u.dead && G.lance.some(m => !m.dead && canSee(m, u, TUNE.EYES_RANGE));
       let d = '';
       if (seen) d = partsRead(u); // R12: per-part read while seen
-      const lab = c.snd ? (c.type ? c.type + ' · SOUND' : 'SOUND') : c.type; // R13: a heard-only contact always says so
-      if (lab) { ctx.fillStyle = c.type ? '#fff' : '#e8f4ff'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText(lab, x + 14, y + 4); }
-      if (d) { ctx.fillStyle = '#fff'; ctx.font = (11 / z) + 'px monospace'; ctx.fillText(d, x + 14, y + 4 + 13 / z); }
+      const lab = contactLabel(c); // R14: UNKNOWN / SOUND / "scout?" (your call) / "PATROL scout" (eyes)
+      const conf = !!(G.obs[c.id] && G.obs[c.id].var);
+      ctx.fillStyle = conf ? '#fff' : G.ids[c.id] ? '#ffd27a' : '#e8f4ff'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText(lab, x + 14, y + 4);
+      let ly = y + 4 + 13 / z;
+      if (d) { ctx.fillStyle = '#fff'; ctx.font = (11 / z) + 'px monospace'; ctx.fillText(d, x + 14, ly); ly += 13 / z; }
+      if (G.sel === c && !conf) { // R14: the selected contact's observed traits, one line each
+        ctx.fillStyle = '#cfe6ff'; ctx.font = (11 / z) + 'px monospace';
+        const L = traitLines(G.obs[c.id]); if (!L.length) L.push('no traits yet');
+        if (V.dbg && u) L.push('DBG true: ' + u.variant);
+        for (const t of L) { ctx.fillText(t, x + 14, ly); ly += 12 / z; }
+      }
     }
     if (G.sel === c) { ctx.strokeStyle = '#ff0'; ctx.lineWidth = 3 / z; ctx.strokeRect(x - 12, y - 12, 24, 24); }
     ctx.globalAlpha = 1;

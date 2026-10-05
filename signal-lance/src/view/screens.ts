@@ -5,11 +5,12 @@ import { V } from './state.ts';
 import { $, fmtTime } from './hud.ts';
 import { partsRead, shotsText } from '../sim/combat.ts';
 import { soundText } from '../sim/sound.ts';
+import { idText } from '../sim/ids.ts';
 import { setPack } from '../sim/pack.ts';
 import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r14-s0';  // R14 part 0: the test bed (R13 scenarios Earshot, Wounded)
+export const BUILD = 'r14-s1';  // R14 part 1: variants, CARD, IDs (+ the test bed)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
@@ -90,7 +91,7 @@ export function zoneText() {
 }
 export function enemySummary() { return 'field ' + G.units.map(u => u.type[0] + (u.dead ? 'x' : '')).join(''); }
 function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
-export function killText() { return 'kills ' + G.kills + '/' + G.units.length + zoneText() + mortarText() + shotsText() + soundText(); } // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
+export function killText() { return 'kills ' + G.kills + '/' + G.units.length + zoneText() + mortarText() + shotsText() + soundText() + idText(); } // R14: IDs n (right, wrong, before eyes) // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
 // R9: "· mortar 3/5 hits, 2 kills (A)" — shells that hit the field / shells fired, kills, who carried it
 export function mortarText() {
   const ms = G.lance.filter(m => m.load.mortar);

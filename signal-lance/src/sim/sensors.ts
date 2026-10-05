@@ -7,6 +7,7 @@ import { effEmit, noiseUnc, zoneType } from './zones.ts';
 import { eyesRange } from './combat.ts';
 import { hearSounds } from './sound.ts';
 import { raiseAlarm } from './pack.ts';
+import { noteEmit, notePulse, noteMoved, noteFired, reveal, emitBand, frozen } from './ids.ts';
 
 // ============================ SIGNATURE / DETECTION ===================
 // R13: electronic only. Moving and firing no longer reach passive sensors (they make Sound instead, see sound.ts).
@@ -83,6 +84,8 @@ export function ageContacts(list, dt) {
     // R8 run2: grow only while the tracked unit is the one acting (it can only move on its own activation).
     // Contacts with no unit behind them (the ghost) grow as before. Linger still counts real time.
     const actor = G.order[G.oi], mine = unitById(c.id);
+    const hold = list === G.pc && frozen(c.id); // R14: an ID'd static: the track freezes (no growth, no fading)
+    if (hold) continue;
     if (!TUNE.UNC_GROW_OWN_TURN || !mine || actor === mine) c.unc += TUNE.UNC_GROW * T * dt;
     if (c.lost - c.gap > TUNE.CONTACT_LINGER) { c.on = false; if (G.sel === c) G.sel = null; }
   }
@@ -97,6 +100,7 @@ export function addBearing(pool, o, m, list, id, tri) {
   let b = pool[pool.bi = (pool.bi + 1) % pool.length];
   b.on = true; b.x = o.x; b.y = o.y; b.age = 0; b.tri = tri; b.id = id;
   b.ang = Math.atan2(m.y - o.y, m.x - o.x) + (rand() * 2 - 1) * TUNE.BEARING_ERR * Math.PI / 180;
+  if (pool === G.pb) bearingDrift(o, id, b.ang); // R14: a bearing that swings from the same spot = it moved
   if (!tri) return;
   // triangulate against the best other live bearing
   const minA = TUNE.TRI_MIN_ANG * Math.PI / 180, dbx = Math.cos(b.ang), dby = Math.sin(b.ang);
@@ -113,6 +117,15 @@ export function addBearing(pool, o, m, list, id, tri) {
     const u = Math.max(TUNE.TRI_UNC_MIN * T, dist * Math.tan(TUNE.BEARING_ERR * Math.PI / 180) * 2 / best);
     observe(list, id, ix, iy, u, 0, 0, false, false, false, 'PASSIVE');
   }
+}
+// R14: compare with this mech's last bearing on the same unit, taken from (nearly) the same spot
+function bearingDrift(o, id, ang) {
+  const L = o.lastBear || (o.lastBear = {}), p = L[id];
+  if (p && Math.hypot(p.x - o.x, p.y - o.y) < 0.5 * T) {
+    const d = Math.abs(Math.atan2(Math.sin(ang - p.ang), Math.cos(ang - p.ang))) * 180 / Math.PI;
+    const u = unitById(id); if (u && d > TUNE.TRAIT_DRIFT_DEG) noteMoved(u);
+  }
+  L[id] = { x: o.x, y: o.y, ang };
 }
 export function ageBearings(pool, dt) { for (const b of pool) if (b.on && (b.age += dt) > TUNE.BEARING_LIFE) b.on = false; }
 
@@ -145,14 +158,23 @@ export function updateSensors(dt) {
     // ---- the lance senses this unit (one shared contact picture) ----
     const v = e.moving ? e.spd * T : 0;
     for (const p of mechs) {
-      if (canSee(p, e, eyesRange(p))) { const c = observe(G.pc, e.id, e.x, e.y, TUNE.UNC_EYES * T, e.fx * v, e.fy * v, true, false, true, 'EYES'); if (c) c.type = e.type; } // R7 run1: eyes identify the type
+      if (canSee(p, e, eyesRange(p))) { const c = observe(G.pc, e.id, e.x, e.y, TUNE.UNC_EYES * T, e.fx * v, e.fy * v, true, false, true, 'EYES'); if (c) reveal(e, c); } // R7 run1: eyes identify the type; R14: and the variant
       else if (p.radarOn) radarFix(p, e, G.pc, e.id, e.pjit, e.fx * v, e.fy * v, dt);
       if (p.tick) {
         const s = emitting(e) ? sig(e) : 0;
-        if (s > 0 && emitStrength(p, e, s) >= TUNE.DET_THRESH) addBearing(G.pb, p, e, G.pc, e.id, true);
+        if (s > 0 && emitStrength(p, e, s) >= TUNE.DET_THRESH) { addBearing(G.pb, p, e, G.pc, e.id, true); if (!e.radarOn) noteEmit(e, emitBand(e)); } // R14: its EMIT level, as heard
         else if (e.jamming && emitStrength(p, e, jamSig(e)) >= TUNE.DET_THRESH) addBearing(G.pb, p, e, G.pc, e.id, false);
+        else if (!emitting(e) && Math.hypot(e.x - p.x, e.y - p.y) <= TUNE.TRAIT_SILENT_RANGE * T && G.pc.some(c => c.on && c.id === e.id)) noteEmit(e, 'none'); // R14: listened close by, heard nothing
       }
     }
+    // R14: a radar pulse is heard by the lance's passive at once (the field's rule, radarNew below, now both ways)
+    if (e.radarOn && !e.pulseHeard) {
+      const ears = mechs.filter(p => p.load.passive);
+      for (const p of ears) addBearing(G.pb, p, e, G.pc, e.id, true);
+      if (ears.length) { e.pulseHeard = true; notePulse(e); }
+    } else if (!e.radarOn) e.pulseHeard = false;
+    // R14: a move seen while you hold a live, real fix on it (eyes, radar or crossed bearings)
+    if (e.moving && G.pc.some(c => c.on && c.id === e.id && !c.snd && !c.shr && c.lost <= c.gap)) noteMoved(e);
     // ---- this unit senses each mech (same rules) + ghost ----
     const tick = e.passive && (e.bearT -= dt) <= 0;
     if (tick) e.bearT = TUNE.BEARING_EVERY;
@@ -184,6 +206,7 @@ export function updateSensors(dt) {
 export function muzzleFlash(shooter, target, uncTiles = TUNE.FLASH_UNC) { // R9: mortar passes MORTAR_FLASH_UNC
   if (!target || target.dead) return;
   const list = G.lance.includes(target) ? G.pc : target.ec, u = uncTiles * T;
+  if (list === G.pc) noteFired(shooter); // R14: it fired at you
   const a = rand() * 6.2832, r = 0.7 * Math.sqrt(rand());
   observe(list, shooter.id, shooter.x + Math.cos(a) * r * u, shooter.y + Math.sin(a) * r * u, u, 0, 0, true, true, false, 'FLASH');
 }

@@ -45,14 +45,18 @@ export const G: any = {
   firstLog: [], // R13: every new contact { side 'P'|'E', src (the sense), turn } (runner)
   shotLog: [], partLog: [], lastShot: { P: null, E: null }, // R12: every gun shot (runner/log), parts destroyed, last shot per side (DBG)
   seed: 1, // R6: this run's RNG seed (shown in DBG for replay in the runner)
+  obs: {}, ids: {}, idStat: {}, eyesAny: false, // R14: per field unit id: what the lance observed, its committed ID, runner stats
   tb: null, // R14: the test-bed scenario being played (null = a normal hunt)
 };
 for (let i = 0; i < 8; i++) G.fx.push({ on: false, x: 0, y: 0, t: 0, hit: false });
 for (let i = 0; i < 32; i++) G.shells.push({ on: false, x: 0, y: 0, ax: 0, ay: 0, vx: 0, vy: 0, left: 0, owner: null });
 
 // A field unit of the given type (stats from TUNE.FIELD_TYPES), not yet placed.
-export function makeUnit(type: string, i: number) {
-  const F = TUNE.FIELD_TYPES[type];
+// R14: variant = a FIELD_VARIANTS key of this type (default: the type's FIELD_VARIANT_DEFAULT).
+export function makeUnit(type: string, i: number, variant?: string) {
+  const vk = variant || TUNE.FIELD_VARIANT_DEFAULT[type], V = TUNE.FIELD_VARIANTS[vk];
+  if (!V || V.TYPE !== type) throw new Error('variant ' + vk + ' is not a ' + type);
+  const F = { ...TUNE.FIELD_TYPES[type], ...V.STATS, RADAR: V.PULSE > 0 ? 1 : 0 };
   const u: any = {
     id: 'U' + i, type, ft: F, x: 0, y: 0, fx: 1, fy: 0, path: null, pi: 0, moving: false, spd: 0, creep: false,
     armour: F.ARMOUR, hits: 0, maxHits: 0, ammo: F.AMMO, en: 0, enMax: 0, ap: 0, turnShots: 0, freeTurns: 0, emit: 0,
@@ -66,7 +70,9 @@ export function makeUnit(type: string, i: number) {
   };
   initParts(u, type, F.BASE_HITS + F.ARMOUR * TUNE.ARMOUR_HITS); // R12: hit pool split across parts
   u.enMax = u.en = TUNE.ENERGY_BASE + F.CELLS * TUNE.ENERGY_CELL;
-  u.emit = TUNE.COMMS_EMIT[type] || 0; // R13 test 2: comms (passive can hear it from the start)
+  u.variant = vk; u.comms = V.COMMS; u.pulseN = V.PULSE || TUNE.EMPL_PULSE_TURNS; // R14: its variant's EMIT floor and pulse rhythm
+  u.snd = { ...TUNE.SOUND_RANGE, ...V.SOUND };    // R14: its own move / shot sound radii
+  u.emit = u.comms; // R13 test 2: comms (passive can hear it from the start)
   return u;
 }
 export function unitById(id) { for (const m of G.lance) if (m.id === id) return m; for (const u of G.units) if (u.id === id) return u; return null; }
@@ -130,6 +136,11 @@ function anyTile(taken, zonePref?: string) {
   return { x, y };
 }
 
+// R14: a variant for one field slot. Always draws one number, so VARIANTS_ENABLED doesn't move the placements.
+export function rollVariant(type: string) {
+  const keys = Object.keys(TUNE.FIELD_VARIANTS).filter(k => TUNE.FIELD_VARIANTS[k].TYPE === type), r = rand();
+  return TUNE.VARIANTS_ENABLED ? keys[Math.floor(r * keys.length)] : TUNE.FIELD_VARIANT_DEFAULT[type];
+}
 // R7 s2: loads = [A's loadout, B's loadout] (one loadout = both mechs the same).
 // R11: prep (optional) runs after the lance and field are built, before round 1 (the contract's carry-over).
 export function newHunt(loads?, prep?: () => void) {
@@ -148,7 +159,7 @@ export function newHunt(loads?, prep?: () => void) {
   let i = 0;
   const C = G.comp || TUNE.FIELD_COMPOSITIONS[0];
   for (const type of Object.keys(TUNE.FIELD_TYPES)) for (let n = 0; n < (C[type] || 0); n++) {
-    const u = makeUnit(type, i++);
+    const u = makeUnit(type, i++, rollVariant(type)); // R14: each slot rolls a variant (seeded, evenly)
     const ambush = C.NAME === 'Ambush' && type === 'TURRET'; // R10: Ambush turrets prefer QUIET ground and watch your spawn
     const t = u.mobile ? anyTile(taken) : C.staticPlacement === 'anywhere' ? anyTile(taken, ambush ? 'QUIET' : '') : guardTile(taken); // R8: placement flag
     taken.push(t);
@@ -158,7 +169,7 @@ export function newHunt(loads?, prep?: () => void) {
       const fx = ambush ? (spawnX + 0.5) * T : U.x, fy = ambush ? (spawnY + 0.5) * T : U.y;
       const dx = fx - u.x, dy = fy - u.y, d = Math.hypot(dx, dy) || 1; u.fx = dx / d; u.fy = dy / d;
     }
-    if (u.hasRadar) u.pulseCD = TUNE.EMPL_PULSE_TURNS;
+    if (u.hasRadar) u.pulseCD = u.pulseN;
     G.units.push(u);
   }
   for (const c of G.pc) c.on = false;
@@ -167,6 +178,7 @@ export function newHunt(loads?, prep?: () => void) {
   G.sel = null; G.splash = null; // R9: last mortar splash (view shows it briefly)
   G.act = null; G.turn = 1; G.planT = null; G.plan = null;
   G.time = 0;
+  G.obs = {}; G.ids = {}; G.idStat = {}; G.eyesAny = false; // R14: observed traits, committed IDs, runner stats (see ids.ts)
   G.shotLog = []; G.partLog = []; G.firstLog = []; G.alarmLog = []; G.emitStat = { P: { n: 0, sum: 0 }, E: { n: 0, sum: 0 } }; G.lastShot = { P: null, E: null };
   G.mode = 'hunt';
   if (prep) prep();

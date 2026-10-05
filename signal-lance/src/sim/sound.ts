@@ -9,14 +9,15 @@ import { rand } from './rng.ts';
 import { G, isMech } from './state.ts';
 import { observe } from './sensors.ts';
 import { zoneType } from './zones.ts';
+import { noteSound } from './ids.ts';
 
 // Raise m's sound for this activation to event `kind` (a SOUND_RANGE key) if that is louder. The offset that
 // listeners' contacts sit at is rolled when the sound grows, then held (so the contact doesn't jitter).
 export function makeSound(m, kind: string) {
-  const r = TUNE.SOUND_RANGE[kind] || 0;
+  const r = (m.snd || TUNE.SOUND_RANGE)[kind] || 0; // R14: a field unit's variant sets its own radii
   if (kind === 'SPRINT' && isMech(m)) m.sprints = (m.sprints || 0) + 1; // log line: sprints this hunt
   if (r <= (m.sound || 0)) return;
-  m.sound = r;
+  m.sound = r; m.sndKind = kind; // R14: what made it (a step or a shot: the lance writes it down)
   const a = rand() * 6.2832, k = 0.7 * Math.sqrt(rand());
   m.sndOff = { x: Math.cos(a) * k, y: Math.sin(a) * k };
   m.loudest = Math.max(m.loudest || 0, r);
@@ -39,6 +40,7 @@ export function hearSounds() {
       if (have && !have.snd && have.lost <= have.gap && have.unc <= u) continue;
       observe(list, s.id, s.x + s.sndOff.x * u, s.y + s.sndOff.y * u, u, 0, 0, true, true, false, 'SOUND');
       const key = isMech(l) ? 'lance' : l.id; // the lance shares one contact picture, so it hears once
+      if (isMech(l)) noteSound(s, soundRadius(s)); // R14: the lance writes down what it heard (step or shot, how far it carried)
       if (!s.heardBy.includes(key)) { s.heardBy.push(key); s.heardN = (s.heardN || 0) + 1; }
     }
   }

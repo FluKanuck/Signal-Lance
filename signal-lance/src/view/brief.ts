@@ -2,34 +2,26 @@
 // UPDATE TEST + QUESTIONS EVERY ROUND: they tell remote testers what this build is testing.
 import { $ } from './hud.ts';
 import { TUNE } from '../tune.ts';
-const S = TUNE.SOUND_RANGE;
 
 export const TEST = {
-  title: 'Round 14 test: Read the signature (part 0: test bed)',
-  question: 'When noise only lasts the turn it is made and electronic emissions carry far, does getting loud become a risk you manage on purpose?',
+  title: 'Round 14 test: Read the signature',
+  question: 'If you match a contact’s traits against the CARD and commit an ID, does identifying things become a skill you use before you have eyes on, because a right call sharpens the track and the aim?',
   newThings: [
-    'NEW: a TEST BED button on the loadout screen. Each scenario is one short hunt that tests one thing, with a line telling you what to try and one tap question at the end. RETRY replays it exactly. Test-bed hunts never count toward contracts.',
-    'Try "Earshot" twice: sprint to the uplink, then RETRY and creep. Then "Wounded".',
-    'Everything below is from Round 13 and still holds.',
-    'Signal is now two things. EMIT (the orange bar) is electronic: radar, ECM and uplink. It builds up, fades slowly and carries far.',
-    'SOUND is new: moving and shooting. It is one radius (CREEP ' + S.CREEP + ', NORM ' + S.NORMAL + ', SPRINT ' + S.SPRINT + ', gun ' + S.SHOT + ', mortar ' + S.MORTAR + ' tiles) and lasts only until your mech’s next turn.',
-    'The pale ring with ticks around your mech is your sound. Before you MOVE, a faint ring at the destination shows the sound that move will make.',
-    'Anyone inside a sound ring hears it, through walls, as a fuzzy "SOUND" contact. That tells you something is over there, never enough to shoot at.',
-    'Enemies follow the same rules. A patrol walking near you can be heard, and so can you.',
-    'Patrols carry radios: a small steady EMIT, so your passive sensors draw bearing lines on them. Turrets stay silent.',
-    'A heard-only contact is a hollow square labelled SOUND. FIRE says SOUND until you get a real fix (eyes, radar or crossed bearings).',
-    'Two legs: lose one and you can only CREEP (it switches for you). Lose both and you creep at half distance.',
-    'THE PACK (splash toggle, OFF to start): when one enemy senses you, it alerts others nearby, and patrols leave their post to hunt you, hardest when you’re hurt. Try a contract with it OFF first.',
+    'Every enemy is now one of 9 variants (3 patrols, 3 turrets, 3 emplacements). They fight differently: tougher core, more rounds, looser or firmer lock.',
+    'Contacts read UNKNOWN until you ID them (SOUND if you have only heard them). Tap a contact: under it you see what your sensors have actually picked up: EMIT level, pulsing or steady, moved or still, steps or a shot heard.',
+    'CARD (left, above zoom) lists all 9 with their traits and one bold TELL. ID (next to it) lets you call the selected contact. Re-ID any time, for free.',
+    'A call shows as "name?" until eyes confirm it. Eyes show the truth; a wrong call flips and counts as a miscall.',
+    'Why bother: ID a turret or emplacement and its track freezes (it stops growing and never fades), so a mortar lob gets easier to line up. A right call made before eyes also adds +10% to hit. Call a patrol a turret and your track freezes on a spot it has already left.',
+    'TEST BED (loadout screen): short scenarios. Look-alikes, Quiet gun and Twin pulse test reading the signature; Earshot and Wounded are from Round 13.',
+    'The pack (splash toggle) and everything from Round 13 still hold.',
   ],
-  howTo: 'After each hunt, tap the answers and add a note. When you finish, tap SEND LOG and send it to Jamie.',
+  howTo: 'Try the TEST BED scenarios first, then a few contracts. After each hunt, tap the answers and add a note. When you finish, tap SEND LOG and send it to Jamie.',
 };
 // End-of-hunt questions (tap one answer each; optional). Answers go into the log line.
 export const QUESTIONS = [
-  { k: 'chan', q: 'Could you tell SOUND and EMIT apart?', a: ['At a glance', 'After a while', 'Mixed them up', "Didn't notice"] },
-  { k: 'quiet', q: 'Did the sound ring change what you did?', a: ['Crept instead of sprinting', 'Held a shot', 'Both', 'No'] },
-  { k: 'heard', q: 'A SOUND contact…', a: ['Helped me find something', 'Was confusing', "Didn't see one"] },
-  { k: 'pack', q: 'With the pack on, the enemy…', a: ['Came for me, fair', 'Dogpiled me', 'Felt the same', 'Pack was off'] },
-  { k: 'odds', q: 'The hit % made sense?', a: ['Yes', 'Mostly', 'No'] },
+  { k: 'id', q: 'Before eyes-on, you mostly…', a: ['Waited for the tell', 'Guessed', 'Ignored the card'] },
+  { k: 'call', q: 'A right or wrong ID…', a: ['Saved me something', 'Cost me something', "Didn't matter"] },
+  { k: 'card', q: 'The CARD felt like…', a: ['A quick read', 'Homework', 'A giveaway', 'Never opened'] },
 ];
 
 const BASICS = [
@@ -40,6 +32,7 @@ const BASICS = [
   ['Fight', 'Tap a contact to select it. FIRE needs a tight fix, range and line of sight; the button says why if it\'s blocked, or shows your hit chance. Hits strike a part (core, legs, weapon, sensors). MORTAR fires on a fix with no line of sight, but scatters more on a fuzzy one.'],
   ['Noise', 'Two kinds. EMIT (orange bar, orange dashed ring) is electronic: radar, ECM and uplink add to it, it fades a little each turn, and passive sensors pick it up from far away. SOUND (pale ring with ticks) is moving and shooting: one radius per turn (the loudest thing you did), heard through walls, gone at your next turn.'],
   ['Ground', 'Blue dotted areas are quiet ground: you are harder to hear there. Amber hatched areas are noise: fixes on anything inside are blurry.'],
+  ['ID', 'Enemies come in 9 variants. Tap a contact to see what your sensors have picked up about it, open the CARD to compare, then tap ID to call it. A turret or emplacement call freezes its track; a right call before eyes adds +10% to hit.'],
   ['ECM', 'ECM masks you each turn it is on. GHOST places a fake contact for enemies.'],
   ['Camera', 'Drag to pan. Z+ / Z− zoom. CTR recentres.'],
 ];

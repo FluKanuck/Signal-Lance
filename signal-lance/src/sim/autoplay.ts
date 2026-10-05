@@ -1,6 +1,7 @@
 // The scripted player (moved out of scripts/sim.ts so the runner and the tests share it). Not used by the game.
 // Walks the active mech to the uplink, uplinks, and fires (gun or mortar) whenever its lock rule allows.
 import { TUNE } from '../tune.ts';
+import { idTick } from './ids.ts';
 import { G } from './state.ts';
 import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist,
          cmdSelect, cmdFire, cmdUplink, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp } from './turns.ts';
@@ -13,6 +14,7 @@ export function runAct() { for (let n = 0; G.act && G.mode === 'hunt' && n < 200
 
 export function playerTurn() {
   let moved = false;
+  idTick(); // R14: commit an ID once a contact's traits narrow it to one variant
   if (AUTO.loud && sensorsUp(G.p) && canPay(G.p, TUNE.AP_RADAR, TUNE.RADAR_EN)) { cmdRadar(); runAct(); } // R13 --loud: pulse every activation it can
   for (let k = 0; k < 12 && G.mode === 'hunt'; k++) {
     const c = playerTarget();

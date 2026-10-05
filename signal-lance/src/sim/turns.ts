@@ -7,6 +7,7 @@ import { bestContact, enemyDecide } from './bot.ts';
 import { effEmit, zoneType } from './zones.ts';
 import { hitChance, rollPart, damagePart, partGone, partHurt } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
+import { noteActEnd } from './ids.ts';
 
 // ============================ UPDATE ==================================
 export function moveAlong(m, speed, dt) {
@@ -102,7 +103,7 @@ export function beginUnit(m) {
   m.turnShots = 0; m.mUsed = 0; m.freeTurns = TUNE.FREE_TURNS; m.movedT = 0; // R12: "target moved" counts this activation's tiles
   const es = G.emitStat[isMech(m) ? 'P' : 'E']; es.n++; es.sum += m.emit; // R13: Emissions at activation start (runner)
   addEmit(m, -TUNE.SIGNAL_DECAY);
-  if (!isMech(m)) m.emit = Math.max(m.emit, TUNE.COMMS_EMIT[m.type] || 0); // R13 test 2: comms keep a field unit's EMIT up
+  if (!isMech(m)) m.emit = Math.max(m.emit, m.comms || 0); // R13 test 2: comms keep a field unit's EMIT up
   clearSound(m); // R13: last activation's sound is gone
   if (partGone(m, 'SENSORS')) m.mask = false; // R12: no ECM without sensors
   if (m.mask) { if (canPay(m, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(m, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(m, TUNE.SIGNAL_ECM); } else m.mask = false; }
@@ -158,7 +159,7 @@ export function enemyStep() {
   const c0 = bestContact(e.ec);
   if (c0 && !e.dead && (turnCost(e, cx(c0), cy(c0)) === 0 || e.ap > TUNE.AP_SHOT * TUNE.SHOTS_PER_TURN)) freeTurn(e, cx(c0), cy(c0)); // turn toward its best contact, same rules as the player
   const a = enemyDecide(e);
-  if (!a) { nextActivation(); return; }
+  if (!a) { noteActEnd(e); nextActivation(); return; } // R14: one more watched activation (for "still" / "no pulse")
   a();
   if (!G.act) G.ewait = TUNE.ENEMY_ACT_PAUSE;
 }

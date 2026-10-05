@@ -178,8 +178,57 @@ export const TUNE = {
   },
   // R13 test 2 (Jamie): field units carry comms, a steady electronic emission, so passive can find them. Emissions never
   // drop below this (EMIT floor, per type). Turrets stay silent (hiding is their job); emplacements already pulse radar.
-  COMMS_EMIT: { PATROL: 10, TURRET: 0, EMPLACEMENT: 0 },
-  EMPL_PULSE_TURNS: 2,  // the emplacement pulses radar every this many of its own turns
+  COMMS_EMIT: { PATROL: 10, TURRET: 0, EMPLACEMENT: 0 }, // R14: UNUSED, each variant's COMMS replaces it
+  EMPL_PULSE_TURNS: 2,  // the emplacement pulses radar every this many of its own turns (R14: the default; variants set PULSE)
+  // --- Round 14: read the signature. 3 variants per field type, built only from knobs that already exist. ---
+  // Each field slot rolls one (seeded, evenly). STATS override FIELD_TYPES (hit pool = BASE_HITS + ARMOUR × ARMOUR_HITS, split
+  // across parts with PART_MIN; the CARD shows CORE, which is what kills it),
+  // COMMS = the EMIT floor (replaces COMMS_EMIT for that unit), PULSE = radar every N of its own turns (0 = no radar),
+  // SOUND overrides SOUND_RANGE for its own moves and shot. TRAITS / TELL are the CARD's lines (TELL in bold).
+  VARIANTS_ENABLED: true, // false = every unit is its type's DEFAULT variant (the R13 field)
+  FIELD_VARIANT_DEFAULT: { PATROL: 'line', TURRET: 'sentry', EMPLACEMENT: 'search' },
+  FIELD_VARIANTS: {
+    // PATROL: all move, all carry a small radio (EMIT low). Told apart by how loud they walk.
+    scout:  { TYPE: 'PATROL', COMMS: 10, PULSE: 0, SOUND: { CREEP: 1, NORMAL: 2, SPRINT: 3 },   // light and pushy: 10 rds, short patience, shoots on looser locks
+              STATS: { AMMO: 10, FIRE_UNC: 2.5, PATIENCE_MIN: 1, PATIENCE_MAX: 3, HOLD_DIST: 6, LEASH: 12 },
+              TRAITS: ['EMIT low · moves', 'shot 12'], TELL: 'soft steps (≤3)', FIGHT: 'core 1 · 10 rds · pushes in, looser lock' },
+    line:   { TYPE: 'PATROL', COMMS: 10, PULSE: 0, SOUND: {},                                       // the R13 patrol
+              STATS: {},
+              TRAITS: ['EMIT low · moves', 'shot 12'], TELL: 'steps at 4–5', FIGHT: 'core 1 · 20 rds' },
+    heavy:  { TYPE: 'PATROL', COMMS: 10, PULSE: 0, SOUND: { CREEP: 3, NORMAL: 6, SPRINT: 9 },   // armoured: core 3, 30 rds, wants a tight lock, patient
+              STATS: { ARMOUR: 2, AMMO: 30, FIRE_UNC: 1.5, PATIENCE_MIN: 4, PATIENCE_MAX: 8 },
+              TRAITS: ['EMIT low · moves', 'shot 12'], TELL: 'loud steps (6+)', FIGHT: 'core 3 · 30 rds · patient, tight lock' },
+    // TURRET: never move, no radar. Two are radio-silent; told apart by the shot.
+    sentry: { TYPE: 'TURRET', COMMS: 0, PULSE: 0, SOUND: {},                                       // the R13 turret: firm lock only
+              STATS: {},
+              TRAITS: ['EMIT none · still'], TELL: 'loud shot (12)', FIGHT: 'core 1 · firm lock only' },
+    hush:   { TYPE: 'TURRET', COMMS: 0, PULSE: 0, SOUND: { SHOT: 5 },                              // suppressed: you barely hear it fire
+              STATS: {},
+              TRAITS: ['EMIT none · still'], TELL: 'muffled shot (≤6)', FIGHT: 'core 1 · firm lock only' },
+    gun:    { TYPE: 'TURRET', COMMS: 10, PULSE: 0, SOUND: {},                                      // fire-director link: core 4, 30 rds, fires on looser locks
+              STATS: { ARMOUR: 2, AMMO: 30, FIRE_UNC: 2 },
+              TRAITS: ['still · no pulse', 'shot 12'], TELL: 'steady low EMIT', FIGHT: 'core 4 · 30 rds · looser lock' },
+    // EMPLACEMENT: never move, pulse radar (EMIT spikes high after a pulse). Told apart by the pulse rhythm.
+    search: { TYPE: 'EMPLACEMENT', COMMS: 0, PULSE: 2, SOUND: {},                                  // the R13 emplacement
+              STATS: {},
+              TRAITS: ['EMIT low→high · still', 'shot 12'], TELL: 'pulses every 2nd round', FIGHT: 'core 4 · 20 rds' },
+    fire:   { TYPE: 'EMPLACEMENT', COMMS: 0, PULSE: 1, SOUND: {},                                  // fire-control: core 1 but locks fast (fires on a 3-tile fix), big battery
+              STATS: { ARMOUR: 1, FIRE_UNC: 3, CELLS: 4 },
+              TRAITS: ['EMIT high · still', 'shot 12'], TELL: 'pulses every round', FIGHT: 'core 1 · fires on a 3-tile fix' },
+    relay:  { TYPE: 'EMPLACEMENT', COMMS: 10, PULSE: 3, SOUND: {},                                 // relay: 10 rds, radio between pulses
+              STATS: { AMMO: 10 },
+              TRAITS: ['EMIT low→high · still', 'shot 12'], TELL: 'pulses every 3rd round', FIGHT: 'core 4 · 10 rds' },
+  },
+  // Observed-trait bands (what the lance writes down about a contact; see sim/ids.ts)
+  TRAIT_EMIT_HIGH: 20,   // effective EMIT at or above this reads "high", above 0 "low", silent "none"
+  TRAIT_SILENT_RANGE: 10,// tiles; a passive mech this close to a contact that emits nothing writes down "EMIT none"
+  TRAIT_DRIFT_DEG: 8,    // degrees; a mech's new bearing on a unit swinging more than this from its last one (same spot) = "moved"
+  TRAIT_STILL_ACTS: 3,   // its activations watched (you held a contact on it) without a seen move before it reads "still"
+  TRAIT_SOFT_MAX: 3,     // a heard step radius up to this = "soft"...
+  TRAIT_STEP_MAX: 5,     // ...up to this = "steps", above = "loud". A heard shot up to SHOT_MUFFLED_MAX = "muffled", else "loud"
+  SHOT_MUFFLED_MAX: 6,
+  HIT_ID_BONUS: 10,      // % to hit for a gun shot at a contact you ID'd correctly BEFORE eyes (a wrong ID adds nothing)
+  ID_STATIC_HOLD: true,  // an ID'd TURRET / EMPLACEMENT contact never grows or fades (the track "freezes"); a wrong call freezes it too
   EMPL_SWEEP_DEG: 100,  // degrees the emplacement's radar turns between pulses when it has no contact (sweeps all round)
   ENEMY_UNSEEN_SPEED: 5, // view pacing: the enemy phase runs this many times faster while the acting unit isn't a live contact of yours
   FLASH_UNC: 2,

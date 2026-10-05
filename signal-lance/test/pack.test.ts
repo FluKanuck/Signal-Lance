@@ -85,7 +85,7 @@ describe('converge', () => {
     see(U[0], A);
     const u = U[1]; u.ap = 4; u.en = 100; u.moved = false;
     enemyDecide(u)();
-    expect(u.sound).toBe(TUNE.SOUND_RANGE.SPRINT);
+    expect(u.sound).toBe(u.snd.SPRINT); // R14: its variant's sprint radius
   });
 });
 

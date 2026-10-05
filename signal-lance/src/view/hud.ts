@@ -8,6 +8,7 @@ import { unitById } from '../sim/state.ts';
 import { V } from './state.ts';
 import { zoneOf, effEmit } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
+import { revealed } from '../sim/ids.ts';
 
 // ============================ HUD =====================================
 export const $ = (id): any => document.getElementById(id);
@@ -50,7 +51,7 @@ export function updateHud(dt) {
     '<br>UPLINK <span style="color:#fc3">' + '◆'.repeat(G.up.prog) + '◇'.repeat(Math.max(0, TUNE.UPLINK_TURNS - G.up.prog)) + '</span> ' + G.up.name +
       (uplinkBlock() !== 'RANGE' ? '  <b>IN RANGE</b>' : '  ' + Math.round(upDist(p)) + 't away') +
 
-    (V.dbg ? '<br>DBG ' + (G.ct ? 'ct ' + G.ct.seed + ' H' + G.ct.hunt + ' · hunt ' : '') + 'seed ' + G.seed + ' · ' + G.comp.NAME + '  ' + G.units.map(u => u.type.slice(0, 4) + (u.dead ? ' X' : ' ' + u.state + (u.pack ? '/' + u.pack + (u.packTgt ? '→' + u.packTgt : '') : '') + ' E' + Math.round(u.emit) + ' snd' + Math.round(soundRadius(u)) + ' heard[' + u.ec.filter(c => c.on && (c.snd || c.shr)).map(c => c.id + (c.snd ? 's' : 'a')).join(',') + ']')).join(' | ') + // R13: EMIT, sound, sound(s)/alarm(a) contacts
+    (V.dbg ? '<br>DBG ' + (G.ct ? 'ct ' + G.ct.seed + ' H' + G.ct.hunt + ' · hunt ' : '') + 'seed ' + G.seed + ' · ' + G.comp.NAME + '  ' + G.units.map(u => u.type.slice(0, 4) + '/' + u.variant + (u.dead ? ' X' : ' ' + u.state + (u.pack ? '/' + u.pack + (u.packTgt ? '→' + u.packTgt : '') : '') + ' E' + Math.round(u.emit) + ' snd' + Math.round(soundRadius(u)) + ' heard[' + u.ec.filter(c => c.on && (c.snd || c.shr)).map(c => c.id + (c.snd ? 's' : 'a')).join(',') + ']')).join(' | ') + // R13: EMIT, sound, sound(s)/alarm(a) contacts
       '<br>DBG pack ' + (TUNE.PACK_ENABLED ? 'ON' : 'off') + ' · alarms ' + G.alarmLog.length + (G.alarmLog.length ? ' (last R' + G.alarmLog[G.alarmLog.length - 1].turn + ' ' + G.alarmLog[G.alarmLog.length - 1].from + '→' + G.alarmLog[G.alarmLog.length - 1].to.join(',') + ' on ' + G.alarmLog[G.alarmLog.length - 1].mech + ')' : '') + ' · lance snd ' + G.lance.map(m => m.id + Math.round(soundRadius(m))).join(' ') +
       '<br>DBG zones ' + G.zones.map(z => z.type[0] + ':' + z.name).join(', ') + '  me eff S' + Math.round(effEmit(p)) +
       dbgShot('P') + dbgShot('E') +
@@ -112,6 +113,9 @@ export function syncButtons() {
   if (V.mortarArm) setBtn('bMortar', 'TAP TARGET', V.mortarWhy || (w ? 'map = blind' : 'contact or map'), free, true);
   else setBtn('bMortar', 'MORTAR', wb || TUNE.AP_MORTAR + 'AP · ' + p.shells + ' left' + (w ? ' · blind' : ''), free && !wb);
   setBtn('bEnd', 'END TURN', '', free);
+  // R14: ID the selected contact (not once eyes have shown what it is)
+  const sc = G.sel && G.sel.on ? G.sel : null, idv = sc && G.ids[sc.id] ? G.ids[sc.id].v : '';
+  setBtn('bId', 'ID', !sc ? 'TAP ONE' : revealed(sc.id) ? 'SEEN' : idv ? idv + '?' : 'UNKNOWN', G.mode === 'hunt' && !!sc && !revealed(sc.id));
   // Round 5: uplink
   w = G.mode === 'hunt' ? uplinkBlock() : 'RANGE';
   setBtn('bUp', 'UPLINK', w || TUNE.AP_UPLINK + 'AP +' + TUNE.SIG_UPLINK + 'EMIT', free && !w);

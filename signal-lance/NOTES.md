@@ -13,6 +13,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
 - `src/view/`: `render.ts` (canvas), `hud.ts` (HUD and buttons), `input.ts` (touch/mouse),
   `screens.ts` (loadout, result, run log, localStorage), `state.ts` (camera and other view-only state),
   `brief.ts` (tester splash, basics, end-of-hunt questions: update TEST + QUESTIONS every round).
+- R14: `src/sim/scenarios.ts` (the test bed), `src/sim/ids.ts` (observed traits, matcher, IDs), `src/view/testbed.ts`,
+  `src/view/card.ts` (CARD and ID picker).
 - R13: `src/sim/sound.ts` (Sound), `src/sim/pack.ts` (alarm, pack target), `src/sim/autoplay.ts` (the scripted
   player, shared by the runner and the tests). `test/` holds the Vitest tests (`npm test`).
 - `src/main.ts`: wiring and the frame loop.
@@ -506,6 +508,46 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      the start, buildings in between. Runner, 20 seeds: --quiet found R2.1 (by EYES), NORM R1.1 (EYES), --loud R1.0
      (by SOUND every time). The uplink is in their leash, so eyes find you there in the end either way.
    - Runner: --scenario <name> [--runs N] (seeds seed..seed+N-1), and --quiet (CREEP every move) to compare with --loud.
+   - VARIANT TABLE (TUNE.FIELD_VARIANTS; CORE = what kills it, after PART_MIN):
+       PATROL  scout  EMIT low (comms 10), steps NORM 2 / SPRINT 3 · core 1, 10 rds, FIRE_UNC 2.5, patience 1–3, HOLD 6
+                      TELL soft steps (≤3)
+               line   EMIT low, steps 4 / 7 (= SOUND_RANGE) · the R13 patrol                           TELL steps at 4–5
+               heavy  EMIT low, steps 6 / 9 · core 3, 30 rds, FIRE_UNC 1.5, patience 4–8               TELL loud steps (6+)
+       TURRET  sentry EMIT none, shot 12 · the R13 turret                                              TELL loud shot (12)
+               hush   EMIT none, shot 5 · same fight as sentry                                         TELL muffled shot (≤6)
+               gun    EMIT low (comms 10), shot 12 · core 4, 30 rds, FIRE_UNC 2                        TELL steady low EMIT
+       EMPL.   search pulse every 2, EMIT afterglow · the R13 emplacement                             TELL pulses every 2nd round
+               fire   pulse every round · core 1, FIRE_UNC 3 (locks fast), 4 cells for the radar       TELL pulses every round
+               relay  pulse every 3 + comms 10 between · core 4, 10 rds                                TELL pulses every 3rd round
+     Shared readings: EMIT low = 3 patrols + gun (+ pulsers' afterglow); none = sentry + hush; high = pulsers only.
+     Each type has one axis (patrols: step sound, turrets: EMIT / shot, emplacements: pulse rhythm), the bold TELL.
+     The scout keeps the patrol's armour plate: without it its radio couldn't be heard past ~6 tiles behind walls.
+     "fire" = the brief's fire-control (short key for the CARD). VARIANTS_ENABLED false = every unit its type default.
+   - TRAIT BANDS (sim/ids.ts; G.obs per unit id, so a trait survives a contact fading and coming back):
+       EMIT: written on a lance passive tick that detects it (none / low <TRAIT_EMIT_HIGH 20 / high, effective EMIT,
+         not while its radar is on); "none" = a passive mech within TRAIT_SILENT_RANGE 10 of a held contact hears nothing.
+       Pulse: a field radar pulse is now heard by every lance mech with passive at once (the rule the field already
+         had both ways: radarNew), and gives a bearing. Interval = the smallest gap between pulse rounds.
+       Moved: a move seen through a live real fix, a step heard, or a mech's bearing on it swinging > TRAIT_DRIFT_DEG 8°
+         from the same spot. Still: TRAIT_STILL_ACTS 3 of its activations ended while you held a contact or a live
+         bearing on it, no move seen (a holding patrol can look still: a real look-alike).
+       Steps / shot: the loudest heard radius (as heard: QUIET shrinks it), banded soft ≤3 / steps ≤5 / loud;
+         shot muffled ≤6 / loud. The matcher compares a patrol's heard band with its NORMAL gait (a sprinting line patrol
+         reads loud, like a heavy).
+       Matcher rules = the CARD: EMIT bands seen ⊆ the variant's; any pulse rules out non-pulsers; a known gap must equal
+         PULSE; a pulser watched more than PULSE activations with no pulse heard is ruled out; moved rules out statics,
+         still rules out patrols; heard step / shot band must match.
+   - IDs: G.ids[id] = { v, pre, miscall }. Re-ID free until eyes; after eyes the variant shows (kept in G.obs) and the
+     call is locked. "before eyes" in the log = committed before ANY eyes-on contact this hunt.
+   - Wrong-ID track rule: frozen = the contact's ID (eyes or call) is a TURRET / EMPLACEMENT: no growth at all (also on
+     its own activation, where UNC_GROW_OWN_TURN made it grow) and no fading (ID_STATIC_HOLD), so the mark stays for a
+     lob. A patrol called static freezes on a spot it has left; that is the whole cost, no penalty.
+   - Aim: +HIT_ID_BONUS only for a call that was right when made before eyes (not for an eyes reveal, not a flipped
+     miscall), lance gun shots only (mortar unchanged). Shown as "ID +10" in the odds.
+   - Runner: the scripted player commits an ID once matchVariants() gives exactly one, on a contact it holds.
+   - R14 scenarios: Look-alikes (scout at 8 tiles, not ~12: a patrol radio isn't heard 12 tiles through walls; gun at
+     11.7), Quiet gun (gun turret watching row 22 to the uplink: its tell needs bearings, so creep first), Twin pulse
+     (search + relay at ~12, A carries a mortar). Pack off in all three.
 ```
 
 ## TWEAK LOG
@@ -784,4 +826,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round14 part 0 | R13 "did being loud cost you anything?" took contracts to answer | NEW test bed (scenarios.ts,
            TEST BED button, [TESTBED] log line, runner --scenario/--runs/--quiet). Scenarios Earshot, Wounded (pack on).
            BUILD r14-s0 | -
+   round14 part 1 | R13: channels readable "at a glance" but reading them decided nothing | NEW 9 variants
+           (FIELD_VARIANTS, VARIANTS_ENABLED), observed traits (TRAIT_EMIT_HIGH 20, TRAIT_SILENT_RANGE 10,
+           TRAIT_DRIFT_DEG 8, TRAIT_STILL_ACTS 3, TRAIT_SOFT_MAX 3, TRAIT_STEP_MAX 5, SHOT_MUFFLED_MAX 6), CARD, ID
+           (HIT_ID_BONUS 10, ID_STATIC_HOLD true); lance hears field radar pulses at once. Scenarios Look-alikes,
+           Quiet gun, Twin pulse. Runner (20 contracts): ID'd before eyes 27%, right 100%, narrowed 46%, from first
+           reading 4%, 2.0 rounds to one variant; check OK. BUILD r14-s1 | -
 ```

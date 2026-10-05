@@ -141,7 +141,7 @@ function countPack(e) { if (e.packCounted) return; e.packCounted = true; (e.pack
 function staticDecide(e, c, b) {
   e.goalX = e.goalY = -1; e.goalK = '';
   if (e.hasRadar && !partGone(e, 'SENSORS') && !e.pulsed && e.pulseCD <= 0 && canPay(e, TUNE.AP_RADAR, TUNE.RADAR_EN)) {
-    e.pulsed = true; e.pulseCD = TUNE.EMPL_PULSE_TURNS; e.state = 'PULSE'; e.acted = true;
+    e.pulsed = true; e.pulseCD = e.pulseN; e.state = 'PULSE'; e.acted = true;
     let x, y;
     if (c) { x = cx(c); y = cy(c); }
     else { const a = Math.atan2(e.fy, e.fx) + TUNE.EMPL_SWEEP_DEG * Math.PI / 180; x = e.x + Math.cos(a) * T; y = e.y + Math.sin(a) * T; } // sweep

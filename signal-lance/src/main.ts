@@ -9,6 +9,7 @@ import { updateHud, syncButtons } from './view/hud.ts';
 import { launch, showLoadout, showResult } from './view/screens.ts';
 import './view/input.ts';
 import { showTbResult } from './view/testbed.ts';
+import './view/card.ts';
 
 hooks.sync = syncButtons;
 hooks.end = () => (G.tb ? showTbResult() : showResult()); // R14: a test-bed hunt has its own end screen
