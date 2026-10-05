@@ -52,7 +52,8 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, 
   if (tgt && !noSignal) measU *= emitUnc(tgt);
   // R10 NOISE: any fix on a unit standing in noise, except eyes, is fuzzier (× UNC_MULT, floor UNC_FLOOR) and its
   // centre carries a real error inside that circle (held RADAR_JIT_TIME, so a fix doesn't jump every frame).
-  if (tgt && !eyes && src !== 'ALARM' && zoneType(tgt) === 'NOISE') { // R13: a shared contact already carries the alarmer's noise
+  const noiseHits = !eyes && src !== 'ALARM' && (src !== 'RADAR' || TUNE.ZONE_NOISE_AFFECTS_RADAR); // R13 debrief: radar cuts through NOISE
+  if (tgt && noiseHits && zoneType(tgt) === 'NOISE') { // R13: a shared contact already carries the alarmer's noise
     measU = noiseUnc(tgt, measU);
     const j = tgt.njit || (tgt.njit = { x: 0, y: 0, at: -1e9 });
     if (G.time - j.at >= TUNE.RADAR_JIT_TIME || j.at > G.time) { const a = rand() * 6.2832, r = 0.7 * Math.sqrt(rand()); j.x = Math.cos(a) * r; j.y = Math.sin(a) * r; j.at = G.time; }

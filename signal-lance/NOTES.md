@@ -762,4 +762,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            CREEP × LEGS_GONE_MULT 0.5 (spec override, Jamie); auto-CREEP on activation; RADAR/ECM/GHOST show SNS; FIRE/MORTAR
            show SOUND; heard contacts hollow + "· SOUND". Runner: lance passive first contacts 30 → 71; field sound share
            50.1% (flag, by 1). BUILD r13-s2 | -
+   round13 test 2 rating | comms / SOUND labels / SNS buttons / two legs: "helped, but if they're small radios, that'll
+           need tweaking as to detection range down the road" | - | helped
+   round13 debrief 1 | quick contract, pack on, WIN. Weakest: "fixes I couldn't trust": radar gave a 7.5-tile circle
+           centred outside its own cone (walls 2.7t × quiet target 1.39 × NOISE 2, recentred up to 0.7 r) | ZONE_NOISE_
+           AFFECTS_RADAR (effectively true) → false: NOISE no longer blurs radar fixes; same fix ≈ 3.75t, centre within
+           ≈ 2.6t. Session wrapped right after; untested | not rated
 ```

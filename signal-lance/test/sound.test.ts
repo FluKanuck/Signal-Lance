@@ -131,3 +131,16 @@ describe('comms (R13 test 2)', () => {
     expect(emitting(t)).toBe(false);
   });
 });
+
+describe('NOISE and radar (R13 debrief)', () => {
+  it('a radar fix on a unit in NOISE is not blurred; passive still is', () => {
+    const z = G.zones.find(z => z.type === 'NOISE');
+    place(U, z.tiles[0].x, z.tiles[0].y);
+    const u = 1 * T;
+    const r = observe(G.pc, U.id, U.x, U.y, u, 0, 0, true, true, false, 'RADAR');
+    expect(r.unc).toBeCloseTo(u);
+    r.on = false;
+    const p = observe(G.pc, U.id, U.x, U.y, u, 0, 0, true, true, false, 'PASSIVE');
+    expect(p.unc).toBeGreaterThan(u);
+  });
+});

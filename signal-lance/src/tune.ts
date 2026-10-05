@@ -220,6 +220,8 @@ export const TUNE = {
     { x: 44, y: 19, name: 'sump (S)' },
     { x: 64, y: 22, name: 'SE apron' },
   ],
+  ZONE_NOISE_AFFECTS_RADAR: false, // R13 debrief (Jamie: radar fix 'where it obviously isn't', circle too big): NOISE no longer blurs
+                        // radar fixes (passive, sound, flash still blurred). Was effectively true (R10)
   ZONE_RADIUS: 3,       // tiles; a zone = every reachable floor tile within this of its centre
   ZONE_COUNT_MIN: 2,    // zones rolled per run (at least one QUIET and one NOISE)...
   ZONE_COUNT_MAX: 4,    // ...up to this many, never overlapping
