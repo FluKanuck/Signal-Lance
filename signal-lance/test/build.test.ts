@@ -2,6 +2,7 @@
 import { describe, expect, it } from 'vitest';
 import { ITEMS, byId } from '../src/build/data.ts';
 import { emptyBuild, mount, totals, unmount, whyNot } from '../src/build/rules.ts';
+import { TEMPLATES, buildTemplate } from '../src/build/templates.ts';
 
 const item = (id: string) => byId(ITEMS, id)!;
 
@@ -58,5 +59,14 @@ describe('building toy: signature split', () => {
     const t = totals(b);
     expect([t.sig.SND.e, t.sig.SND.u]).toEqual([8, 8]);
     expect([t.sig.EF.e, t.sig.EF.u]).toEqual([2, 0]);
+  });
+});
+
+describe('building toy: role templates', () => {
+  it.each(TEMPLATES.map(t => [t.role, t] as const))('%s fits, launches and sits within rated load', (_, t) => {
+    const tot = totals(buildTemplate(t));
+    expect(tot.problems).toEqual([]);
+    expect(tot.notes).toEqual([]);           // no overload, no idle mods
+    expect(tot.load).toBeLessThanOrEqual(tot.rated);
   });
 });

@@ -3,6 +3,7 @@
 import { CHASSIS, CHS, FRAMES, ITEMS, LOCS, PLATES, SKINS, byId } from './data.ts';
 import type { Ch, HP, Item, Loc, Sig } from './data.ts';
 import { emptyBuild, fmt, frameOf, isCont, mount, totals, unmount, whyNot } from './rules.ts';
+import { TEMPLATES, buildTemplate } from './templates.ts';
 import type { Build } from './rules.ts';
 
 declare const __BUILT__: string;
@@ -41,7 +42,14 @@ function save() {
   try { history.replaceState(null, '', '#' + code); } catch { /* sandboxed viewer */ }
 }
 
-function set(nb: Build) { b = nb; save(); render(); }
+function set(nb: Build) { b = nb; tip = ''; save(); render(); }
+
+// Picking a role, a frame or "strip suit" throws the current build away, so keep one step of undo.
+let undo: Build | null = null;
+let tip = '';
+const hasStuff = (x: Build) => Object.values(x.mounts).some(r => r.some(Boolean)) ||
+  Object.values(x.plate).some(Boolean) || Object.values(x.skin).some(Boolean);
+function replace(nb: Build, note = '') { undo = hasStuff(b) ? b : null; set(nb); tip = note; render(); }
 
 // ── Rendering ──────────────────────────────────────────────────────────────────────────────
 const sigText = (sig: Sig) => CHS.filter(c => sig[c]?.e || sig[c]?.v)
@@ -51,6 +59,10 @@ function render() {
   const f = frameOf(b);
   const t = totals(b);
 
+  $('roles').innerHTML = '<span class="dim">start from:</span>' + TEMPLATES.map(t =>
+    `<button class="chip" data-tpl="${t.id}">${esc(t.role)}</button>`).join('') +
+    (undo ? '<button class="chip" id="undo">undo</button>' : '');
+  $('tip').textContent = tip;
   $('frames').innerHTML = FRAMES.map(x =>
     `<button class="chip${x.id === f.id ? ' on' : ''}" data-frame="${x.id}">${x.name}</button>`).join('');
   $('chassis').innerHTML = (['steel', 'alloy', 'composite'] as const).map(c =>
@@ -175,7 +187,9 @@ document.addEventListener('click', e => {
   const el = (e.target as HTMLElement).closest('button') as HTMLButtonElement | null;
   if (!el || el.disabled) return;
   const d = el.dataset;
-  if (d.frame) set(emptyBuild(d.frame, b.chassis));
+  if (d.tpl) { const t = TEMPLATES.find(x => x.id === d.tpl)!; replace(buildTemplate(t), `${t.role}: ${t.blurb}`); }
+  else if (el.id === 'undo') { const u = undo!; undo = null; set(u); }
+  else if (d.frame) replace(emptyBuild(d.frame, b.chassis));
   else if (d.chassis) set({ ...b, chassis: d.chassis as Build['chassis'] });
   else if (d.layer) openSheet({ loc: d.loc as Loc, layer: d.layer as 'plate' | 'skin' });
   else if (d.idx !== undefined) {
@@ -184,7 +198,7 @@ document.addEventListener('click', e => {
   }
   else if (d.pick !== undefined) choose(d.pick);
   else if (el.id === 'sclose') closeSheet();
-  else if (el.id === 'reset') set(emptyBuild(b.frame, b.chassis));
+  else if (el.id === 'reset') replace(emptyBuild(b.frame, b.chassis));
   else if (el.id === 'share') {
     const done = (t: string) => { el.textContent = t; setTimeout(() => el.textContent = 'copy code', 1200); };
     const box = $('code') as HTMLInputElement;

@@ -20,6 +20,9 @@ button:focus-visible,#code:focus-visible{outline:2px solid var(--vis);outline-of
 h1{font-size:13px;margin:0 8px 0 0;letter-spacing:.1em}
 .row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px}
 .chip{min-height:36px}
+#roles{align-items:center} #roles .dim{margin-right:4px}
+#tip{color:var(--emit);margin:0 0 6px;max-width:70ch}
+#tip:empty{display:none}
 #role{color:var(--dim);margin:2px 0 8px}
 .dim{color:var(--dim)} .small{font-size:11px;font-weight:normal;margin-top:2px}
 .badt{color:var(--bad)} .warnt{color:var(--warn)} .ok{color:var(--ok);margin-top:4px}
@@ -58,6 +61,8 @@ main{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 #stamp{position:fixed;left:4px;bottom:2px;font-size:10px;color:var(--dim)}
 </style>
 <header><h1>HANGAR TOY</h1><button id="share">copy code</button><input id="code" aria-label="Build code" placeholder="paste a build code"><button id="reset">strip suit</button></header>
+<div class="row" id="roles"></div>
+<div id="tip"></div>
 <div class="row" id="frames"></div>
 <div class="row" id="chassis"></div>
 <div id="role"></div>
