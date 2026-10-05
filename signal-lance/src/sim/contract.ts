@@ -34,10 +34,12 @@ export function dmgWord(c) {
 export function contractActive() { return !!G.ct && G.ct.status === 'ACTIVE'; }
 
 // Start a contract: lock the loadouts ([A, B]), set fresh carry, roll hunt 1's jobs.
-export function newContract(seed: number, loads) {
+// hunts (optional): a shorter contract for quick testing (the loadout screen's 1-hunt toggle). Wins needed scale down with it.
+export function newContract(seed: number, loads, hunts = TUNE.CONTRACT_HUNTS) {
   G.ct = {
     seed: seed >>> 0, rs: seed >>> 0, loads: loads.map(l => ({ ...l })),
     hunt: 0, wins: 0, results: [], jobs: [], status: 'ACTIVE', huntSeed: 0,
+    hunts, need: Math.min(TUNE.CONTRACT_WINS_NEEDED, hunts), // this contract's length and wins needed
     carry: { A: fresh(loads[0]), B: fresh(loads[1]) },
     credits: 0, earned: 0, spent: 0, buys: [], // R11 s2: payout and refit
     ref: { A: null, B: null },                 // R11 s2: per mech, what it started its last hunt (alive) with; refit cap = REFIT_CAP × this
@@ -90,7 +92,7 @@ export function recordHunt() {
   });
   C.buys = [];
   if (kind === 'LOSS') C.status = 'FAILED';
-  else if (C.hunt >= TUNE.CONTRACT_HUNTS) C.status = C.wins >= TUNE.CONTRACT_WINS_NEEDED ? 'COMPLETE' : 'FAILED';
+  else if (C.hunt >= C.hunts) C.status = C.wins >= C.need ? 'COMPLETE' : 'FAILED';
 }
 // "A BLOODIED, B LOST" from the current carry.
 export function lanceText() { return Object.keys(G.ct.carry).map(k => k + ' ' + dmgWord(G.ct.carry[k])).join(', '); }

@@ -7,7 +7,7 @@ import { planMove, shootBlock, beginUnit } from '../src/sim/turns.ts';
 import { hitChance, damagePart, partGone } from '../src/sim/combat.ts';
 import { observe } from '../src/sim/sensors.ts';
 import { T } from '../src/sim/world.ts';
-import { startHunt, playHunt } from './helpers.ts';
+import { startHunt, playHunt, LOAD, LOAD_A } from './helpers.ts';
 
 describe('determinism', () => {
   it('the RNG replays from a seed', () => {
@@ -81,5 +81,20 @@ describe('shots', () => {
     const far = hitChance(m, e, { tx: m.x + 60 * T, ty: m.y });
     for (const h of [near, far]) { expect(h.pct).toBeGreaterThanOrEqual(TUNE.HIT_MIN); expect(h.pct).toBeLessThanOrEqual(TUNE.HIT_MAX); }
     expect(far.pct).toBeLessThan(near.pct);
+  });
+});
+
+describe('contract length (quick test)', () => {
+  it('a 1-hunt contract completes on one win', async () => {
+    const { newContract, takeJob, recordHunt } = await import('../src/sim/contract.ts');
+    newContract(5, [LOAD_A, LOAD], 1);
+    expect(G.ct.hunts).toBe(1); expect(G.ct.need).toBe(1);
+    takeJob(0); G.outcome = 'WIN UPLINK'; recordHunt();
+    expect(G.ct.status).toBe('COMPLETE');
+  });
+  it('the default is still CONTRACT_HUNTS, needing CONTRACT_WINS_NEEDED', async () => {
+    const { newContract } = await import('../src/sim/contract.ts');
+    newContract(5, [LOAD_A, LOAD]);
+    expect(G.ct.hunts).toBe(TUNE.CONTRACT_HUNTS); expect(G.ct.need).toBe(TUNE.CONTRACT_WINS_NEEDED);
   });
 });

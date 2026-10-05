@@ -131,10 +131,13 @@ export function renderLoadout() {
   $('logv').textContent = LOG.length ? LOG.slice(-5).join('\n') : 'No runs logged yet.';
   $('logta').hidden = true;
 }
+function showIntel() {
+  $('intel').textContent = 'CONTRACT: ' + ctHunts() + (ctHunts() > 1 ? ' hunts, win ' + Math.min(TUNE.CONTRACT_WINS_NEEDED, ctHunts()) : ' hunt (quick test)') + '. Loadouts lock for the whole contract. Damage, rounds, shells and lost mechs carry over. Jobs are briefed after you start.';
+}
 export function showLoadout() {
   enterLoadout((Math.random() * 4294967296) >>> 0); // R11: sets loadout mode; the jobs are rolled once the contract starts
   $('res').hidden = $('jobs').hidden = $('cres').hidden = true; $('load').hidden = false;
-  $('intel').textContent = 'CONTRACT: ' + TUNE.CONTRACT_HUNTS + ' hunts, win ' + TUNE.CONTRACT_WINS_NEEDED + '. Loadouts lock for the whole contract. Damage, rounds, shells and lost mechs carry over. Jobs are briefed after you start.';
+  showIntel();
   renderLoadout();
 }
 // Result screen (hooks.end: the sim has already set G.mode = 'result' and G.outcome).
@@ -142,7 +145,7 @@ export function showResult() {
   const outcome = G.outcome.split(' ')[0];
   const why = { WIN: G.winBy === 'UPLINK' ? 'Uplink complete at ' + G.up.name + '.' : 'Field cleared.', LOSS: 'You were destroyed.', BAIL: 'You extracted without the job done.' }[outcome];
   $('resTxt').textContent = ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + killText() + ' — ' + fmtTime(G.time) + ' (' + G.turn + ' turns)';
-  $('resWhy').innerHTML = why + '<br>Uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' at ' + G.up.name + '<br>' + dmgSummary() + '<br>Field: ' + fieldSummary() + '<br>Loadout: ' + loadSummary() + (G.ct ? '<br><b>Lance: ' + lanceText() + '</b> · contract wins ' + G.ct.wins + '/' + TUNE.CONTRACT_WINS_NEEDED + (G.ct.status !== 'ACTIVE' ? ' · CONTRACT ' + G.ct.status : '') : '');
+  $('resWhy').innerHTML = why + '<br>Uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' at ' + G.up.name + '<br>' + dmgSummary() + '<br>Field: ' + fieldSummary() + '<br>Loadout: ' + loadSummary() + (G.ct ? '<br><b>Lance: ' + lanceText() + '</b> · contract wins ' + G.ct.wins + '/' + G.ct.need + (G.ct.status !== 'ACTIVE' ? ' · CONTRACT ' + G.ct.status : '') : '');
   $('note').value = ''; resetAnswers();
   $('res').hidden = false; $('res').scrollTop = 0;
 }
@@ -172,7 +175,7 @@ let ctN = store.get('signalLance.ctN', 0) | 0; // contract number for the log (C
 // " · +140 cr (bought A repair×2)" for this hunt's log line
 function huntCr() { const r = G.ct.results[G.ct.results.length - 1]; return r ? ' · +' + r.pay + ' cr' + (r.buys.length ? ' (bought ' + buysText(r.buys) + ')' : '') : ''; }
 function testerTag() { const t = store.get('signalLance.tester', ''); return (t ? '[' + t + '] ' : '') + (TUNE.PACK_ENABLED ? '[PACK] ' : ''); } // R13: pack runs are tagged
-function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + TUNE.CONTRACT_HUNTS + ' · ' : ''; }
+function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + G.ct.hunts + ' · ' : ''; }
 // "C3 COMPLETE 2/3 · lost B in H2"
 function contractLine() {
   const C = G.ct, lost = C.results.flatMap(r => r.lost.map(id => id + ' in H' + r.n));
@@ -180,7 +183,7 @@ function contractLine() {
 }
 function startContract() {
   ctN++; store.set('signalLance.ctN', ctN);
-  newContract((Math.random() * 4294967296) >>> 0, currentLoads());
+  newContract((Math.random() * 4294967296) >>> 0, currentLoads(), ctHunts());
   showJobs();
 }
 function mechLine(id) {
@@ -203,7 +206,7 @@ function refitRow(id) {
 }
 function renderLance() {
   const C = G.ct;
-  $('jhead').textContent = 'HUNT ' + C.hunt + '/' + TUNE.CONTRACT_HUNTS + ' · wins ' + C.wins + ' (need ' + TUNE.CONTRACT_WINS_NEEDED + ') · ' + C.credits + ' cr';
+  $('jhead').textContent = 'HUNT ' + C.hunt + '/' + C.hunts + ' · wins ' + C.wins + ' (need ' + C.need + ') · ' + C.credits + ' cr';
   $('jlance').innerHTML = ['A', 'B'].map(id => '<div>' + mechLine(id) + refitRow(id) + '</div>').join('') +
     (C.hunt > 1 ? '<small class="cap">Refit caps at ' + Math.round(TUNE.REFIT_CAP * 100) + '% of what each mech started its last hunt with.</small>' : '');
 }
@@ -223,7 +226,7 @@ function showContractResult() {
   const C = G.ct;
   $('res').hidden = $('jobs').hidden = true;
   $('cTitle').textContent = 'CONTRACT ' + C.status;
-  $('cSub').textContent = 'C' + ctN + ' · won ' + C.wins + ' of ' + C.results.length + ' hunts (need ' + TUNE.CONTRACT_WINS_NEEDED + ')' + (C.results.length < TUNE.CONTRACT_HUNTS ? ' · lance destroyed in hunt ' + C.results.length : '') + ' · credits earned ' + C.earned + ', spent ' + C.spent;
+  $('cSub').textContent = 'C' + ctN + ' · won ' + C.wins + ' of ' + C.results.length + ' hunts (need ' + C.need + ')' + (C.results.length < C.hunts ? ' · lance destroyed in hunt ' + C.results.length : '') + ' · credits earned ' + C.earned + ', spent ' + C.spent;
   $('cHunts').innerHTML = C.results.map(r => '<div class="hunt"><b>Hunt ' + r.n + ' · job ' + r.job + '</b>' + r.comp + ' @ ' + r.up + '<br><b>' + r.outcome + '</b> · kills ' + r.kills + '/' + r.total +
     '<br>Mechs lost: ' + (r.lost.length ? r.lost.join(', ') : 'none') + '<br>Carried out: ' + r.out.join(', ') + '<br>Paid ' + r.pay + ' cr' + (r.buys.length ? '<br>Bought before: ' + buysText(r.buys) : '') + '</div>').join('');
   $('cres').hidden = false; $('cres').scrollTop = 0;
@@ -263,6 +266,11 @@ $('bSend2').addEventListener('click', sendLog);
 // Tester splash (every page load) and basics screen
 let basicsFrom = 'splash';
 $('tester').value = store.get('signalLance.tester', '');
+// Quick test: a 1-hunt contract instead of the full CONTRACT_HUNTS (remembered; the log shows it as H1/1)
+function ctHunts() { return store.get('signalLance.quick', false) ? 1 : TUNE.CONTRACT_HUNTS; }
+function showQuick() { $('bQuick').textContent = 'LENGTH: ' + (ctHunts() === 1 ? '1 HUNT (QUICK)' : ctHunts() + ' HUNTS'); $('bQuick').classList.toggle('on', ctHunts() === 1); }
+showQuick();
+$('bQuick').addEventListener('click', () => { store.set('signalLance.quick', ctHunts() !== 1); showQuick(); showIntel(); });
 // R13 s2: the pack toggle (remembered; tags the log). OFF first: play Sound vs Emissions on its own, then turn it on.
 function showPack() { $('bPack').textContent = 'THE PACK: ' + (TUNE.PACK_ENABLED ? 'ON' : 'OFF'); $('bPack').classList.toggle('on', TUNE.PACK_ENABLED); }
 setPack(!!store.get('signalLance.pack', false)); showPack();
