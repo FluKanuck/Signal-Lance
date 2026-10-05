@@ -113,8 +113,12 @@ function delta(nb: Build) {
     d(t0.pool, t1.pool) && `pool ${d(t0.pool, t1.pool)}`,
     ...CHS.map(c => { const x = d(t0.sig[c].e + t0.sig[c].v, t1.sig[c].e + t1.sig[c].v); return x && `${c} ${x}`; }),
   ].filter(Boolean);
-  const bad = t1.problems.length > t0.problems.length || t1.net < 0 || t1.load > t1.max;
-  return `<span class="${bad ? 'badt' : 'dim'}">${parts.join(' · ') || 'no change'}</span>`;
+  // Red only for what this choice newly breaks (a suit with no reactor yet shouldn't paint every row red).
+  const key = (p: string) => p.replace(/[\d.]+/g, '#');
+  const had = new Set(t0.problems.map(key));
+  const added = t1.problems.filter(p => !had.has(key(p)));
+  return `<span class="dim">${parts.join(' · ') || 'no change'}</span>` +
+    (added.length ? `<br><span class="badt">✕ ${esc(added.join('; '))}</span>` : '');
 }
 
 function openSheet(p: Pick) {

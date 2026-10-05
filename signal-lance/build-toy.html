@@ -7,7 +7,7 @@ try{if(window.self===window.top)document.documentElement.style.setProperty('--to
 <style>
 /* Same look as the game: grey primitives, colour only for information. */
 :root{--top:56px;--bg:#1b1c1e;--fg:#d8d8d8;--dim:#8a8a8a;--btn:#3a3b3e;--btnOn:#6a7684;--line:#666;
-  --emit:#e0a040;--use:#7a5a28;--vis:#6f8fb0;--bad:#e06060;--warn:#e0c050;--ok:#70c080;color-scheme:dark}
+  --emit:#e0a040;--use:#7a5a28;--vis:#6f8fb0;--bad:#ff8a80;--warn:#e0c050;--ok:#70c080;color-scheme:dark}
 html,body{margin:0;background:var(--bg);color:var(--fg);font:13px monospace;-webkit-text-size-adjust:100%}
 html,body{overflow-x:hidden}
 body{padding:calc(var(--top) + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) 24px calc(16px + env(safe-area-inset-left,0px))}
@@ -54,7 +54,7 @@ main{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 #sbox{background:var(--bg);border-top:1px solid var(--line);width:100%;max-width:720px;max-height:78vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
 #shead{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;font-weight:bold}
 #opts{overflow-y:auto;padding:0 12px 12px;display:flex;flex-direction:column;gap:4px}
-.opt{text-align:left;padding:6px 8px;font-weight:normal}
+.opt{flex-shrink:0;text-align:left;padding:6px 8px;font-weight:normal;line-height:1.4}
 #stamp{position:fixed;left:4px;bottom:2px;font-size:10px;color:var(--dim)}
 </style>
 <header><h1>HANGAR TOY</h1><button id="share">copy code</button><input id="code" aria-label="Build code" placeholder="paste a build code"><button id="reset">strip suit</button></header>
