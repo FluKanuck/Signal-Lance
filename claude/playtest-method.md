@@ -63,6 +63,10 @@ The agent uses a cheat sheet like this to generate options (it's not shown durin
 - **Too quick / too slow** → damage, health, ammo, timers
 - **Choices don't matter** → spread of costs and benefits, slot or resource limits
 
+## Test bed vs contracts (from R14)
+
+Scenarios answer "does the new mechanic **read**?" in minutes: hand-placed, one mechanic, one tap question. Contracts answer "is it **fun**?". Debrief a new mechanic in the test bed first, then confirm it in contracts. The fun test counts contract play only.
+
 ## The fun test
 
 Run after the done line is hit (aim for ~10 runs). Three or more yeses means the pillar works:

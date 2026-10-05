@@ -1,6 +1,6 @@
 # Signal Lance Roadmap
 
-**Updated:** 2026-10-05 after the construction deep dive (R13 "Loud gets company" being built). The full map of the game lives in `claude/signal-lance-game-shape.md`.
+**Updated:** 2026-10-05 after Round 13 (partial: 3 contracts, fun test 2/5 so far; planning R14 without finishing it). The full map of the game lives in `claude/signal-lance-game-shape.md`.
 
 ## North star
 Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, then learn why.
@@ -10,10 +10,10 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 ## Strands
 | Strand | Question | Status | Rounds used |
 |---|---|---|---|
-| Hunt | Is finding and fighting with sensors fun? | Passed. R9 mortar, R10 terrain deepened it. R12: to-hit + parts made fights "richer" and different 3/3; % not trusted (cover tuned, untested — checked in R13). Step 2 (aimed shots) parked | 1 (+R8–R10, R12) |
-| Enemy behaviour | Does an enemy that hunts you and presses an advantage make fights feel alive? | **R13 written, not built.** Jamie: "enemies felt dumb", "let me off the hook", "don't actually hunt me". Testing alarm, converge, press the wound | 1 (R13) |
-| Resource pools | Do separate pools (AP, Energy, Signal, Heat) create real trade-offs? | AP + Energy banked on purpose. Jamie R12: "no risk in having high signal"; sprint noise wrongly stacks. **R13 splits Signal into Emissions (EM, builds, carries far) and Sound (per-turn, short)**. Heat untested | 2 (R4, R13) |
-| SIGINT: signature matching | Does reading a signature and matching it against a reference manual (Cold Waters style) make identifying contacts a skill? | Mapped. Cheap test: distinct signatures for the 3 unit types + one-page reference card, in-hunt. Later also pre-drop from the ship, with a risk dial, plus faction-supplied intel | 0 |
+| Hunt | Is finding and fighting with sensors fun? | Passed. R9 mortar, R10 terrain deepened it. R12: to-hit + parts made fights "richer" and different 3/3; % now "makes sense" (R13, 2/2 answers). Step 2 (aimed shots) parked | 1 (+R8–R10, R12) |
+| Enemy behaviour | Does an enemy that hunts you and presses an advantage make fights feel alive? | R13 built (pack behind a toggle). One pack-on contract: "came for me, fair", 8 alarms, no loss. **Unproven: did being loud cost anything?** (sound ring changed nothing with pack on). Runner can't judge it | 1 (R13, partial) |
+| Resource pools | Do separate pools (AP, Energy, Signal, Heat) create real trade-offs? | AP + Energy banked on purpose. Jamie R12: "no risk in having high signal"; sprint noise wrongly stacks. R13 split Signal into EMIT + SOUND: read **"at a glance"**; a SOUND contact helped find something; crept instead of sprinting once. Heat untested | 2 (R4, R13) |
+| SIGINT: signature matching | Does reading a signature and matching it against a reference manual (Cold Waters style) make identifying contacts a skill? | **R14 written:** 3 variants per type (9-entry card, overlapping traits, one tell each), contacts UNKNOWN until ID'd; right ID = track behaves by type + `HIT_ID_BONUS` 10. Later also pre-drop from the ship, with a risk dial, plus faction-supplied intel | 1 (R14) |
 | Suit building | Do frame (weight), reactor (power) and signature budgets force a real sacrifice, shaped by the INTEL? | Mapped. Cheap test: 3 frames, 2 reactors, ~6 modules | 0 |
 | Combat controls | Can you fire and manoeuvre as a tactical choice? | Passed (R4). R10 noise ended "stand off and pummel" | 3 |
 | Replay pull | Does the next run ask a new question? | Reframed into Company after R10 | 5 (reframed) |
@@ -24,10 +24,10 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | City and factions | Does choosing the next contract feel like weighing pay against who you'll anger? | Mapped: flat node map of faction districts; per-faction standing (hated → alert fields, hunters, closed airspace, pricey fuel; liked → intel on their enemies); faction jobs vs deniable broker jobs. Pushed by upkeep + notoriety. Gate 2 | 0 |
 | Logistics / economy | Does keeping the company supplied create good decisions? | Payout + refit "helped" H1; R12 C2 earned 380, spent 240. **Now two currencies: credits + fuel** (fuel priced by faction). Parts are items, bought or looted; salvage automatic, capped by the hold | 1 |
 
-**Watch:** the fun test has been 0–2/5 for seven rounds (R6 0, R7 1, R8 0, R9 0, R10 2, R11 1, R12 1), almost all over 1–3 contracts or runs. Each round's new thing gets a positive read, then the pull fades. R13 targets the pillar directly (Signal as risk). If it lands flat over a full ~4–5 contracts, that's a strong signal to rethink what the core loop is asking. The campaign layer is now well mapped; **don't build it until Gate 1 passes.**
+**Watch:** the fun test has been 0–2/5 for seven rounds (R6 0, R7 1, R8 0, R9 0, R10 2, R11 1, R12 1), almost all over 1–3 contracts or runs. **R13 (partial, 3 contracts): 2/5** (unplanned approach, "that's how it works"), tying the best. Each round's new thing gets a positive read, then the pull fades. R13 targets the pillar directly (Signal as risk). If it lands flat over a full ~4–5 contracts, that's a strong signal to rethink what the core loop is asking. The campaign layer is now well mapped; **don't build it until Gate 1 passes.**
 
 ## Gates
-1. Core loop fun: not passed. Best recent 2/5 (R10). Order: R13 emissions + pack → signature matching in-hunt → suit budget
+1. Core loop fun: not passed. Best recent 2/5 (R10, R13 partial). Order: R13 emissions + pack → signature matching in-hunt → suit budget
 2. Meta loop fun: started (R11). Contract + carry-over + refit hold as the frame. Order: operators (Standard death rules, recruits) → ship slots + pre-drop scan → city map (fuel, upkeep, factions, standing, faction intel)
 3. Content scaling: on hold. Full module catalogue, interiors/rooftops/verticality, block maps, mission types, infantry and vehicles, more factions and districts, Ironman and Story settings
 4. Production: narrowly open (TS + Vite, `sim/`/`view/`, runner, Pages, tester splash). Godot, the presentation pass, art and saves stay locked
@@ -35,8 +35,9 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 ## Sequence
 | Round | Name | Question in short |
 |---|---|---|
-| 13 | Loud gets company | Step 1: Sound (per-turn, short) vs Emissions (builds, carries far). Step 2: alarm, patrols converge, press the wound. Does getting loud become a real risk? |
-| 14 | ? | Recommended: "Read the signature" (signature matching in-hunt with a reference card). Others: suit budget; R12 step 2 (aimed shots); deeper enemy reaction |
+| 13 | Loud gets company | Done in part: channels readable, pack "fair"; loud-costs-you still open (carried into R14's debrief) |
+| 14 | Read the signature | Part 0: test bed (scenarios; closes R13 via "Earshot"/"Wounded"). Part 1: 9-variant card, commit an ID, right ID tightens track + aim |
+| 15 | ? | Likely suit budget (+ THERMAL) if signatures land |
 | — | Operators | One named operator per suit, one skill, Standard death (critical + extract), injuries that bench them, 2 recruits in one district |
 | — | City map | 6–8 districts, 3 factions, standing meters, upkeep per jump, faction fuel prices |
 | — | Gate 1 + 2 fun test | ~10 runs / ~4–5 contracts, 3/5 to pass |
@@ -57,10 +58,11 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | 10 | Rolled QUIET/NOISE zones, statics dig in | Ground changed the plan; noise ended stand-off. 2/5 over ~8 runs. Stopped on "nothing at stake" |
 | 11 | 3-hunt contract, carry-over, job pick; payout + refit, `REFIT_CAP` 0.8; tester splash | Stakes landed in H3 only; 1/5 over 2 contracts. Missing: "more tactical depth" |
 | 12 | To-hit roll (Signal, range, moved, cover) + hit locations; step 2 not started. Cover tuned at wrap (`COVER_RANGE` 1.5→1.0, `COVER_GRAZE` 0.5→0.3) | Parts "changed the fight", fights differed 3/3; % "didn't make sense". 1/5 over 1 contract. "AI needs a serious pass" |
-| 13 | "Loud gets company": split Signal into Emissions + Sound (step 1), then alarm / converge / press the wound (step 2). Gated on step 1 reading clearly. Aimed shots stay parked | Design lead chat: "fights felt richer, enemies felt dumb"; field "let me off the hook", "don't actually hunt me", "no risk in having high signal"; sprint noise shouldn't stack or linger |
+| 13 | "Loud gets company" (result, partial): EMIT/SOUND read at a glance, pack "came for me, fair", hit % makes sense; 2/5 over 3 contracts; loud-cost unproven. Jamie chose to plan R14 rather than finish R13. Before that: "Loud gets company": split Signal into Emissions + Sound (step 1), then alarm / converge / press the wound (step 2). Gated on step 1 reading clearly. Aimed shots stay parked | Design lead chat: "fights felt richer, enemies felt dumb"; field "let me off the hook", "don't actually hunt me", "no risk in having high signal"; sprint noise shouldn't stack or linger |
 | map | Game shape session: **exosuits, not mechs**; flying ship as a mobile base (before / after / between, never on the board); SIGINT = Cold Waters–style signature matching + a risk dial; suits = frame / reactor / signature budget; operators = skills + fragility. Full map in `claude/signal-lance-game-shape.md` | Jamie: "we have an actual game on the back end". Map the whole shape before the next round, without building it; every piece gets a cheap test and a gate |
 | map 2 | Open threads closed. **City:** planet-spanning, faction-held districts, flat node travel, danger = faction base + your heat. **Push:** upkeep + per-faction notoriety (alert fields, hunter teams, closed airspace). **Contracts:** faction jobs and deniable broker jobs; basic info at any range, detail by SIGINT range. **Economy:** credits + fuel (priced by faction); parts are items, bought or looted; salvage automatic, capped by the hold. **Standing is two-way:** friendly factions supply intel on their enemies. **Death:** difficulty setting (Ironman / Standard critical + extract / Story), tune around Standard; recruits from districts, rescue, crew training | Jamie's answers in the open threads session. Campaign is mapped but stays unbuilt until Gate 1 passes |
 | map 3 | Construction deep dive: **locations = R12 hit parts**; typed hardpoints + 1–2 OPEN; weight = rated load + overload band (move AP, servo Sound); power = reactor output − draw = regen, batteries = pool; signature as **raw bars** (the debrief explains); **tags + mods scoped by location**; the **ship uses the same rules** (overload → fuel). Progression: **wide + sidegrades**; sources = faction markets, broker market, salvage, contract rewards (no reverse-engineering); **items with condition** (Sound / Worn / Failing; hits reliability and signature, never power); ship = refit sections + occasional hull trade-up. Then the **full catalogue** (~250 base rows, MegaMek-inspired breadth, nothing copied): **six signature channels** (VISUAL incl. lidar/EO, ACOUSTIC, THERMAL, EM, ELECTRIC, MAGNETIC = passive mass), sensor/jammer grades 1–3, **armour = plate + skin per location**, active stealth costs your EW. Sim rollout agreed: THERMAL (with the suit-budget round) → MAGNETIC → VISUAL → ELECTRIC, one at a time. Open questions closed: BACK hit only from the rear arc; one mod per location; 2-hardpoint modules rare and same-location; broker sells baseline steel frames, makers the rest; closed airspace = intercept roll vs ship signature; makers = Corporate, Foundry, Syndicate, **Old Army** (gated by company reputation) + broker. Rules in `claude/signal-lance-construction.md`, rows in `claude/signal-lance-catalogue.md` | Jamie asked for a catalogue deep dive during the R13 build. Treated as mapping (like the game shape sessions): nothing is built, and the suit-budget cheap test is sharpened |
+| 14 | "Read the signature" + **test bed**. Card is 3 variants per type (Jamie: "3 per type"); a right ID = track by type + to-hit +10 (Jamie: "10% is good"); wrong ID costs only the misleading track. Test bed = agent-written scenarios per round, `[TESTBED]` log, fun test still counts contracts only | R13: channels readable but deciding nothing yet; R13's open question took contracts and stayed open. Jamie: "better ways to test the new mechanics… a little button that loads a dev suite" |
 
 ## Parked ideas (by gate)
 **Gate 1 candidates (depth)**
@@ -83,6 +85,9 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 17. R12 step 2: aimed shots (`HIT_AIMED` −20), per-part repair (`COST_PART_RESTORE` 60). Later: salvage, crits, enemies aiming at parts — combat / company
 18. R12 build notes: legs and weapon at 2 hits; show which wall gives cover; visible "disarmed" state; tap-to-show odds breakdown — combat
 19. **Emission taxonomy (Jamie R13 chat):** now decided as six channels (catalogue §1); sim rollout in steps. Was: separate EM / IR / EF / acoustic signatures; different sensors and weapons read each differently. Builds on R13's two channels; pairs with reactor heat/IR in suit building — hunt / resource pools
+
+49. Comms detection range: patrol "small radios" (`COMMS_EMIT` 10) carry ~14 tiles; probably needs its own shorter range (R13) — hunt
+50. RADAR may be mandatory: the `--loud` bot wins more because radar info outweighs the noise; watch in play (R13) — hunt
 
 **Quality of life (Gate 1, low)**
 20. Fast travel when no enemies tracked; END TURN auto-moves along a plotted path; "you'll stop here" marker — combat

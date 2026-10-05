@@ -34,6 +34,7 @@ Signal Lance started as a prototype toy and, from Round 6, lives in a **permanen
 - **Rules go in `sim/`, drawing and input go in `view/`.** If a change needs both, put the rule in `sim/` first, then show it in `view/`.
 - **Phone first:** landscape, touch, buttons ≥ 48px, top 56px kept clear for the app's viewer bar, no page scroll or zoom, steady frame rate, and mouse still works on desktop.
 - **Storage:** localStorage (view side only), wrapped in try/catch with an in-memory fallback. Keep the COPY LOG and SEND LOG buttons working.
+- **Test bed (from R14):** each round brief names 2–3 scenarios in `src/sim/scenarios.ts` (hand-placed units, zones, damage and TUNE overrides, a `tryThis` line and one tap question). Write them, add a Vitest check for each, and keep older rounds' scenarios working. They're reached from the TEST BED button, log as `[TESTBED <name>]`, and never count toward contract stats. No editor or free-spawn sandbox.
 - **Tester splash (from R11):** every round, update `src/view/brief.ts` before shipping: `TEST` (round title, the round's question, what's new in plain words, how to report) and `QUESTIONS` (2–3 tap-answer end-of-hunt questions shaped by the brief's debrief focus). Update the basics text if a control or mechanic changed. Keep all of it short and plain. Bump `BUILD` in `screens.ts`.
 
 ## Working rules (loosened 2026-10-05)
