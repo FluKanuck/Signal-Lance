@@ -36,22 +36,26 @@ Signal Lance started as a prototype toy and, from Round 6, lives in a **permanen
 - **Storage:** localStorage (view side only), wrapped in try/catch with an in-memory fallback. Keep the COPY LOG and SEND LOG buttons working.
 - **Tester splash (from R11):** every round, update `src/view/brief.ts` before shipping: `TEST` (round title, the round's question, what's new in plain words, how to report) and `QUESTIONS` (2–3 tap-answer end-of-hunt questions shaped by the brief's debrief focus). Update the basics text if a control or mechanic changed. Keep all of it short and plain. Bump `BUILD` in `screens.ts`.
 
-## Hard rules
+## Working rules (loosened 2026-10-05)
 
-- **Build only what the round brief says.** Nothing else changes.
-- **Forbidden until the design lead says otherwise:** CI, test suites, linters or formatter setup, git hooks, extra frameworks or libraries, save systems, menus (beyond the tester splash, basics, job-pick and result screens), settings, art, sound, particles, data catalogues, design documents, new modules, maps, enemies, progression or campaign.
-- **Tempting ideas** go in a short "later" list in your reply, never in the code.
-- **Don't ask design questions mid-build.** Pick the simplest option, note it in ASSUMPTIONS, and keep going.
-- **Spec overrides** are allowed only when a debrief earns them and Jamie says "go." Log them clearly in the TWEAK LOG.
+These started as hard rules, set up early (with Jamie's ADHD in mind) to stop heavy investment before the game was proven fun. The game is in a good place now, so they are **defaults, not gospel**. Adapt them when it helps, and say so.
+
+- **Build what the round brief says.** Small, related fixes and cleanups are fine. Mention them in the report.
+- **Tests are welcome.** Vitest unit tests on `src/sim/` (`npm test`) and pass/fail checks in the runner (`npm run sim -- --check`). Add tests for every new rule. Still not wanted without asking: CI, linters/formatters, git hooks, extra frameworks.
+- **Still needs the design lead / Jamie:** new content (modules, maps, enemies), saves, campaign/progression, art and sound. Tempting ideas go in a "later" list.
+- **Steps:** a round can be built in one go. Use tune flags (e.g. `PACK_ENABLED`) to let Jamie play parts on their own, instead of waiting for a debrief between build steps.
+- **Design questions mid-build:** ask if the answer really changes the build (use the question tool). Otherwise pick the simplest option and note it in ASSUMPTIONS.
+- **Spec overrides** from a debrief still need Jamie's "go". Log them in the TWEAK LOG.
 
 ## The workflow
 
 1. **Read** this brief, `claude/playtest-method.md`, the round brief, the artifact, and `NOTES.md` (or the old file's top comment blocks before Round 6).
-2. **Confirm in 3 lines max** what you understood and what you'll change. Then build without waiting.
-3. **Build in steps** if the change is big. The game must be playable after every step.
-4. **Ship each step:** `npm run build`, commit and push to `main`, then republish `dist/signal-lance.html` to the same URL.
-5. **Report in 3 lines max:** what works, how to test it on a phone, what's rough. Then stop and wait.
-6. **"next"** means build the next step. **"played"** means run a debrief.
+2. **Confirm briefly** what you understood and what you'll change. Then build.
+3. **Build** rules + tests in `sim/` first, then the view, then the runner report. Keep the game playable at every commit.
+4. **Before shipping:** `npm run check`, `npm test`, `npm run sim -- --contracts 20 --check` all pass.
+5. **Ship:** `npm run build`, commit and push to `main`, then republish `dist/signal-lance.html` to the same URL.
+6. **Report:** short and scannable. What works, how to test it on a phone, what's rough, the runner numbers.
+7. **"played"** means run a debrief.
 
 ## The debrief (summary; full rules in the method file)
 

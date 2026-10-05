@@ -8,37 +8,17 @@
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
-import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist,
-         cmdSelect, cmdFire, cmdUplink, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar } from '../src/sim/turns.ts';
+import { playOut as autoPlayOut } from '../src/sim/autoplay.ts';
+import { upDist } from '../src/sim/turns.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
 const GAMES = arg('--games', 10), ONE = arg('--seed', -1), VERBOSE = argv.includes('-v');
 const sarg = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : ''; };
 const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0);
-const MAX_TURNS = 80, DT = 0.05;
+const MAX_TURNS = 80;
 const LOAD = { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 }; // the game's default loadout
 const LOAD_A = { ...LOAD, mortar: 1 }; // R9: scripted A carries a mortar (9/10 slots)
-
-// run the current action (move / pulse / shot) to completion
-function runAct() { for (let n = 0; G.act && G.mode === 'hunt' && n < 20000; n++) step(DT); }
-
-function playerTurn() {
-  let moved = false;
-  for (let k = 0; k < 12 && G.mode === 'hunt'; k++) {
-    const c = playerTarget();
-    if (c && G.sel !== c) cmdSelect(c); // select + turn to face it (free once a turn)
-    if (mortarBlock(G.p, c) === '') { cmdMortar(); runAct(); continue; } // R9: lob at any contact that qualifies
-    if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') { cmdFire(); runAct(); continue; }
-    if (uplinkBlock() === '') { cmdUplink(); continue; }
-    if (!moved && upDist(G.p) > TUNE.UPLINK_RADIUS + 0.5) {
-      cmdMoveMode('NORMAL'); cmdTarget(G.up.x, G.up.y); moved = true;
-      if (G.plan && !G.plan.path && G.plan.why === 'LEGS') { cmdMoveMode('CREEP'); cmdTarget(G.up.x, G.up.y); } // R12: legs gone = creep
-      if (G.plan && G.plan.path) { cmdMove(); runAct(); continue; }
-    }
-    break;
-  }
-}
 
 function playGame(seed: number, comp?: string) {
   rollEnemy(seed, comp); newHunt([{ ...LOAD_A }, { ...LOAD }]); // R7 s2: two scripted mechs, same loadout
@@ -46,16 +26,7 @@ function playGame(seed: number, comp?: string) {
 }
 // play the already-started hunt to its end (or a stall)
 function playOut(seed: number) {
-  let guard = 0;
-  while (G.mode === 'hunt' && G.turn <= MAX_TURNS && guard++ < 2e6) {
-    if (G.phase === 'PLAYER') {
-      const t = G.turn, who = G.p.id;
-      playerTurn();
-      if (G.mode !== 'hunt') break;
-      endPlayerTurn();
-      if (VERBOSE) console.log(`  R${t} ${who} ${Math.round(upDist(unitById(who)))}t from uplink, hits ${G.lance.map((m: any) => m.id + m.hits).join(' ')} | ` + G.units.map((u: any) => `${u.type[0]}:${u.dead ? 'X' : u.state + ' h' + u.hits}`).join(' ') + ` | uplink ${G.up.prog}/${TUNE.UPLINK_TURNS}`);
-    } else step(DT); // the bot's turn runs on its own pacing timer
-  }
+  autoPlayOut(MAX_TURNS, VERBOSE ? (t, who) => console.log(`  R${t} ${who} ${Math.round(upDist(unitById(who)))}t from uplink, hits ${G.lance.map((m: any) => m.id + m.hits).join(' ')} | ` + G.units.map((u: any) => `${u.type[0]}:${u.dead ? 'X' : u.state + ' h' + u.hits}`).join(' ') + ` | uplink ${G.up.prog}/${TUNE.UPLINK_TURNS}`) : undefined);
   const outcome = G.mode === 'hunt' ? 'STALL' : G.outcome;
   const units = G.units.map((u: any) => ({ type: u.type, found: u.found, acted: u.acted, dead: u.dead, shots: u.shots, zoned: u.zoned, ft: u.found ? u.foundTurn : 0, mobile: u.mobile }));
   const mt = G.lance.reduce((a: any, m: any) => ({ s: a.s + m.mShots, h: a.h + m.mHits, k: a.k + m.mKills, f: a.f + m.mFriendly, ns: a.ns + (m.mNS || 0), nh: a.nh + (m.mNH || 0), os: a.os + (m.mOS || 0), oh: a.oh + (m.mOH || 0), nu: a.nu + (m.mNU || 0), ou: a.ou + (m.mOU || 0) }), { s: 0, h: 0, k: 0, f: 0, ns: 0, nh: 0, os: 0, oh: 0, nu: 0, ou: 0 });

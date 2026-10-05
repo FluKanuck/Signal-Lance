@@ -16,6 +16,8 @@ Every toy tests ONE question, written as one sentence before building. Signal La
 
 What Jamie's favourite game moments share: struggle → understanding → a plan → watching the plan work under fire. Toys should aim straight at that feeling.
 
+> **Update 2026-10-05:** Signal Lance is past the toy stage. The debrief protocol below still holds. The toy rules are now defaults: tests on the pure rules are encouraged, rounds can be built in one go with tune flags, and the forbidden list is relaxed (see `code-agent-brief.md`, "Working rules"). Use them in full again for any brand-new toy.
+
 ## Toy rules
 
 1. **One question per toy.** It's a scouting mission, not a foundation.
