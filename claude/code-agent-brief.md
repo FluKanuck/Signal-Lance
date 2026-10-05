@@ -10,7 +10,8 @@ Signal Lance started as a prototype toy and, from Round 6, lives in a **permanen
 
 ## Where things live
 
-- **Repo:** `FluKanuck/Prototype`, branch `claude/signal-lance`. Attach it, check out the branch, and commit there.
+- **Repo:** `FluKanuck/Signal-Lance`, branch `main`. Attach it and commit straight to `main`. (Up to build `r12-s1` the project lived in `FluKanuck/Prototype` on branch `claude/signal-lance`; the round reports' commit hashes refer to that repo.)
+- **Testers (GitHub Pages):** https://flukanuck.github.io/Signal-Lance/, served from `main`, folder `/docs`. `npm run build` updates `docs/index.html`; commit it with every build.
 - **Project (Round 6 onward):** `signal-lance/`, a TypeScript + Vite project.
   - `src/sim/`: pure game rules. No DOM, canvas, `window`, `localStorage` or direct `Math.random` (use the seeded RNG).
   - `src/view/`: rendering, HUD, input, camera and the DBG overlay. The view reads sim state and sends commands; it never changes rule state directly.
@@ -48,7 +49,7 @@ Signal Lance started as a prototype toy and, from Round 6, lives in a **permanen
 1. **Read** this brief, `claude/playtest-method.md`, the round brief, the artifact, and `NOTES.md` (or the old file's top comment blocks before Round 6).
 2. **Confirm in 3 lines max** what you understood and what you'll change. Then build without waiting.
 3. **Build in steps** if the change is big. The game must be playable after every step.
-4. **Ship each step:** `npm run build`, commit and push to `claude/signal-lance`, then republish `dist/signal-lance.html` to the same URL.
+4. **Ship each step:** `npm run build`, commit and push to `main`, then republish `dist/signal-lance.html` to the same URL.
 5. **Report in 3 lines max:** what works, how to test it on a phone, what's rough. Then stop and wait.
 6. **"next"** means build the next step. **"played"** means run a debrief.
 

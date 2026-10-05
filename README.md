@@ -39,4 +39,6 @@ npm run build   # build dist/ and docs/index.html
 npm run sim     # headless runner
 ```
 
+**Play:** https://flukanuck.github.io/Signal-Lance/ (served by GitHub Pages from `main`, folder `/docs`).
+
 This code was imported from [`FluKanuck/Prototype`](https://github.com/FluKanuck/Prototype) (branch `claude/signal-lance`) at build `r12-s1`.

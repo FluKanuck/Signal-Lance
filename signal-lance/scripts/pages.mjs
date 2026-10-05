@@ -1,5 +1,5 @@
 // After `vite build`: copy the one-file build to the repo's docs/ folder for GitHub Pages.
-// Pages serves docs/ from branch claude/signal-lance. The manifest lives in docs/ (static).
+// Pages serves docs/ from branch main. The manifest lives in docs/ (static).
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
