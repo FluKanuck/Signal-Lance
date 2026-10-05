@@ -12,26 +12,31 @@ const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;
 
 let b: Build = load();
 
-function load(): Build {
-  const tryParse = (s: string | null) => { try { return s ? JSON.parse(s) as Build : null; } catch { return null; } };
-  let got = tryParse(location.hash.length > 1 ? decodeURIComponent(atob(location.hash.slice(1))) : null);
-  if (!got) { try { got = tryParse(localStorage.getItem(KEY)); } catch { /* storage blocked */ } }
-  if (got && byId(FRAMES, got.frame)) {
-    const fresh = emptyBuild(got.frame, got.chassis);
-    // Keep only what still matches the frame's hardpoints (rows may have changed since the link was made).
-    for (const l of LOCS) {
-      if (got.mounts?.[l]?.length === fresh.mounts[l].length) fresh.mounts[l] = got.mounts[l];
-      fresh.plate[l] = got.plate?.[l] ?? null; fresh.skin[l] = got.skin?.[l] ?? null;
-    }
-    return fresh;
+/** A build code is the build as base64 JSON: copy it out, paste it back in (also used in the URL hash locally). */
+const toCode = (x: Build) => btoa(encodeURIComponent(JSON.stringify(x)));
+function fromCode(code: string): Build | null {
+  let got: Build;
+  try { got = JSON.parse(decodeURIComponent(atob(code.trim()))) as Build; } catch { return null; }
+  if (!got || !byId(FRAMES, got.frame)) return null;
+  const fresh = emptyBuild(got.frame, got.chassis);
+  // Keep only what still matches the frame's hardpoints (rows may have changed since the code was made).
+  for (const l of LOCS) {
+    if (got.mounts?.[l]?.length === fresh.mounts[l].length) fresh.mounts[l] = got.mounts[l];
+    fresh.plate[l] = got.plate?.[l] ?? null; fresh.skin[l] = got.skin?.[l] ?? null;
   }
-  return emptyBuild('warden');
+  return fresh;
+}
+
+function load(): Build {
+  let saved: string | null = null;
+  try { saved = localStorage.getItem(KEY); } catch { /* storage blocked */ }
+  return (location.hash.length > 1 && fromCode(location.hash.slice(1))) || (saved && fromCode(saved)) || emptyBuild('warden');
 }
 
 function save() {
-  const s = JSON.stringify(b);
-  try { localStorage.setItem(KEY, s); } catch { /* storage blocked */ }
-  history.replaceState(null, '', '#' + btoa(encodeURIComponent(s)));
+  const code = toCode(b);
+  try { localStorage.setItem(KEY, code); } catch { /* storage blocked */ }
+  try { history.replaceState(null, '', '#' + code); } catch { /* sandboxed viewer */ }
 }
 
 function set(nb: Build) { b = nb; save(); render(); }
@@ -72,7 +77,9 @@ function render() {
   const over = t.load > t.rated;
   const loadPct = (n: number) => Math.min(100, n / t.max * 100);
   const ratedMark = loadPct(t.rated);
-  const pen = over ? `overload: +${fmt(t.penalty.moveAP)} AP/move, +${fmt(t.penalty.servoSnd)} servo SND` : 'within rated load';
+  const unset = !t.penalty.moveAP && !t.penalty.servoSnd;
+  const pen = !over ? 'within rated load' : unset ? 'overload band: penalty not designed yet'
+    : `overload: +${fmt(t.penalty.moveAP)} AP/move, +${fmt(t.penalty.servoSnd)} servo SND`;
   const scale = Math.max(16, ...CHS.map(c => t.sig[c].e + t.sig[c].v));
   $('read').innerHTML =
     `<div class="rrow"><span class="lbl">LOAD</span><div class="bar"><div class="fill${t.load > t.max ? ' bad' : over ? ' warn' : ''}" style="width:${loadPct(t.load)}%"></div>` +
@@ -83,10 +90,11 @@ function render() {
     CHS.map(c => {
       const s = t.sig[c];
       return `<div class="rrow"><span class="lbl">${c}</span><div class="bar">` +
-        `<div class="fill emit" style="width:${s.e / scale * 100}%"></div><div class="fill vis" style="width:${s.v / scale * 100}%"></div></div>` +
-        `<span class="num">e ${fmt(s.e)} · v ${fmt(s.v)}</span></div>`;
+        `<div class="fill emit" style="width:${(s.e - s.u) / scale * 100}%"></div><div class="fill use" style="width:${s.u / scale * 100}%"></div>` +
+        `<div class="fill vis" style="width:${s.v / scale * 100}%"></div></div>` +
+        `<span class="num">on ${fmt(s.e - s.u)} · use ${fmt(s.u)} · v ${fmt(s.v)}</span></div>`;
     }).join('') +
-    `<div class="legend"><span class="sw emit"></span>emit <span class="sw vis"></span>visibility <span class="dim">(raw sums; weapons count once per shot)</span></div>` +
+    `<div class="legend"><span class="sw emit"></span>always on <span class="sw use"></span>per use <span class="sw vis"></span>visibility <span class="dim">(per use = one of each shot, pulse, move, summed)</span></div>` +
     t.problems.map(p => `<div class="badt">✕ ${esc(p)}</div>`).join('') +
     t.notes.map(n => `<div class="warnt">· ${esc(n)}</div>`).join('') +
     (t.problems.length ? '' : `<div class="ok">✓ launches</div>`);
@@ -172,8 +180,18 @@ document.addEventListener('click', e => {
   else if (el.id === 'sclose') closeSheet();
   else if (el.id === 'reset') set(emptyBuild(b.frame, b.chassis));
   else if (el.id === 'share') {
-    navigator.clipboard?.writeText(location.href).then(() => { el.textContent = 'copied'; setTimeout(() => el.textContent = 'link', 1200); }, () => {});
+    const done = (t: string) => { el.textContent = t; setTimeout(() => el.textContent = 'copy code', 1200); };
+    const box = $('code') as HTMLInputElement;
+    box.value = toCode(b);
+    navigator.clipboard?.writeText(box.value).then(() => done('copied'), () => { box.select(); done('select + copy'); })
+      ?? (box.select(), done('select + copy'));
   }
+});
+$('code').addEventListener('input', e => {
+  const box = e.target as HTMLInputElement;
+  const got = fromCode(box.value);
+  if (got) { set(got); box.value = ''; box.placeholder = 'loaded'; }
+  else if (box.value) box.placeholder = 'not a build code';
 });
 $('sheet').addEventListener('click', e => { if (e.target === $('sheet')) closeSheet(); });
 $('stamp').textContent = __BUILT__;

@@ -48,3 +48,15 @@ describe('building toy', () => {
     expect(totals(b).sig.EM.e).toBe(before);
   });
 });
+
+describe('building toy: signature split', () => {
+  it('reactors are always on; guns, radar and legs only on use', () => {
+    let b = emptyBuild('warden');
+    b = mount(b, 'CORE', 0, item('std'));        // IR e1, EF e2: always on
+    b = mount(b, 'ARMS', 0, item('autocannon')); // SND e6: per shot
+    b = mount(b, 'LEGS', 0, item('servos'));     // SND e2: per move
+    const t = totals(b);
+    expect([t.sig.SND.e, t.sig.SND.u]).toEqual([8, 8]);
+    expect([t.sig.EF.e, t.sig.EF.u]).toEqual([2, 0]);
+  });
+});

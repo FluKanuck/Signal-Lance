@@ -75,12 +75,14 @@ export function overloadPenalty(load: number, rated: number, max: number): { mov
 }
 
 // ── Totals ───────────────────────────────────────────────────────────────────────────────────
-export interface ChTotal { e: number; v: number; loudest: Loc | null }
+/** e = all Emit, u = the part of e that only happens on use (shots, pulses, moves), v = Visibility. */
+export interface ChTotal { e: number; u: number; v: number; loudest: Loc | null }
+type LocCh = { e: number; u: number; v: number };
 export interface Totals {
   load: number; rated: number; max: number; penalty: { moveAP: number; servoSnd: number };
   output: number; draw: number; net: number; pool: number;
   sig: Record<Ch, ChTotal>;
-  locSig: Record<Loc, Record<Ch, { e: number; v: number }>>;
+  locSig: Record<Loc, Record<Ch, LocCh>>;
   hits: Record<Loc, number>;
   problems: string[]; notes: string[];
 }
@@ -91,7 +93,7 @@ export function totals(b: Build): Totals {
   const problems: string[] = [];
   const notes: string[] = [];
   let load = 0, output = 0, draw = 0, pool = POOL_BASE, ratedAdd = ch.rated;
-  const zero = () => Object.fromEntries(CHS.map(c => [c, { e: 0, v: 0 }])) as Record<Ch, { e: number; v: number }>;
+  const zero = () => Object.fromEntries(CHS.map(c => [c, { e: 0, u: 0, v: 0 }])) as Record<Ch, LocCh>;
   const locSig = perLoc(zero);
   const hits = perLoc(() => 0);
   const used = LOCS.filter(l => f.slots[l].length > 0);
@@ -112,7 +114,9 @@ export function totals(b: Build): Totals {
       for (const c of CHS) {
         const sg = it.sig[c];
         if (!sg) continue;
-        s[c].e += (sg.e ?? 0) * (hit ? mod.emitMult?.[c] ?? 1 : 1);
+        const em = (sg.e ?? 0) * (hit ? mod.emitMult?.[c] ?? 1 : 1);
+        s[c].e += em;
+        if (perUse(it)) s[c].u += em;
         s[c].v += sg.v ?? 0;
       }
     }
@@ -133,19 +137,20 @@ export function totals(b: Build): Totals {
       for (const c of CHS) {
         s[c].e += skin.sig[c]?.e ?? 0; s[c].v += skin.sig[c]?.v ?? 0;
         s[c].e *= 1 - (skin.abs[c]?.e ?? 0);
+        s[c].u *= 1 - (skin.abs[c]?.e ?? 0);
         s[c].v *= 1 - (skin.abs[c]?.v ?? 0);
       }
     }
   }
 
   const sig = Object.fromEntries(CHS.map(c => {
-    let e = 0, v = 0, loudest: Loc | null = null, top = 0;
+    let e = 0, u = 0, v = 0, loudest: Loc | null = null, top = 0;
     for (const l of LOCS) {
       const x = locSig[l][c];
-      e += x.e; v += x.v;
+      e += x.e; u += x.u; v += x.v;
       if (x.e + x.v > top) { top = x.e + x.v; loudest = l; }
     }
-    return [c, { e, v, loudest }];
+    return [c, { e, u, v, loudest }];
   })) as Record<Ch, ChTotal>;
 
   const rated = f.rated + ratedAdd, max = f.max + ch.rated;
@@ -159,5 +164,8 @@ export function totals(b: Build): Totals {
     output, draw, net: output - draw, pool, sig, locSig, hits, problems, notes,
   };
 }
+
+/** Emit that only happens when the module is used: anything with a use cost (shots, pulses), and legs (moves). */
+export const perUse = (it: Item) => it.use !== undefined || it.tags.includes('MOBILITY');
 
 export const fmt = (n: number) => (Math.round(n * 10) / 10).toString();

@@ -1,4 +1,3 @@
-<!doctype html>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#1b1c1e">
@@ -8,27 +7,30 @@ try{if(window.self===window.top)document.documentElement.style.setProperty('--to
 <style>
 /* Same look as the game: grey primitives, colour only for information. */
 :root{--top:56px;--bg:#1b1c1e;--fg:#d8d8d8;--dim:#8a8a8a;--btn:#3a3b3e;--btnOn:#6a7684;--line:#666;
-  --emit:#e0a040;--vis:#6f8fb0;--bad:#e06060;--warn:#e0c050;--ok:#70c080;color-scheme:dark}
+  --emit:#e0a040;--use:#7a5a28;--vis:#6f8fb0;--bad:#e06060;--warn:#e0c050;--ok:#70c080;color-scheme:dark}
 html,body{margin:0;background:var(--bg);color:var(--fg);font:13px monospace;-webkit-text-size-adjust:100%}
-body{padding:calc(var(--top) + env(safe-area-inset-top,0px)) calc(12px + env(safe-area-inset-right,0px)) 24px calc(12px + env(safe-area-inset-left,0px))}
+html,body{overflow-x:hidden}
+body{padding:calc(var(--top) + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) 24px calc(16px + env(safe-area-inset-left,0px))}
 button{font:bold 12px monospace;background:var(--btn);color:var(--fg);border:1px solid var(--line);border-radius:6px;touch-action:manipulation;padding:0 8px;min-height:44px}
 button.on{background:var(--btnOn)}
 button:disabled{opacity:.35}
 header{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:6px}
+#code{flex:1 1 140px;min-width:0;min-height:40px;font:12px monospace;background:var(--bg);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:0 8px}
+button:focus-visible,#code:focus-visible{outline:2px solid var(--vis);outline-offset:1px}
 h1{font-size:13px;margin:0 8px 0 0;letter-spacing:.1em}
 .row{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px}
 .chip{min-height:36px}
 #role{color:var(--dim);margin:2px 0 8px}
 .dim{color:var(--dim)} .small{font-size:11px;font-weight:normal;margin-top:2px}
 .badt{color:var(--bad)} .warnt{color:var(--warn)} .ok{color:var(--ok);margin-top:4px}
-main{display:grid;grid-template-columns:1fr;gap:12px}
+main{display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
 @media (min-width:700px){main{grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)} #read{position:sticky;top:8px;align-self:start}}
 .loc{border:1px solid #333;border-radius:6px;padding:6px;margin-bottom:6px}
 .lhead{font-weight:bold;margin-bottom:4px}
 .loud{color:var(--emit);font-weight:normal;font-size:11px}
 .slots,.armour{display:flex;flex-wrap:wrap;gap:4px}
 .armour{margin-top:4px}
-.slot{flex:1 1 30%;min-width:96px;text-align:left;font-weight:normal;border-style:dashed}
+.slot{flex:1 1 30%;min-width:88px;text-align:left;font-weight:normal;border-style:dashed}
 .slot.full{border-style:solid;background:#2c2d30}
 .slot.mod{border-color:var(--vis)}
 .slot.cont{color:var(--dim)}
@@ -36,17 +38,17 @@ main{display:grid;grid-template-columns:1fr;gap:12px}
 .slot b{color:var(--dim);margin-right:2px}
 .rrow{display:flex;align-items:center;gap:8px;margin-top:6px}
 .lbl{width:46px;font-weight:bold}
-.bar{flex:1;height:10px;border:1px solid var(--line);position:relative;display:flex;overflow:hidden}
+.bar{flex:1;min-width:40px;height:10px;border:1px solid var(--line);position:relative;display:flex;overflow:hidden}
 .fill{height:100%;background:var(--fg)}
 .fill.warn{background:var(--warn)} .fill.bad{background:var(--bad)}
-.fill.emit{background:var(--emit)} .fill.vis{background:var(--vis)}
+.fill.emit{background:var(--emit)} .fill.use{background:repeating-linear-gradient(90deg,var(--emit) 0 2px,var(--use) 2px 4px)} .fill.vis{background:var(--vis)}
 .mark{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--fg)}
-.num{min-width:120px;text-align:right;white-space:nowrap}
+.num{text-align:right;white-space:nowrap;font-size:11px;font-variant-numeric:tabular-nums}
 .num.wide{flex:1;text-align:left;white-space:normal}
 .sub{margin-left:54px;font-size:11px}
 .legend{margin:6px 0;font-size:11px}
 .sw{display:inline-block;width:10px;height:10px;vertical-align:middle;margin:0 2px 0 6px}
-.sw.emit{background:var(--emit)} .sw.vis{background:var(--vis)}
+.sw.emit{background:var(--emit)} .sw.use{background:repeating-linear-gradient(90deg,var(--emit) 0 2px,var(--use) 2px 4px)} .sw.vis{background:var(--vis)}
 #sheet{position:fixed;inset:0;background:#000a;display:none;z-index:5;align-items:flex-end;justify-content:center}
 #sheet.show{display:flex}
 #sbox{background:var(--bg);border-top:1px solid var(--line);width:100%;max-width:720px;max-height:78vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
@@ -55,7 +57,7 @@ main{display:grid;grid-template-columns:1fr;gap:12px}
 .opt{text-align:left;padding:6px 8px;font-weight:normal}
 #stamp{position:fixed;left:4px;bottom:2px;font-size:10px;color:var(--dim)}
 </style>
-<header><h1>HANGAR TOY</h1><button id="share">link</button><button id="reset">strip suit</button></header>
+<header><h1>HANGAR TOY</h1><button id="share">copy code</button><input id="code" aria-label="Build code" placeholder="paste a build code"><button id="reset">strip suit</button></header>
 <div class="row" id="frames"></div>
 <div class="row" id="chassis"></div>
 <div id="role"></div>
