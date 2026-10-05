@@ -95,6 +95,8 @@ Three budgets, each traded against the others:
 The INTEL drives the build: match a turret nest on the scan, and you bring the heavy frame.
 **Cheap test:** 3 frames, 2 reactors and about 6 modules, each with weight, power and signature numbers. Does building a suit force a sacrifice you think about? The full catalogue grows only after this passes.
 
+**Construction rules, first-pass catalogue and progression:** see `claude/signal-lance-construction.md` (locations = hit parts, overload band, output − draw, tags scoped by location, the same rules for the ship, wide sidegrades, items with condition). Its sharpened cheap test replaces the one above.
+
 ## Variety target (long-term, Gate 3)
 **Ambition (Jamie):** BattleTech / MegaMek-level variety across ships, exosuits, infantry and vehicles, with loadout depth like the Path of Exile passive tree.
 

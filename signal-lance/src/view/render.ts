@@ -203,13 +203,13 @@ export function render() {
     ctx.strokeStyle = ctx.fillStyle = lost ? '#f90' : '#f33';
     ctx.lineWidth = 2 / z;
     ctx.beginPath(); ctx.arc(x, y, c.unc, 0, 6.2832); ctx.stroke();
-    ctx.fillRect(x - 5, y - 5, 10, 10);
+    if (c.snd) { ctx.strokeRect(x - 5, y - 5, 10, 10); } else ctx.fillRect(x - 5, y - 5, 10, 10); // R13: hollow = heard only
     // damage read: updated only while you have a firm live fix; stale = last state seen, grey
     { // R7 run1: type label once your eyes have identified it (kept while the contact lives); damage only while seen
       const u = unitById(c.id), seen = u && !G.lance.includes(u) && !u.dead && G.lance.some(m => !m.dead && canSee(m, u, TUNE.EYES_RANGE));
       let d = '';
       if (seen) d = partsRead(u); // R12: per-part read while seen
-      const lab = c.type || (c.snd ? 'SOUND' : ''); // R13: a pure sound contact says so until eyes type it
+      const lab = c.snd ? (c.type ? c.type + ' · SOUND' : 'SOUND') : c.type; // R13: a heard-only contact always says so
       if (lab) { ctx.fillStyle = c.type ? '#fff' : '#e8f4ff'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText(lab, x + 14, y + 4); }
       if (d) { ctx.fillStyle = '#fff'; ctx.font = (11 / z) + 'px monospace'; ctx.fillText(d, x + 14, y + 4 + 13 / z); }
     }

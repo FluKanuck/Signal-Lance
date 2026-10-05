@@ -14,6 +14,9 @@ export function splitHits(kind: string, total: number) {
   const L = partList(kind), sh = L.map(p => TUNE.PART_SHARE[p] || 0), tot = sh.reduce((a, b) => a + b, 0) || 1;
   const raw = sh.map(s => s / tot * total), out: Record<string, number> = {};
   L.forEach((p, i) => { out[p] = Math.max(1, Math.floor(raw[i])); });
+  const extra = L.reduce((a, p) => a + Math.max(0, (TUNE.PART_MIN[p] || 0) - out[p]), 0); // R13: PART_MIN adds hits on top
+  L.forEach(p => { out[p] = Math.max(out[p], TUNE.PART_MIN[p] || 0); });
+  total += extra;
   let left = total - L.reduce((a, p) => a + out[p], 0);
   const order = L.map((p, i) => ({ p, r: raw[i] - Math.floor(raw[i]) })).sort((a, b) => b.r - a.r);
   for (let k = 0; left > 0; k++, left--) out[order[k % order.length].p]++;
@@ -29,6 +32,7 @@ export function syncHits(u) {
 }
 export function hasPart(u, p) { return !!(u.parts && u.parts[p] !== undefined); }
 export function partGone(u, p) { return hasPart(u, p) && u.parts[p] <= 0; }
+export function partHurt(u, p) { return hasPart(u, p) && u.parts[p] < u.pmax[p]; } // R13: lost at least one hit (one leg)
 // Pick a part for a hit by PART_WEIGHTS (only the unit's own parts).
 export function rollPart(u) {
   const L = partList(u.kind), tot = L.reduce((a, p) => a + TUNE.PART_WEIGHTS[p], 0);

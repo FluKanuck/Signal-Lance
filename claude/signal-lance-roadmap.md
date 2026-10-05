@@ -1,6 +1,6 @@
 # Signal Lance Roadmap
 
-**Updated:** 2026-10-05 after the open threads session (R13 "Loud gets company" written, not yet built). The full map of the game lives in `claude/signal-lance-game-shape.md`.
+**Updated:** 2026-10-05 after the construction deep dive (R13 "Loud gets company" being built). The full map of the game lives in `claude/signal-lance-game-shape.md`.
 
 ## North star
 Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, then learn why.
@@ -60,6 +60,7 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | 13 | "Loud gets company": split Signal into Emissions + Sound (step 1), then alarm / converge / press the wound (step 2). Gated on step 1 reading clearly. Aimed shots stay parked | Design lead chat: "fights felt richer, enemies felt dumb"; field "let me off the hook", "don't actually hunt me", "no risk in having high signal"; sprint noise shouldn't stack or linger |
 | map | Game shape session: **exosuits, not mechs**; flying ship as a mobile base (before / after / between, never on the board); SIGINT = Cold Waters–style signature matching + a risk dial; suits = frame / reactor / signature budget; operators = skills + fragility. Full map in `claude/signal-lance-game-shape.md` | Jamie: "we have an actual game on the back end". Map the whole shape before the next round, without building it; every piece gets a cheap test and a gate |
 | map 2 | Open threads closed. **City:** planet-spanning, faction-held districts, flat node travel, danger = faction base + your heat. **Push:** upkeep + per-faction notoriety (alert fields, hunter teams, closed airspace). **Contracts:** faction jobs and deniable broker jobs; basic info at any range, detail by SIGINT range. **Economy:** credits + fuel (priced by faction); parts are items, bought or looted; salvage automatic, capped by the hold. **Standing is two-way:** friendly factions supply intel on their enemies. **Death:** difficulty setting (Ironman / Standard critical + extract / Story), tune around Standard; recruits from districts, rescue, crew training | Jamie's answers in the open threads session. Campaign is mapped but stays unbuilt until Gate 1 passes |
+| map 3 | Construction deep dive: **locations = R12 hit parts**; typed hardpoints + 1–2 OPEN; weight = rated load + overload band (move AP, servo Sound); power = reactor output − draw = regen, batteries = pool; signature as **raw bars** (the debrief explains); **tags + mods scoped by location**; the **ship uses the same rules** (overload → fuel). Progression: **wide + sidegrades**; sources = faction markets, broker market, salvage, contract rewards (no reverse-engineering); **items with condition** (Sound / Worn / Failing; hits reliability and signature, never power); ship = refit sections + occasional hull trade-up. Then the **full catalogue** (~250 base rows, MegaMek-inspired breadth, nothing copied): **six signature channels** (VISUAL incl. lidar/EO, ACOUSTIC, THERMAL, EM, ELECTRIC, MAGNETIC = passive mass), sensor/jammer grades 1–3, **armour = plate + skin per location**, active stealth costs your EW. Sim rollout agreed: THERMAL (with the suit-budget round) → MAGNETIC → VISUAL → ELECTRIC, one at a time. Rules in `claude/signal-lance-construction.md`, rows in `claude/signal-lance-catalogue.md` | Jamie asked for a catalogue deep dive during the R13 build. Treated as mapping (like the game shape sessions): nothing is built, and the suit-budget cheap test is sharpened |
 
 ## Parked ideas (by gate)
 **Gate 1 candidates (depth)**
@@ -81,7 +82,7 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 16. Pre-drop SIGINT scans (now from the ship, Gate 2); recon sniper team for HUMINT — hunt
 17. R12 step 2: aimed shots (`HIT_AIMED` −20), per-part repair (`COST_PART_RESTORE` 60). Later: salvage, crits, enemies aiming at parts — combat / company
 18. R12 build notes: legs and weapon at 2 hits; show which wall gives cover; visible "disarmed" state; tap-to-show odds breakdown — combat
-19. **Emission taxonomy (Jamie R13 chat):** separate EM / IR / EF / acoustic signatures; different sensors and weapons read each differently. Builds on R13's two channels; pairs with reactor heat/IR in suit building — hunt / resource pools
+19. **Emission taxonomy (Jamie R13 chat):** now decided as six channels (catalogue §1); sim rollout in steps. Was: separate EM / IR / EF / acoustic signatures; different sensors and weapons read each differently. Builds on R13's two channels; pairs with reactor heat/IR in suit building — hunt / resource pools
 
 **Quality of life (Gate 1, low)**
 20. Fast travel when no enemies tracked; END TURN auto-moves along a plotted path; "you'll stop here" marker — combat
@@ -107,7 +108,7 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 34. Operator progression trees and specialisations
 35. Campaign depth: more factions and districts, faction-themed block sets, company personalisation, OSINT contract map
 36. IR emitters and modules; Heat pool; builds that change pool generation
-37. Full exosuit module catalogue (after the 3-frame / 2-reactor / ~6-module test passes)
+37. Full exosuit and ship catalogue: written in `claude/signal-lance-catalogue.md`, rules in `claude/signal-lance-construction.md` (build after the sharpened suit-budget test passes)
 38. Interiors, rooftops, close quarters at exosuit scale
 48. Ironman and Story difficulty settings (Standard is built first)
 

@@ -5,7 +5,7 @@ import { rand } from './rng.ts';
 import { updateSensors, cx, cy, killContact, muzzleFlash } from './sensors.ts';
 import { bestContact, enemyDecide } from './bot.ts';
 import { effEmit, zoneType } from './zones.ts';
-import { hitChance, rollPart, damagePart, partGone } from './combat.ts';
+import { hitChance, rollPart, damagePart, partGone, partHurt } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 
 // ============================ UPDATE ==================================
@@ -102,6 +102,7 @@ export function beginUnit(m) {
   m.turnShots = 0; m.mUsed = 0; m.freeTurns = TUNE.FREE_TURNS; m.movedT = 0; // R12: "target moved" counts this activation's tiles
   const es = G.emitStat[isMech(m) ? 'P' : 'E']; es.n++; es.sum += m.emit; // R13: Emissions at activation start (runner)
   addEmit(m, -TUNE.SIGNAL_DECAY);
+  if (!isMech(m)) m.emit = Math.max(m.emit, TUNE.COMMS_EMIT[m.type] || 0); // R13 test 2: comms keep a field unit's EMIT up
   clearSound(m); // R13: last activation's sound is gone
   if (partGone(m, 'SENSORS')) m.mask = false; // R12: no ECM without sensors
   if (m.mask) { if (canPay(m, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(m, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(m, TUNE.SIGNAL_ECM); } else m.mask = false; }
@@ -209,8 +210,9 @@ export function clipPath(path, maxTiles) {
 export function planMove(m, x, y, mode, apMax?, enMax?) {
   const full = findPath(m.x, m.y, x, y);
   if (!full || full.length < 2) return null;
-  if (mode !== 'CREEP' && partGone(m, 'LEGS')) return { full, path: null, len: 0, ap: 0, en: 0, cut: true, why: 'LEGS', mode }; // R12: legs gone = CREEP only
-  const tpa = TUNE.MOVE_TILES_PER_AP[mode], ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
+  if (mode !== 'CREEP' && partHurt(m, 'LEGS')) return { full, path: null, len: 0, ap: 0, en: 0, cut: true, why: 'LEGS', mode }; // R13: a leg gone = CREEP only
+  const lame = partGone(m, 'LEGS') ? TUNE.LEGS_GONE_MULT : 1; // R13: both legs gone = half a creep
+  const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
   apMax = Math.min(m.ap, apMax === undefined ? m.ap : apMax); enMax = Math.min(m.en, enMax === undefined ? m.en : enMax);
   const fullLen = pathLen(full), apLen = apMax * tpa, enLen = ept > 0 ? enMax / ept : 1e9;
   const len = Math.min(fullLen, apLen, enLen);
@@ -218,13 +220,13 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
   if (len < 0.25) return r;
   r.path = r.cut ? clipPath(full, len) : full; r.len = len;
   r.ap = Math.ceil(len / tpa - 1e-6); r.en = Math.ceil(len * ept - 1e-6);
-  r.snd = TUNE.SOUND_RANGE[mode]; // R13: the sound radius this move will make (Emissions no longer rise with moves)
+  r.snd = TUNE.SOUND_RANGE[mode]; r.lame = lame; // R13: the sound radius this move will make (Emissions no longer rise with moves)
   return r;
 }
 export function doMove(m, pl) {
   pay(m, pl.ap, pl.en); makeSound(m, pl.mode);
   m.path = pl.path; m.pi = 1; m.creep = pl.mode === 'CREEP';
-  startAct({ k: 'MOVE', m, speed: MODE_SPEED[pl.mode] });
+  startAct({ k: 'MOVE', m, speed: MODE_SPEED[pl.mode] * (pl.lame || 1) });
 }
 export function replan() {
   G.plan = G.planT ? planMove(G.p, G.planT.x, G.planT.y, G.pmode) : null;
@@ -246,7 +248,8 @@ export function shootBlock(m, c, uncMax, range) {
   if (m.turnShots >= TUNE.SHOTS_PER_TURN) return 'CAP';
   if (m.ap < TUNE.AP_SHOT) return 'AP';
   const x = cx(c), y = cy(c);
-  if (c.snd || c.shr || c.lost > c.gap || c.unc > uncMax * T) return 'FUZZY'; // R13: a sound-only or shared contact never locks
+  if (c.snd) return 'SOUND'; // R13: heard only, never a lock (says so on the button)
+  if (c.shr || c.lost > c.gap || c.unc > uncMax * T) return 'FUZZY'; // R13: a shared alarm contact never locks
   if (Math.hypot(x - m.x, y - m.y) > range * T) return 'RANGE';
   if (tilesCrossed(m.x, m.y, x, y, 1) !== 0) return 'LOS';
   return '';
@@ -274,7 +277,8 @@ export function mortarBlock(m, c) {
   if (m.shells <= 0) return 'SHELLS';
   if (m.mUsed >= TUNE.MORTAR_PER_ACTIVATION) return 'CAP';
   if (m.ap < TUNE.AP_MORTAR) return 'AP';
-  if (c.snd || c.unc > TUNE.MORTAR_MAX_UNC * T) return 'FUZZY'; // R13: no aimed lob on a sound-only contact (blind lobs still work)
+  if (c.snd) return 'SOUND'; // R13: no aimed lob on a sound-only contact (blind lobs still work)
+  if (c.unc > TUNE.MORTAR_MAX_UNC * T) return 'FUZZY';
   const d = Math.hypot(cx(c) - m.x, cy(c) - m.y);
   if (d < TUNE.MORTAR_MIN_RANGE * T) return 'CLOSE';
   if (d > TUNE.MORTAR_MAX_RANGE * T) return 'RANGE';

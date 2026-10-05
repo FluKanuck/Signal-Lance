@@ -43,12 +43,25 @@ describe('moves', () => {
       expect(pl.ap).toBe(1);
     }
   });
-  it('legs gone = CREEP only', () => {
+  it('a mech has two legs', () => {
+    startHunt(1);
+    expect(G.lance[0].parts.LEGS).toBe(TUNE.PART_MIN.LEGS);
+  });
+  it('one leg gone = CREEP only (R13 test 2)', () => {
+    startHunt(1); const m = G.lance[0]; m.ap = 4; m.en = 100;
+    damagePart(m, 'LEGS', 1);
+    expect(partGone(m, 'LEGS')).toBe(false);
+    expect(planMove(m, m.x + 8 * T, m.y, 'NORMAL').why).toBe('LEGS');
+    const pl = planMove(m, m.x + 8 * T, m.y, 'CREEP');
+    expect(pl.len).toBeCloseTo(m.ap * TUNE.MOVE_TILES_PER_AP.CREEP, 0);
+  });
+  it('both legs gone = CREEP at LEGS_GONE_MULT the distance', () => {
     startHunt(1); const m = G.lance[0]; m.ap = 4; m.en = 100;
     damagePart(m, 'LEGS', m.parts.LEGS);
     expect(partGone(m, 'LEGS')).toBe(true);
-    expect(planMove(m, m.x + 8 * T, m.y, 'NORMAL').why).toBe('LEGS');
-    expect(planMove(m, m.x + 8 * T, m.y, 'CREEP').path).not.toBeNull();
+    const pl = planMove(m, m.x + 20 * T, m.y, 'CREEP');
+    expect(pl.path).not.toBeNull();
+    expect(pl.len).toBeLessThanOrEqual(m.ap * TUNE.MOVE_TILES_PER_AP.CREEP * TUNE.LEGS_GONE_MULT + 1e-6);
   });
 });
 

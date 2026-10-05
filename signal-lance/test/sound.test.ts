@@ -94,8 +94,8 @@ describe('a sound contact is never enough to shoot', () => {
     const c = contactOn(G.pc, U.id);
     c.unc = 0.5 * T; // pretend the circle shrank: the source still rules it out
     A.ap = 8; A.turnShots = 0; A.mUsed = 0; A.load.mortar = 1; A.shells = 4;
-    expect(shootBlock(A, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE)).toBe('FUZZY');
-    expect(mortarBlock(A, c)).toBe('FUZZY');
+    expect(shootBlock(A, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE)).toBe('SOUND'); // the button says why
+    expect(mortarBlock(A, c)).toBe('SOUND');
   });
 });
 
@@ -113,5 +113,21 @@ describe('Emissions are electronic only', () => {
     doPulse(A, null, null);
     expect(A.emit).toBe(TUNE.SIGNAL_RADAR);
     expect(emitting(A)).toBe(true);
+  });
+});
+
+describe('comms (R13 test 2)', () => {
+  it('a patrol keeps a steady EMIT, so passive can hear it standing still', () => {
+    const P = G.units[0]; // Sweep: a patrol
+    expect(P.emit).toBe(TUNE.COMMS_EMIT.PATROL);
+    P.emit = 0; beginUnit(P);
+    expect(P.emit).toBe(TUNE.COMMS_EMIT.PATROL);
+    expect(emitting(P)).toBe(true);
+  });
+  it('turrets stay silent', () => {
+    startHunt(3, 'Turret nest');
+    const t = G.units.find(u => u.type === 'TURRET');
+    beginUnit(t);
+    expect(emitting(t)).toBe(false);
   });
 });

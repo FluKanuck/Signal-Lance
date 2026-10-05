@@ -176,6 +176,9 @@ export const TUNE = {
     PATROL:      { NAME: 'patrol',      PLURAL: 'patrols',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 1, RADAR: 0, PASSIVE: 1, FIRE_UNC: 2,
                    PATIENCE_MIN: 3, PATIENCE_MAX: 6, CONFIDENT: 2, HOLD_DIST: 8, LEASH: 9 },
   },
+  // R13 test 2 (Jamie): field units carry comms, a steady electronic emission, so passive can find them. Emissions never
+  // drop below this (EMIT floor, per type). Turrets stay silent (hiding is their job); emplacements already pulse radar.
+  COMMS_EMIT: { PATROL: 10, TURRET: 0, EMPLACEMENT: 0 },
   EMPL_PULSE_TURNS: 2,  // the emplacement pulses radar every this many of its own turns
   EMPL_SWEEP_DEG: 100,  // degrees the emplacement's radar turns between pulses when it has no contact (sweeps all round)
   ENEMY_UNSEEN_SPEED: 5, // view pacing: the enemy phase runs this many times faster while the acting unit isn't a live contact of yours
@@ -251,6 +254,8 @@ export const TUNE = {
   PART_WEIGHTS: { CORE: 40, LEGS: 25, WEAPON: 20, SENSORS: 15 }, // chance a hit lands on each part
   PART_SHARE:   { CORE: 0.5, LEGS: 0.2, WEAPON: 0.15, SENSORS: 0.15 }, // how the hit pool is split (mech, 6 hits → CORE 3, LEGS 1, WEAPON 1, SENSORS 1)
   PART_SENSORS_EYES_MULT: 0.5, // eyes range × this once SENSORS are gone
+  PART_MIN: { LEGS: 2 },       // R13 test 2 (Jamie): at least this many hits on a part (added on top of the pool): two legs
+  LEGS_GONE_MULT: 0.5,         // R13 test 2: one leg gone = CREEP only; both gone = CREEP at this × distance per AP and speed
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

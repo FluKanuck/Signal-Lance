@@ -1,7 +1,8 @@
 // Signal Lance — wiring: sim hooks → view, and the frame loop.
 import { TUNE } from './tune.ts';
 import { G, hooks } from './sim/state.ts';
-import { step, enemyUnseen } from './sim/turns.ts';
+import { step, enemyUnseen, cmdMoveMode } from './sim/turns.ts';
+import { partHurt } from './sim/combat.ts';
 import { V } from './view/state.ts';
 import { vw, vh, resize, render } from './view/render.ts';
 import { updateHud, syncButtons } from './view/hud.ts';
@@ -11,7 +12,7 @@ import './view/input.ts';
 hooks.sync = syncButtons;
 hooks.end = showResult;
 hooks.playerHit = () => { V.hitFlash = 0.4; };
-hooks.activate = () => { V.follow = true; V.faceArm = V.ghostArm = V.mortarArm = false; }; // R7 s2: camera centres on the mech whose activation it is
+hooks.activate = () => { V.follow = true; V.faceArm = V.ghostArm = V.mortarArm = false; if (G.pmode !== 'CREEP' && partHurt(G.p, 'LEGS')) cmdMoveMode('CREEP'); }; // R13: hurt legs = start in CREEP // R7 s2: camera centres on the mech whose activation it is
 
 // camera follows the player until you drag (was in update())
 function follow(dt) {

@@ -1,7 +1,8 @@
 import { TUNE } from '../tune.ts';
 import { G } from '../sim/state.ts';
 import { heardRange, sig, detStrength } from '../sim/sensors.ts';
-import { uplinkBlock, upDist, shootBlock, playerTarget, mortarBlock, mortarBlindBlock, shotOdds } from '../sim/turns.ts';
+import { uplinkBlock, upDist, shootBlock, playerTarget, mortarBlock, mortarBlindBlock, shotOdds, sensorsUp } from '../sim/turns.ts';
+import { partHurt } from '../sim/combat.ts';
 import { partsRead, hitText, PART_ABBR } from '../sim/combat.ts';
 import { unitById } from '../sim/state.ts';
 import { V } from './state.ts';
@@ -80,21 +81,23 @@ export function syncButtons() {
   // move modes + MOVE
   for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) {
     const lab = { CREEP: 'CREEP', NORMAL: 'NORM', SPRINT: 'SPRINT' }[m];
-    setBtn(id, lab, TUNE.MOVE_TILES_PER_AP[m] + 't/AP ' + TUNE.MOVE_ENERGY_PER_TILE[m] + 'EN · snd ' + TUNE.SOUND_RANGE[m], free, G.pmode === m); // R13: the sound it makes
+    const lame = m !== 'CREEP' && partHurt(p, 'LEGS'); // R13: a leg gone locks NORM and SPRINT
+    setBtn(id, lab, lame ? 'LEGS' : TUNE.MOVE_TILES_PER_AP[m] + 't/AP ' + TUNE.MOVE_ENERGY_PER_TILE[m] + 'EN · snd ' + TUNE.SOUND_RANGE[m], free && !lame, G.pmode === m); // R13: the sound it makes
   }
   const pl = G.plan;
   if (V.faceArm) setBtn('bMove', 'CANCEL', 'face', free, true);
   else setBtn('bMove', 'MOVE', !pl ? 'TAP MAP' : pl.path ? pl.ap + 'AP ' + pl.en + 'EN' : pl.why, free && pl && pl.path);
   // radar pulse
   $('bRadar').hidden = !G.load.radar;
-  let w = costWhy(TUNE.AP_RADAR, TUNE.RADAR_EN);
+  const sns = sensorsUp(p) ? '' : 'SNS'; // R13 test 2: sensors gone = no radar, ECM or ghost (the buttons said nothing before)
+  let w = sns || costWhy(TUNE.AP_RADAR, TUNE.RADAR_EN);
   setBtn('bRadar', 'RADAR', w || TUNE.AP_RADAR + 'AP ' + TUNE.RADAR_EN + 'EN +' + TUNE.SIGNAL_RADAR + 'EMIT', free && !w);
   // ECM + ghost
   $('bEcm').hidden = $('bGhost').hidden = !G.load.ecm;
-  w = costWhy(TUNE.AP_ECM, TUNE.ECM_EN);
+  w = sns || costWhy(TUNE.AP_ECM, TUNE.ECM_EN);
   if (p.mask) setBtn('bEcm', 'ECM ON', TUNE.AP_ECM + 'AP ' + TUNE.ECM_EN + 'EN/turn', free, true);
   else setBtn('bEcm', 'ECM', w || TUNE.AP_ECM + 'AP ' + TUNE.ECM_EN + 'EN', free && !w);
-  w = costWhy(TUNE.AP_ECM, TUNE.GHOST_COST);
+  w = sns || costWhy(TUNE.AP_ECM, TUNE.GHOST_COST);
   if (G.ghost.on) setBtn('bGhost', 'GHOST', G.ghost.turns + ' turns', false, true);
   else if (V.ghostArm) setBtn('bGhost', 'TAP MAP', 'to place', free, true);
   else setBtn('bGhost', 'GHOST', w || TUNE.AP_ECM + 'AP ' + TUNE.GHOST_COST + 'EN', free && !w);

@@ -9,7 +9,7 @@ import { setPack } from '../sim/pack.ts';
 import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r13-s1';  // R13: Sound vs Emissions + the pack (behind the splash toggle)
+export const BUILD = 'r13-s2';  // R13: Sound vs Emissions + the pack (behind the splash toggle)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');

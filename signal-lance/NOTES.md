@@ -755,4 +755,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            by sound 70% (FLAG > 50%). BUILD r13-s1 | -
    round13 build | runner flag: sound was 70% of the field's first contacts (passive no longer hears moves) | Jamie:
            SOUND_RANGE.NORMAL 6 → 4, SPRINT 9 → 7. pickPackTarget = the brief's rule (parts lost, core, nearest) | -
+   round13 test 2 | C1 COMPLETE 3/3. Jamie: no bearing lines on patrols (no emissions under electronic-only); couldn't
+           shoot a heard patrol (button said FUZZY, label said PATROL); RADAR did nothing with SNS gone (button looked
+           ready; ECM, GHOST too); with LEG gone couldn't move (NORM selected, MOVE said LEGS) | NEW COMMS_EMIT
+           { PATROL 10, TURRET 0, EMPLACEMENT 0 } (EMIT floor); PART_MIN { LEGS 2 }, one leg = CREEP only, both =
+           CREEP × LEGS_GONE_MULT 0.5 (spec override, Jamie); auto-CREEP on activation; RADAR/ECM/GHOST show SNS; FIRE/MORTAR
+           show SOUND; heard contacts hollow + "· SOUND". Runner: lance passive first contacts 30 → 71; field sound share
+           50.1% (flag, by 1). BUILD r13-s2 | -
 ```

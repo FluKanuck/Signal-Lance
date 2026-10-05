@@ -65,6 +65,7 @@ function makeUnit(type: string, i: number) {
   };
   initParts(u, type, F.BASE_HITS + F.ARMOUR * TUNE.ARMOUR_HITS); // R12: hit pool split across parts
   u.enMax = u.en = TUNE.ENERGY_BASE + F.CELLS * TUNE.ENERGY_CELL;
+  u.emit = TUNE.COMMS_EMIT[type] || 0; // R13 test 2: comms (passive can hear it from the start)
   return u;
 }
 export function unitById(id) { for (const m of G.lance) if (m.id === id) return m; for (const u of G.units) if (u.id === id) return u; return null; }
