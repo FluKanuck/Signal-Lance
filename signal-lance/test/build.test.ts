@@ -1,7 +1,7 @@
 // Building toy rules (src/build/rules.ts).
 import { describe, expect, it } from 'vitest';
 import { ITEMS, byId } from '../src/build/data.ts';
-import { emptyBuild, mount, totals, unmount, whyNot } from '../src/build/rules.ts';
+import { emptyBuild, mount, overloadPenalty, totals, unmount, whyNot } from '../src/build/rules.ts';
 import { TEMPLATES, buildTemplate } from '../src/build/templates.ts';
 
 const item = (id: string) => byId(ITEMS, id)!;
@@ -68,5 +68,26 @@ describe('building toy: role templates', () => {
     expect(tot.problems).toEqual([]);
     expect(tot.notes).toEqual([]);           // no overload, no idle mods
     expect(tot.load).toBeLessThanOrEqual(tot.rated);
+  });
+});
+
+describe('building toy: stealth', () => {
+  it('stealth on hides the suit, costs draw and heat, and takes EW offline', () => {
+    let b = buildTemplate(TEMPLATES.find(t => t.id === 't_stealth')!);
+    expect(whyNot(b, 'MAST', 2, item('mask'))).toBeNull();
+    b = mount(b, 'MAST', 2, item('mask'));             // swap the acoustic array for a jammer in the OPEN slot
+    const off = totals(b), on = totals({ ...b, stealthOn: true });
+    expect(on.sig.VIS.v).toBeCloseTo(off.sig.VIS.v * 0.3);
+    expect(on.draw).toBe(off.draw - 2 + 4);            // mask offline (−2), cloak on (+4)
+    expect(b.mounts.MAST).toEqual(['cloak', '^0', 'mask']);
+    expect(on.sig.IR.e).toBeGreaterThan(off.sig.IR.e);
+    expect(on.notes.join()).toMatch(/Mask offline/);
+    expect(on.problems).toEqual([]);
+  });
+
+  it('overload placeholder: Sound from the first point, AP past halfway', () => {
+    expect(overloadPenalty(14, 14, 18)).toEqual({ moveAP: 0, servoSnd: 0 });
+    expect(overloadPenalty(15, 14, 18)).toEqual({ moveAP: 0, servoSnd: 1 });
+    expect(overloadPenalty(17, 14, 18)).toEqual({ moveAP: 1, servoSnd: 3 });
   });
 });

@@ -2,7 +2,7 @@
 // The build lives in the URL hash (so a build can be sent as a link) and in localStorage.
 import { CHASSIS, CHS, FRAMES, ITEMS, LOCS, PLATES, SKINS, byId } from './data.ts';
 import type { Ch, HP, Item, Loc, Sig } from './data.ts';
-import { emptyBuild, fmt, frameOf, isCont, mount, totals, unmount, whyNot } from './rules.ts';
+import { emptyBuild, fmt, frameOf, isCont, itemsIn, mount, totals, unmount, whyNot } from './rules.ts';
 import { TEMPLATES, buildTemplate } from './templates.ts';
 import type { Build } from './rules.ts';
 
@@ -27,6 +27,7 @@ function fromCode(code: string): Build | null {
     if (got.mounts?.[l]?.length === fresh.mounts[l].length) fresh.mounts[l] = got.mounts[l];
     fresh.plate[l] = got.plate?.[l] ?? null; fresh.skin[l] = got.skin?.[l] ?? null;
   }
+  fresh.stealthOn = !!got.stealthOn;
   return fresh;
 }
 
@@ -91,11 +92,13 @@ function render() {
   const over = t.load > t.rated;
   const loadPct = (n: number) => Math.min(100, n / t.max * 100);
   const ratedMark = loadPct(t.rated);
-  const unset = !t.penalty.moveAP && !t.penalty.servoSnd;
-  const pen = !over ? 'within rated load' : unset ? 'overload band: penalty not designed yet'
-    : `overload: +${fmt(t.penalty.moveAP)} AP/move, +${fmt(t.penalty.servoSnd)} servo SND`;
+  const pen = !over ? 'within rated load'
+    : `overload (placeholder): +${fmt(t.penalty.moveAP)} AP/move, +${fmt(t.penalty.servoSnd)} SND/move`;
   const scale = Math.max(16, ...CHS.map(c => t.sig[c].e + t.sig[c].v));
+  const stealthFitted = LOCS.some(l => itemsIn(b, l).some(it => it.stealth));
   $('read').innerHTML =
+    (stealthFitted ? `<div class="rrow"><span class="lbl">STEALTH</span>` +
+      `<button class="chip${b.stealthOn ? ' on' : ''}" data-stealth="1">${b.stealthOn ? 'ON · tap to switch off' : 'OFF · tap to switch on'}</button></div>` : '') +
     `<div class="rrow"><span class="lbl">LOAD</span><div class="bar"><div class="fill${t.load > t.max ? ' bad' : over ? ' warn' : ''}" style="width:${loadPct(t.load)}%"></div>` +
     `<div class="mark" style="left:${ratedMark}%"></div></div><span class="num">${t.load} / ${t.rated} <span class="dim">(max ${t.max})</span></span></div>` +
     `<div class="sub${over ? ' warnt' : ' dim'}">${pen}</div>` +
@@ -191,6 +194,7 @@ document.addEventListener('click', e => {
   else if (el.id === 'undo') { const u = undo!; undo = null; set(u); }
   else if (d.frame) replace(emptyBuild(d.frame, b.chassis));
   else if (d.chassis) set({ ...b, chassis: d.chassis as Build['chassis'] });
+  else if (d.stealth) set({ ...b, stealthOn: !b.stealthOn });
   else if (d.layer) openSheet({ loc: d.loc as Loc, layer: d.layer as 'plate' | 'skin' });
   else if (d.idx !== undefined) {
     const loc = d.loc as Loc, raw = b.mounts[loc][+d.idx];

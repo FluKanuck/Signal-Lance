@@ -12,6 +12,7 @@ export interface Build {
   mounts: Record<Loc, (string | null)[]>;   // item id per hardpoint (or a ^ marker, see isCont)
   plate: Record<Loc, string | null>;
   skin: Record<Loc, string | null>;
+  stealthOn?: boolean;                      // fitted stealth systems switched on (catalogue §7)
 }
 
 const perLoc = <T>(f: (l: Loc) => T) => Object.fromEntries(LOCS.map(l => [l, f(l)])) as Record<Loc, T>;
@@ -70,8 +71,11 @@ export function unmount(b: Build, loc: Loc, idx: number): Build {
  * TODO(Jamie): the shape of this penalty is a design call — see the chat.
  */
 export function overloadPenalty(load: number, rated: number, max: number): { moveAP: number; servoSnd: number } {
-  void load; void rated; void max;
-  return { moveAP: 0, servoSnd: 0 };
+  // PLACEHOLDER shape (Jamie to tune): Sound first, AP later. A little heavy = louder; very heavy = slower too.
+  // Each point over rated: +1 servo Sound per move. Past halfway to max: +1 AP per move.
+  const over = load - rated;
+  if (over <= 0) return { moveAP: 0, servoSnd: 0 };
+  return { moveAP: over * 2 > max - rated ? 1 : 0, servoSnd: over };
 }
 
 // ── Totals ───────────────────────────────────────────────────────────────────────────────────
@@ -101,6 +105,12 @@ export function totals(b: Build): Totals {
   // Frame base Visibility is spread over the frame's locations, so a skin on one location hides its share.
   const baseVis: Partial<Record<Ch, number>> = { VIS: f.vis.VIS, EM: f.vis.EM, MAG: Math.max(0, f.vis.MAG + ch.mag) };
 
+  // Stealth (catalogue §7): while on, EW and LINK modules (and anything a system blocks) go offline.
+  const stealthIn = LOCS.flatMap(l => itemsIn(b, l)).filter(it => it.stealth);
+  const on = !!b.stealthOn && stealthIn.length > 0;
+  const blocked = new Set(on ? ['EW', 'LINK', ...stealthIn.flatMap(it => it.stealth!.blocks ?? [])] : []);
+  const offline: string[] = [];
+
   for (const l of LOCS) {
     const s = locSig[l];
     for (const c of CHS) s[c].v += (baseVis[c] ?? 0) / used.length * (used.includes(l) ? 1 : 0);
@@ -109,6 +119,11 @@ export function totals(b: Build): Totals {
       load += it.wt;
       output += it.out ?? 0;
       pool += it.pool ?? 0;
+      if (it.tags.some(t => blocked.has(t))) { offline.push(it.name); continue; }
+      if (on && it.stealth) {
+        draw += it.stealth.draw;
+        for (const c of CHS) s[c].e += it.stealth.sig[c]?.e ?? 0;
+      }
       const hit = !!mod && !it.mod && (mod.tag === 'any' || it.tags.includes(mod.tag));
       draw += it.draw * (hit && mod.drawMult ? mod.drawMult : 1);
       for (const c of CHS) {
@@ -143,6 +158,20 @@ export function totals(b: Build): Totals {
     }
   }
 
+  if (on) {
+    for (const st of stealthIn) for (const l of LOCS) for (const c of CHS) {
+      const a = st.stealth!.abs[c];
+      if (!a) continue;
+      const x = locSig[l][c];
+      x.e *= 1 - (a.e ?? 0); x.u *= 1 - (a.e ?? 0); x.v *= 1 - (a.v ?? 0);
+    }
+    notes.push(`Stealth on${offline.length ? `: ${offline.join(', ')} offline` : ''}`);
+  }
+
+  const rated = f.rated + ratedAdd, max = f.max + ch.rated;
+  const penalty = load > rated ? overloadPenalty(load, rated, max) : { moveAP: 0, servoSnd: 0 };
+  locSig.LEGS.SND.e += penalty.servoSnd; locSig.LEGS.SND.u += penalty.servoSnd; // per move, heard from the legs
+
   const sig = Object.fromEntries(CHS.map(c => {
     let e = 0, u = 0, v = 0, loudest: Loc | null = null, top = 0;
     for (const l of LOCS) {
@@ -153,14 +182,13 @@ export function totals(b: Build): Totals {
     return [c, { e, u, v, loudest }];
   })) as Record<Ch, ChTotal>;
 
-  const rated = f.rated + ratedAdd, max = f.max + ch.rated;
   if (output === 0) problems.push('No reactor in CORE');
   if (output - draw < 0) problems.push(`Draw ${fmt(draw)} > output ${output}: won’t fit`);
   if (load > max) problems.push(`Load ${load} over hard max ${max}`);
   if (load > rated && load <= max) notes.push(`Overload band: ${load - rated} over rated`);
 
   return {
-    load, rated, max, penalty: load > rated ? overloadPenalty(load, rated, max) : { moveAP: 0, servoSnd: 0 },
+    load, rated, max, penalty,
     output, draw, net: output - draw, pool, sig, locSig, hits, problems, notes,
   };
 }

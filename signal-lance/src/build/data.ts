@@ -33,7 +33,14 @@ export interface Item {
   sig: Sig;
   effect: string; trade: string;
   mod?: Mod;
+  stealth?: Stealth;      // an active stealth system: costs nothing until switched on (see rules.totals)
 }
+
+/**
+ * Catalogue §7: stealth costs your EW. While on, every EW and LINK module goes offline, plus anything
+ * tagged in `blocks`; the system adds its draw and heat, and hides `abs` across the whole suit.
+ */
+export interface Stealth { abs: Absorb; draw: number; sig: Sig; blocks?: string[] }
 
 /** A mod changes matching modules in the SAME location (one mod per location). */
 export interface Mod {
@@ -66,6 +73,7 @@ export const FRAMES: Frame[] = [
   { id: 'bulwark', name: 'Bulwark', cls: 'Heavy', rated: 18, max: 22, vis: { VIS: 5, EM: 4, MAG: 5 }, slots: L(['S'], ['W','W','W'], ['I','I'], ['U'], ['M','M']), chassis: ALL, role: 'Brawler. Loud on every channel' },
   { id: 'mule', name: 'Mule', cls: 'Heavy', rated: 17, max: 22, vis: { VIS: 5, EM: 4, MAG: 5 }, slots: L(['S'], ['W'], ['I','I','O'], ['U','U','U'], ['M']), chassis: ALL, role: 'Fire support: mortar and launcher platform' },
   { id: 'bastion', name: 'Bastion', cls: 'Assault', rated: 22, max: 26, vis: { VIS: 6, EM: 6, MAG: 7 }, slots: L(['S','S'], ['W','W','W'], ['I','I','I'], ['U','U'], ['M','M']), chassis: ['steel', 'alloy'], role: 'Walking fortress. Magnetometers find it from a district away' },
+  { id: 'shepherd', name: 'Shepherd', cls: 'Medium', rated: 14, max: 18, vis: { VIS: 3, EM: 4, MAG: 3 }, slots: L(['S','S'], ['W'], ['I','I'], ['U','U','U','O'], ['M']), chassis: ALL, role: 'PLACEHOLDER drone carrier. Sees through its drones; weak alone, and its control links shout on EM' },
   { id: 'wraith', name: 'Wraith', cls: 'Light (prototype)', rated: 10, max: 12, vis: { VIS: 1, EM: 1, MAG: 1 }, slots: L(['S','S','O'], ['W'], ['I','I'], [], ['M','M']), chassis: ['composite'], role: 'Stealth frame; fragile, pricey, rare' },
 ];
 
@@ -84,9 +92,9 @@ export const ITEMS: Item[] = [
   I({ id: 'heatsink', name: 'Heat sink', family: 'Storage', hp: ['I'], wt: 1, draw: 0, effect: 'Stores heat: IR emit delayed', trade: 'Full sink = vented spike' }),
   I({ id: 'fins', name: 'Radiator fins', family: 'Storage', hp: ['O'], wt: 1, draw: 0, sig: { IR: { v: 1 } }, effect: 'IR cools 2× faster', trade: 'IR vis +1' }),
   // §4 Sensors
-  I({ id: 'lamp', name: 'Radar "Lamp"', family: 'Radar', hp: ['S'], wt: 1, draw: 2, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM'], sig: { EM: { e: 4 } }, effect: 'Range 8, wide cone (today’s radar)', trade: '—' }),
-  I({ id: 'needle', name: 'Radar "Needle"', family: 'Radar', hp: ['S'], wt: 1, draw: 3, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM'], sig: { EM: { e: 7 } }, effect: 'Range 12, narrow cone', trade: 'Narrow' }),
-  I({ id: 'whisper', name: 'Radar "Whisper"', family: 'Radar', hp: ['S'], wt: 1, draw: 4, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM'], sig: { EM: { e: 2 } }, effect: 'Range 6; arrays need grade 2+ to hear it', trade: 'Short, power-hungry' }),
+  I({ id: 'lamp', name: 'Radar "Lamp"', family: 'Radar', hp: ['S'], wt: 1, draw: 2, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM', 'RADAR'], sig: { EM: { e: 4 } }, effect: 'Range 8, wide cone (today’s radar)', trade: '—' }),
+  I({ id: 'needle', name: 'Radar "Needle"', family: 'Radar', hp: ['S'], wt: 1, draw: 3, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM', 'RADAR'], sig: { EM: { e: 7 } }, effect: 'Range 12, narrow cone', trade: 'Narrow' }),
+  I({ id: 'whisper', name: 'Radar "Whisper"', family: 'Radar', hp: ['S'], wt: 1, draw: 4, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM', 'RADAR'], sig: { EM: { e: 2 } }, effect: 'Range 6; arrays need grade 2+ to hear it', trade: 'Short, power-hungry' }),
   I({ id: 'emarray', name: 'EM array', family: 'Passive', hp: ['S'], wt: 1, draw: 1, tags: ['SENSOR', 'EM'], effect: 'Bearings on EM emitters', trade: '—' }),
   I({ id: 'df', name: 'Direction-finder', family: 'Passive', hp: ['S'], size: 2, wt: 2, draw: 2, tags: ['SENSOR', 'EM'], effect: 'Bearings + type guess', trade: '2 hardpoints' }),
   I({ id: 'rwr', name: 'RWR', family: 'Passive', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'EM'], effect: 'Warns when painted, with bearing', trade: '—' }),
@@ -96,7 +104,7 @@ export const ITEMS: Item[] = [
   I({ id: 'longglass', name: 'Long glass', family: 'Visual', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'VISUAL'], effect: 'Eyes range +4', trade: 'Arc −30°' }),
   I({ id: 'magneto', name: 'Magnetometer', family: 'Field', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'MAGNETIC'], effect: 'Senses mass 3–5 tiles, through walls', trade: 'Blind in industrial terrain' }),
   I({ id: 'gradio', name: 'Gradiometer', family: 'Field', hp: ['S'], size: 2, wt: 2, draw: 1, tags: ['SENSOR', 'MAGNETIC'], effect: 'Magnetometer with bearing, +2 range', trade: 'Heavy, 2 hardpoints' }),
-  I({ id: 'datalink', name: 'Datalink', family: 'Recon', hp: ['S'], wt: 1, draw: 1, tags: ['EM'], sig: { EM: { e: 2 } }, effect: 'Lance shares contacts', trade: 'Jammable; a lost link reveals its last ping' }),
+  I({ id: 'datalink', name: 'Datalink', family: 'Recon', hp: ['S'], wt: 1, draw: 1, tags: ['EM', 'LINK'], sig: { EM: { e: 2 } }, effect: 'Lance shares contacts', trade: 'Jammable; a lost link reveals its last ping' }),
   // §5 EW
   I({ id: 'mask', name: 'Mask', family: 'Jammer', hp: ['S'], wt: 1, draw: 2, use: '1 AP, 20 EN/turn', tags: ['EW', 'EM'], effect: 'Today’s ECM mask', trade: 'Enemy gets a bearing' }),
   I({ id: 'ghost', name: 'Ghost projector', family: 'Jammer', hp: ['S'], wt: 1, draw: 0, use: '1 AP, 25 EN', tags: ['EW', 'EM'], effect: 'EM decoy', trade: '—' }),
@@ -130,7 +138,31 @@ export const ITEMS: Item[] = [
   I({ id: 'myomer', name: 'Myomer boost', family: 'Mobility', hp: ['M'], wt: 1, draw: 1, tags: ['MOBILITY', 'ENERGY'], sig: { SND: { e: 2 }, IR: { e: 3 }, EF: { e: 2 } }, effect: '+1 AP per turn while active', trade: 'Fail roll: the leg seizes' }),
   I({ id: 'jump', name: 'Jump pack', family: 'Mobility', hp: ['M'], wt: 2, draw: 0, tags: ['MOBILITY'], sig: { VIS: { e: 5 }, IR: { e: 4 }, SND: { e: 6 } }, effect: 'Jump up and over', trade: 'Fuel' }),
   I({ id: 'magboots', name: 'Magnetic boots', family: 'Mobility', hp: ['M'], wt: 1, draw: 0, tags: ['MOBILITY'], sig: { SND: { e: 2 }, MAG: { e: 3 } }, effect: 'Cling to walls; no knockdown', trade: 'MAG +3' }),
+  // §6 Close in (for the Breacher)
+  I({ id: 'claw', name: 'Hydraulic claw', family: 'Melee', hp: ['W', 'U'], wt: 2, draw: 0, use: '1 AP', tags: ['WEAPON', 'KINETIC'], sig: { SND: { e: 2 } }, effect: 'KIN, adjacent; breaches walls', trade: 'Must close in' }),
+  I({ id: 'vibro', name: 'Vibro-blade', family: 'Melee', hp: ['W', 'U'], wt: 1, draw: 1, use: '1 AP', tags: ['WEAPON', 'KINETIC'], sig: { SND: { e: 2 }, EF: { e: 1 } }, effect: 'KIN, adjacent', trade: 'Must close in' }),
+  I({ id: 'demo', name: 'Demo charge', family: 'Utility', hp: ['U'], wt: 1, draw: 0, use: '2 AP, placed', tags: ['EXPLOSIVE'], sig: { SND: { e: 12 } }, effect: 'EXP, timer or remote', trade: 'Placed by hand' }),
+  I({ id: 'breach', name: 'Breaching kit', family: 'Utility', hp: ['U'], wt: 1, draw: 0, use: '2 AP', sig: { SND: { e: 8 } }, effect: 'Opens a wall or door', trade: 'Loud' }),
+  // §7 Stealth systems (toggled; draw and heat only while on)
+  I({ id: 'cloak', name: 'Photonic cloak', family: 'Stealth', hp: ['S'], size: 2, wt: 2, draw: 0, tags: ['STEALTH'], effect: 'While on: VIS −70% (whole suit)', trade: 'Lidar and thermal still see you',
+    stealth: { abs: { VIS: { e: 0.7, v: 0.7 } }, draw: 4, sig: { IR: { e: 2 } } } }),
+  I({ id: 'stillskin', name: 'Still-skin', family: 'Stealth', hp: ['I'], size: 2, wt: 2, draw: 0, tags: ['STEALTH'], effect: 'While on: all channels −50% (whole suit; best standing still)', trade: 'Freezes you in place',
+    stealth: { abs: Object.fromEntries((['VIS', 'SND', 'IR', 'EM', 'EF', 'MAG'] as Ch[]).map(c => [c, { e: 0.5, v: 0.5 }])), draw: 5, sig: { IR: { e: 3 } } } }),
+  I({ id: 'nullfield', name: 'Null-field', family: 'Stealth', hp: ['S'], size: 2, wt: 2, draw: 0, tags: ['STEALTH'], effect: 'While on: EM vis −80%, EF −80% (whole suit)', trade: 'No radar of your own while on',
+    stealth: { abs: { EM: { v: 0.8 }, EF: { e: 0.8 } }, draw: 6, sig: { IR: { e: 4 } }, blocks: ['RADAR'] } }),
+  I({ id: 'thermhold', name: 'Thermal hold', family: 'Stealth', hp: ['I'], wt: 1, draw: 0, tags: ['STEALTH'], effect: 'While on: IR emit to 0 (heat banks)', trade: 'Release = big IR spike',
+    stealth: { abs: { IR: { e: 1 } }, draw: 1, sig: {} } }),
+  // PLACEHOLDER: drones and drone carriers (catalogue §9b). Rows hold shape only; drones are not units in the sim yet.
+  // A drone's own SND/VIS happen where the drone is, not on the suit; what the suit pays is the control link (EM).
+  I({ id: 'd_spotter', name: 'Spotter drone bay', family: 'Drone', hp: ['U'], wt: 1, draw: 1, use: '1 AP launch', tags: ['DRONE'], sig: { EM: { e: 2 } }, effect: 'PLACEHOLDER: one-turn eyes elsewhere', trade: 'Drone is SND e2, VIS e1 where it flies' }),
+  I({ id: 'd_tether', name: 'Tether drone', family: 'Drone', hp: ['U'], wt: 1, draw: 1, tags: ['DRONE'], sig: { VIS: { v: 1 } }, effect: 'PLACEHOLDER: eyes over buildings, hovering above you', trade: 'The drone marks where you are' }),
+  I({ id: 'd_relay', name: 'Relay drone', family: 'Drone', hp: ['U'], wt: 1, draw: 1, use: '1 AP launch', tags: ['DRONE', 'LINK'], sig: { EM: { e: 3 } }, effect: 'PLACEHOLDER: datalink range +6, around corners', trade: 'Jammable; traced back to you' }),
+  I({ id: 'd_decoy', name: 'Decoy drone', family: 'Drone', hp: ['U'], wt: 1, draw: 0, use: '1 AP launch, 2 uses', tags: ['DRONE', 'EW'], effect: 'PLACEHOLDER: a moving EM + SND ghost for 2 turns', trade: 'A thermal look shows it is small' }),
+  I({ id: 'd_pods', name: 'Sensor pod dispenser', family: 'Drone', hp: ['U'], wt: 1, draw: 0, use: '1 AP, 3 pods', tags: ['DRONE'], effect: 'PLACEHOLDER: drops static pods (SND / IR / MAG) that report until found', trade: 'Pods can be traced back' }),
+  I({ id: 'd_strike', name: 'Strike drone', family: 'Drone', hp: ['U'], wt: 2, draw: 0, use: '2 AP launch, 1 use', tags: ['DRONE', 'EXPLOSIVE'], sig: { EM: { e: 2 }, SND: { e: 3 } }, effect: 'PLACEHOLDER: flies to a fix and detonates (EXP)', trade: 'Needs a fix; one use' }),
+  I({ id: 'd_hive', name: 'Drone hive', family: 'Drone', hp: ['U'], size: 2, wt: 3, draw: 2, use: '1 AP, 2 drones per launch', tags: ['DRONE'], sig: { EM: { e: 4 }, SND: { e: 2 } }, effect: 'PLACEHOLDER carrier: 4 small drones (spotter or decoy), launches 2 at once', trade: 'Big EM shout on launch' }),
   // §11 Mods (one per location; take the type they modify, or O)
+  I({ id: 'm_dronelink', name: 'Drone uplink', family: 'Mod', hp: ['U'], wt: 0, draw: 0, tags: ['MOD'], effect: 'PLACEHOLDER: DRONE here: range +50%, control EM −30%', trade: 'Draw +1', mod: { tag: 'DRONE', emitMult: { EM: 0.7 }, drawAdd: 1 } }),
   I({ id: 'm_cold', name: 'Cold processor', family: 'Mod', hp: ['S'], wt: 0, draw: 0, tags: ['MOD'], effect: 'SENSOR here: EM emit −40%', trade: 'Draw +2', mod: { tag: 'SENSOR', emitMult: { EM: 0.6 }, drawAdd: 2 } }),
   I({ id: 'm_baffles', name: 'Baffles', family: 'Mod', hp: ['M'], wt: 0, draw: 0, tags: ['MOD'], effect: 'MOBILITY here: SND emit −1 step (guess −40%)', trade: 'Rated load −1', mod: { tag: 'MOBILITY', emitMult: { SND: 0.6 }, ratedAdd: -1 } }),
   I({ id: 'm_flash', name: 'Flash hider', family: 'Mod', hp: ['W'], wt: 0, draw: 0, tags: ['MOD'], effect: 'KINETIC here: VIS flash −70%', trade: 'Range −1', mod: { tag: 'KINETIC', emitMult: { VIS: 0.3 } } }),

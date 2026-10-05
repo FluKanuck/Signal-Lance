@@ -46,6 +46,21 @@ export const TEMPLATES: Template[] = [
     fit: [['MAST', 'acoustic'], ['MAST', 'magneto'], ['ARMS', 'carbinesup'], ['CORE', 'cell'], ['BACK', 'smoke'],
       ['LEGS', 'silent'], ['LEGS', 'servos'], ['LEGS', 'm_baffles']],
     skin: { LEGS: 's_foam', CORE: 's_thermal' } },
+  { id: 't_breach', role: 'Breacher', frame: 'sapper', chassis: 'alloy',
+    blurb: 'Goes through the wall, not around it. Claw and breaching kit up close, a demo charge for the door.',
+    fit: [['MAST', 'emarray'], ['ARMS', 'claw'], ['CORE', 'std'], ['CORE', 'battery'],
+      ['BACK', 'breach'], ['BACK', 'demo'], ['BACK', 'vibro'], ['LEGS', 'servos']],
+    plate: { ARMS: 'p_steel', CORE: 'p_reactive' } },
+  { id: 't_stealth', role: 'Stealth', frame: 'wraith', chassis: 'composite',
+    blurb: 'Switch the cloak on and the eyes lose you. Costs power and heat, and lidar and thermal still see you.',
+    fit: [['MAST', 'cloak'], ['MAST', 'acoustic'], ['ARMS', 'carbinesup'], ['CORE', 'cell'], ['CORE', 'battery'],
+      ['LEGS', 'silent'], ['LEGS', 'servos']],
+    skin: { CORE: 's_thermal' } },
+  { id: 't_drones', role: 'Drone carrier', frame: 'shepherd', chassis: 'steel',
+    blurb: 'PLACEHOLDER. Sees through its drones: a hive of small ones, a spotter, and a datalink to share what they find.',
+    fit: [['MAST', 'emarray'], ['MAST', 'datalink'], ['ARMS', 'carbine'], ['CORE', 'std'], ['CORE', 'battery'],
+      ['BACK', 'd_hive'], ['BACK', 'd_spotter'], ['BACK', 'm_dronelink'], ['LEGS', 'servos']],
+    plate: { CORE: 'p_steel' } },
 ];
 
 /** Builds a template through the normal fit rules. Throws if a row can't be placed (the tests catch that). */
