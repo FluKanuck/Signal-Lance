@@ -1,7 +1,7 @@
 // Building toy: the hangar page. Tap a hardpoint (or a plate/skin row), pick what fits, watch the bars.
 // The build lives in the URL hash (so a build can be sent as a link) and in localStorage.
 import { CHASSIS, CHS, FRAMES, ITEMS, LOCS, PLATES, SKINS, byId } from './data.ts';
-import type { Ch, Item, Loc, Sig } from './data.ts';
+import type { Ch, HP, Item, Loc, Sig } from './data.ts';
 import { emptyBuild, fmt, frameOf, isCont, mount, totals, unmount, whyNot } from './rules.ts';
 import type { Build } from './rules.ts';
 
@@ -11,6 +11,8 @@ const $ = (id: string) => document.getElementById(id)!;
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]!));
 
 let b: Build = load();
+/** What an empty hardpoint says; the item's name replaces it once something is mounted. */
+const SLOT_WORD: Record<HP, string> = { S: 'SENSOR', W: 'WEAPON', I: 'INTERNAL', U: 'UTILITY', M: 'MOBILITY', O: 'OPEN' };
 
 /** A build code is the build as base64 JSON: copy it out, paste it back in (also used in the URL hash locally). */
 const toCode = (x: Build) => btoa(encodeURIComponent(JSON.stringify(x)));
@@ -60,9 +62,9 @@ function render() {
     const row = b.mounts[l];
     const hp = slots.length === 0 ? '<span class="dim">no hardpoints</span>' : slots.map((s, i) => {
       const id = row[i];
-      if (isCont(id)) return `<button class="slot cont" data-loc="${l}" data-idx="${i}"><b>${s}</b> ⤶</button>`;
+      if (isCont(id)) return `<button class="slot cont" data-loc="${l}" data-idx="${i}">⤶ ${esc(byId(ITEMS, row[+id.slice(1)])?.name ?? '')}</button>`;
       const it = byId(ITEMS, id);
-      return `<button class="slot${it ? ' full' : ''}${it?.mod ? ' mod' : ''}" data-loc="${l}" data-idx="${i}"><b>${s}</b> ${it ? esc(it.name) : '—'}</button>`;
+      return `<button class="slot${it ? ' full' : ''}${it?.mod ? ' mod' : ''}" data-loc="${l}" data-idx="${i}">${it ? esc(it.name) : `<b>${SLOT_WORD[s]}</b>`}</button>`;
     }).join('');
     const plate = byId(PLATES, b.plate[l]), skin = byId(SKINS, b.skin[l]);
     const loud = CHS.filter(c => t.sig[c].loudest === l && t.sig[c].e + t.sig[c].v > 0);
@@ -142,7 +144,7 @@ function openSheet(p: Pick) {
   } else {
     const slot = frameOf(b).slots[p.loc][p.idx!];
     const curId = b.mounts[p.loc][p.idx!];
-    $('stitle').textContent = `${p.loc} · hardpoint ${slot}${slot === 'O' ? ' (open: takes anything)' : ''}`;
+    $('stitle').textContent = `${p.loc} · ${SLOT_WORD[slot].toLowerCase()} hardpoint${slot === 'O' ? ' (takes anything)' : ''}`;
     if (curId) opt('', 'Remove', '', '', unmount(b, p.loc, p.idx!), null);
     const fits = ITEMS.filter(it => slot === 'O' || it.hp.includes(slot));
     for (const it of fits) {
