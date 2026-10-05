@@ -1,0 +1,18 @@
+{
+  "name": "signal-lance",
+  "version": "1.0.0",
+  "description": "Signal Lance: phone-first mech sensor/ECM prototype",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build && node scripts/pages.mjs",
+    "check": "tsc --noEmit -p .",
+    "sim": "node --experimental-strip-types --no-warnings scripts/sim.ts"
+  },
+  "devDependencies": {
+    "typescript": "^7.0.2",
+    "vite": "^8.3.1",
+    "vite-plugin-singlefile": "^2.3.3"
+  },
+  "private": true,
+  "type": "module"
+}

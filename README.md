@@ -17,8 +17,26 @@ An ex-military company of exosuit operators lives aboard a flying ship over a gr
 | `signal-lance-round<N>.md` | The status report written after each round |
 | [`signal-lance-chore-pages.md`](claude/signal-lance-chore-pages.md) | Chore brief: GitHub Pages full-screen copy |
 
+[`STATUS.md`](STATUS.md) is the Round 1 status report, from when the game was a single HTML file.
+
 **Current state:** Round 13, "Loud gets company", is written but not built. See the roadmap.
 
 ## Code
 
-So far the game code has lived in [`FluKanuck/Prototype`](https://github.com/FluKanuck/Prototype) on the branch `claude/signal-lance`, as a TypeScript + Vite project under `signal-lance/`. The live build is at https://flukanuck.github.io/Prototype/.
+| Path | What it is |
+|---|---|
+| `signal-lance/` | TypeScript + Vite project. `src/sim/` holds the pure rules, `src/view/` holds rendering and input, and `src/tune.ts` holds the tuning values. `NOTES.md` is the TWEAK LOG and ASSUMPTIONS |
+| `signal-lance/dist/signal-lance.html` | The built, self-contained game |
+| `docs/` | GitHub Pages copy of the build, written by `npm run build` |
+| `legacy/signal-lance.html` | The single-file game from before Round 6, kept for reference |
+
+```sh
+cd signal-lance
+npm ci
+npm run dev     # local dev server
+npm run check   # typecheck
+npm run build   # build dist/ and docs/index.html
+npm run sim     # headless runner
+```
+
+This code was imported from [`FluKanuck/Prototype`](https://github.com/FluKanuck/Prototype) (branch `claude/signal-lance`) at build `r12-s1`.

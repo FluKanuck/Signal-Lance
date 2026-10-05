@@ -1,0 +1,272 @@
+import { TUNE } from '../tune.ts';
+import { G, newHunt, enterLoadout } from '../sim/state.ts';
+import { newContract, previewJob, takeJob, rollJobs, dmgWord, lanceText, contractActive, refit, refitBlock, refitCap, buysText } from '../sim/contract.ts';
+import { V } from './state.ts';
+import { $, fmtTime } from './hud.ts';
+import { partsRead, shotsText } from '../sim/combat.ts';
+import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
+
+// bump on every publish: a new build clears the run log
+export const BUILD = 'r12-s1';  // cover tune kept on the same tag so logs survive
+declare const __BUILT__: string;
+// Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
+export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
+// ============================ LOADOUT / RESULT / RUN LOG ==============
+export const MODS = [
+  { k: 'armour',  name: 'Armour plate',  slots: 2, max: 5,  desc: '+3 hits · +1 signature' },
+  { k: 'radar',   name: 'Active radar',  slots: 2, max: 1,  desc: 'pulse ' + TUNE.AP_RADAR + ' AP + ' + TUNE.RADAR_EN + ' EN · cone, sees through 4 walls · very loud' },
+  { k: 'passive', name: 'Passive suite', slots: 2, max: 1,  desc: 'bearing lines · cross two for a fix' },
+  { k: 'ecm',     name: 'ECM pod',       slots: 2, max: 1,  desc: 'mask (' + TUNE.AP_ECM + ' AP + ' + TUNE.ECM_EN + ' EN a turn) or ghost · jams' },
+  { k: 'ammo',    name: 'Autocannon',    slots: 1, max: 10, desc: '10 rounds per slot · shots are loud' },
+  { k: 'cells',   name: 'Energy cell',   slots: 1, max: 10, desc: '+' + TUNE.ENERGY_CELL + ' Energy' },
+  { k: 'mortar',  name: 'Mortar',        slots: 1, max: 1,  desc: TUNE.MORTAR_SHELLS + ' shells · ' + TUNE.AP_MORTAR + ' AP · fires on a fix, no LoS · loud' }, // R9
+];
+// localStorage wrapped: falls back to memory if unavailable
+export const store = {
+  get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } },
+  set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (_) {} },
+};
+let LOG = store.get('signalLance.log', []);
+if (!Array.isArray(LOG) || store.get('signalLance.build', '') !== BUILD) { LOG = []; store.set('signalLance.ctN', 0); store.set('signalLance.log', LOG); store.set('signalLance.compBag', []); store.set('signalLance.build', BUILD); } // R10: a new build also starts a fresh shuffled set
+// R6: the loadout being edited lives here (view); LAUNCH hands copies to the sim.
+// R7 s2: one loadout per mech. A is the old saved loadout; B starts as a copy of A.
+const DEF = { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 };
+function readLoad(key) {
+  const l = store.get(key, null); if (!l) return null;
+  const out = { ...DEF };
+  for (const m of MODS) if (typeof l[m.k] === 'number') out[m.k] = Math.max(0, Math.min(m.max, l[m.k] | 0));
+  return slotsUsed(out) > TUNE.SLOTS ? { ...DEF } : out;
+}
+const loads = [readLoad('signalLance.load') || { ...DEF }, null];
+loads[1] = readLoad('signalLance.loadB') || { ...loads[0] };
+let cur = 0, load = loads[0]; // the mech being edited (0 = A, 1 = B)
+const LOAD_KEYS = ['signalLance.load', 'signalLance.loadB'];
+export function currentLoads() { return [{ ...loads[0] }, { ...loads[1] }]; }
+function pickMech(i) { cur = i; load = loads[i]; renderLoadout(); }
+// R7 briefing: accurate, rough composition of the field. The turret is only "reported".
+// R8 shuffled set (Jamie): every composition once per cycle, random order. Bag kept in localStorage so a
+// reload carries on the same cycle. FIELD_SHUFFLE 0 = no bag (the sim's seeded weighted roll).
+function nextComp() {
+  if (!TUNE.FIELD_SHUFFLE) return undefined;
+  let names = TUNE.FIELD_COMPOSITIONS.map(c => c.NAME);
+  const pool = (TUNE.FIELD_PLAYTEST_POOL || []).filter(n => names.includes(n)); // R9 playtest setting
+  if (pool.length) names = pool;
+  let bag = store.get('signalLance.compBag', []);
+  if (!Array.isArray(bag)) bag = [];
+  bag = bag.filter(n => names.includes(n));
+  if (!bag.length) {
+    bag = names.slice();
+    for (let i = bag.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [bag[i], bag[j]] = [bag[j], bag[i]]; }
+  }
+  const pick = bag.shift();
+  store.set('signalLance.compBag', bag);
+  return pick;
+}
+export function intelText() {
+  const parts = [];
+  const C = G.comp;
+  for (const k of Object.keys(TUNE.FIELD_TYPES)) {
+    const n = C[k] || 0, F = TUNE.FIELD_TYPES[k];
+    if (!n || k === 'TURRET') continue;
+    parts.push(n + ' ' + (n > 1 ? F.PLURAL : F.NAME));
+  }
+  const t = C.TURRET || 0;
+  const tur = t ? 'reports of ' + (t > 1 ? t + ' hidden ' + TUNE.FIELD_TYPES.TURRET.PLURAL : 'a hidden ' + TUNE.FIELD_TYPES.TURRET.NAME) : '';
+  return 'INTEL: ' + C.NAME + '. ' + cap([...parts, tur].filter(Boolean).join(', ')) + '. Uplink at ' + G.up.name + '.' + zoneIntel(); // R8: names the composition
+}
+// R10: " Quiet ground: rail cut (NW). Noise: sump (S), SE apron."
+function zoneIntel() {
+  let s = '';
+  for (const k of ['QUIET', 'NOISE']) { const zs = G.zones.filter(z => z.type === k); if (zs.length) s += ' ' + TUNE.ZONE_TYPES[k].NAME + ': ' + zs.map(z => z.name).join(', ') + '.'; }
+  return s;
+}
+// R10: "zones Q1 N2 · 2/2 statics zoned"
+export function zoneText() {
+  const q = G.zones.filter(z => z.type === 'QUIET').length, n = G.zones.length - q;
+  const st = G.units.filter(u => !u.mobile), zd = st.filter(u => u.zoned).length;
+  return ' · zones Q' + q + ' N' + n + (st.length ? ' · ' + zd + '/' + st.length + ' statics zoned' : '');
+}
+export function enemySummary() { return 'field ' + G.units.map(u => u.type[0] + (u.dead ? 'x' : '')).join(''); }
+function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
+export function killText() { return 'kills ' + G.kills + '/' + G.units.length + zoneText() + mortarText() + shotsText(); } // R12: shots/hits, parts lost
+// R9: "· mortar 3/5 hits, 2 kills (A)" — shells that hit the field / shells fired, kills, who carried it
+export function mortarText() {
+  const ms = G.lance.filter(m => m.load.mortar);
+  if (!ms.length) return ' · mortar none';
+  let s = 0, h = 0, k = 0, f = 0, b = 0; for (const m of ms) { s += m.mShots; h += m.mHits; k += m.mKills; f += m.mFriendly; b += m.mBlind; }
+  return ' · mortar ' + h + '/' + s + ' hits, ' + k + ' kills' + (b ? ', ' + b + ' blind' : '') + (f ? ', ' + f + ' on own' : '') + ' (' + (ms.length > 1 ? 'both' : ms[0].id) + ')';
+}
+export function slotsUsed(L = load) { let s = 0; for (const m of MODS) s += L[m.k] * m.slots; return s; }
+function oneLoad(L) {
+  return 'Arm' + L.armour + (L.radar ? ' Rdr' : '') + (L.passive ? ' Pas' : '') + (L.ecm ? ' ECM' : '') +
+    ' Ammo' + L.ammo * TUNE.AMMO_PER_SLOT + ' Cell' + L.cells + (L.mortar ? ' Mtr' : '') + ' (' + slotsUsed(L) + '/' + TUNE.SLOTS + ')';
+}
+// both mechs' loadouts, as launched
+export function loadSummary() { return G.lance.map(m => m.id + ': ' + oneLoad(m.load)).join(' / '); }
+export function buildLoadout() {
+  const box = $('mods');
+  for (const m of MODS) {
+    const row = document.createElement('div'); row.className = 'mrow';
+    row.innerHTML = '<button class="pm" data-k="' + m.k + '" data-d="-1">−</button>' +
+      '<div class="mname"><b>' + m.name + '</b> <span id="n_' + m.k + '"></span><small>' + m.slots + ' slot' + (m.slots > 1 ? 's' : '') + ' · ' + m.desc + '</small></div>' +
+      '<button class="pm" data-k="' + m.k + '" data-d="1">+</button>';
+    box.appendChild(row);
+  }
+  box.addEventListener('click', ev => {
+    const b = (ev.target as any).closest('.pm'); if (!b) return;
+    const m = MODS.find(x => x.k === b.dataset.k), d = +b.dataset.d, n = load[m.k] + d;
+    if (n < 0 || n > m.max || (d > 0 && slotsUsed() + m.slots > TUNE.SLOTS)) return;
+    load[m.k] = n; store.set(LOAD_KEYS[cur], load); renderLoadout();
+  });
+  $('bLA').addEventListener('click', () => pickMech(0));
+  $('bLB').addEventListener('click', () => pickMech(1));
+}
+export function renderLoadout() {
+  for (const m of MODS) $('n_' + m.k).textContent = m.k === 'ammo' ? '×' + load.ammo + ' (' + load.ammo * TUNE.AMMO_PER_SLOT + ' rds)' : '×' + load[m.k];
+  const u = slotsUsed();
+  $('bLA').classList.toggle('on', cur === 0); $('bLB').classList.toggle('on', cur === 1);
+  $('slots').textContent = 'MECH ' + 'AB'[cur] + '  SLOTS ' + u + ' / ' + TUNE.SLOTS + '  (' + (TUNE.SLOTS - u) + ' free)';
+  $('logv').textContent = LOG.length ? LOG.slice(-5).join('\n') : 'No runs logged yet.';
+  $('logta').hidden = true;
+}
+export function showLoadout() {
+  enterLoadout((Math.random() * 4294967296) >>> 0); // R11: sets loadout mode; the jobs are rolled once the contract starts
+  $('res').hidden = $('jobs').hidden = $('cres').hidden = true; $('load').hidden = false;
+  $('intel').textContent = 'CONTRACT: ' + TUNE.CONTRACT_HUNTS + ' hunts, win ' + TUNE.CONTRACT_WINS_NEEDED + '. Loadouts lock for the whole contract. Damage, rounds, shells and lost mechs carry over. Jobs are briefed after you start.';
+  renderLoadout();
+}
+// Result screen (hooks.end: the sim has already set G.mode = 'result' and G.outcome).
+export function showResult() {
+  const outcome = G.outcome.split(' ')[0];
+  const why = { WIN: G.winBy === 'UPLINK' ? 'Uplink complete at ' + G.up.name + '.' : 'Field cleared.', LOSS: 'You were destroyed.', BAIL: 'You extracted without the job done.' }[outcome];
+  $('resTxt').textContent = ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + killText() + ' — ' + fmtTime(G.time) + ' (' + G.turn + ' turns)';
+  $('resWhy').innerHTML = why + '<br>Uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' at ' + G.up.name + '<br>' + dmgSummary() + '<br>Field: ' + fieldSummary() + '<br>Loadout: ' + loadSummary() + (G.ct ? '<br><b>Lance: ' + lanceText() + '</b> · contract wins ' + G.ct.wins + '/' + TUNE.CONTRACT_WINS_NEEDED + (G.ct.status !== 'ACTIVE' ? ' · CONTRACT ' + G.ct.status : '') : '');
+  $('note').value = ''; resetAnswers();
+  $('res').hidden = false; $('res').scrollTop = 0;
+}
+export function dmgSummary() {
+  let fs = 0, fl = 0; for (const u of G.units) { fs += u.shots; fl += u.landed; }
+  return G.lance.map(m => m.id + ' ' + m.landed + '/' + m.shots + ' hit, ' + (m.dead ? 'destroyed' : partsRead(m))).join('; ') + // R12: parts
+         '; Field ' + fl + '/' + fs + ' hit';
+}
+// per unit: type, destroyed or hits left, and how often it fired
+export function fieldSummary() {
+  return G.units.map(u => u.ft.NAME + (u.zoned ? ' [' + u.zoned.toLowerCase() + ']' : '') + ' ' + (u.dead ? 'destroyed' : '(' + partsRead(u) + ')') + (u.shots ? ' fired ' + u.shots : '')).join(', ');
+}
+export function pad2(n) { return (n < 10 ? '0' : '') + n; }
+export function saveAndNext() {
+  const d = new Date();
+  const stamp = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  const note = $('note').value.replace(/[\r\n|]+/g, ' ').replace(/\s+/g, ' ').trim();
+  const ans = answersText();
+  LOG.push(stamp + ' | ' + testerTag() + loadSummary() + ' | vs ' + enemySummary() + ' | ' + ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + killText() + (G.ct ? ' · ' + lanceText() + huntCr() : '') + ' uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' @' + G.up.name + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + dmgSummary() + ' | ' + (ans ? ans + ' | ' : '') + note);
+  if (G.ct && G.ct.status !== 'ACTIVE') LOG.push(stamp + ' | ' + testerTag() + contractLine());
+  store.set('signalLance.log', LOG);
+  $('note').blur();
+  if (contractActive()) { rollJobs(); showJobs(); } else if (G.ct) showContractResult(); else showLoadout();
+}
+// ============================ R11: CONTRACT SCREENS ====================
+let ctN = store.get('signalLance.ctN', 0) | 0; // contract number for the log (C3)
+// " · +140 cr (bought A repair×2)" for this hunt's log line
+function huntCr() { const r = G.ct.results[G.ct.results.length - 1]; return r ? ' · +' + r.pay + ' cr' + (r.buys.length ? ' (bought ' + buysText(r.buys) + ')' : '') : ''; }
+function testerTag() { const t = store.get('signalLance.tester', ''); return t ? '[' + t + '] ' : ''; }
+function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + TUNE.CONTRACT_HUNTS + ' · ' : ''; }
+// "C3 COMPLETE 2/3 · lost B in H2"
+function contractLine() {
+  const C = G.ct, lost = C.results.flatMap(r => r.lost.map(id => id + ' in H' + r.n));
+  return 'C' + ctN + ' ' + C.status + ' ' + C.wins + '/' + C.results.length + (lost.length ? ' · lost ' + lost.join(', ') : ' · no mechs lost') + ' · ' + C.results.map(r => r.comp).join(' > ') + ' · cr earned ' + C.earned + ' spent ' + C.spent;
+}
+function startContract() {
+  ctN++; store.set('signalLance.ctN', ctN);
+  newContract((Math.random() * 4294967296) >>> 0, currentLoads());
+  showJobs();
+}
+function mechLine(id) {
+  const c = G.ct.carry[id], L = G.ct.loads[id === 'A' ? 0 : 1];
+  if (c.dead) return '<b class="lost">' + id + '  LOST</b>';
+  return '<b>' + id + '  ' + dmgWord(c) + '</b> · ' + partsRead(c) + (L.ammo ? ' · ' + c.ammo + ' rds' : '') + (L.mortar ? ' · ' + c.shells + ' shells' : '');
+}
+// R11 s2: refit buttons for one mech (hidden before hunt 1: nothing to cap from, no credits)
+const RF = [['repair', 'REPAIR WORST', TUNE.COST_REPAIR], ['rounds', '+10 RDS', TUNE.COST_ROUNDS], ['shell', '+1 SHELL', TUNE.COST_SHELL], ['rebuild', 'REBUILD', TUNE.COST_REBUILD]];
+function refitRow(id) {
+  const cap = refitCap(id); if (!cap) return '';
+  const why = { CR: 'need cr', CAP: 'at max', LOST: '', NONE: '' };
+  let h = '';
+  for (const [k, name, cost] of RF) {
+    const b = refitBlock(id, k); if (b === 'NONE' || b === 'LOST') continue;
+    h += '<button class="rf' + (b ? ' lockd' : '') + '" data-id="' + id + '" data-k="' + k + '">' + name + '<br><small>' + cost + ' cr' + (b ? ' · ' + why[b] : '') + '</small></button>';
+  }
+  const capTxt = G.ct.carry[id].dead ? 'rebuilds to ' + cap.hits + ' hits' : 'max ' + cap.hits + ' hits' + (G.ct.loads[id === 'A' ? 0 : 1].ammo ? ' · ' + cap.ammo + ' rds' : '') + (G.ct.loads[id === 'A' ? 0 : 1].mortar ? ' · ' + cap.shells + ' shells' : '');
+  return '<div class="rfrow">' + h + '<small class="cap">' + capTxt + '</small></div>';
+}
+function renderLance() {
+  const C = G.ct;
+  $('jhead').textContent = 'HUNT ' + C.hunt + '/' + TUNE.CONTRACT_HUNTS + ' · wins ' + C.wins + ' (need ' + TUNE.CONTRACT_WINS_NEEDED + ') · ' + C.credits + ' cr';
+  $('jlance').innerHTML = ['A', 'B'].map(id => '<div>' + mechLine(id) + refitRow(id) + '</div>').join('') +
+    (C.hunt > 1 ? '<small class="cap">Refit caps at ' + Math.round(TUNE.REFIT_CAP * 100) + '% of what each mech started its last hunt with.</small>' : '');
+}
+export function showJobs() {
+  const C = G.ct;
+  $('load').hidden = $('res').hidden = $('cres').hidden = true;
+  renderLance();
+  for (let i = 0; i < 2; i++) { previewJob(i); $('j' + i).textContent = intelText(); }
+  $('jobs').hidden = false; $('jobs').scrollTop = 0;
+}
+function pickJob(i) {
+  $('jobs').hidden = true;
+  takeJob(i);
+  V.follow = true; V.camX = G.p.x; V.camY = G.p.y; V.ghostArm = V.faceArm = V.mortarArm = false; V.hitFlash = 0;
+}
+function showContractResult() {
+  const C = G.ct;
+  $('res').hidden = $('jobs').hidden = true;
+  $('cTitle').textContent = 'CONTRACT ' + C.status;
+  $('cSub').textContent = 'C' + ctN + ' · won ' + C.wins + ' of ' + C.results.length + ' hunts (need ' + TUNE.CONTRACT_WINS_NEEDED + ')' + (C.results.length < TUNE.CONTRACT_HUNTS ? ' · lance destroyed in hunt ' + C.results.length : '') + ' · credits earned ' + C.earned + ', spent ' + C.spent;
+  $('cHunts').innerHTML = C.results.map(r => '<div class="hunt"><b>Hunt ' + r.n + ' · job ' + r.job + '</b>' + r.comp + ' @ ' + r.up + '<br><b>' + r.outcome + '</b> · kills ' + r.kills + '/' + r.total +
+    '<br>Mechs lost: ' + (r.lost.length ? r.lost.join(', ') : 'none') + '<br>Carried out: ' + r.out.join(', ') + '<br>Paid ' + r.pay + ' cr' + (r.buys.length ? '<br>Bought before: ' + buysText(r.buys) : '') + '</div>').join('');
+  $('cres').hidden = false; $('cres').scrollTop = 0;
+}
+// Header so a pasted log says who sent it and which build.
+function logText() { return 'Signal Lance ' + VERSION + ' · tester: ' + (store.get('signalLance.tester', '') || '?') + '\n' + (LOG.join('\n') || '(empty log)'); }
+// SEND LOG (chore): the phone's share sheet (text, email…); falls back to COPY LOG.
+function sendLog() {
+  const text = logText(), nav: any = navigator;
+  if (nav.share) nav.share({ title: 'Signal Lance log', text }).catch(e => { if (e && e.name !== 'AbortError') copyLog(); });
+  else copyLog();
+}
+export function copyLog() {
+  const text = logText();
+  const fallback = () => { const ta = $('logta'); ta.hidden = false; ta.value = text; ta.focus(); ta.select(); $('bCopy').textContent = 'SELECTED – COPY IT'; };
+  try {
+    navigator.clipboard.writeText(text).then(() => { $('bCopy').textContent = 'COPIED ' + LOG.length + ' LINES'; }, fallback);
+  } catch (_) { fallback(); }
+  setTimeout(() => { $('bCopy').textContent = 'COPY LOG'; }, 2500);
+}
+// Start a hunt with the current loadout, and reset the view (camera on the player, nothing armed).
+export function launch() {
+  newHunt(currentLoads());
+  V.follow = true; V.camX = G.p.x; V.camY = G.p.y; V.ghostArm = V.faceArm = false; V.hitFlash = 0;
+  $('res').hidden = true;
+}
+$('bLaunch').addEventListener('click', () => { $('load').hidden = true; store.set(LOAD_KEYS[0], loads[0]); store.set(LOAD_KEYS[1], loads[1]); startContract(); }); // R11: locks loadouts, opens the job pick
+$('bJ0').addEventListener('click', () => pickJob(0));
+$('jlance').addEventListener('click', ev => { const b = (ev.target as any).closest('.rf'); if (!b) return; if (refit(b.dataset.id, b.dataset.k)) renderLance(); }); // R11 s2
+$('bJ1').addEventListener('click', () => pickJob(1));
+$('bNewC').addEventListener('click', () => { G.ct = null; showLoadout(); });
+$('bSave').addEventListener('click', saveAndNext);
+$('note').addEventListener('keydown', e => { if (e.key === 'Enter') saveAndNext(); });
+$('bCopy').addEventListener('click', copyLog);
+$('bSend').addEventListener('click', sendLog);
+$('bSend2').addEventListener('click', sendLog);
+// Tester splash (every page load) and basics screen
+let basicsFrom = 'splash';
+$('tester').value = store.get('signalLance.tester', '');
+$('tester').addEventListener('change', () => store.set('signalLance.tester', $('tester').value.trim()));
+$('bCont').addEventListener('click', () => { store.set('signalLance.tester', $('tester').value.trim()); $('tester').blur(); $('splash').hidden = true; });
+$('bBasics').addEventListener('click', () => { basicsFrom = 'splash'; $('splash').hidden = true; $('basics').hidden = false; $('basics').scrollTop = 0; });
+$('bHelp').addEventListener('click', () => { basicsFrom = 'load'; $('basics').hidden = false; $('basics').scrollTop = 0; });
+$('bBack').addEventListener('click', () => { $('basics').hidden = true; if (basicsFrom === 'splash') $('splash').hidden = false; });
+buildBrief(BUILD);
+buildQuestions();
+buildLoadout();
+$('ver').textContent = $('lver').textContent = VERSION;

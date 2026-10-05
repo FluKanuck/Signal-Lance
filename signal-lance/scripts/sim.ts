@@ -1,0 +1,196 @@
+// Headless runner (dev tool, not a test suite): plays whole games in Node using only src/sim/,
+// R7 s2: two scripted mechs under initiative, against the real field (turret, emplacement, patrols) against a simple scripted player that walks to the uplink, uplinks, and fires
+// whenever its lock rule allows. Proves the sim/view split is real, and replays a DBG seed.
+//   npm run sim                        R8: seeds 1..10 for EACH composition (50 games), a block per composition
+//   npm run sim -- --comp ambush --games 20   one composition only (name, case-insensitive)
+//   npm run sim -- --contracts 20      R11: 20 contracts (seeds 1..20), the scripted lance always takes job 1
+//   npm run sim -- --seed 123456 -v    replay one seed (its own rolled composition, or --comp to force), one line per turn
+import { TUNE } from '../src/tune.ts';
+import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
+import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
+import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist,
+         cmdSelect, cmdFire, cmdUplink, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar } from '../src/sim/turns.ts';
+
+const argv: string[] = (globalThis as any).process.argv.slice(2);
+const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
+const GAMES = arg('--games', 10), ONE = arg('--seed', -1), VERBOSE = argv.includes('-v');
+const sarg = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : ''; };
+const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0);
+const MAX_TURNS = 80, DT = 0.05;
+const LOAD = { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 }; // the game's default loadout
+const LOAD_A = { ...LOAD, mortar: 1 }; // R9: scripted A carries a mortar (9/10 slots)
+
+// run the current action (move / pulse / shot) to completion
+function runAct() { for (let n = 0; G.act && G.mode === 'hunt' && n < 20000; n++) step(DT); }
+
+function playerTurn() {
+  let moved = false;
+  for (let k = 0; k < 12 && G.mode === 'hunt'; k++) {
+    const c = playerTarget();
+    if (c && G.sel !== c) cmdSelect(c); // select + turn to face it (free once a turn)
+    if (mortarBlock(G.p, c) === '') { cmdMortar(); runAct(); continue; } // R9: lob at any contact that qualifies
+    if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') { cmdFire(); runAct(); continue; }
+    if (uplinkBlock() === '') { cmdUplink(); continue; }
+    if (!moved && upDist(G.p) > TUNE.UPLINK_RADIUS + 0.5) {
+      cmdMoveMode('NORMAL'); cmdTarget(G.up.x, G.up.y); moved = true;
+      if (G.plan && !G.plan.path && G.plan.why === 'LEGS') { cmdMoveMode('CREEP'); cmdTarget(G.up.x, G.up.y); } // R12: legs gone = creep
+      if (G.plan && G.plan.path) { cmdMove(); runAct(); continue; }
+    }
+    break;
+  }
+}
+
+function playGame(seed: number, comp?: string) {
+  rollEnemy(seed, comp); newHunt([{ ...LOAD_A }, { ...LOAD }]); // R7 s2: two scripted mechs, same loadout
+  return playOut(seed);
+}
+// play the already-started hunt to its end (or a stall)
+function playOut(seed: number) {
+  let guard = 0;
+  while (G.mode === 'hunt' && G.turn <= MAX_TURNS && guard++ < 2e6) {
+    if (G.phase === 'PLAYER') {
+      const t = G.turn, who = G.p.id;
+      playerTurn();
+      if (G.mode !== 'hunt') break;
+      endPlayerTurn();
+      if (VERBOSE) console.log(`  R${t} ${who} ${Math.round(upDist(unitById(who)))}t from uplink, hits ${G.lance.map((m: any) => m.id + m.hits).join(' ')} | ` + G.units.map((u: any) => `${u.type[0]}:${u.dead ? 'X' : u.state + ' h' + u.hits}`).join(' ') + ` | uplink ${G.up.prog}/${TUNE.UPLINK_TURNS}`);
+    } else step(DT); // the bot's turn runs on its own pacing timer
+  }
+  const outcome = G.mode === 'hunt' ? 'STALL' : G.outcome;
+  const units = G.units.map((u: any) => ({ type: u.type, found: u.found, acted: u.acted, dead: u.dead, shots: u.shots, zoned: u.zoned, ft: u.found ? u.foundTurn : 0, mobile: u.mobile }));
+  const mt = G.lance.reduce((a: any, m: any) => ({ s: a.s + m.mShots, h: a.h + m.mHits, k: a.k + m.mKills, f: a.f + m.mFriendly, ns: a.ns + (m.mNS || 0), nh: a.nh + (m.mNH || 0), os: a.os + (m.mOS || 0), oh: a.oh + (m.mOH || 0), nu: a.nu + (m.mNU || 0), ou: a.ou + (m.mOU || 0) }), { s: 0, h: 0, k: 0, f: 0, ns: 0, nh: 0, os: 0, oh: 0, nu: 0, ou: 0 });
+  const zones = G.zones.map((z: any) => z.type[0]).join('');
+  return { seed, comp: G.comp.NAME, outcome, turns: G.turn, kills: G.kills, up: G.up.name, units, mt, zones };
+}
+
+function report(title: string, res: any[]) {
+  const by: Record<string, number> = {};
+  for (const r of res) by[r.outcome] = (by[r.outcome] || 0) + 1;
+  const done = res.filter(r => r.outcome !== 'STALL'), stalls = res.filter(r => r.outcome === 'STALL');
+  console.log(`== ${title}: games ${res.length} | ` + Object.entries(by).map(([k, v]) => `${k} ${v}`).join(' | '));
+  console.log(`  average rounds ${(done.reduce((a, r) => a + r.turns, 0) / Math.max(1, done.length)).toFixed(1)} (finished games)`);
+  console.log(`  average kills ${(res.reduce((a, r) => a + r.kills, 0) / Math.max(1, res.length)).toFixed(2)} / ${res[0].units.length}`);
+  const M = res.reduce((a, r) => ({ s: a.s + r.mt.s, h: a.h + r.mt.h, k: a.k + r.mt.k, f: a.f + r.mt.f, ns: a.ns + r.mt.ns, nh: a.nh + r.mt.nh, os: a.os + r.mt.os, oh: a.oh + r.mt.oh, nu: a.nu + r.mt.nu, ou: a.ou + r.mt.ou }), { s: 0, h: 0, k: 0, f: 0, ns: 0, nh: 0, os: 0, oh: 0, nu: 0, ou: 0 });
+  console.log(`  mortar: shots ${M.s}, hits ${M.h}, kills ${M.k}, friendly hits ${M.f}` + (!M.s ? '  WARNING: mortar never qualified' : !M.h ? '  WARNING: mortar never hit' : ''));
+  // R10: signal terrain. Statics placed in zones; found rate in a zone vs not (by the zone a unit started in);
+  // aimed-lob hit rate on targets standing in NOISE vs elsewhere.
+  const all = res.flatMap(r => r.units), st = all.filter(u => !u.mobile), pc = (a: number, b: number) => b ? Math.round(100 * a / b) + '%' : '-';
+  const zin = all.filter(u => u.zoned), zout = all.filter(u => !u.zoned), sin = st.filter(u => u.zoned), sout = st.filter(u => !u.zoned);
+  const zq = res.reduce((a, r) => a + [...r.zones].filter((c: string) => c === 'Q').length, 0), zn = res.reduce((a, r) => a + [...r.zones].filter((c: string) => c === 'N').length, 0);
+  console.log(`  zones: avg ${((zq + zn) / res.length).toFixed(1)} per game (Q ${zq}, N ${zn}) | statics in zones ${sin.length}/${st.length} (${pc(sin.length, st.length)}) [quiet ${sin.filter(u => u.zoned === 'QUIET').length}, noise ${sin.filter(u => u.zoned === 'NOISE').length}]`);
+  console.log(`  found: in-zone ${zin.filter(u => u.found).length}/${zin.length} (${pc(zin.filter(u => u.found).length, zin.length)}) vs out ${zout.filter(u => u.found).length}/${zout.length} (${pc(zout.filter(u => u.found).length, zout.length)})` +
+    ` | statics in ${sin.filter(u => u.found).length}/${sin.length} vs out ${sout.filter(u => u.found).length}/${sout.length}`);
+  const avgFT = (a: any[]) => { const f = a.filter(u => u.found); return f.length ? (f.reduce((x, u) => x + u.ft, 0) / f.length).toFixed(1) : '-'; };
+  console.log(`  first found (avg round): statics in zone ${avgFT(sin)} [quiet ${avgFT(sin.filter(u => u.zoned === 'QUIET'))}, noise ${avgFT(sin.filter(u => u.zoned === 'NOISE'))}] vs out ${avgFT(sout)}`);
+  console.log(`  aimed lobs: on NOISE targets ${M.nh}/${M.ns} hit (${pc(M.nh, M.ns)}, avg fix ±${M.ns ? (M.nu / M.ns).toFixed(1) : '-'}t) vs elsewhere ${M.oh}/${M.os} (${pc(M.oh, M.os)}, ±${M.os ? (M.ou / M.os).toFixed(1) : '-'}t)`);
+  if (st.length && !sin.length) console.log('  WARNING: zones never held a static');
+  if (zin.length && zout.length && zin.filter(u => u.found).length / zin.length >= zout.filter(u => u.found).length / zout.length) console.log('  FLAG: in-zone units found at least as often as out-of-zone ones');
+  console.log(stalls.length ? `  stalls over ${MAX_TURNS} rounds: ` + stalls.map(r => `seed ${r.seed} (@${r.up})`).join(', ') : `  stalls over ${MAX_TURNS} rounds: none`);
+  // per field type: in how many games was it found (player ever had a contact), did it act, fire, die
+  const types: Record<string, any> = {};
+  for (const r of res) for (const u of r.units) {
+    const t = types[u.type] || (types[u.type] = { n: 0, found: 0, acted: 0, fired: 0, dead: 0 });
+    t.n++; if (u.found) t.found++; if (u.acted) t.acted++; if (u.shots) t.fired++; if (u.dead) t.dead++;
+  }
+  for (const [k, t] of Object.entries(types)) console.log(`    ${k.padEnd(11)} units ${t.n}: found ${t.found}, acted ${t.acted}, fired ${t.fired}, destroyed ${t.dead}`);
+  const never = Object.entries(types).filter(([, t]) => !t.found || !t.acted).map(([k, t]) => k + (!t.found ? ' never found' : '') + (!t.acted ? ' never acted' : ''));
+  if (never.length) console.log('  WARNING: ' + never.join(', '));
+  if (VERBOSE) for (const r of res) console.log(`    seed ${r.seed}: ${r.outcome} in ${r.turns} rounds, kills ${r.kills} @${r.up}`);
+}
+
+// R11 s2: spend greedily between hunts: repairs first, then rebuild, then rounds, then shells.
+function greedy() {
+  for (const what of ['repair', 'rebuild', 'rounds', 'shell']) for (let k = 0; k < 50; k++) {
+    let any = false;
+    for (const id of ['A', 'B']) if (refit(id, what)) any = true;
+    if (!any) break;
+  }
+}
+// R11: whole contracts. The scripted lance always takes job 1 (A with mortar, as above).
+function contracts(n: number) {
+  const res: any[] = [], shots: any[] = [], parts: any[] = [];
+  for (let c = 1; c <= n; c++) {
+    newContract(c, [{ ...LOAD_A }, { ...LOAD }]);
+    const entering: any[] = []; let stall = false;
+    while (G.ct.status === 'ACTIVE') {
+      entering.push({ n: G.ct.hunt, carry: JSON.parse(JSON.stringify(G.ct.carry)) });
+      takeJob(0);
+      const r = playOut(G.ct.huntSeed);
+      shots.push(...G.shotLog); parts.push(...G.partLog); // R12
+      if (r.outcome === 'STALL') { stall = true; break; }
+      if (VERBOSE) console.log(`  C${c} H${G.ct.hunt} ${r.comp}: ${r.outcome} kills ${r.kills}/${r.units.length} | ` + Object.keys(G.ct.carry).map(k => k + ' ' + dmgWord(G.ct.carry[k])).join(', '));
+      if (G.ct.status === 'ACTIVE') { rollJobs(); greedy(); }
+    }
+    res.push({ c, status: stall ? 'STALL' : G.ct.status, reached: G.ct.hunt, results: G.ct.results, entering, earned: G.ct.earned, spent: G.ct.spent });
+  }
+  const by: Record<string, number> = {};
+  for (const r of res) by[r.status] = (by[r.status] || 0) + 1;
+  console.log(`== CONTRACTS: ${res.length} | ` + Object.entries(by).map(([k, v]) => `${k} ${v}`).join(' | '));
+  const reach: Record<number, number> = {};
+  for (const r of res) reach[r.reached] = (reach[r.reached] || 0) + 1;
+  console.log('  hunts reached: ' + Object.entries(reach).map(([k, v]) => `H${k} ${v}`).join(', '));
+  const outc: Record<string, number> = {};
+  for (const r of res) for (const h of r.results) { const k = 'H' + h.n + ' ' + h.outcome; outc[k] = (outc[k] || 0) + 1; }
+  const hl = res.flatMap(r => r.results.map((h: any) => h.turns));
+  console.log(`  average hunt length: ${(hl.reduce((a: number, b: number) => a + b, 0) / Math.max(1, hl.length)).toFixed(1)} rounds over ${hl.length} hunts`);
+  console.log('  hunt results: ' + Object.entries(outc).sort().map(([k, v]) => `${k} ${v}`).join(', '));
+  const lost: Record<number, number> = {};
+  for (const r of res) for (const h of r.results) if (h.lost.length) lost[h.n] = (lost[h.n] || 0) + h.lost.length;
+  console.log('  mechs lost by hunt: ' + [1, 2, 3].map(n => `H${n} ${lost[n] || 0}`).join(', '));
+  for (const n of [2, 3]) {
+    const e = res.flatMap(r => r.entering.filter((x: any) => x.n === n));
+    if (!e.length) { console.log(`  entering H${n}: never reached`); continue; }
+    let dmg = 0, mechs = 0, ammo = 0, shells = 0, dead = 0, carried = 0;
+    for (const x of e) for (const m of Object.values(x.carry) as any[]) {
+      if (m.dead) { dead++; carried++; continue; }
+      mechs++; dmg += m.maxHits - m.hits; ammo += m.ammo; shells += m.shells; if (m.hits < m.maxHits) carried++;
+    }
+    console.log(`  entering H${n} (${e.length} contracts): avg damage ${(dmg / Math.max(1, mechs)).toFixed(1)} hits per living mech, avg rounds ${(ammo / Math.max(1, mechs)).toFixed(1)}, avg shells (A) ${(shells / Math.max(1, e.length)).toFixed(1)}, mechs already lost ${dead}, mechs carrying damage or lost ${carried}/${e.length * 2}`);
+  }
+  const E = res.reduce((a, r) => a + r.earned, 0), S = res.reduce((a, r) => a + r.spent, 0);
+  const rebuilds = res.reduce((a, r) => a + r.results.reduce((b: number, h: any) => b + h.buys.filter((x: string) => x.endsWith('rebuild')).length, 0), 0);
+  console.log(`  credits: avg earned ${(E / res.length).toFixed(0)}, avg spent ${(S / res.length).toFixed(0)} per contract; rebuilds ${rebuilds}`);
+  const st = res.filter(r => r.status === 'STALL');
+  console.log(st.length ? '  stalls over 80 rounds: ' + st.map(r => `contract ${r.c} H${r.reached}`).join(', ') : '  stalls over 80 rounds: none');
+  hitReport(shots, parts);
+  const h1 = res.filter(r => r.reached === 1).length;
+  if (h1 >= res.length * 0.8) console.log('  FLAG: nearly every contract ends in hunt 1 (carry-over barely tested)');
+  const anyCarried = res.some(r => r.entering.some((x: any) => x.n > 1 && Object.values(x.carry).some((m: any) => m.dead || m.hits < m.maxHits)));
+  if (!anyCarried) console.log('  FLAG: nothing is ever carried (stakes are zero)');
+  if (VERBOSE) for (const r of res) console.log(`    contract ${r.c}: ${r.status} ` + r.results.map((h: any) => `H${h.n} ${h.comp} ${h.outcome} ${h.kills}/${h.total} [${h.out.join(', ')}]`).join(' | '));
+}
+
+// R12: to-hit and hit-location summary over every gun shot (both sides)
+function hitReport(shots: any[], parts: any[]) {
+  const pc = (L: any[]) => L.length ? `${L.filter(r => r.hit).length}/${L.length} (${Math.round(100 * L.filter(r => r.hit).length / L.length)}%)` : 'none';
+  const avg = (L: any[]) => L.length ? (L.reduce((a, r) => a + r.pct, 0) / L.length).toFixed(0) + '%' : '-';
+  const P = shots.filter(r => r.mech), E = shots.filter(r => !r.mech);
+  console.log(`  HIT overall ${pc(shots)}, avg shown ${avg(shots)} | lance ${pc(P)} | field ${pc(E)}`);
+  console.log(`  HIT cover ${pc(shots.filter(r => r.cover))} vs open ${pc(shots.filter(r => !r.cover))}`);
+  const statics = (r: any) => r.ttype === 'TURRET' || r.ttype === 'EMPLACEMENT';
+  console.log(`  HIT target moved ${pc(shots.filter(r => r.movedT > 0))} vs still ${pc(shots.filter(r => !(r.movedT > 0) && !statics(r)))} vs static ${pc(shots.filter(statics))}`);
+  console.log(`  HIT range ≤4 ${pc(shots.filter(r => r.rangeT <= 4))} · 5–8 ${pc(shots.filter(r => r.rangeT > 4 && r.rangeT <= 8))} · 9–12 ${pc(shots.filter(r => r.rangeT > 8))}`);
+  console.log(`  HIT sig bonus applied ${shots.filter(r => r.sig > 0).length}/${shots.length}, at clamp min ${shots.filter(r => r.pct <= TUNE.HIT_MIN).length}, max ${shots.filter(r => r.pct >= TUNE.HIT_MAX).length}`);
+  const pk: Record<string, number> = {};
+  for (const x of parts) { const k = x.kind + ' ' + x.part; pk[k] = (pk[k] || 0) + 1; }
+  console.log('  PARTS destroyed: ' + (Object.entries(pk).sort().map(([k, v]) => `${k} ${v}`).join(', ') || 'none'));
+  const all = shots.length ? shots.filter(r => r.hit).length / shots.length : 0;
+  if (all < 0.4 || all > 0.75) console.log(`  FLAG: overall hit % ${Math.round(all * 100)} outside 40–75`);
+  for (const [k, f] of [['cover', (r: any) => r.cover], ['moved', (r: any) => r.moved], ['range', (r: any) => r.range], ['sig', (r: any) => r.sig]] as any) if (!shots.some(f)) console.log(`  FLAG: factor ${k} never applied`);
+}
+
+if (CONTRACTS > 0) {
+  contracts(CONTRACTS);
+} else if (ONE >= 0) {
+  const r = playGame(ONE, COMP || undefined); console.log(JSON.stringify(r)); report(r.comp + ' seed ' + ONE, [r]);
+} else {
+  const comps = COMP ? [COMP] : TUNE.FIELD_COMPOSITIONS.map((c: any) => c.NAME);
+  const seeds = Array.from({ length: GAMES }, (_, i) => i + 1);
+  const all: any[] = [];
+  for (const c of comps) { const res = seeds.map(s => playGame(s, c)); all.push(...res); report(res[0].comp, res); }
+  if (comps.length > 1) {
+    const by: Record<string, number> = {};
+    for (const r of all) by[r.outcome] = (by[r.outcome] || 0) + 1;
+    console.log(`== ALL: games ${all.length} | ` + Object.entries(by).map(([k, v]) => `${k} ${v}`).join(' | '));
+  }
+}

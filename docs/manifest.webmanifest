@@ -1,0 +1,10 @@
+{
+  "name": "Signal Lance",
+  "short_name": "Signal Lance",
+  "start_url": ".",
+  "scope": ".",
+  "display": "fullscreen",
+  "orientation": "landscape",
+  "background_color": "#1b1c1e",
+  "theme_color": "#1b1c1e"
+}
