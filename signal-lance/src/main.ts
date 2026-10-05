@@ -8,9 +8,10 @@ import { vw, vh, resize, render } from './view/render.ts';
 import { updateHud, syncButtons } from './view/hud.ts';
 import { launch, showLoadout, showResult } from './view/screens.ts';
 import './view/input.ts';
+import { showTbResult } from './view/testbed.ts';
 
 hooks.sync = syncButtons;
-hooks.end = showResult;
+hooks.end = () => (G.tb ? showTbResult() : showResult()); // R14: a test-bed hunt has its own end screen
 hooks.playerHit = () => { V.hitFlash = 0.4; };
 hooks.activate = () => { V.follow = true; V.faceArm = V.ghostArm = V.mortarArm = false; if (G.pmode !== 'CREEP' && partHurt(G.p, 'LEGS')) cmdMoveMode('CREEP'); }; // R13: hurt legs = start in CREEP // R7 s2: camera centres on the mech whose activation it is
 

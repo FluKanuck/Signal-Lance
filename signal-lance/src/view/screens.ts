@@ -9,7 +9,7 @@ import { setPack } from '../sim/pack.ts';
 import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r13-s2';  // R13: Sound vs Emissions + the pack (behind the splash toggle)
+export const BUILD = 'r14-s0';  // R14 part 0: the test bed (R13 scenarios Earshot, Wounded)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
@@ -231,6 +231,8 @@ function showContractResult() {
     '<br>Mechs lost: ' + (r.lost.length ? r.lost.join(', ') : 'none') + '<br>Carried out: ' + r.out.join(', ') + '<br>Paid ' + r.pay + ' cr' + (r.buys.length ? '<br>Bought before: ' + buysText(r.buys) : '') + '</div>').join('');
   $('cres').hidden = false; $('cres').scrollTop = 0;
 }
+// R14: one extra log line (the test bed's), stamped and tagged like a hunt's.
+export function logLine(text: string) { const d = new Date(); LOG.push(d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ' | ' + testerTag() + text); store.set('signalLance.log', LOG); }
 // Header so a pasted log says who sent it and which build.
 function logText() { return 'Signal Lance ' + VERSION + ' · tester: ' + (store.get('signalLance.tester', '') || '?') + '\n' + (LOG.join('\n') || '(empty log)'); }
 // SEND LOG (chore): the phone's share sheet (text, email…); falls back to COPY LOG.

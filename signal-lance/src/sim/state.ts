@@ -45,12 +45,13 @@ export const G: any = {
   firstLog: [], // R13: every new contact { side 'P'|'E', src (the sense), turn } (runner)
   shotLog: [], partLog: [], lastShot: { P: null, E: null }, // R12: every gun shot (runner/log), parts destroyed, last shot per side (DBG)
   seed: 1, // R6: this run's RNG seed (shown in DBG for replay in the runner)
+  tb: null, // R14: the test-bed scenario being played (null = a normal hunt)
 };
 for (let i = 0; i < 8; i++) G.fx.push({ on: false, x: 0, y: 0, t: 0, hit: false });
 for (let i = 0; i < 32; i++) G.shells.push({ on: false, x: 0, y: 0, ax: 0, ay: 0, vx: 0, vy: 0, left: 0, owner: null });
 
 // A field unit of the given type (stats from TUNE.FIELD_TYPES), not yet placed.
-function makeUnit(type: string, i: number) {
+export function makeUnit(type: string, i: number) {
   const F = TUNE.FIELD_TYPES[type];
   const u: any = {
     id: 'U' + i, type, ft: F, x: 0, y: 0, fx: 1, fy: 0, path: null, pi: 0, moving: false, spd: 0, creep: false,

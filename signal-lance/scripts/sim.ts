@@ -10,18 +10,21 @@
 //   --pack                             R13 s2: the pack on (alarm, converge, press the wound)
 //   --both                             R13 s2: with --contracts, run normal then --loud and compare (flags if loud isn't riskier)
 //   --check                            exit 1 if any FLAG or WARNING was printed (run before shipping)
+//   --quiet                            R14: the scripted mechs CREEP every move
+//   --scenario earshot [--runs 10]     R14: play a test-bed scenario with the scripted player (seed, seed+1, ...)
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
 import { playOut as autoPlayOut, AUTO } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
+import { scenarioByName, startScenario, leaveScenario, SCENARIOS } from '../src/sim/scenarios.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
 const GAMES = arg('--games', 10), ONE = arg('--seed', -1), VERBOSE = argv.includes('-v');
 const sarg = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : ''; };
-const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0);
-AUTO.loud = argv.includes('--loud');
+const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0), SCEN = sarg('--scenario'), RUNS = arg('--runs', 10);
+AUTO.loud = argv.includes('--loud'); AUTO.quiet = argv.includes('--quiet'); // R14: --quiet = CREEP every move
 if (argv.includes('--pack')) TUNE.PACK_ENABLED = true; // R13 s2: the pack on (as the splash toggle does)
 const BOTH = argv.includes('--both'); // R13 s2: run --contracts twice, normal then --loud, and compare
 // --set KEY=VALUE (repeatable, dotted paths ok): try a tune value without editing tune.ts, e.g. --set SOUND_RANGE.NORMAL=4
@@ -220,7 +223,33 @@ function hitReport(shots: any[], parts: any[]) {
   for (const [k, f] of [['cover', (r: any) => r.cover], ['moved', (r: any) => r.moved], ['range', (r: any) => r.range], ['sig', (r: any) => r.sig]] as any) if (!shots.some(f)) console.log(`  FLAG: factor ${k} never applied`);
 }
 
-if (CONTRACTS > 0 && BOTH) {
+// R14: a test-bed scenario, RUNS times (seed, seed+1, ...). The scripted player as always: walk to the uplink, shoot what locks.
+function scenarioRuns(name: string, n: number) {
+  const s0 = scenarioByName(name);
+  if (!s0) { console.log('unknown scenario "' + name + '". Known: ' + SCENARIOS.map(s => s.name).join(', ')); (globalThis as any).process.exitCode = 1; return; }
+  const res: any[] = [];
+  for (let i = 0; i < n; i++) {
+    startScenario({ ...s0, seed: s0.seed + i });
+    allOn3 = false;
+    autoPlayOut(MAX_TURNS, (t, who) => { if (VERBOSE) verboseLine(t, who); });
+    const h = huntStats();
+    res.push({ seed: s0.seed + i, outcome: G.mode === 'hunt' ? 'STALL' : G.outcome, turns: G.turn, kills: G.kills, n: G.units.length, ...h });
+    leaveScenario();
+  }
+  const by: Record<string, number> = {}; for (const r of res) by[r.outcome] = (by[r.outcome] || 0) + 1;
+  const avg = (k: string) => (res.reduce((a, r) => a + r[k], 0) / Math.max(1, res.length)).toFixed(1);
+  console.log(`== SCENARIO ${s0.name} (R${s0.round}) x${n}${AUTO.loud ? ' --loud' : AUTO.quiet ? ' --quiet' : ''}: ` + Object.entries(by).map(([k, v]) => `${k} ${v}`).join(' | '));
+  console.log(`  avg rounds ${avg('turns')} · kills ${avg('kills')}/${res[0].n} · mechs lost ${avg('lost')} · field heard the lance ${avg('heardLance')}x · alarms ${avg('alarms')} · first contact on the lance R${avg('firstOnLance')} · sprints ${avg('sprints')}`);
+  const src: Record<string, number> = {}; // the sense behind each hunt's first field contact on the lance
+  for (const r of res) { const f = r.E.slice().sort((a: any, b: any) => a.turn - b.turn)[0]; if (f) src[f.src] = (src[f.src] || 0) + 1; }
+  console.log('  field found the lance first by: ' + (Object.entries(src).map(([k, v]) => `${k} ${v}`).join(', ') || 'never'));
+  if (res.some(r => r.outcome === 'STALL')) console.log('  WARNING: stalls ' + res.filter(r => r.outcome === 'STALL').map(r => 'seed ' + r.seed).join(', '));
+  if (VERBOSE) for (const r of res) console.log(`    seed ${r.seed}: ${r.outcome} in ${r.turns} rounds, kills ${r.kills}, lost ${r.lost}, alarms ${r.alarms}`);
+}
+
+if (SCEN) {
+  scenarioRuns(SCEN, RUNS);
+} else if (CONTRACTS > 0 && BOTH) {
   log0('######## NORMAL'); AUTO.loud = false; contracts(CONTRACTS); const a = last;
   log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;
   console.log(`== NORMAL vs LOUD: failed ${a.failed} vs ${b.failed} | complete ${a.complete} vs ${b.complete} | mechs lost ${a.lost} vs ${b.lost}`);

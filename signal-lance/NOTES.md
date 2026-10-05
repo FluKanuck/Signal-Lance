@@ -493,6 +493,19 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - HUNT keeps the usual HOLD patience for a healthy target in HOLD_DIST; a wounded target (BADLY or LEGS gone) gets no
      patience. SEARCH ends early when the patrol reaches the estimate.
    - The pack is a splash toggle (localStorage signalLance.pack), OFF by default; pack runs are tagged [PACK] in the log.
+   R14 (Read the signature) ASSUMPTIONS
+   - Test bed: scenarios are data in src/sim/scenarios.ts. startScenario() sets the seed, uplink, hand zones (setZones)
+     and an empty composition, then newHunt(loads, prep): prep places the lance and REBUILDS the field from the scenario
+     (makeUnit per entry), replacing any rolled placement. RETRY = same seed = same hunt.
+   - Scenario `tune` overrides are top-level TUNE keys only, saved before and restored on BACK (or the next scenario),
+     so the splash's pack toggle comes back as it was. A test-bed hunt sets G.ct = null (never in a contract, no pay,
+     no carry-over) and logs one [TESTBED <name>] line on RETRY or BACK, with the tap answer.
+   - "legsLost: 1" = one of the two legs gone (CREEP only); a patrol's `state` is only its starting label, the brain
+     takes over at its first activation (no new behaviours: LEASH patrols still wander within LEASH of the uplink).
+   - Earshot: uplink west plaza (27,13), lance ~10.4 tiles off at (17,16); patrols (21,8) and (24,20), 8–9 tiles from
+     the start, buildings in between. Runner, 20 seeds: --quiet found R2.1 (by EYES), NORM R1.1 (EYES), --loud R1.0
+     (by SOUND every time). The uplink is in their leash, so eyes find you there in the end either way.
+   - Runner: --scenario <name> [--runs N] (seeds seed..seed+N-1), and --quiet (CREEP every move) to compare with --loud.
 ```
 
 ## TWEAK LOG
@@ -768,4 +781,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            centred outside its own cone (walls 2.7t × quiet target 1.39 × NOISE 2, recentred up to 0.7 r) | ZONE_NOISE_
            AFFECTS_RADAR (effectively true) → false: NOISE no longer blurs radar fixes; same fix ≈ 3.75t, centre within
            ≈ 2.6t. Session wrapped right after; untested | not rated
+   round14 part 0 | R13 "did being loud cost you anything?" took contracts to answer | NEW test bed (scenarios.ts,
+           TEST BED button, [TESTBED] log line, runner --scenario/--runs/--quiet). Scenarios Earshot, Wounded (pack on).
+           BUILD r14-s0 | -
 ```

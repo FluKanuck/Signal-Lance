@@ -6,7 +6,7 @@ import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist,
          cmdSelect, cmdFire, cmdUplink, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp } from './turns.ts';
 
 export const AUTO_DT = 0.05;
-export const AUTO = { loud: false }; // R13: --loud = SPRINT every move, pulse radar whenever it can
+export const AUTO = { loud: false, quiet: false }; // R13: --loud = SPRINT every move, pulse radar whenever it can. R14: --quiet = CREEP every move
 
 // run the current action (move / pulse / shot) to completion
 export function runAct() { for (let n = 0; G.act && G.mode === 'hunt' && n < 20000; n++) step(AUTO_DT); }
@@ -21,7 +21,7 @@ export function playerTurn() {
     if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') { cmdFire(); runAct(); continue; }
     if (uplinkBlock() === '') { cmdUplink(); continue; }
     if (!moved && upDist(G.p) > TUNE.UPLINK_RADIUS + 0.5) {
-      cmdMoveMode(AUTO.loud ? 'SPRINT' : 'NORMAL'); cmdTarget(G.up.x, G.up.y); moved = true;
+      cmdMoveMode(AUTO.loud ? 'SPRINT' : AUTO.quiet ? 'CREEP' : 'NORMAL'); cmdTarget(G.up.x, G.up.y); moved = true;
       if (AUTO.loud && G.plan && !G.plan.path && G.plan.why !== 'LEGS') { cmdMoveMode('NORMAL'); cmdTarget(G.up.x, G.up.y); } // can't afford any sprint
       if (G.plan && !G.plan.path && G.plan.why === 'LEGS') { cmdMoveMode('CREEP'); cmdTarget(G.up.x, G.up.y); } // R12: legs gone = creep
       if (G.plan && G.plan.path) { cmdMove(); runAct(); continue; }

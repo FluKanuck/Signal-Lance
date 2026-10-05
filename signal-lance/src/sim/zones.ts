@@ -8,7 +8,7 @@ import { G } from './state.ts';
 // G.zones: [{ x, y (tile centre), name, type 'QUIET'|'NOISE', tiles: [{x,y}] }]; G.zmap[tile] = zone index + 1 (0 = none)
 export const zmap = new Uint8Array(N);
 
-function zoneTiles(cxT, cyT) {
+export function zoneTiles(cxT, cyT) {
   const R = TUNE.ZONE_RADIUS, out = [];
   for (let y = cyT - R; y <= cyT + R; y++) for (let x = cxT - R; x <= cxT + R; x++) {
     if (Math.hypot(x - cxT, y - cyT) > R || !canReach(x, y) || x >= W - TUNE.EXTRACT_COLS) continue;
@@ -39,6 +39,12 @@ export function rollZones() {
     types[a] = 'QUIET'; types[b] = 'NOISE';
   }
   G.zones = picked.map((c, i) => ({ x: c.x, y: c.y, name: c.name, type: types[i], tiles: c.tiles }));
+  G.zones.forEach((z, i) => { for (const t of z.tiles) zmap[t.y * W + t.x] = i + 1; });
+}
+// R14 test bed: hand-placed zones instead of the roll. list = [{ type 'QUIET'|'NOISE', x, y (centre tile), name? }].
+export function setZones(list) {
+  zmap.fill(0);
+  G.zones = list.map(z => ({ x: z.x, y: z.y, name: z.name || z.type.toLowerCase(), type: z.type, tiles: zoneTiles(z.x, z.y) }));
   G.zones.forEach((z, i) => { for (const t of z.tiles) zmap[t.y * W + t.x] = i + 1; });
 }
 // The zone a world point (or unit) is in, or null.

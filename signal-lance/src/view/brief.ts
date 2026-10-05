@@ -5,9 +5,12 @@ import { TUNE } from '../tune.ts';
 const S = TUNE.SOUND_RANGE;
 
 export const TEST = {
-  title: 'Round 13 test: Loud gets company',
+  title: 'Round 14 test: Read the signature (part 0: test bed)',
   question: 'When noise only lasts the turn it is made and electronic emissions carry far, does getting loud become a risk you manage on purpose?',
   newThings: [
+    'NEW: a TEST BED button on the loadout screen. Each scenario is one short hunt that tests one thing, with a line telling you what to try and one tap question at the end. RETRY replays it exactly. Test-bed hunts never count toward contracts.',
+    'Try "Earshot" twice: sprint to the uplink, then RETRY and creep. Then "Wounded".',
+    'Everything below is from Round 13 and still holds.',
     'Signal is now two things. EMIT (the orange bar) is electronic: radar, ECM and uplink. It builds up, fades slowly and carries far.',
     'SOUND is new: moving and shooting. It is one radius (CREEP ' + S.CREEP + ', NORM ' + S.NORMAL + ', SPRINT ' + S.SPRINT + ', gun ' + S.SHOT + ', mortar ' + S.MORTAR + ' tiles) and lasts only until your mech’s next turn.',
     'The pale ring with ticks around your mech is your sound. Before you MOVE, a faint ring at the destination shows the sound that move will make.',
