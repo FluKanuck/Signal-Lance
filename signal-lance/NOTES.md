@@ -752,5 +752,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            SIG_FIRE / CREEP_SIG_MULT unused) + Sound (SOUND_RANGE CREEP 2, NORMAL 6, SPRINT 9, SHOT 12, MORTAR 14;
            SOUND_UNC 5). Pack behind PACK_ENABLED (ALARM_RADIUS_BASE 8, ALARM_RADIUS_EMIT 8, ALARM_UNC_ADD 2,
            PACK_SEARCH_ACTIVATIONS 2, PACK_SPRINT_ON_WOUNDED true). Runner (20 contracts, pack off): field first contacts
-           by sound 70% (FLAG > 50%); NORMAL 4 / SPRINT 7 gives 48%. Not changed yet, Jamie to decide. BUILD r13-s1 | -
+           by sound 70% (FLAG > 50%). BUILD r13-s1 | -
+   round13 build | runner flag: sound was 70% of the field's first contacts (passive no longer hears moves) | Jamie:
+           SOUND_RANGE.NORMAL 6 → 4, SPRINT 9 → 7. pickPackTarget = the brief's rule (parts lost, core, nearest) | -
 ```

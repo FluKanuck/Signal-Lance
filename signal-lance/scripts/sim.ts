@@ -224,7 +224,7 @@ if (CONTRACTS > 0 && BOTH) {
   log0('######## NORMAL'); AUTO.loud = false; contracts(CONTRACTS); const a = last;
   log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;
   console.log(`== NORMAL vs LOUD: failed ${a.failed} vs ${b.failed} | complete ${a.complete} vs ${b.complete} | mechs lost ${a.lost} vs ${b.lost}`);
-  if (b.lost < a.lost * 1.15 && b.failed <= a.failed) console.log('  FLAG: --loud does not lose noticeably more than normal (getting loud still carries no risk)');
+  if (b.lost < a.lost * 1.15 && b.failed < a.failed + 2) console.log('  FLAG: --loud does not lose noticeably more than normal (getting loud still carries no risk)');
 } else if (CONTRACTS > 0) {
   contracts(CONTRACTS);
 } else if (ONE >= 0) {

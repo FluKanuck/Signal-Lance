@@ -112,8 +112,8 @@ export const TUNE = {
   // loudest event of its current activation, cleared at the start of its next activation. Ignores walls. ---
   SOUND_RANGE: {        // tiles; the radius each event is heard at (any unit of the other side inside gets a sound contact)
     CREEP: 2,           // a creeping move
-    NORMAL: 6,          // a normal move
-    SPRINT: 9,          // a sprint: louder than walking, but doesn't carry as far as a gunshot
+    NORMAL: 4,          // a normal move (R13 runner: 6 → 4, sound was 70% of the field's first contacts)
+    SPRINT: 7,          // a sprint: louder than walking, but doesn't carry as far as a gunshot (R13 runner: 9 → 7)
     SHOT: 12,           // a gun shot
     MORTAR: 14,         // a mortar launch
   },

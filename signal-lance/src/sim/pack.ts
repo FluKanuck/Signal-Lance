@@ -44,9 +44,11 @@ export function hurt(m) { return { lost: (m.partsLost || []).filter(p => p !== '
 // Which lance mech patrol e goes after. `cands` = its live contacts on lance mechs (own or shared), each
 // { c (the contact), m (the mech behind it), d (tiles from e to the contact's estimate) }. Return one of them.
 export function pickPackTarget(e, cands) {
-  // TODO(Jamie): press the wound. Brief: the most damaged mech (most parts destroyed, then fewest CORE
-  // hits left; ties go to the nearest). hurt(m) gives { lost, core }.
-  return cands[0];
+  // press the wound: most parts destroyed, then fewest CORE hits left, ties to the nearest (Jamie, R13)
+  return cands.slice().sort((a, b) => {
+    const A = hurt(a.m), B = hurt(b.m);
+    return B.lost - A.lost || A.core - B.core || a.d - b.d;
+  })[0];
 }
 
 // The view's switch (tester splash toggle). Takes effect from the next hunt's decisions on.

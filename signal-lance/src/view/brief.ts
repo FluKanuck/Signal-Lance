@@ -1,13 +1,15 @@
 // Tester splash, basics screen and end-of-hunt questions (chore, R11). View only.
 // UPDATE TEST + QUESTIONS EVERY ROUND: they tell remote testers what this build is testing.
 import { $ } from './hud.ts';
+import { TUNE } from '../tune.ts';
+const S = TUNE.SOUND_RANGE;
 
 export const TEST = {
   title: 'Round 13 test: Loud gets company',
   question: 'When noise only lasts the turn it is made and electronic emissions carry far, does getting loud become a risk you manage on purpose?',
   newThings: [
     'Signal is now two things. EMIT (the orange bar) is electronic: radar, ECM and uplink. It builds up, fades slowly and carries far.',
-    'SOUND is new: moving and shooting. It is one radius (CREEP 2, NORM 6, SPRINT 9, gun 12, mortar 14 tiles) and lasts only until your mech’s next turn.',
+    'SOUND is new: moving and shooting. It is one radius (CREEP ' + S.CREEP + ', NORM ' + S.NORMAL + ', SPRINT ' + S.SPRINT + ', gun ' + S.SHOT + ', mortar ' + S.MORTAR + ' tiles) and lasts only until your mech’s next turn.',
     'The pale ring with ticks around your mech is your sound. Before you MOVE, a faint ring at the destination shows the sound that move will make.',
     'Anyone inside a sound ring hears it, through walls, as a fuzzy "SOUND" contact. That tells you something is over there, never enough to shoot at.',
     'Enemies follow the same rules. A patrol walking near you can be heard, and so can you.',
