@@ -23,6 +23,8 @@ export const live = new Float32Array(N);          // 0..1 colour
 export const reveal = new Float32Array(N);        // 0..1 resolved (never falls)
 export const tex = new Uint8Array(N * 4);         // RGBA for GL: R = live, G = reveal, B = solid (building) tile
 export const scan = new Float32Array(N * 4);      // RGBA float for GL: closest scan of this tile: x, y (world), distance, 1 = scanned
+export const first = new Float32Array(N * 4);     // RGBA float for GL: lab clock when first seen, 1 + index (in G.lance) of the ExoS that saw it
+export let fogClock = 0;                          // same clock as the lab's render time (both advance by the same dt)
 
 // Same eye rule as sensors.canSee (range, facing cone beyond EYES_CLOSE, clear LoS), applied to one world point.
 function eyesAt(m: any, x: number, y: number) {
@@ -51,6 +53,7 @@ function eyesOn(m: any, tx: number, ty: number) {
 let acc = 0;
 // dt = real seconds. Sight is recomputed 10×/s; the fades run every frame.
 export function updateFog(dt: number, force = false) {
+  fogClock += dt;
   if ((acc += dt) >= 0.1 || force) {
     acc = 0; const eyes = G.lance.filter((m: any) => !m.dead);
     for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
@@ -58,6 +61,7 @@ export function updateFog(dt: number, force = false) {
       for (const m of eyes) {
         const d = eyesOn(m, tx, ty); if (d < 0) continue;
         seen[i] = 1;
+        if (!first[i * 4 + 1]) { first[i * 4] = fogClock; first[i * 4 + 1] = 1 + G.lance.indexOf(m); }
         if (!scan[i * 4 + 3] || d < scan[i * 4 + 2]) { scan[i * 4] = m.x; scan[i * 4 + 1] = m.y; scan[i * 4 + 2] = d; scan[i * 4 + 3] = 1; }
       }
     }
@@ -70,4 +74,4 @@ export function updateFog(dt: number, force = false) {
     tex[i * 4] = live[i] * 255; tex[i * 4 + 1] = reveal[i] * 255; tex[i * 4 + 2] = isSolid(i % W, (i / W) | 0) ? 255 : 0;
   }
 }
-export function resetFog() { seen.fill(0); live.fill(0); reveal.fill(0); scan.fill(0); }
+export function resetFog() { seen.fill(0); live.fill(0); reveal.fill(0); scan.fill(0); first.fill(0); }

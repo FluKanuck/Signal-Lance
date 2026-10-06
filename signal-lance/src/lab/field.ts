@@ -19,13 +19,13 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { TUNE } from '../tune.ts';
 import { W, H, T, solid } from '../sim/world.ts';
 import { look, FX } from './looks.ts';
-import { tex as fogData, scan as scanData } from './fog.ts';
+import { tex as fogData, scan as scanData, first as firstData } from './fog.ts';
 
 const FOV = 40;
 const clearCol = new THREE.Color();
 let renderer: THREE.WebGLRenderer, scene: THREE.Scene, cam: THREE.PerspectiveCamera, composer: EffectComposer;
 let mat: THREE.ShaderMaterial, blockMat: THREE.ShaderMaterial, gridMat: THREE.ShaderMaterial, fogTex: THREE.DataTexture, marksTex: THREE.CanvasTexture;
-let bloom: UnrealBloomPass, film: ShaderPass, spinPts: THREE.Points, scanTex: THREE.DataTexture;
+let bloom: UnrealBloomPass, film: ShaderPass, spinPts: THREE.Points, scanTex: THREE.DataTexture, firstTex: THREE.DataTexture;
 const WALL_ROW = 2.5, WALL_COLS = 12, WALL_COL = T / WALL_COLS; // wall dot grid: the finest a wall can resolve to
 const GROUND_STEP = T / 12;                                      // ground dot grid spacing
 const rings: THREE.Points[] = [];
@@ -258,6 +258,35 @@ const VERT = /* glsl */`
   attribute float lid;            // 1 = wall grid dot: only shows on a lidar beam line (see lidarOK)
   uniform float size, depth, time, sweep, trueMix, greyDim, heightTint, neon, clutter;
   uniform sampler2D scanTex;      // per tile: closest scan x, y, distance, scanned
+  uniform sampler2D firstTex;     // per tile: clock when first seen, 1 + ExoS index
+  uniform float rate, headAmt;    // lidar head spin (rev/s) and its flare strength
+  // Exact 2D line of sight from the scanner to a dot (grid DDA, same as the rings), not testing the dot's own tile
+  // (so kit standing on a roof can still be reached by upward beams).
+  float losTo(vec2 a, vec2 b) {
+    float TT = ${T.toFixed(1)};
+    vec2 t = floor(a / TT), e = floor(b / TT), d = b - a, s = sign(d), ad = abs(d);
+    vec2 tDelta = vec2(ad.x > 0.0 ? TT / ad.x : 1e9, ad.y > 0.0 ? TT / ad.y : 1e9);
+    vec2 tMax = vec2(ad.x > 0.0 ? (s.x > 0.0 ? (t.x + 1.0) * TT - a.x : a.x - t.x * TT) / ad.x : 1e9,
+                     ad.y > 0.0 ? (s.y > 0.0 ? (t.y + 1.0) * TT - a.y : a.y - t.y * TT) / ad.y : 1e9);
+    float n = abs(e.x - t.x) + abs(e.y - t.y);
+    for (int i = 0; i < 28; i++) {
+      if (float(i) >= n - 1.0) break;
+      if (tMax.x < tMax.y) { tMax.x += tDelta.x; t.x += s.x; } else { tMax.y += tDelta.y; t.y += s.y; }
+      if (fogTile(t).b > 0.5) return 0.0;
+    }
+    return 1.0;
+  }
+  // The spinning head has to sweep a dot's bearing after its tile came into view before the dot exists.
+  // Returns (shown, flare): flare = 1 as the head crosses it, fading over a few degrees, like the ground rings.
+  vec2 headGate(vec2 wp, vec2 sc, float ti) {
+    vec4 fs = texture2D(firstTex, (vec2(mod(ti, grid.x), floor(ti / grid.x)) + 0.5) / grid);
+    if (fs.y < 0.5) return vec2(0.0);
+    float az = atan(wp.y - sc.y, wp.x - sc.x);
+    float turn = time * rate * 6.2832 + (fs.y - 1.0) * 2.1 - az;           // same head angle as the rings (phase = index * 2.1)
+    float since = fract(turn / 6.2832) / max(rate, 0.01);                // seconds since the head last crossed this bearing
+    float shown = step(since, time - fs.x) + step(1.0 / max(rate, 0.01), time - fs.x);
+    return vec2(min(shown, 1.0), 1.0 - smoothstep(0.0, 0.05 / max(rate, 0.01), since));
+  }
   uniform float sH, r0, gap, grow, rmax, dPhi, thM, dTh, ringsOn;
   // Wall dots resolve along the same beams that draw the ground rings. Trace the beam from the sensor (height sH, at
   // the tile's closest scan position) through this dot down to the ground (or mirrored up, above sensor height):
@@ -288,7 +317,8 @@ const VERT = /* glsl */`
     float rowOK = sp < gr * 1.1 ? 1.0 : step(abs(fract(k + 0.5) - 0.5) * sp, gr * 0.55);
     float sp2 = d * dPhi;                                       // spacing between azimuth columns
     float colOK = sp2 < gc * 1.1 ? 1.0 : step(abs(fract(atan(dv.y, dv.x) / dPhi + 0.5) - 0.5) * sp2, gc * 0.55);
-    return rowOK * colOK;
+    if (rowOK * colOK < 0.5) return 0.0;
+    return losTo(sc.xy, wp);                                    // last (dearest): this exact dot must be in sight of the scan position
   }
   uniform vec3 cInk, cFog, rampLo, rampMid, rampHi;
   uniform vec4 eyes[4];           // ExoS x, y (world), alive, active (the sweep pulse runs from the active ExoS only)
@@ -299,10 +329,16 @@ const VERT = /* glsl */`
     float kind = meta.x;
     vec2 f = fogAt(meta.y); float live = f.x, rev = f.y;
     // resolve: this dot exists once the tile's reveal passes its own threshold; flash white just after it lands
-    float th = meta.z * 0.9 + 0.02, on = step(th, rev);
-    if (lid > 0.5 && useFog > 0.5 && on > 0.0) on *= lidarOK(vec2(position.x, -position.y), position.z, meta.y);
+    float th = meta.z * 0.9 + 0.02, on = step(th, rev), hot = 0.0;
+    if (lid > 0.5 && useFog > 0.5) {
+      vec2 wp = vec2(position.x, -position.y);
+      vec4 sc = texture2D(scanTex, (vec2(mod(meta.y, grid.x), floor(meta.y / grid.x)) + 0.5) / grid);
+      vec2 hg = headGate(wp, sc.xy, meta.y);
+      on = hg.x > 0.0 ? lidarOK(wp, position.z, meta.y) : 0.0;
+      hot = on * hg.y * live * headAmt;
+    }
     if (kind < 0.5 && lid > 0.5) on *= 1.0 - ringsOn * smoothstep(0.0, 0.6, live); // ground in sight: the live rings show it; out of sight: the remembered scan
-    float flash = on * (1.0 - smoothstep(0.0, 0.18, rev - th)) * step(rev, 0.999);
+    float flash = lid > 0.5 ? hot : on * (1.0 - smoothstep(0.0, 0.18, rev - th)) * step(rev, 0.999);
     // true colour, nudged by the look's ink and by the lidar height ramp (street → rooftops)
     float lum = dot(color, vec3(0.299, 0.587, 0.114));
     vec3 tc = mix(cInk * lum * 2.0, color, trueMix);
@@ -436,6 +472,8 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
   fogTex.magFilter = fogTex.minFilter = THREE.NearestFilter; fogTex.needsUpdate = true;
   scanTex = new THREE.DataTexture(scanData, W, H, THREE.RGBAFormat, THREE.FloatType);
   scanTex.magFilter = scanTex.minFilter = THREE.NearestFilter; scanTex.needsUpdate = true;
+  firstTex = new THREE.DataTexture(firstData, W, H, THREE.RGBAFormat, THREE.FloatType);
+  firstTex.magFilter = firstTex.minFilter = THREE.NearestFilter; firstTex.needsUpdate = true;
   const useFog = { value: 1 }, fogU = () => ({ fogTex: { value: fogTex }, grid: { value: new THREE.Vector2(W, H) }, useFog });
   const C = () => ({ value: new THREE.Color() });
   const { geo, heights } = buildScene();
@@ -443,7 +481,7 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
     vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
     uniforms: { ...fogU(), size: { value: 2 }, depth: { value: 0.5 }, time: { value: 0 }, sweep: { value: 0 }, trueMix: { value: 0.85 }, greyDim: { value: 0.6 },
       heightTint: { value: 0 }, neon: { value: 1.6 }, clutter: { value: 1 },
-      scanTex: { value: scanTex }, sH: { value: 24 }, r0: { value: 16 }, gap: { value: 3 }, grow: { value: 0.2 }, rmax: { value: TUNE.EYES_RANGE * T }, dPhi: { value: 0.026 },
+      scanTex: { value: scanTex }, firstTex: { value: firstTex }, rate: { value: 0.5 }, headAmt: { value: 0.6 }, sH: { value: 24 }, r0: { value: 16 }, gap: { value: 3 }, grow: { value: 0.2 }, rmax: { value: TUNE.EYES_RANGE * T }, dPhi: { value: 0.026 },
       thM: { value: 0.06 }, dTh: { value: 0.01 }, ringsOn: { value: 1 },
       cInk: C(), cFog: C(), rampLo: C(), rampMid: C(), rampHi: C(), eyes: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) } },
   });
@@ -505,7 +543,8 @@ export function renderField(t: number, dt: number, camX: number, camY: number, z
     u.thM.value = Math.atan2(L.scanHeight, rOf(k)); u.dTh.value = Math.max(0.002, Math.atan2(L.scanHeight, rOf(Math.max(0, k - 1))) - u.thM.value);
   }
   u.ringsOn.value = FX.rings && L.scanAmt > 0 ? 1 : 0; blockMat.uniforms.fade.value = L.blockFade;
-  scanTex.needsUpdate = true;
+  scanTex.needsUpdate = true; firstTex.needsUpdate = true;
+  u.rate.value = L.scanRate; u.headAmt.value = L.scanSpin;
   u.cInk.value.set(L.ink); u.cFog.value.set(L.fog); u.rampLo.value.set(L.rampLo); u.rampMid.value.set(L.rampMid); u.rampHi.value.set(L.rampHi);
   blockMat.uniforms.cBlock.value.set(L.block); blockMat.uniforms.cEdge.value.set(L.blockEdge);
   gridMat.uniforms.cInk.value.set(L.ink); gridMat.uniforms.amt.value = FX.grid ? L.grid : 0;
