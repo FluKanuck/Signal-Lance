@@ -754,6 +754,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      grazed cover tile, the piece = it plus every wall / clutter tile joined to it (4-way) within COVER_ITEM_RADIUS (3).
      If the shooter is within COVER_ADJ (0.75 tiles: next to it, diagonals included) of any tile of that piece, that tile
      gives no cover. Both sides. This replaced the point-blank idea (not built).
+   R16 extraction (r16-s8) ASSUMPTIONS
+   - Escort / Retrieve (Jamie's log: the lance BAILed with the transport one step behind): a mech in the extraction columns
+     waits there; the hunt does not end. It ends WIN when the transport walks out / the carrier carries the cargo out, and
+     BAIL once every living mech is in extraction. Uplink and Bounty keep "one mech out = the lance leaves". (Parked R15 #5.)
 ```
 
 ## TWEAK LOG
@@ -1110,4 +1114,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            annoying" … "if the target is sharing the same cover item as the ExoS the cover doesnt apply" | NEW forks-ahead levers,
            next-move marker, T in the strip; COVER_ADJ 0.75, COVER_ITEM_RADIUS 3. Runner 60 contracts: hit 57% (cover 29%, open
            62%), wins ~40%; Escort forced (30): 60%. BUILD r16-s7 | -
+   round16 bug | Jamie's log (r16-s6, Escort 6x2): "i made it to the end, the escort 1 step behind me, but because i entered
+           extract before the transport it counted as bailed" | Escort / Retrieve: a mech in extraction waits; BAIL only when all
+           living mechs are out (turns.ts extractEnds). Runner 40 contracts: no stalls. BUILD r16-s8 | -
 ```

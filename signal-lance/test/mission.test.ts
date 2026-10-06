@@ -230,6 +230,20 @@ import { cmdLeg, nextActivation } from '../src/sim/turns.ts';
 import { onAllyLost, onAllyOut, escortBonus } from '../src/sim/mission.ts';
 import { playOut } from '../src/sim/autoplay.ts';
 
+describe('R16: extraction in Escort / Retrieve', () => {
+  it('a mech in extraction waits; the hunt ends when every living mech is out (BAIL), or the carrier is out (WIN)', async () => {
+    const { extractEnds } = await import('../src/sim/turns.ts');
+    hunt('ESCORT'); const [A, B] = G.lance;
+    A.x = (W - 1.5) * T; expect(extractEnds(A)).toBe(false); // B is still in the district
+    B.x = (W - 1.5) * T; expect(extractEnds(A)).toBe(true);  // both out: they leave
+    B.x = 2 * T; B.dead = true; expect(extractEnds(A)).toBe(true); // the only living mech is out
+    hunt('RETRIEVE'); const [C, D] = G.lance; G.mission.carrier = C.id;
+    C.x = (W - 1.5) * T; expect(extractEnds(C)).toBe(true); // the carrier walks out: WIN
+    D.x = (W - 1.5) * T; G.mission.carrier = ''; C.x = 2 * T; expect(extractEnds(D)).toBe(false);
+    hunt('UPLINK'); G.lance[0].x = (W - 1.5) * T; expect(extractEnds(G.lance[0])).toBe(true); // Uplink / Bounty: as before
+  });
+});
+
 describe('ESCORT', () => {
   it('the route comes from the anchors table: every junction has 2 or 3 onward legs, every leg walks', () => {
     const X = anchors();

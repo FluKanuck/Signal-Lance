@@ -188,7 +188,7 @@ export function stepAction(dt) {
   if (G.ally && G.ally.dead) { G.act = null; onAllyLost(); return; } // R15 Escort: the transport is destroyed
   if (G.ally && Math.floor(G.ally.x / T) >= W - TUNE.EXTRACT_COLS) { G.act = null; onAllyOut(); return; } // R15 Escort: it made it
   if (G.kills >= G.units.length && !isType('ESCORT')) { G.act = null; onClear(); return; } // R7: whole field destroyed (R15: the mission decides what that means)
-  if (!p.dead && Math.floor(p.x / T) >= W - TUNE.EXTRACT_COLS) { G.act = null; onExtract(p); return; } // a mech reaching extraction pulls the lance out (R15: Bounty at quota = WIN)
+  if (!p.dead && inExtract(p) && extractEnds(p)) { G.act = null; onExtract(p); return; } // a mech reaching extraction pulls the lance out (R15: Bounty at quota = WIN; R16: see extractEnds)
   const done = a.k === 'MOVE' ? !a.m.path || a.age > 30 : a.t <= 0 && !shellsFlying();
   if (!done) return;
   a.m.moving = false; a.m.path = null; if (a.k === 'PULSE') a.m.radarOn = false;
@@ -196,6 +196,15 @@ export function stepAction(dt) {
   if (G.phase === 'ENEMY') G.ewait = TUNE.ENEMY_ACT_PAUSE;
   else if (G.phase === 'ALLY') nextActivation(); // R15 s3: the transport's one move is its whole turn
   else { if (a.m === p && G.planT && !G.planT.cut) G.planT = null; replan(); hooks.sync(); }
+}
+// R16 (Jamie: "i made it to the end, the escort 1 step behind me, but because i entered extract before the transport it
+// counted as bailed"): in Escort and Retrieve, a mech in extraction just waits there; the hunt ends when the objective walks
+// out (transport / carrier) or when every living mech is in extraction (a BAIL). Uplink and Bounty: one mech out, as before.
+export function inExtract(m) { return Math.floor(m.x / T) >= W - TUNE.EXTRACT_COLS; }
+export function extractEnds(m) {
+  if (!isType('ESCORT') && !isType('RETRIEVE')) return true;
+  if (isCarrier(m)) return true;
+  return livingMechs().every(o => inExtract(o));
 }
 export function faceTo(m, x, y) { const dx = x - m.x, dy = y - m.y, d = Math.hypot(dx, dy); if (d > 0) { m.fx = dx / d; m.fy = dy / d; } }
 // Change facing (no time): the first FREE_TURNS each turn are free, then AP_TURN each.

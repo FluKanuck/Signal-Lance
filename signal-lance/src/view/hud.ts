@@ -69,7 +69,7 @@ function goalLine(p) {
     const where = allyHolding() ? '<b style="color:#7e9">HOLDING at ' + N[a.node].name + ': tap a route on the map</b>' : a.leg >= 0 ? 'heading for ' + N[L[a.leg].to].name : 'moving';
     const lev = anchors().junctions.filter(j => !a.passed.includes(j)).map(j => N[j].name.replace('fork at ', '') + ' ' + (a.levers[j] !== undefined ? L[a.levers[j]].name : '—')).join(', ');
     const ord = (lev ? '  levers: ' + lev : '') + (a.order ? '  <b style="color:#fc3">' + (a.order === 'HOLD' ? 'HOLDING next round' : 'SPRINTING next move') + '</b>' : '');
-    return '<br>TRANSPORT <b style="color:#7e9">' + Math.max(0, a.hits) + '/' + a.maxHits + ' hits</b>  ' + where + ord + '  <span style="color:#aab">(a mech at the right edge first = the lance pulls out without it)</span>';
+    return '<br>TRANSPORT <b style="color:#7e9">' + Math.max(0, a.hits) + '/' + a.maxHits + ' hits</b>  ' + where + ord + '  <span style="color:#aab">(a mech at the right edge waits there; both mechs out = the lance leaves without it)</span>';
   }
   if (isType('RETRIEVE')) { // R15 s2
     const M = G.mission;

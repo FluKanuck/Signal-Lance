@@ -74,7 +74,7 @@ export function onAllyOut() { G.mission.endTurn = G.turn; G.mission.result = 'tr
 export function escortBonus() { const a = G.ally; return a ? Math.round(TUNE.ESCORT_BONUS * Math.max(0, a.hits) / a.maxHits) : 0; }
 
 // A lance mech m reached extraction. Uplink: BAIL (as before). Bounty: WIN at or over quota, else BAIL with the bounties
-// kept. Retrieve: WIN if m carries the cargo, else BAIL (any mech reaching extraction still pulls the lance out).
+// kept. Retrieve: WIN if m carries the cargo, else BAIL. R16: in Escort / Retrieve this is only called once every living mech is out (turns.ts extractEnds).
 export function onExtract(m?) {
   G.mission.endTurn = G.turn; G.mission.result = 'extracted';
   if (quotaMet()) { G.winBy = 'BOUNTY'; finishHunt('WIN'); }

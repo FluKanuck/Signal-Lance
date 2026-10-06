@@ -47,7 +47,7 @@ function groundAt(tx: number, ty: number): [string, string[]] | null {
   if (zn && zn.type === 'QUIET') out.push('QUIET ground (' + zn.name + '): anything standing here is read at ' + Math.round(TUNE.ZONE_TYPES.QUIET.SIG_MULT * 100) + '% of its EMIT and sound.');
   if (zn && zn.type === 'NOISE') out.push('NOISE zone (' + zn.name + '): radio fixes on anything here are blurred (×' + TUNE.ZONE_TYPES.NOISE.UNC_MULT + ', at least ±' + TUNE.ZONE_TYPES.NOISE.UNC_FLOOR + '). Eyes and radar still work.');
   const ext = tx >= W - TUNE.EXTRACT_COLS;
-  if (ext) return ['Extraction', ['A mech that walks in here pulls the whole lance out (and the hunt ends).', ...out]];
+  if (ext) return ['Extraction', [isType('ESCORT') || isType('RETRIEVE') ? 'A mech that walks in here waits. The hunt ends when the ' + (isType('ESCORT') ? 'transport' : 'cargo') + ' comes out, or when all your mechs are in here (you leave without it).' : 'A mech that walks in here pulls the whole lance out (and the hunt ends).', ...out]];
   if (isSolid(tx, ty)) {
     const piece = solid[ty * W + tx] === 2;
     return [piece ? 'Wreck / barricade' : 'Building', [piece ? 'A set piece or street blocker (fallen gantry, containers, a collapsed front).' : 'A city block.', 'Blocks movement, sight and shots. Radar sees through up to ' + TUNE.RADAR_MAX_WALLS + ' wall tiles.', 'Cover: −' + TUNE.HIT_COVER + '% to hit a unit just behind it, unless the shooter is up against the same piece.']];
