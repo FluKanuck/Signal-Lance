@@ -1,6 +1,6 @@
 # Signal Lance Roadmap
 
-**Updated:** 2026-10-05 after Round 14 (about 2 quick contracts, fun test 2/5: "one more go" + "that's how it works"). The full map of the game lives in `claude/signal-lance-game-shape.md`.
+**Updated:** 2026-10-06 after Round 15 (Missions: 3 new types, each "the read changed my plan"; no fun test, by slice design). The full map of the game lives in `claude/signal-lance-game-shape.md`.
 
 ## North star
 Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, then learn why.
@@ -11,9 +11,9 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | Strand | Question | Status | Rounds used |
 |---|---|---|---|
 | Hunt | Is finding and fighting with sensors fun? | Passed. R9 mortar, R10 terrain deepened it. R12: to-hit + parts made fights "richer" and different 3/3; % now "makes sense" (R13, 2/2 answers). Step 2 (aimed shots) parked | 1 (+R8–R10, R12) |
-| Enemy behaviour | Does an enemy that hunts you and presses an advantage make fights feel alive? | R13 built (pack behind a toggle). One pack-on contract: "came for me, fair", 8 alarms, no loss. **Still unproven by play: did being loud cost anything?** "Earshot" not played in R14. Runner says yes (creep found round 2.1 by eyes; sprint round 1.0 by sound) | 1 (R13, partial) |
+| Enemy behaviour | Does an enemy that hunts you and presses an advantage make fights feel alive? | R13 built (pack behind a toggle). One pack-on contract: "came for me, fair", 8 alarms, no loss. **Still unproven by play: did being loud cost anything?** "Earshot" not played in R14. Runner says yes (creep found round 2.1 by eyes; sprint round 1.0 by sound). R15 Retrieve flip reuses it: "enemy aimed for the mech with the cargo", felt good | 1 (R13, partial; R15 reuse) |
 | Resource pools | Do separate pools (AP, Energy, Signal, Heat) create real trade-offs? | AP + Energy banked on purpose. Jamie R12: "no risk in having high signal"; sprint noise wrongly stacks. R13 split Signal into EMIT + SOUND: read **"at a glance"**; a SOUND contact helped find something; crept instead of sprinting once. Heat untested | 2 (R4, R13) |
-| SIGINT: signature matching | Does reading a signature and matching it against a reference manual (Cold Waters style) make identifying contacts a skill? | **R14: legible, but decides nothing.** 9 variants, card, ID; runner 27% ID'd before eyes, no flags. Jamie: "irregardless of the enemy type, if around an uplink, I'm going to have to fight it"; eyes win the race; `ID_SHOW_FITS` helped partly. **The problem is the mission, not the read**: there's an "and" Jamie can't name yet. Later also pre-drop from the ship, plus faction intel | 1 (R14, flat on use) |
+| SIGINT: signature matching | Does reading a signature and matching it against a reference manual (Cold Waters style) make identifying contacts a skill? | **R14: legible, but decides nothing.** 9 variants, card, ID; runner 27% ID'd before eyes, no flags. Jamie: "irregardless of the enemy type, if around an uplink, I'm going to have to fight it"; eyes win the race; `ID_SHOW_FITS` helped partly. **R15: the missions gave it the "and".** Bounty, Retrieve, Escort all "the read changed my plan"; Escort fork called from "a mix of all scan results… gut feeling". Later also pre-drop from the ship, plus faction intel | 2 (R14 flat, R15 yes) |
 | Suit building | Do frame (weight), reactor (power) and signature budgets force a real sacrifice, shaped by the INTEL? | Mapped. Cheap test: 3 frames, 2 reactors, ~6 modules | 0 |
 | Combat controls | Can you fire and manoeuvre as a tactical choice? | Passed (R4). R10 noise ended "stand off and pummel" | 3 |
 | Replay pull | Does the next run ask a new question? | Reframed into Company after R10 | 5 (reframed) |
@@ -37,16 +37,17 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | # | Component | Starting thin slice | Status |
 |---|---|---|---|
 | 1 | Hunt | Sensors, EMIT/SOUND, pack, to-hit + parts, mortar, zones, card + ID | Built (R1–R14) |
-| 2 | Missions | Scoped: Uplink (kept as control) + **Bounty → Retrieve → Escort**, one step each; each hunt rolls its type, shown in INTEL before refit | **R15 "Pick your fights" (3 steps)** |
+| 2 | Missions | Uplink + Bounty + Retrieve + Escort, rolled per job | **Built (R15).** 3/3 new types "read changed my plan"; Uplink "not sure" (now the plain baseline). Bounty greed at quota not biting yet |
 | 3 | Suit building | Sharpened test in `signal-lance-construction.md` (3 frames, 2 reactors, ~7 modules, 1 mod, + THERMAL) | Mapped |
 | 4 | Pre-drop intel (ship) | Ship SIGINT scan with a risk dial; 3 ship slots, fit 2 | Mapped |
 | 5 | Operators | One per suit, one skill, Standard (critical + extract), injuries bench, 2 recruits | Mapped |
+| 2c | Draw your route | Door Kickers–style drawn path (tap-to-move kept), facing waypoints to look down alleys, movement interrupt (parked #10). Builds on `FREE_TURNS` / `AP_TURN` | **R17** (agreed in R16 scoping) |
 | 6 | After the drop | Payout, salvage capped by the hold, repair with parts, medbay time | Partly (R11–R12) |
 | 7 | Learn why | After-action timeline: who heard whom, wrong calls, where the plan broke (the pillar's last beat) | Not mapped |
-| 2b | Block maps | ~6 interlocking 10×10 blocks, 3×3 grid rolled per hunt (parked #33), each block carrying its mission anchors. Timing set by Escort: pull forward if routes feel solved on one map | Proposed |
+| 2b | Block maps | ~6 interlocking 10×10 blocks, 3×3 grid rolled per hunt (parked #33), each block carrying its mission anchors. Timing set by Escort: pull forward if routes feel solved on one map | **R16 "Rolled ground" (pulled forward).** Trigger met (R15): Retrieve "only one sensible route… I would have changed route". Anchors table ready |
 | 8 | Campaign map | 5–6 districts, 2 factions, fuel per jump, upkeep, standing, 3 contracts on offer, faction intel | Mapped |
 
-Build order (lean, revisable at each scoping chat): Missions → Suit building → Pre-drop intel → Operators + After → Learn why → Campaign map → slice fun test.
+Build order (lean, revisable at each scoping chat): Missions (R15) → **Block maps (R16)** → **Draw your route (R17)** → Suit building → Pre-drop intel → Operators + After → Learn why → Campaign map → slice fun test.
 
 ## Decisions
 | Round | Decision | Why |
@@ -72,6 +73,8 @@ Build order (lean, revisable at each scoping chat): Missions → Suit building �
 | 14 (result) | Read works, mission ignores it. Fun test 2/5 over ~2 contracts. `ID_SHOW_FITS` on (helped partly). Patrol step tells stay close-range for a baseline ExoS; acoustic sensors extend them later (Jamie) | Jamie: "the information just doesn't give us anything other than position for a ranged lob"; "Yes… AND… but I just can't quite figure out what the and is" |
 | slice | **Gates 1 and 2 merged into a whole-loop slice.** 8 components, each thin; fun test once on the connected slice. Each component gets its own scoping chat first. Missions is first | Jamie: "no one current item … could get that fun test passed … a spread of larger ideas that need to come together". R14: "I think it just being uplinks is boring right now"; wants mission variety; the "and" = "pick my fights and choose how to fight it" |
 | 15 | Missions scope (Jamie): Bounty (variant bounties, quota then push your luck, a kill pays its true variant however it died), Retrieve (grab the guarded cargo; the field flips to hunting the carrier), Escort (a faction ally on a route of legs; you pick the leg at each junction). Uplink kept in the mix. Each hunt rolls its type, shown before refit. Built and tuned one step at a time, with a check-in before Steps 2 and 3; no fun test | Jamie's own types; "mission variety is key". Recon / find-the-one / cross-and-extract not picked |
+| 15 (result) | Missions read and connect: Bounty, Retrieve, Escort "the read changed my plan"; Uplink "not sure"; test bed "useful". No fun test (slice). Biggest missing piece: **"bigger loop"** (campaign, operators, ship) | R15 debriefs; fixed map caps route choice |
+| 16 | "Rolled ground": ~8 hand-drawn 12×12 blocks with anchors + modifier slots (sound zone, LoS set piece, ground clutter = low cover + slow + noisy, each its own knob), random grid (6×2 … 4×4, min 8 blocks), field scaled by area, escort graph from seams; hive map kept as `MAP_MODE` control. No fun test | R15 Retrieve "only one sensible route" (2b trigger). Jamie: "lots of variations… some real variety"; picked both clutter effects. Movement rework split to R17 so each reads cleanly |
 | note | **Lance size: 1–4 ExoS deployed per mission** (Jamie, 2026-10-05; "ExoS", pronounced Ex-Oss, is his placeholder term for the exosuits). Today's builds use 2 | Jamie, during the R14 debrief |
 
 ## Parked ideas (by gate)
@@ -85,7 +88,7 @@ Build order (lean, revisable at each scoping chat): Missions → Suit building �
 7. Drones / scouts / expendable recon; deployable jammer or decoy — hunt
 8. Enemy AI, beyond R13: react when shot (cover, back off), flank, use zones, call for help as an action, relays and comms jamming — enemy behaviour
 9. Initiative delay/hold/interrupt; modules that change initiative — combat
-10. Movement interrupted by a new signal or new LoS — combat
+10. Movement interrupted by a new signal or new LoS — combat → **R17 "Draw your route"**
 11. Smarter fixes: no fix in impossible spots, no stale cross-referencing — hunt
 12. Zones that change movement cost or the observer's own sensors; QUIET does nothing for turrets — hunt
 13. RWR, enemy ECM ghosts, aimed radar pulse, passive bearings only on the enemy's turn — hunt
@@ -140,4 +143,11 @@ Build order (lean, revisable at each scoping chat): Missions → Suit building �
 51. Decoys and masking, to disguise what you are, to hide or lure the enemy — strand: hunt · parked 2026-10-05
 52. A "heard nothing close by" reading, so a scout can be told apart at range (R14) — SIGINT
 53. Picker hints: the full "only what fits" picker would give the answer away; greying is as far as it goes (R14) — SIGINT
-54. Unrated by play: Twin pulse frozen-track lob payoff, Quiet gun miscall cost; is the test bed useful? (R14) — SIGINT / tooling
+54. Unrated by play: Twin pulse frozen-track lob payoff, Quiet gun miscall cost (R14; test bed now rated "useful", R15) — SIGINT / tooling
+55. Make push-your-luck bite at Bounty quota: over-quota pays more, or the field stiffens over time (R15, one data point) — missions
+56. Choose or refit the loadout after seeing the job type (R15) — suit building / company
+57. Extraction rule: a suit at the edge pulls the lance before the carrier/transport; only count it when the objective is out? (R15) — missions
+58. Runner: the inherited R13 sound-share flag (raise threshold or revisit sound); scripted lance always picks Escort NORTH and never pushes past quota (folds into #42) (R15) — tooling
+59. Escort route button can sit under HUD text near the map top (R15) — tooling
+60. **District theme and tone** across a whole map (industrial, slum, corporate block sets + matching building assets); zone theme parked with it (Jamie, R16 scoping) — campaign / content
+61. Interactive or destructible set pieces (fuel tanks, cranes) (R16 scoping) — hunt
