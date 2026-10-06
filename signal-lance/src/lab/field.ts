@@ -130,7 +130,7 @@ function buildScene() {
     }
     // above-roof kit (reachable by upward beams): water tank, antenna with a red blinker, the block's billboard
     const r = rnd();
-    if (r < 0.07) box(x0 + 8, y0 + 8, b.h, 12, 12, 8, hvac, ti);
+    if (r < 0.04) { /* bare roof */ }
     else if (r < 0.11) { for (let z = 0; z < 16; z += 2) for (let a = 0; a < 22; a++) add(x0 + 16 + Math.cos(a / 22 * 6.28) * 7, y0 + 16 + Math.sin(a / 22 * 6.28) * 7, b.h + 6 + z, tankC, 3, ti); pole(x0 + 12, y0 + 12, b.h, 6, steel, ti); }
     else if (r < 0.16) { pole(x0 + 16, y0 + 16, b.h, 50, steel, ti); for (let k = 0; k < 5; k++) add(x0 + 16 + (rnd() - 0.5) * 3, y0 + 16 + (rnd() - 0.5) * 3, b.h + 51, red, 6, ti, 0.02); }
     if (b.billboard && (open(tx, ty - 1) || open(tx, ty + 1)) && rnd() < 0.35) { // billboard on a street-facing roof edge
@@ -267,6 +267,11 @@ const VERT = /* glsl */`
     vec4 sc = texture2D(scanTex, (vec2(mod(ti, grid.x), floor(ti / grid.x)) + 0.5) / grid);
     if (sc.w < 0.5) return 0.0;
     vec2 dv = wp - sc.xy; float d = max(length(dv), 1.0), dz = max(abs(z - sH), 0.01);
+    // a wall dot sits just outside its building tile: that side is its face normal; only faces turned toward the scan show
+    vec2 lo = wp - vec2(mod(ti, grid.x), floor(ti / grid.x)) * ${T.toFixed(1)};
+    vec2 nrm = vec2(lo.x < 0.0 ? -1.0 : lo.x > ${T.toFixed(1)} ? 1.0 : 0.0, lo.y < 0.0 ? -1.0 : lo.y > ${T.toFixed(1)} ? 1.0 : 0.0);
+    if (dot(nrm, -dv) < 0.0) return 0.0;
+    bool ground = z < 1.0;
     float r = d * sH / dz;                                       // where this beam meets the ground
     if (r < r0) return 0.0;                                      // steeper than the dead zone: the ExoS's own body
     float k, sp;
@@ -274,13 +279,15 @@ const VERT = /* glsl */`
     if (th >= thM) {                                             // a ring beam: k from the ring layout (quadratic root)
       float a = grow * 0.5, b = gap + grow * 0.5;
       k = a < 1e-4 ? (r - r0) / gap : (-b + sqrt(b * b + 4.0 * a * (r - r0))) / (2.0 * a);
-      sp = d * sH / (r * r) * max(1.0, gap + grow * (k + 1.0));  // spacing between beam lines on this wall
+      float ringGap = max(1.0, gap + grow * (k + 1.0));
+      sp = ground ? ringGap : d * sH / (r * r) * ringGap;        // spacing between beam lines: on the ground = the ring gap; on a wall = it projected up the face
     } else {                                                     // toward the horizon: even angular steps
       k = (thM - th) / dTh; sp = d * dTh / max(0.2, cos(th) * cos(th));
     }
-    float rowOK = sp < ${WALL_ROW.toFixed(2)} * 1.1 ? 1.0 : step(abs(fract(k + 0.5) - 0.5) * sp, ${WALL_ROW.toFixed(2)} * 0.55);
+    float gr = ground ? ${GROUND_STEP.toFixed(2)} : ${WALL_ROW.toFixed(2)}, gc = ground ? ${GROUND_STEP.toFixed(2)} : ${WALL_COL.toFixed(2)};
+    float rowOK = sp < gr * 1.1 ? 1.0 : step(abs(fract(k + 0.5) - 0.5) * sp, gr * 0.55);
     float sp2 = d * dPhi;                                       // spacing between azimuth columns
-    float colOK = sp2 < ${WALL_COL.toFixed(2)} * 1.1 ? 1.0 : step(abs(fract(atan(dv.y, dv.x) / dPhi + 0.5) - 0.5) * sp2, ${WALL_COL.toFixed(2)} * 0.55);
+    float colOK = sp2 < gc * 1.1 ? 1.0 : step(abs(fract(atan(dv.y, dv.x) / dPhi + 0.5) - 0.5) * sp2, gc * 0.55);
     return rowOK * colOK;
   }
   uniform vec3 cInk, cFog, rampLo, rampMid, rampHi;

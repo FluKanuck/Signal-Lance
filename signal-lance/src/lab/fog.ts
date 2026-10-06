@@ -24,14 +24,28 @@ export const reveal = new Float32Array(N);        // 0..1 resolved (never falls)
 export const tex = new Uint8Array(N * 4);         // RGBA for GL: R = live, G = reveal, B = solid (building) tile
 export const scan = new Float32Array(N * 4);      // RGBA float for GL: closest scan of this tile: x, y (world), distance, 1 = scanned
 
-// Same eye rule as sensors.canSee (range, facing cone beyond EYES_CLOSE, LoS), applied to a tile centre.
-function eyesOn(m: any, tx: number, ty: number) {
-  const x = (tx + 0.5) * T, y = (ty + 0.5) * T, dx = x - m.x, dy = y - m.y, d2 = dx * dx + dy * dy, r = TUNE.EYES_RANGE * T;
-  if (d2 > r * r) return false;
+// Same eye rule as sensors.canSee (range, facing cone beyond EYES_CLOSE, clear LoS), applied to one world point.
+function eyesAt(m: any, x: number, y: number) {
+  const dx = x - m.x, dy = y - m.y, d2 = dx * dx + dy * dy, r = TUNE.EYES_RANGE * T;
+  if (d2 > r * r) return -1;
   const rc = TUNE.EYES_CLOSE * T, cos = Math.cos(TUNE.EYES_HALF_ANG * Math.PI / 180);
-  if (d2 > rc * rc && (dx * m.fx + dy * m.fy) / Math.sqrt(d2) < cos) return false;
-  const own = isSolid(tx, ty) ? 1 : 0; // the DDA counts the end tile: a wall face is seen if nothing stands in front of it
-  return tilesCrossed(m.x, m.y, x, y, own + 1) <= own;
+  if (d2 > rc * rc && (dx * m.fx + dy * m.fy) / Math.sqrt(d2) < cos) return -1;
+  return tilesCrossed(m.x, m.y, x, y, 1) === 0 ? Math.sqrt(d2) : -1;
+}
+// Street tile: its centre. Building tile: what a lidar actually sees is its faces, so test 3 points along each
+// street-facing face, 2 units out (a face seen at a glancing angle still counts). Returns the closest seen distance.
+const FACES = [[0, -1], [0, 1], [-1, 0], [1, 0]];
+function eyesOn(m: any, tx: number, ty: number) {
+  if (!isSolid(tx, ty)) return eyesAt(m, (tx + 0.5) * T, (ty + 0.5) * T);
+  let best = -1;
+  for (const [nx, ny] of FACES) {
+    if (isSolid(tx + nx, ty + ny)) continue;
+    for (const f of [0.15, 0.5, 0.85]) {
+      const x = (tx + 0.5 + nx * 0.5) * T + nx * 2 + (ny ? (f - 0.5) * T : 0), y = (ty + 0.5 + ny * 0.5) * T + ny * 2 + (nx ? (f - 0.5) * T : 0);
+      const d = eyesAt(m, x, y); if (d >= 0 && (best < 0 || d < best)) best = d;
+    }
+  }
+  return best;
 }
 
 let acc = 0;
@@ -41,9 +55,9 @@ export function updateFog(dt: number, force = false) {
     acc = 0; const eyes = G.lance.filter((m: any) => !m.dead);
     for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
       const i = ty * W + tx; seen[i] = 0;
-      for (const m of eyes) if (eyesOn(m, tx, ty)) {
+      for (const m of eyes) {
+        const d = eyesOn(m, tx, ty); if (d < 0) continue;
         seen[i] = 1;
-        const d = Math.hypot((tx + 0.5) * T - m.x, (ty + 0.5) * T - m.y);
         if (!scan[i * 4 + 3] || d < scan[i * 4 + 2]) { scan[i * 4] = m.x; scan[i * 4 + 1] = m.y; scan[i * 4 + 2] = d; scan[i * 4 + 3] = 1; }
       }
     }
