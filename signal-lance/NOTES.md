@@ -1133,4 +1133,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            up when zone is entered, only when all friendlies are extracted does the mission end" | NEW EXTRACT button, m.out,
            onAllOut (replaces s8). Runner 60 contracts: wins 37% (the lance must walk out after the objective; more exposure);
            no stalls. Browser fuzz 60 hunts with extracts: no errors. BUILD r16-s9 | -
+   round16 debrief (r16-s9) | last changes (packed districts, start zones, HOLD / HURRY, levers + next-move ring, shared
+           cover, EXTRACT per mech): "Helped". Weakest: "It felt fine". Read-and-connect check: "the map changed my plan". Log
+           answers (r16-s6 Escort): map "Changed my plan", clutter "Went round it", tap-to-move "Did what I wanted" | no change | -
 ```
