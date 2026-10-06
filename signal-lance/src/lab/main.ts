@@ -7,7 +7,7 @@ import { scenarioList, startScenario, leaveScenario } from '../sim/scenarios.ts'
 import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, mortarBlock, cmdSelect, cmdFire, cmdMortar, cmdUplink, cmdObjective, cmdMoveMode, cmdTarget, cmdMove } from '../sim/turns.ts';
 import { isType, carrier, isCarrier, pickupBlock } from '../sim/mission.ts';
 import { idTick } from '../sim/ids.ts';
-import { LOOKS, FX, KNOBS, FONTS, look, setLook } from './looks.ts';
+import { LOOKS, FX, KNOBS, FONTS, TIPS, look, setLook } from './looks.ts';
 import { updateFog, resetFog, FOG } from './fog.ts';
 import { initField, resizeField, renderField } from './field.ts';
 import { drawMarks } from './marks.ts';
@@ -98,15 +98,16 @@ function lookTo(i: number) {
 // back to Claude (or into looks.ts); PASTE applies JSON copied earlier. RESET puts the look back to its shipped values.
 const SHIPPED = LOOKS.map(L => ({ ...L })), FOG0 = { ...FOG };
 const FOGK: Record<string, [number, number, number]> = { RESOLVE_S: [0.1, 4, 0.05], COLOUR_IN_S: [0.05, 3, 0.05], COLOUR_OUT_S: [0.1, 10, 0.1] };
+const tipAttr = (k: string) => (TIPS[k] || '').replace(/"/g, '&quot;');
 function slider(obj: any, k: string, [mn, mx, st]: [number, number, number], group: string) {
-  return `<label class="kn"><span>${k}</span><input type="range" min="${mn}" max="${mx}" step="${st}" value="${obj[k]}" data-g="${group}" data-k="${k}"><b>${obj[k]}</b></label>`;
+  return `<label class="kn"><span class="nm" data-tip="${k}" title="${tipAttr(k)}">${k}</span><input type="range" min="${mn}" max="${mx}" step="${st}" value="${obj[k]}" data-g="${group}" data-k="${k}"><b>${obj[k]}</b></label>`;
 }
 function buildTune() {
   const L: any = look, fi = FONTS.findIndex(f => f.font === L.font && f.display === L.display);
-  let h = `<label class="kn"><span>font</span><select id="tFont">${FONTS.map((f, i) => `<option value="${i}"${i === fi ? ' selected' : ''}>${f.name}</option>`).join('')}${fi < 0 ? '<option selected>(custom)</option>' : ''}</select></label>`;
+  let h = `<div class="tip" id="tTip">Tap a name to see what it does.</div><label class="kn"><span class="nm" data-tip="font" title="${tipAttr('font')}">font</span><select id="tFont">${FONTS.map((f, i) => `<option value="${i}"${i === fi ? ' selected' : ''}>${f.name}</option>`).join('')}${fi < 0 ? '<option selected>(custom)</option>' : ''}</select></label>`;
   h += `<div class="why" id="tWhy">${fi >= 0 ? FONTS[fi].why : ''}</div>`;
   h += Object.keys(L).filter(k => KNOBS[k]).map(k => slider(L, k, KNOBS[k], 'look')).join('');
-  h += '<div class="cols">' + Object.keys(L).filter(k => typeof L[k] === 'string' && L[k][0] === '#').map(k => `<label class="kc"><input type="color" value="${L[k]}" data-g="look" data-k="${k}"><span>${k}</span></label>`).join('') + '</div>';
+  h += '<div class="cols">' + Object.keys(L).filter(k => typeof L[k] === 'string' && L[k][0] === '#').map(k => `<label class="kc"><input type="color" value="${L[k]}" data-g="look" data-k="${k}"><span class="nm" data-tip="${k}" title="${tipAttr(k)}">${k}</span></label>`).join('') + '</div>';
   h += '<div class="sub">fog timings (seconds)</div>' + Object.keys(FOGK).map(k => slider(FOG, k, FOGK[k], 'fog')).join('');
   $('lTune').innerHTML = h;
   ($('tFont') as HTMLSelectElement).addEventListener('change', e => {
@@ -114,6 +115,13 @@ function buildTune() {
     L.font = f.font; L.display = f.display; applyLookCss(); $('tWhy').textContent = f.why;
   });
 }
+// tap a knob's name: show what it does in the tip line (and don't let the <label> open the picker / move the slider)
+$('lTune').addEventListener('click', e => {
+  const n = (e.target as HTMLElement).closest('.nm') as HTMLElement | null; if (!n) return;
+  e.preventDefault();
+  for (const o of $('lTune').querySelectorAll('.nm.sel')) o.classList.remove('sel');
+  n.classList.add('sel'); $('tTip').innerHTML = '<b>' + n.dataset.tip + '</b> — ' + (TIPS[n.dataset.tip!] || '');
+});
 $('lTune').addEventListener('input', e => {
   const i = e.target as HTMLInputElement; if (!i.dataset.k) return;
   const obj: any = i.dataset.g === 'fog' ? FOG : look;

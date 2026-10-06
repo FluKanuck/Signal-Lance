@@ -118,6 +118,64 @@ export const LOOKS: Look[] = [
   },
 ];
 
+// What each TUNE knob does, in plain words (hover = tooltip on desktop; tap the name on a phone)
+export const TIPS: Record<string, string> = {
+  font: 'Type pair: the body font for readouts and labels, plus the display font for big labels and buttons.',
+  // colours
+  bg: 'Background colour behind everything (the sky / empty space).',
+  ink: 'The one UI colour: HUD hairlines and text, map marks, the grid. Also tints the scan when trueMix is below 1.',
+  dim: 'Secondary text and resting UI elements.',
+  fog: 'Tint of revealed areas once out of sight (what the colour drains to).',
+  block: 'Colour of the grey massing blocks (buildings not scanned yet).',
+  blockEdge: 'Edge line on the grey massing blocks.',
+  rampLo: 'Height ramp, street level (only shows with heightTint above 0).',
+  rampMid: 'Height ramp, mid height.',
+  rampHi: 'Height ramp, rooftops.',
+  scanNear: 'Scan ring colour close to the ExoS.',
+  scanFar: 'Scan ring colour at max range.',
+  hostile: 'Enemy contacts: rings, brackets, labels, target readout.',
+  lost: 'Contacts you have lost track of (fading).',
+  sound: 'Sound rings (how far this activation was heard).',
+  bearing: 'Bearing lines and the radar cone.',
+  objective: 'Uplink / cargo / bounty markers.',
+  friend: 'Your ExoS markers, the exfil edge, shell streaks.',
+  quiet: 'QUIET signal-terrain outlines.',
+  noise: 'NOISE signal-terrain outlines and the heard-range ring.',
+  haze: 'Colour of the atmospheric dust haze.',
+  // battlefield
+  dotSize: 'Size of every scan dot.',
+  depth: 'How tall buildings are drawn (0 = flat top-down map; higher = taller, more lean).',
+  sweep: 'The pulse ring that expands out from each ExoS and brightens the dots it passes.',
+  trueMix: 'Live scans: 1 = real-world colours, 0 = everything tinted in the look\'s ink colour.',
+  greyDim: 'Brightness of revealed areas once out of sight (the drained grey).',
+  heightTint: 'Colours scanned objects by height (street → rooftops) like survey lidar, over their true colour. 0 = off.',
+  neon: 'Glow strength of neon signs, billboards, lit windows, lamps and traffic lights.',
+  clutter: 'Visibility of ground clutter: debris, rubble, puddles, manholes.',
+  grid: 'Visibility of the reference grid on the ground.',
+  // scan rings
+  scanAmt: 'Overall brightness of the ground scan rings (0 = off).',
+  scanSpin: 'Brightness of the flash where the spinning head is laying down new dots.',
+  scanDead: 'Dead zone under the ExoS, radius in tiles (0.5 = one tile across).',
+  scanGap: 'Spacing between rings at the centre (a tile is 32).',
+  scanGrow: 'How much the ring spacing opens up per ring going outward.',
+  scanFade: 'How the rings fade toward max visual range: 1 = even fade; higher = gone sooner.',
+  scanRate: 'Spin speed of the lidar head, in turns per second.',
+  scanPersist: 'How lit dots stay after the head has passed: 0 = only the fresh sweep shows; 1 = never fade.',
+  scanDrop: 'Share of ring dots missing on each pass (re-rolled every turn, so returns look fresh).',
+  scanCone: '1 = rings only inside the ExoS\'s eyes cone (the sim\'s sight rule); 0 = full 360°.',
+  // post
+  bloom: 'Glow around bright things (neon, lights, flashes).',
+  grain: 'Film grain over the whole picture.',
+  scan: 'CRT scanlines over the whole picture.',
+  vignette: 'Darkening toward the screen edges.',
+  aberr: 'Colour fringing toward the screen edges (chromatic aberration).',
+  hazeAmt: 'Strength of the dust haze (lit from below, like 2049).',
+  // fog timings
+  RESOLVE_S: 'Seconds for a newly scanned tile to resolve from grey block into detailed dots.',
+  COLOUR_IN_S: 'Seconds for a seen tile to reach full colour.',
+  COLOUR_OUT_S: 'Seconds for a tile to drain to grey once out of sight.',
+};
+
 export const FX = { bloom: true, grain: true, scan: true, vignette: true, aberr: true, haze: true, fog: true, sweep: true, rings: true, grid: true, spinners: true };
 export let look: Look = LOOKS[0];
 export function setLook(i: number) { look = LOOKS[i]; }
