@@ -210,18 +210,22 @@ function updateSpinners(dt: number) {
   spin.geo.attributes.position.needsUpdate = spin.geo.attributes.color.needsUpdate = spin.geo.attributes.meta.needsUpdate = true;
 }
 
-// ---- ring geometry: one polar pattern, drawn once per ExoS (uniform centre). Blind circle under the sensor; ring
-// spacing grows with range like a real spinning lidar; ~3.5 units between dots along a ring.
-function ringGeo() {
-  const P: number[] = [], R: number[] = [], rmax = TUNE.EYES_RANGE * T;
-  for (let k = 0, r = 1.1 * T; r < rmax; k++, r += 7 + k * 1.1) {
-    const n = Math.ceil(6.2832 * r / 3.5);
-    for (let i = 0; i < n; i++) { const a = (i + (k % 2) * 0.5) / n * 6.2832; P.push(Math.cos(a) * r, Math.sin(a) * r, 0.6); R.push(r / rmax); }
+// ---- ring geometry: one polar pattern, drawn once per ExoS (uniform centre). Dead zone under the sensor (radius
+// `dead` tiles), rings tight at the centre and opening up with range (gap + k * grow), out to max visual range
+// (EYES_RANGE); ~3 units between dots along a ring. Each dot carries a random id so every pass of the spinning head
+// can drop / jitter it differently (fresh returns). Rebuilt when the dead / gap / grow knobs change.
+function ringGeo(dead: number, gap: number, grow: number) {
+  const P: number[] = [], R: number[] = [], I: number[] = [], rmax = TUNE.EYES_RANGE * T;
+  for (let k = 0, r = Math.max(2, dead * T); r < rmax; k++, r += Math.max(1, gap + k * grow)) {
+    const n = Math.ceil(6.2832 * r / 3);
+    for (let i = 0; i < n; i++) { const a = (i + (k % 2) * 0.5) / n * 6.2832; P.push(Math.cos(a) * r, Math.sin(a) * r, 0.6); R.push(r / rmax); I.push(Math.random() * 1000); }
   }
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('rr', new THREE.Float32BufferAttribute(R, 1));
+  g.setAttribute('rid', new THREE.Float32BufferAttribute(I, 1));
   return g;
 }
+let ringKey = '';
 
 const FOG_GLSL = /* glsl */`
   uniform sampler2D fogTex; uniform vec2 grid; uniform float useFog;
@@ -272,21 +276,32 @@ const FRAG = /* glsl */`
   varying vec3 vCol; varying float vA;
   void main() { if (vA <= 0.0) discard; vec2 c = gl_PointCoord - 0.5; float d = length(c); if (d > 0.5) discard; gl_FragColor = vec4(vCol, vA * smoothstep(0.5, 0.2, d)); }`;
 
+// Rings follow the spinning head: `behind` = how far round the head has gone since it last swept this dot (0 = just
+// now, 1 = about to sweep again). A dot flashes as the head crosses it, then fades to `persist`; each revolution
+// re-rolls its dropout and a small radial jitter (hashed on dot id + revolution), so every pass lays down fresh dots.
 const RVERT = /* glsl */`
   ${FOG_GLSL}
   attribute float rr;             // ring radius / max range
-  uniform vec2 centre; uniform float size, amt, spinAmt, time, phase; uniform vec3 cNear, cFar;
+  attribute float rid;            // random id per dot
+  uniform vec2 centre; uniform float size, amt, spinAmt, time, phase, rate, persist, drop, fadePow, gap;
+  uniform vec3 cNear, cFar;
   varying vec3 vCol; varying float vA;
+  float hh(float n) { return fract(sin(n) * 43758.5453); }
   void main() {
-    vec2 w = centre + position.xy;                                   // world (sim coords, y down)
+    float a = atan(position.y, position.x);
+    float turn = time * rate * 6.2832 + phase - a;                  // head angle relative to this dot
+    float rev = floor(turn / 6.2832), behind = fract(turn / 6.2832);
+    float keep = step(drop, hh(rid + rev * 17.13));                  // this pass's dropout
+    float jit = (hh(rid * 1.37 + rev * 3.1) - 0.5) * gap * 0.4;      // this pass's radial jitter
+    vec2 w = centre + normalize(position.xy) * (length(position.xy) + jit); // world (sim coords, y down)
     vec3 ft = fogTile(floor(w / ${T.toFixed(1)}));
     float inMap = step(0.0, w.x) * step(0.0, w.y) * step(w.x, grid.x * ${T.toFixed(1)}) * step(w.y, grid.y * ${T.toFixed(1)});
-    float ok = (useFog < 0.5 ? 1.0 : step(0.05, ft.r)) * (1.0 - step(0.5, ft.b)) * inMap; // shadows: only tiles seen now, never inside walls
-    float a = atan(position.y, position.x), head = mod(time * 3.2 + phase, 6.2832);
-    float arc = smoothstep(1.2, 0.0, mod(head - a + 6.2832, 6.2832));  // trailing glow behind the spinning head
-    vCol = mix(cNear, cFar, rr) * (0.55 + spinAmt * arc) * amt;
-    vA = ok * (1.0 - rr * 0.6) * (useFog < 0.5 ? 1.0 : ft.r);
-    gl_PointSize = ok * size;
+    float ok = (useFog < 0.5 ? 1.0 : step(0.05, ft.r)) * (1.0 - step(0.5, ft.b)) * inMap * keep; // shadows: tiles seen now, never inside walls
+    float hot = 1.0 - smoothstep(0.0, 0.04, behind);                 // just swept: flash
+    float life = mix(1.0, persist, smoothstep(0.0, 1.0, behind));     // then settle to persist until the next pass
+    vCol = mix(cNear, cFar, rr) * life * amt + vec3(hot * spinAmt);
+    vA = ok * pow(1.0 - rr, fadePow) * life * (useFog < 0.5 ? 1.0 : ft.r); // slow fade out to max visual range
+    gl_PointSize = ok * size * (1.0 + hot * 0.8);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(w.x, -w.y, position.z, 1.0);
   }`;
 
@@ -371,10 +386,11 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
   im.frustumCulled = false; im.renderOrder = 1; scene.add(im);
   const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = 2; scene.add(pts);
   // rings, one per possible ExoS (1–4)
-  const rg = ringGeo();
+  const rg = ringGeo(look.scanDead, look.scanGap, look.scanGrow); ringKey = [look.scanDead, look.scanGap, look.scanGrow].join();
   for (let i = 0; i < 4; i++) {
     const rm = new THREE.ShaderMaterial({ vertexShader: RVERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
-      uniforms: { ...fogU(), centre: { value: new THREE.Vector2() }, size: { value: 1.5 }, amt: { value: 1 }, spinAmt: { value: 0.5 }, time: mat.uniforms.time, phase: { value: i * 2.1 }, cNear: C(), cFar: C() } });
+      uniforms: { ...fogU(), centre: { value: new THREE.Vector2() }, size: { value: 1.5 }, amt: { value: 1 }, spinAmt: { value: 0.5 }, time: mat.uniforms.time, phase: { value: i * 2.1 },
+        rate: { value: 0.5 }, persist: { value: 0.3 }, drop: { value: 0.2 }, fadePow: { value: 1.5 }, gap: { value: 3 }, cNear: C(), cFar: C() } });
     const r = new THREE.Points(rg, rm); r.frustumCulled = false; r.renderOrder = 2; rings.push(r); scene.add(r);
   }
   // spinners
@@ -408,11 +424,14 @@ export function renderField(t: number, dt: number, camX: number, camY: number, z
   u.cInk.value.set(L.ink); u.cFog.value.set(L.fog); u.rampLo.value.set(L.rampLo); u.rampMid.value.set(L.rampMid); u.rampHi.value.set(L.rampHi);
   blockMat.uniforms.cBlock.value.set(L.block); blockMat.uniforms.cEdge.value.set(L.blockEdge);
   gridMat.uniforms.cInk.value.set(L.ink); gridMat.uniforms.amt.value = FX.grid ? L.grid : 0;
+  const key = [L.scanDead, L.scanGap, L.scanGrow].join();
+  if (key !== ringKey) { ringKey = key; const g = ringGeo(L.scanDead, L.scanGap, L.scanGrow), old = rings[0].geometry; for (const r of rings) r.geometry = g; old.dispose(); }
   for (let i = 0; i < 4; i++) {
     const m = lance[i], r = rings[i], ru = (r.material as THREE.ShaderMaterial).uniforms;
     u.eyes.value[i].set(m ? m.x : 0, m ? m.y : 0, m && !m.dead ? 1 : 0, 0);
     r.visible = !!m && !m.dead && FX.rings && L.scanAmt > 0;
-    if (r.visible) { ru.centre.value.set(m.x, m.y); ru.size.value = size * 0.85; ru.amt.value = L.scanAmt; ru.spinAmt.value = L.scanSpin; ru.cNear.value.set(L.scanNear); ru.cFar.value.set(L.scanFar); }
+    if (r.visible) { ru.centre.value.set(m.x, m.y); ru.size.value = size * 0.85; ru.amt.value = L.scanAmt; ru.spinAmt.value = L.scanSpin; ru.cNear.value.set(L.scanNear); ru.cFar.value.set(L.scanFar);
+      ru.rate.value = L.scanRate; ru.persist.value = L.scanPersist; ru.drop.value = L.scanDrop; ru.fadePow.value = L.scanFade; ru.gap.value = L.scanGap; }
   }
   spinPts.visible = FX.spinners; if (FX.spinners) updateSpinners(dt);
   fogTex.needsUpdate = true; marksTex.needsUpdate = true;
