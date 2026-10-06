@@ -20,6 +20,12 @@ export const TEST = {
 };
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
+  { round: 17, title: 'Round 17: Eyes on the street', lines: [
+    'Drag from your ExoS to draw your move freehand (it goes round walls; scrap you draw through is crossed on purpose). Cyan = this turn’s AP, red dashed = past it. Drag the end handle to carry on, or drag the middle to redraw from there. Tap-to-move still works.',
+    'Aim your eyes as you walk: tap a point on your line, then tap where it should look. Drag the eye marker to move it; up to 3 per move. Turning is free now.',
+    'Your eyes work on every step. Anything new stops the move on that tile ("CONTACT — move stopped"), and you keep the AP you didn’t spend.',
+    'Scrap and rubble are low cover (−15%, walls −25%). Aiming at a target in cover outlines the piece giving it.',
+  ] },
   { round: 16, title: 'Round 16: Rolled ground', lines: [
     'Every hunt is a new district packed from irregular city pieces (half blocks, strips, L shapes, hand-drawn blocks), cut off at the map edge; the job card gives its size. Bigger districts have a bigger field.',
     'Brown speckled scrap and rubble: slow (2 tiles of movement a tile), loud (+3 sound), low cover. Rusty walls are set pieces and street barricades; chicanes can be weaved through but not seen past.',
