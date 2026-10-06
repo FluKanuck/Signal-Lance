@@ -121,7 +121,7 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 **Gate 4: production**
 39. Move to 3D, Godot reusing `sim/`; Godot MCP Pro available
 40. Art, sound, saves, menus; home-screen icon, dropping the 56px clearance on Pages
-41. Presentation pass: new Blade Runner films vibe; lidar-dot world readout with grey fog of war
+41. Presentation pass: new Blade Runner films vibe; lidar-dot world readout with grey fog of war + UI aesthetic, "this is what I want": Micrographics Vol.1 by Fox Rockett Studio (foxrockettstudio.com) (2026-10-05)
 
 **Tooling and bugs (low)**
 42. Smarter scripted player in the runner (creep, radar, ECM, two-suit roles)
