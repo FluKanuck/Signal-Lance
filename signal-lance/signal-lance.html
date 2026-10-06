@@ -52,6 +52,7 @@ button.lockd{opacity:.35}
 #ap{letter-spacing:2px;font-size:15px}
 #ver{position:fixed;left:calc(50px + env(safe-area-inset-left,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));z-index:2;font-size:10px;opacity:.55;pointer-events:none}
 #init{position:fixed;top:calc(var(--top) + env(safe-area-inset-top,0px));right:calc(8px + env(safe-area-inset-right,0px));z-index:2;pointer-events:none;font:bold 14px monospace;text-shadow:0 0 3px #000;display:flex;gap:4px}
+#wpMenu{position:fixed;z-index:4;display:flex;gap:6px}#wpMenu[hidden]{display:none}#wpMenu button{min-width:64px;background:rgba(20,40,60,.92);border-color:#8fe3ff;color:#8fe3ff}
 #init span{min-width:22px;padding:2px 5px;border:1px solid var(--line);border-radius:4px;text-align:center;background:rgba(0,0,0,.45)}
 #init span.me{border-color:#9cf;color:#9cf}
 #init span.ally{border-color:#7e9;color:#7e9}
@@ -106,6 +107,7 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
 <div id="tip" hidden></div>
 <div id="hud"></div>
 <div id="init"></div>
+<div id="wpMenu" hidden><button id="bLook">LOOK</button><button id="bWpX">✕</button></div>
 <div id="rcol" class="col">
   <button id="bRadar">RADAR</button>
   <button id="bEcm">ECM</button>

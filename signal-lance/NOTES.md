@@ -806,6 +806,19 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      is clear of the HUD text box and the turn strip (view only: render.ts routeBtn); it can shift as the camera pans.
    - Test bed: Scenario.packed = { seed, grid } rolls a packed district (seed 1701, 4×2 for all three). Lance and field
      tiles were picked from that map by hand (checked in test/route.test.ts).
+   R17 r17-s2 ASSUMPTIONS (spec override, Jamie's go: freehand, Door Kickers style controls)
+   - The stroke is world points, kept every DRAW_SAMPLE tiles by the view (plus the lift point). The rules drop points not
+     on reachable street, keep a straight stretch when it is clear of walls with the SMOOTH_PAD margin (clearWide), and
+     otherwise join it with A* (smoothed, as a tap move). Then wobbles under DRAW_SIMPLIFY tiles are straightened, but
+     only where the straight line is clear and crosses no less clutter. The suit walks the line exactly.
+   - Waypoints are stored by distance along the path (tiles, plain length) and become path vertices when planned. Two
+     within 0.6 tiles are the same one.
+   - Gestures: drag from your ExoS = a new path; drag the end handle (DRAW_END_GRAB_PX) = carry on; drag from the path
+     (within WAYPOINT_GRAB_PX) = redraw from that point (the rest and its waypoints are thrown away). Tap the path or the
+     end handle = LOOK / ✕ menu; LOOK, then the next tap (or a drag) sets where that point looks. A press while the menu
+     is open only closes it. A tap on the ExoS still arms a face change.
+   - Jamie: "get rid of the stop circle, its not needed". The gold ring is gone; the cyan / red dashed split shows where
+     the AP runs out, and the cost label sits at that point.
 ```
 
 ## TWEAK LOG
@@ -1180,4 +1193,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            so low cover is worth ~1 point and the interrupt ~9 (the bot stops on new contacts and shoots). Interrupts on 23%
            of lance moves, in 94% of hunts (eyes 520, sensors 138, sound 44). Hit into clutter cover 37% (avg shown 41%),
            into wall cover 36% (avg shown 34%). BUILD r17-s1 | -
+   round17 feedback (r17-s1) | Jamie: "need to free hand path the line, not have it snapping, also, its hard to accurately
+           grab the point to keep going, it keeps doing facing instead, need a better design"; "how does door kickers
+           handle the ui/control aspect"; "get rid of the stop circle, its not needed" | SPEC OVERRIDE (go): freehand path
+           (DRAW_SAMPLE 0.35, DRAW_SIMPLIFY 0.25), end handle to carry on (DRAW_END_GRAB_PX 34), drag mid-path = redraw from
+           there, tap path = LOOK / ✕ menu then tap where to look; stop ring removed. Rules, costs and runner unchanged
+           (the scripted lance taps). BUILD r17-s2 | -
 ```

@@ -14,7 +14,7 @@ import { runAct } from '../src/sim/autoplay.ts';
 afterEach(() => { leaveScenario(); loadMap(HIVE); });
 const ctr = (x: number, y: number) => ({ x: (x + 0.5) * T, y: (y + 0.5) * T });
 const tiny = (rows: string[]) => loadMap({ id: 'test', rows, anchors: HIVE.anchors, info: { grid: 'test' } });
-const row = (y: number, x0: number, x1: number) => { const o: number[][] = []; for (let x = x0; x <= x1; x++) o.push([x, y]); return o; };
+const row = (y: number, x0: number, x1: number) => { const o: { x: number; y: number }[] = []; for (let x = x0; x <= x1; x++) o.push(ctr(x, y)); return o; }; // a stroke through tile centres
 // a hunt on the hand-made map just loaded: lance on `tiles`, an optional field (the scenario loader builds them, then the map goes back)
 function huntOn(lance: [number, number][], field: any[] = []) {
   const def = MAP;
@@ -41,20 +41,27 @@ describe('drawn paths', () => {
     expect(planMove(m, ctr(7, 1).x, ctr(7, 1).y, 'NORMAL').crunch).toBe(false);
     expect(planDrawn(m, row(1, 1, 7), 'NORMAL').crunch).toBe(true);
   });
-  it('walls in the stroke are dropped and the gap is joined with A*, so the path is always walkable', () => {
+  it('a stroke through a wall is joined round it with A*, so the path is always walkable (r17-s2: freehand)', () => {
     tiny(['.........', '...##....', '.........']);
     const m = huntOn([[1, 1], [0, 0]]);
-    const pl = planDrawn(m, row(1, 1, 7), 'NORMAL');
-    expect(pl.tiles.some(t => MAP.rows[t[1]][t[0]] === '#')).toBe(false);
-    expect(pl.tiles[pl.tiles.length - 1]).toEqual([7, 1]);
-    for (let i = 1; i < pl.tiles.length; i++) expect(Math.max(Math.abs(pl.tiles[i][0] - pl.tiles[i - 1][0]), Math.abs(pl.tiles[i][1] - pl.tiles[i - 1][1]))).toBe(1);
+    const pl = planDrawn(m, row(1, 1, 7), 'NORMAL'), F = pl.full;
+    for (let i = 1; i < F.length; i++) expect(tilesCrossed(F[i - 1].x, F[i - 1].y, F[i].x, F[i].y, 1)).toBe(0);
+    expect(F[F.length - 1]).toEqual(ctr(7, 1));
   });
-  it('a hand-drawn slope (L-steps) folds into diagonals, costing what A* would', () => {
-    tiny(['......', '......', '......', '......']);
-    const m = huntOn([[0, 0], [5, 3]]);
-    const pl = planDrawn(m, [[1, 0], [1, 1], [2, 1], [2, 2], [3, 2], [3, 3]], 'NORMAL');
-    expect(pl.tiles).toEqual([[0, 0], [1, 1], [2, 2], [3, 3]]);
-    expect(pl.len).toBeCloseTo(3 * Math.SQRT2, 2);
+  it('freehand: the path follows the stroke off the tile centres, and small wobbles are straightened', () => {
+    tiny(['..........', '..........', '..........']);
+    const m = huntOn([[0, 1], [0, 0]]);
+    const wob = [1, 2, 3, 4, 5, 6, 7, 8].map((x, i) => ({ x: (x + 0.5) * T, y: (1.5 + (i % 2 ? 0.1 : -0.1)) * T }));
+    const pl = planDrawn(m, wob, 'NORMAL');
+    expect(pl.full.length).toBe(2); expect(pl.length).toBeCloseTo(8, 1);
+    const bend = planDrawn(m, [ctr(3, 1), { x: 4.5 * T, y: 0.3 * T }, ctr(6, 1)], 'NORMAL'); // a real bend is kept, between tile centres
+    expect(bend.full.length).toBe(4); expect(bend.full[2].y).toBeCloseTo(0.3 * T, 5);
+  });
+  it('straightening never cuts round scrap you drew through', () => {
+    tiny(['..........', '....,.....', '..........']);
+    const m = huntOn([[0, 0], [0, 2]]);
+    const pl = planDrawn(m, [ctr(2, 0), ctr(4, 1), ctr(6, 0), ctr(8, 0)], 'NORMAL');
+    expect(pl.crunch).toBe(true);
   });
   it('a path longer than the AP buys is cut where the AP runs out (no multi-turn paths)', () => {
     tiny(['................']);
@@ -62,7 +69,7 @@ describe('drawn paths', () => {
     const pl = planDrawn(m, row(0, 1, 12), 'NORMAL');
     expect(pl.cut).toBe(true); expect(pl.why).toBe('AP');
     expect(pl.len).toBeCloseTo(2 * TUNE.MOVE_TILES_PER_AP.NORMAL, 5); expect(pl.ap).toBe(2);
-    expect(pl.full.length).toBe(13); // the whole stroke is kept for the preview (past the stop marker)
+    expect(pl.length).toBeCloseTo(12, 5); // the whole stroke is kept for the preview (past where the AP runs out)
   });
 });
 
@@ -70,7 +77,7 @@ describe('facing waypoints', () => {
   it('cost FREE_TURNS first, then AP_TURN each, all in the move total; capped at FACE_WAYPOINTS_MAX', () => {
     tiny(['................']);
     const m = huntOn([[0, 0], [0, 0]]);
-    const wps = [3, 5, 7, 9].map(x => ({ tx: x, ty: 0, fx: 0, fy: 1 }));
+    const wps = [3, 5, 7, 9].map(x => ({ d: x, fx: 0, fy: 1 }));
     const bare = planDrawn(m, row(0, 1, 10), 'NORMAL');
     const one = planDrawn(m, row(0, 1, 10), 'NORMAL', wps.slice(0, 1));
     expect(one.wpAP).toBe(0); expect(one.ap).toBe(bare.ap); // the free turn
@@ -84,13 +91,13 @@ describe('facing waypoints', () => {
   it('a waypoint past where the AP runs out is dropped (and costs nothing)', () => {
     tiny(['................']);
     const m = huntOn([[0, 0], [0, 0]]); m.ap = 2; m.freeTurns = 0;
-    const pl = planDrawn(m, row(0, 1, 12), 'NORMAL', [{ tx: 10, ty: 0, fx: 0, fy: 1 }]);
+    const pl = planDrawn(m, row(0, 1, 12), 'NORMAL', [{ d: 10, fx: 0, fy: 1 }]);
     expect(pl.wps.length).toBe(0); expect(pl.wpAP).toBe(0); expect(pl.ap).toBe(2);
   });
   it('the suit turns at the waypoint and holds that facing to the end of the move', () => {
     tiny(['................', '................', '################', '..............#.']);
     const m = huntOn([[0, 0], [0, 1]], [{ type: 'TURRET', variant: 'sentry', tile: [12, 3] }]); // walled off (an empty field would end the hunt)
-    const pl = planDrawn(m, row(0, 1, 8), 'NORMAL', [{ tx: 4, ty: 0, fx: 0, fy: 1 }]);
+    const pl = planDrawn(m, row(0, 1, 8), 'NORMAL', [{ d: 4, fx: 0, fy: 1 }]);
     doMove(m, pl); runAct();
     expect(Math.floor(m.x / T)).toBe(8);
     expect(m.fx).toBeCloseTo(0, 5); expect(m.fy).toBeCloseTo(1, 5);
@@ -106,7 +113,7 @@ describe('eyes on every step, and the interrupt', () => {
       doMove(m, planDrawn(m, row(4, 1, 10), 'NORMAL')); runAct();
       expect(revealed(G.units[0].id)).toBe(false); // facing east the whole way: never looked up the alley
       tiny(ALLEY); m = huntOn([[0, 4], [0, 4]], sentry);
-      const pl = planDrawn(m, row(4, 1, 10), 'NORMAL', [{ tx: 5, ty: 4, fx: 0, fy: -1 }]);
+      const pl = planDrawn(m, row(4, 1, 10), 'NORMAL', [{ d: 5, fx: 0, fy: -1 }]);
       doMove(m, pl); expect(G.act.drawn).toBe(true); const a = G.act; runAct();
       expect(revealed(G.units[0].id)).toBe(true); // looked as it passed the mouth
       expect(a.steps).toBe(10); // one sensor look per tile entered
@@ -115,7 +122,7 @@ describe('eyes on every step, and the interrupt', () => {
   it('something new stops the move on that tile; unspent AP and EN are refunded, the log notes it', () => {
     tiny(ALLEY); const m = huntOn([[0, 4], [0, 4]], sentry);
     m.freeTurns = 0; // so the waypoint costs AP_TURN
-    const pl = planDrawn(m, row(4, 1, 10), 'NORMAL', [{ tx: 5, ty: 4, fx: 0, fy: -1 }]);
+    const pl = planDrawn(m, row(4, 1, 10), 'NORMAL', [{ d: 5, fx: 0, fy: -1 }]);
     const ap0 = m.ap, en0 = m.en;
     doMove(m, pl); runAct();
     expect(Math.floor(m.x / T)).toBe(5); // stopped at the alley mouth
@@ -128,13 +135,13 @@ describe('eyes on every step, and the interrupt', () => {
   });
   it('a contact already in sight at the start does not stop the move; MOVE_INTERRUPT false never stops it', () => {
     tiny(ALLEY); let m = huntOn([[5, 4], [0, 4]], sentry); m.fx = 0; m.fy = -1; // already looking up the alley
-    const pl = planDrawn(m, row(4, 6, 10), 'NORMAL', [{ tx: 6, ty: 4, fx: 0, fy: -1 }]);
+    const pl = planDrawn(m, row(4, 6, 10), 'NORMAL', [{ d: 1, fx: 0, fy: -1 }]);
     doMove(m, pl); runAct();
     expect(G.moveStat.intr.length).toBe(0); expect(Math.floor(m.x / T)).toBe(10);
     const it0 = TUNE.MOVE_INTERRUPT; TUNE.MOVE_INTERRUPT = false;
     try {
       tiny(ALLEY); m = huntOn([[0, 4], [0, 4]], sentry);
-      doMove(m, planDrawn(m, row(4, 1, 10), 'NORMAL', [{ tx: 5, ty: 4, fx: 0, fy: -1 }])); runAct();
+      doMove(m, planDrawn(m, row(4, 1, 10), 'NORMAL', [{ d: 5, fx: 0, fy: -1 }])); runAct();
       expect(G.moveStat.intr.length).toBe(0); expect(Math.floor(m.x / T)).toBe(10);
     } finally { TUNE.MOVE_INTERRUPT = it0; }
   });

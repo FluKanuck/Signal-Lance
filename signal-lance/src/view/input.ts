@@ -3,7 +3,7 @@ import { W, H, T } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
 import { cx, cy } from '../sim/sensors.ts';
 import { forksAhead } from '../sim/escort.ts';
-import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdExtract, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect, cmdDraw, cmdWaypoint, cmdClearWaypoint } from '../sim/turns.ts';
+import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdExtract, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect, cmdDraw, cmdWaypoint, cmdClearWaypoint, waypointNear, along, nearestAlong } from '../sim/turns.ts';
 import { V } from './state.ts';
 import { cv, vw, vh, resize, routeBtn } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
@@ -13,12 +13,12 @@ import { showTip, hideTip, TIP_HOLD_MS } from './tip.ts';
 export function btn(id, fn) { $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); }); }
 // action buttons: only on your turn, between actions
 export function order(id, fn) { btn(id, () => { if (playerFree()) { fn(); if (!G.act) { replan(); syncButtons(); } } }); }
-order('bEnd', () => { V.ghostArm = V.faceArm = V.mortarArm = false; endPlayerTurn(); });
+order('bEnd', () => { V.ghostArm = V.faceArm = V.mortarArm = false; V.lookArm = null; hideWpMenu(); endPlayerTurn(); });
 order('bUp', cmdObjective); // R15: UPLINK, or PICK UP / HAND OFF
 order('bHold', () => cmdEscortOrder('HOLD'));   // R16: the convoy skips its next move
 order('bHurry', () => cmdEscortOrder('HURRY')); // R16: the convoy sprints its next move
 order('bExtract', cmdExtract); // R16: this mech leaves the map (the hunt ends once every living mech is out)
-order('bMove', () => { if (V.faceArm) { V.faceArm = false; return; } cmdMove(); }); // doubles as CANCEL while face mode is armed
+order('bMove', () => { if (V.faceArm) { V.faceArm = false; return; } V.lookArm = null; hideWpMenu(); cmdMove(); }); // doubles as CANCEL while face mode is armed
 for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) order(id, () => cmdMoveMode(m));
 order('bRadar', cmdRadar);
 order('bEcm', cmdEcm);
@@ -32,34 +32,48 @@ btn('bDbg', () => { V.dbg = !V.dbg; $('bDbg').classList.toggle('on', V.dbg); ref
 
 export const ROUTE_BTN_PX = 30; // R15 Escort: route button radius on screen (60 px across)
 export const ptr = { id: -1, sx: 0, sy: 0, lx: 0, ly: 0, pan: false, held: false, holdT: 0 as any, hideT: 0 as any,
-  cand: '', mode: '', tiles: [] as number[][], wp: null as null | number[] }; // R17: a press that may become a drawn path ('draw') or a waypoint aim ('wp')
-// R17: what a press here may turn into once it drags: drawing a path (it starts on your ExoS) or aiming a waypoint (it starts
-// on a tile of this turn's drawn path). '' = an ordinary press (tap, pan or hold).
+  cand: '', mode: '', d: 0, base: [] as { x: number; y: number }[], pts: [] as { x: number; y: number }[], keepTo: Infinity, swallow: false };
+// ---- R17 drawn paths, r17-s2 controls (Jamie: free hand, and "hard to accurately grab the point to keep going, it keeps
+// doing facing instead"; Door Kickers style). Drag from your ExoS = a new path. Drag the handle at the path's end = carry it
+// on. Drag from the middle of the path = redraw from there. Tap the path = a small LOOK / ✕ menu; LOOK, then tap (or drag)
+// where that point should look. Aiming is never a drag on the path, so it can't be hit by accident.
+const drawnPlan = () => (G.planD && G.plan && G.plan.drawn ? G.plan : null);
+// What a press here may turn into: 'aim' (LOOK is armed), 'extend' (the end handle), 'new' (your ExoS), 'path' (on the
+// path: tap = menu, drag = redraw from there), or '' (an ordinary press: tap, pan or hold).
 function pressKind(wx: number, wy: number) {
   if (!TUNE.DRAW_PATH_ENABLED || !playerFree() || V.mortarArm || V.ghostArm || V.faceArm) return '';
-  const z = TUNE.ZOOMS[V.zoomI];
-  if (Math.hypot(wx - G.p.x, wy - G.p.y) <= TUNE.DRAW_GRAB_PX / z) return 'draw';
-  if (pathTileAt(wx, wy)) return 'wp';
+  if (V.lookArm !== null && drawnPlan()) return 'aim';
+  const z = TUNE.ZOOMS[V.zoomI], pl = drawnPlan();
+  if (pl) { const e = pl.full[pl.full.length - 1]; if (Math.hypot(wx - e.x, wy - e.y) <= TUNE.DRAW_END_GRAB_PX / z) { ptr.d = pl.length; return 'extend'; } }
+  if (Math.hypot(wx - G.p.x, wy - G.p.y) <= TUNE.DRAW_GRAB_PX / z) return 'new';
+  if (pl) { const n = nearestAlong(pl.full, wx, wy); if (n.off * T <= TUNE.WAYPOINT_GRAB_PX / z) { ptr.d = n.d; return 'path'; } }
   return '';
 }
-// R17: the drawn path's tile nearest (wx, wy) within WAYPOINT_GRAB_PX (not the start tile), or null
-function pathTileAt(wx: number, wy: number) {
-  const pl = G.planD && G.plan && G.plan.tiles ? G.plan : null; if (!pl) return null;
-  const r = TUNE.WAYPOINT_GRAB_PX / TUNE.ZOOMS[V.zoomI]; let best = null, bd = r;
-  for (let k = 1; k < pl.tiles.length; k++) { const t = pl.tiles[k], d = Math.hypot(wx - (t[0] + 0.5) * T, wy - (t[1] + 0.5) * T); if (d <= bd) { bd = d; best = t; } }
-  return best;
+// the drawn path up to d tiles along it (its points after the start, ending exactly at d)
+function prefixTo(P, d: number) {
+  const q = along(P, d); if (!q) return P.slice(1);
+  return [...P.slice(1, q.seg), { x: q.x, y: q.y }];
 }
-// R17: the stroke so far → tiles. Each finger sample is joined to the last one in quarter-tile steps, so a fast swipe
-// doesn't skip tiles (the rules drop walls and join any gap that is left with A*).
 function strokeTo(wx: number, wy: number) {
-  const L = ptr.tiles, last = L[L.length - 1], tx = Math.floor(wx / T), ty = Math.floor(wy / T);
-  if (last && last[0] === tx && last[1] === ty) return false;
-  const fx = last ? (last[0] + 0.5) * T : G.p.x, fy = last ? (last[1] + 0.5) * T : G.p.y, n = Math.max(1, Math.ceil(Math.hypot(wx - fx, wy - fy) / (T / 4)));
-  for (let k = 1; k <= n; k++) {
-    const x = Math.floor((fx + (wx - fx) * k / n) / T), y = Math.floor((fy + (wy - fy) * k / n) / T), l = L[L.length - 1];
-    if (!l || l[0] !== x || l[1] !== y) L.push([x, y]);
-  }
-  return true;
+  const all = ptr.base.concat(ptr.pts), l = all.length ? all[all.length - 1] : G.p;
+  if (Math.hypot(wx - l.x, wy - l.y) < TUNE.DRAW_SAMPLE * T) return false;
+  ptr.pts.push({ x: wx, y: wy }); return true;
+}
+// LOOK / ✕ menu beside a point on the path
+export function showWpMenu(d: number) {
+  const pl = drawnPlan(), q = pl && along(pl.full, d); if (!q) return;
+  const z = TUNE.ZOOMS[V.zoomI], sx = vw / 2 + (q.x - V.camX) * z, sy = vh / 2 + (q.y - V.camY) * z, M = $('wpMenu');
+  V.wpMenu = d; M.hidden = false;
+  $('bWpX').hidden = !waypointNear(d);
+  M.style.left = Math.max(8, Math.min(vw - 150, sx - 60)) + 'px'; M.style.top = Math.max(70, Math.min(vh - 120, sy - 80)) + 'px';
+}
+export function hideWpMenu() { V.wpMenu = null; $('wpMenu').hidden = true; }
+btn('bLook', () => { if (V.wpMenu !== null && playerFree()) { V.lookArm = V.wpMenu; V.wpWhy = ''; } hideWpMenu(); syncButtons(); });
+btn('bWpX', () => { if (V.wpMenu !== null) cmdClearWaypoint(V.wpMenu); hideWpMenu(); syncButtons(); });
+function aimAt(wx: number, wy: number) {
+  const pl = drawnPlan(), q = pl && V.lookArm !== null && along(pl.full, V.lookArm); if (!q) return;
+  const fx = wx - q.x, fy = wy - q.y;
+  if (Math.hypot(fx, fy) > T * 0.4) { V.wpWhy = cmdWaypoint(V.lookArm, fx, fy) ? '' : 'MAX ' + TUNE.FACE_WAYPOINTS_MAX; syncButtons(); }
 }
 const toWorld = (sx, sy) => { const z = TUNE.ZOOMS[V.zoomI]; return [(sx - vw / 2) / z + V.camX, (sy - vh / 2) / z + V.camY]; };
 const tipHere = (sx, sy) => { const [wx, wy] = toWorld(sx, sy); showTip(sx, sy, wx, wy); };
@@ -67,11 +81,12 @@ cv.addEventListener('pointerdown', e => {
   e.preventDefault();
   if (ptr.id !== -1) return; // ignore second finger
   ptr.id = e.pointerId; ptr.sx = ptr.lx = e.clientX; ptr.sy = ptr.ly = e.clientY; ptr.pan = false; ptr.held = false;
-  { const [wx, wy] = toWorld(e.clientX, e.clientY); ptr.cand = pressKind(wx, wy); ptr.mode = ''; ptr.wp = ptr.cand === 'wp' ? pathTileAt(wx, wy) : null; } // R17
+  ptr.swallow = V.wpMenu !== null; if (ptr.swallow) hideWpMenu(); // R17: a press off the open menu just closes it
+  { const [wx, wy] = toWorld(e.clientX, e.clientY); ptr.cand = ptr.swallow ? '' : pressKind(wx, wy); ptr.mode = ''; } // R17
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
   // R16: a still finger (or button) held TIP_HOLD_MS shows what is under it; that press then never taps or pans
   clearTimeout(ptr.holdT); clearTimeout(ptr.hideT); hideTip();
-  ptr.holdT = setTimeout(() => { if (ptr.id !== -1 && !ptr.pan) { ptr.held = true; tipHere(ptr.lx, ptr.ly); } }, TIP_HOLD_MS);
+  ptr.holdT = setTimeout(() => { if (ptr.id !== -1 && !ptr.pan && !ptr.mode) { ptr.held = true; tipHere(ptr.lx, ptr.ly); } }, TIP_HOLD_MS);
 });
 cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && ptr.id === -1) hideTip(); });
 cv.addEventListener('pointermove', e => {
@@ -80,19 +95,20 @@ cv.addEventListener('pointermove', e => {
   if (ptr.held) { ptr.lx = e.clientX; ptr.ly = e.clientY; tipHere(e.clientX, e.clientY); return; } // slide the held finger to read other things
   if (!ptr.pan && !ptr.mode && Math.hypot(e.clientX - ptr.sx, e.clientY - ptr.sy) > TUNE.DRAG_PX) {
     clearTimeout(ptr.holdT);
-    if (ptr.cand && playerFree()) { ptr.mode = ptr.cand; ptr.tiles = []; V.wpWhy = ''; } // R17: drag from your ExoS = draw; from the path = aim
-    else { ptr.pan = true; V.follow = false; }
+    const pl = drawnPlan();
+    if (ptr.cand === 'aim') ptr.mode = 'aim';
+    else if (ptr.cand && playerFree()) { // R17: start drawing: fresh, carrying on from the end, or redrawing from a point
+      ptr.mode = 'draw'; ptr.pts = []; V.wpWhy = '';
+      ptr.base = ptr.cand === 'new' || !pl ? [] : prefixTo(pl.full, ptr.d);
+      ptr.keepTo = ptr.cand === 'new' ? 0 : ptr.d;
+    } else { ptr.pan = true; V.follow = false; }
   }
   if (ptr.mode === 'draw') { // R17: the path follows the finger; the cost shows beside it
     const [wx, wy] = toWorld(e.clientX, e.clientY);
-    if (strokeTo(wx, wy)) { cmdDraw(ptr.tiles.slice()); syncButtons(); }
+    if (strokeTo(wx, wy)) { cmdDraw(ptr.base.concat(ptr.pts), ptr.keepTo); syncButtons(); }
     V.drawPt = { sx: e.clientX, sy: e.clientY }; ptr.lx = e.clientX; ptr.ly = e.clientY; return;
   }
-  if (ptr.mode === 'wp' && ptr.wp) { // R17: aim the waypoint's eyes at the finger
-    const [wx, wy] = toWorld(e.clientX, e.clientY), fx = wx - (ptr.wp[0] + 0.5) * T, fy = wy - (ptr.wp[1] + 0.5) * T;
-    if (Math.hypot(fx, fy) > T * 0.4) { V.wpWhy = cmdWaypoint(ptr.wp[0], ptr.wp[1], fx, fy) ? '' : 'MAX ' + TUNE.FACE_WAYPOINTS_MAX; syncButtons(); }
-    ptr.lx = e.clientX; ptr.ly = e.clientY; return;
-  }
+  if (ptr.mode === 'aim') { const [wx, wy] = toWorld(e.clientX, e.clientY); aimAt(wx, wy); ptr.lx = e.clientX; ptr.ly = e.clientY; return; } // R17: LOOK, dragging
   if (ptr.pan) {
     const z = TUNE.ZOOMS[V.zoomI];
     V.camX = Math.max(0, Math.min(W * T, V.camX - (e.clientX - ptr.lx) / z));
@@ -103,12 +119,16 @@ cv.addEventListener('pointermove', e => {
 export function ptrEnd(e) {
   if (e.pointerId !== ptr.id) return;
   ptr.id = -1; clearTimeout(ptr.holdT);
-  if (ptr.mode) { ptr.mode = ''; V.drawPt = null; syncButtons(); return; } // R17: a drawn path / an aimed waypoint, not a tap
-  if (ptr.cand === 'wp' && ptr.wp && !ptr.pan && !ptr.held && e.type === 'pointerup' && G.planD && G.planD.wps.some(w => w.tx === ptr.wp[0] && w.ty === ptr.wp[1])) {
-    cmdClearWaypoint(ptr.wp[0], ptr.wp[1]); syncButtons(); return; // R17: tap a waypoint (no drag) = remove it
+  if (ptr.mode === 'draw') { // R17: the last bit of the stroke, right to where the finger lifted
+    const [wx, wy] = toWorld(e.clientX, e.clientY); ptr.pts.push({ x: wx, y: wy }); cmdDraw(ptr.base.concat(ptr.pts), ptr.keepTo);
   }
+  if (ptr.mode) { if (ptr.mode === 'aim') V.lookArm = null; ptr.mode = ''; V.drawPt = null; syncButtons(); return; } // R17: a drawn path / an aim, not a tap
+  if (ptr.swallow) return;
+  const tap = !ptr.pan && !ptr.held && e.type === 'pointerup';
+  if (tap && ptr.cand === 'aim') { const [wx, wy] = toWorld(e.clientX, e.clientY); aimAt(wx, wy); V.lookArm = null; syncButtons(); return; } // R17: LOOK, tapped
+  if (tap && (ptr.cand === 'path' || ptr.cand === 'extend')) { showWpMenu(ptr.d); syncButtons(); return; } // R17: tap the path = LOOK / ✕
   if (ptr.held) { ptr.held = false; ptr.hideT = setTimeout(hideTip, e.pointerType === 'mouse' ? 0 : 1500); return; } // R16: a hold was a look, not a tap
-  if (!ptr.pan && e.type === 'pointerup') onTap(e.clientX, e.clientY);
+  if (tap) onTap(e.clientX, e.clientY);
 }
 cv.addEventListener('pointerup', ptrEnd);
 cv.addEventListener('pointercancel', ptrEnd);

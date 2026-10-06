@@ -210,7 +210,10 @@ export const TUNE = {
   FACE_WAYPOINTS_MAX: 3,   // facing waypoints per drawn move (tap the path, drag to aim). Each is one change of facing: FREE_TURNS first, then AP_TURN
   MOVE_INTERRUPT: true,    // a player move stops on the tile where it reveals something new (new contact, or eyes on a known one); unspent AP / EN kept
   DRAW_GRAB_PX: 26,        // screen radius around your ExoS that starts a drawn path (a tap there still arms a face change)
-  WAYPOINT_GRAB_PX: 22,    // screen radius for grabbing a tile on the drawn path to add (or drag) a facing waypoint
+  DRAW_END_GRAB_PX: 34,    // r17-s2: screen radius of the handle at the drawn path's end: drag it to carry the path on
+  WAYPOINT_GRAB_PX: 22,    // screen distance from the drawn path that counts as on it: tap = LOOK / ✕ menu, drag = redraw from there
+  DRAW_SIMPLIFY: 0.25,     // r17-s2: tiles; a freehand stroke's wobbles smaller than this are straightened (never round clutter you drew through)
+  DRAW_SAMPLE: 0.35,       // r17-s2: tiles between the stroke points the view keeps
   INTERRUPT_CUE_TIME: 2.5, // seconds the "CONTACT — move stopped" cue stays on the suit
   ESCORT_FORKS: 2,         // forks on a block map's escort route (each with 2-3 onward legs: NORTH / AHEAD / SOUTH, open streets only)
   // R16 debrief 2 (Jamie: "still feels too much like a grid"): packed districts of irregular shapes (sim/packed.ts)

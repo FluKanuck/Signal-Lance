@@ -4,7 +4,7 @@ import { W, H, T, solid, clutter } from '../sim/world.ts';
 import { G, unitById } from '../sim/state.ts';
 import { bestContact } from '../sim/bot.ts';
 import { heardRange, canSee, cx, cy } from '../sim/sensors.ts';
-import { upDist, playerTarget, mortarBlock, mortarScatter, shootBlock, shotOdds } from '../sim/turns.ts';
+import { upDist, playerTarget, mortarBlock, mortarScatter, shootBlock, shotOdds, along } from '../sim/turns.ts';
 import { V } from './state.ts';
 import { zoneAtTile, effEmit, zoneType } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
@@ -30,13 +30,6 @@ function alongPath(P, want) {
     want -= d;
   }
   return P[P.length - 1];
-}
-// R17: the gold dashed end ring (the Escort's next-move marker's style), with a label beside it
-function goldRing(x, y, z, label) {
-  ctx.strokeStyle = '#fc3'; ctx.lineWidth = 3 / z; ctx.setLineDash([6 / z, 4 / z]); ctx.beginPath(); ctx.arc(x, y, 14 / z + 6, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
-  ctx.font = 'bold ' + (12 / z) + 'px monospace'; const w = ctx.measureText(label).width; // above the ring, clear of the path
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - w / 2 - 4 / z, y - 14 / z - 26 / z, w + 8 / z, 16 / z);
-  ctx.fillStyle = '#fc3'; ctx.textAlign = 'center'; ctx.fillText(label, x, y - 14 / z - 14 / z); ctx.textAlign = 'left';
 }
 // R17: a faint eyes cone (EYES_HALF_ANG, EYES_RANGE) from (x, y) along (fx, fy)
 function eyesCone(x, y, fx, fy, alpha) {
@@ -177,8 +170,9 @@ export function render() {
     ctx.globalAlpha = Math.min(1, G.pop.t); ctx.fillStyle = '#fc3'; ctx.font = 'bold ' + (15 / z) + 'px monospace';
     ctx.fillText('+' + G.pop.b + ' cr ' + G.pop.v, G.pop.x - 30 / z, G.pop.y - 18 / z - (2.5 - G.pop.t) * 12 / z); ctx.globalAlpha = 1;
   }
-  // R17: a drawn path: cyan up to where this turn's AP runs out, then red dashed past it; the gold ring = where it stops.
-  // Each facing waypoint: a diamond, a tick along its facing, and a faint eyes cone (where it will look as it walks).
+  // R17: a drawn path: cyan up to where this turn's AP runs out, then red dashed past it (r17-s2, Jamie: no stop circle).
+  // A hollow handle at the end (drag it to carry on). Each facing waypoint: a diamond, a tick along its facing, and a faint
+  // eyes cone (where it will look as it walks). The point LOOK is aiming pulses.
   if (G.plan && G.plan.drawn && !G.act && G.phase === 'PLAYER') {
     const pl = G.plan, F = pl.full, P = pl.path;
     if (pl.cut || !P) {
@@ -194,16 +188,23 @@ export function render() {
       const q = P[P.length - 1];
       const sr = pl.snd * (zoneAtTile(Math.floor(q.x / T), Math.floor(q.y / T))?.type === 'QUIET' ? TUNE.ZONE_TYPES.QUIET.SIG_MULT : 1);
       soundRing(q.x, q.y, sr * T, z, 0.22);
-      goldRing(q.x, q.y, z, (pl.cut ? 'STOP · ' : '') + pl.ap + 'AP ' + pl.en + 'EN snd ' + Math.round(sr * 10) / 10 + (pl.wps.length ? ' · ' + pl.wps.length + ' look' + (pl.wps.length > 1 ? 's' : '') : ''));
-    } else goldRing(F[0].x, F[0].y, z, 'NO MOVE · ' + pl.why);
-    const kept = new Set(pl.wps.map(w => w.tx + ',' + w.ty));
+      ctx.fillStyle = pl.cut ? '#ff8a5c' : '#8fe3ff'; ctx.font = 'bold ' + (12 / z) + 'px monospace';
+      ctx.fillText(pl.ap + 'AP ' + pl.en + 'EN snd ' + Math.round(sr * 10) / 10 + (pl.wps.length ? ' · ' + pl.wps.length + ' look' + (pl.wps.length > 1 ? 's' : '') : ''), q.x + 10, q.y - 10);
+    } else { ctx.fillStyle = '#ff8a5c'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText('NO MOVE · ' + pl.why, F[0].x + 14, F[0].y - 14); }
+    const e = F[F.length - 1]; // the end handle
+    ctx.strokeStyle = 'rgba(143,227,255,0.85)'; ctx.lineWidth = 2.5 / z; ctx.beginPath(); ctx.arc(e.x, e.y, 13 / z, 0, 6.2832); ctx.stroke();
+    ctx.fillStyle = 'rgba(143,227,255,0.25)'; ctx.fill();
+    const kept = new Set(pl.wps.map(w => Math.round(w.d * 100)));
     for (const w of (G.planD ? G.planD.wps : [])) {
-      const x = (w.tx + 0.5) * T, y = (w.ty + 0.5) * T, on = kept.has(w.tx + ',' + w.ty), d = Math.hypot(w.fx, w.fy) || 1;
+      const q = along(F, w.d); if (!q) continue;
+      const on = kept.has(Math.round(w.d * 100)), d = Math.hypot(w.fx, w.fy) || 1;
       ctx.strokeStyle = ctx.fillStyle = on ? '#8fe3ff' : '#888'; ctx.lineWidth = 3 / z;
-      ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(x + 9, y); ctx.lineTo(x, y + 9); ctx.lineTo(x - 9, y); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w.fx / d * 26, y + w.fy / d * 26); ctx.stroke();
-      if (!on) { ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText('past stop', x + 12, y - 8); }
+      ctx.beginPath(); ctx.moveTo(q.x, q.y - 9); ctx.lineTo(q.x + 9, q.y); ctx.lineTo(q.x, q.y + 9); ctx.lineTo(q.x - 9, q.y); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x + w.fx / d * 26, q.y + w.fy / d * 26); ctx.stroke();
+      if (!on) { ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText('past the AP', q.x + 12, q.y - 8); }
     }
+    const la = V.lookArm !== null ? along(F, V.lookArm) : V.wpMenu !== null ? along(F, V.wpMenu) : null;
+    if (la) { ctx.strokeStyle = '#ff6'; ctx.lineWidth = 3 / z; ctx.beginPath(); ctx.arc(la.x, la.y, (12 + 4 * Math.sin(performance.now() / 150)) / z, 0, 6.2832); ctx.stroke(); }
   }
   // Round 4: move preview (faint = full route, bright = what you can afford, X = where you'll stop)
   if (G.plan && !G.plan.drawn && !G.act && G.phase === 'PLAYER') {

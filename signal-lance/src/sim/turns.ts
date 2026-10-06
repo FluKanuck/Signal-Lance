@@ -1,5 +1,5 @@
 import { TUNE } from '../tune.ts';
-import { W, T, isSolid, isClutter, canReach, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter } from './world.ts';
+import { W, T, isSolid, isClutter, canReach, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter, clearWide, segCost } from './world.ts';
 import { G, hooks, finishHunt, unitById, livingMechs, activeMechs, isMech, isFriend, friends, setActive } from './state.ts';
 import { allyStep, pickLeg, giveOrder } from './escort.ts';
 import { rand } from './rng.ts';
@@ -268,62 +268,91 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
   r.tpa = tpa; r.ept = ept; r.wps = []; r.wpAP = 0; r.drawn = false; // R17: what the interrupt refund needs
   return r;
 }
-// ---- R17: drawn paths ("Eyes on the street"). The view snaps the finger's stroke to tiles; the rules here keep only the
-// tiles you can walk, join any gap with A*, and cost the result exactly like a tap move (same MOVE_TILES_PER_AP,
-// MOVE_ENERGY_PER_TILE, CLUTTER_TILE_COST, CLUTTER_SOUND). Clutter you draw through is taken on purpose (no rerouting).
-const tc = (x: number, y: number) => ({ x: (x + 0.5) * T, y: (y + 0.5) * T });
-// The walkable tile list for a stroke, starting on the mover's own tile: walls / set pieces / unreachable tiles dropped,
-// gaps (and diagonal steps that would cut a wall corner) joined with A*, and an L-step (two straight steps that a legal
-// diagonal would do, the corner tile not clutter) folded into the diagonal, so a hand-drawn slope costs what A* would.
-export function drawnTiles(m, tiles: number[][]) {
-  const out = [[Math.floor(m.x / T), Math.floor(m.y / T)]];
-  const okDiag = (a, dx, dy) => !isSolid(a[0] + dx, a[1]) && !isSolid(a[0], a[1] + dy);
-  const push = (t) => {
+// ---- R17: drawn paths ("Eyes on the street"). r17-s2 (Jamie: "need to free hand path the line, not have it snapping"):
+// the view sends the finger's stroke as world points; the rules keep the points on walkable street, join any stretch
+// that would cut through or graze a wall with A*, then straighten small wobbles. Cost is exactly a tap move's (same
+// MOVE_TILES_PER_AP, MOVE_ENERGY_PER_TILE, CLUTTER_TILE_COST, CLUTTER_SOUND). Clutter you draw through is taken on purpose.
+const plain = (a, b) => Math.hypot(b.x - a.x, b.y - a.y) / T;
+export function drawnPoints(m, pts: { x: number; y: number }[]) {
+  const out = [{ x: m.x, y: m.y }];
+  for (const q of pts) {
+    if (!canReach(Math.floor(q.x / T), Math.floor(q.y / T))) continue;
     const l = out[out.length - 1];
-    if (l[0] === t[0] && l[1] === t[1]) return;
-    if (out.length >= 2) { // fold an L into a diagonal
-      const a = out[out.length - 2], dx = t[0] - a[0], dy = t[1] - a[1];
-      if (Math.abs(dx) === 1 && Math.abs(dy) === 1 && okDiag(a, dx, dy) && !isClutter(l[0], l[1])) { out[out.length - 1] = t; return; }
-    }
-    out.push(t);
-  };
-  for (const t of tiles) {
-    if (!canReach(t[0], t[1])) continue;
-    const l = out[out.length - 1], dx = t[0] - l[0], dy = t[1] - l[1];
-    if (!dx && !dy) continue;
-    if (Math.max(Math.abs(dx), Math.abs(dy)) === 1 && (!dx || !dy || okDiag(l, dx, dy))) { push(t); continue; }
-    const seg = findPath(tc(l[0], l[1]).x, tc(l[0], l[1]).y, tc(t[0], t[1]).x, tc(t[0], t[1]).y, true); // the gap: A* tile centres
+    if (plain(l, q) < 0.25) continue;
+    if (clearWide(l, q)) { out.push({ x: q.x, y: q.y }); continue; }
+    const seg = findPath(l.x, l.y, q.x, q.y); // round the corner (A*, smoothed)
     if (!seg) continue;
-    for (let k = 1; k < seg.length; k++) push([Math.floor(seg[k].x / T), Math.floor(seg[k].y / T)]);
+    for (let k = 1; k < seg.length; k++) out.push(seg[k]);
+  }
+  return simplify(out);
+}
+// Drop a point when the straight line past it stays within DRAW_SIMPLIFY tiles of every point it skips, is clear of
+// walls, and crosses no less clutter (so straightening never cuts round scrap you drew through).
+function simplify(P) {
+  if (P.length < 3) return P;
+  const eps = TUNE.DRAW_SIMPLIFY, extra = (a, b) => segCost(a, b) - plain(a, b), out = [P[0]];
+  let i = 0;
+  while (i < P.length - 1) {
+    let j = i + 1, ex = extra(P[i], P[i + 1]);
+    for (let k = i + 2; k < P.length; k++) {
+      ex += extra(P[k - 1], P[k]);
+      const a = P[i], b = P[k], L = plain(a, b) || 1e-9;
+      let ok = clearWide(a, b) && extra(a, b) >= ex - 0.05;
+      for (let q = i + 1; q < k && ok; q++) ok = Math.abs((b.x - a.x) * (a.y - P[q].y) - (a.x - P[q].x) * (b.y - a.y)) / T / T / L <= eps;
+      if (ok) j = k; else break;
+    }
+    out.push(P[j]); i = j;
   }
   return out;
 }
-// Plan a drawn move. wps = facing waypoints [{ tx, ty, fx, fy }] on the path's tiles. Each costs one change of facing:
+// The point on polyline P that is d tiles (plain distance) along it, and the segment it is on; null past the end.
+export function along(P, d: number) {
+  for (let i = 1; i < P.length; i++) {
+    const L = plain(P[i - 1], P[i]);
+    if (d <= L + 1e-6) { const f = L ? Math.min(1, d / L) : 0; return { x: P[i - 1].x + (P[i].x - P[i - 1].x) * f, y: P[i - 1].y + (P[i].y - P[i - 1].y) * f, seg: i }; }
+    d -= L;
+  }
+  return null;
+}
+// How far along P (tiles) the point nearest (x, y) is, and how far from the line it is (tiles).
+export function nearestAlong(P, x: number, y: number) {
+  let best = { d: 0, off: 1e9 }, acc = 0;
+  for (let i = 1; i < P.length; i++) {
+    const a = P[i - 1], b = P[i], L2 = (b.x - a.x) ** 2 + (b.y - a.y) ** 2, L = Math.sqrt(L2) / T;
+    const f = L2 ? Math.max(0, Math.min(1, ((x - a.x) * (b.x - a.x) + (y - a.y) * (b.y - a.y)) / L2)) : 0;
+    const off = Math.hypot(a.x + (b.x - a.x) * f - x, a.y + (b.y - a.y) * f - y) / T;
+    if (off < best.off) best = { d: acc + f * L, off };
+    acc += L;
+  }
+  return best;
+}
+// Plan a drawn move. wps = facing waypoints [{ d, fx, fy }] (d = tiles along the path). Each costs one change of facing:
 // m.freeTurns first, then AP_TURN, all in the move's AP. Capped at FACE_WAYPOINTS_MAX. Too long = cut where the AP (or EN)
-// runs out; a waypoint past the cut is dropped (and costs nothing). Same return shape as planMove, plus tiles / wps / wpAP.
-export function planDrawn(m, tiles: number[][], mode, wps: any[] = []) {
-  const T2 = drawnTiles(m, tiles);
-  if (T2.length < 2) return null;
-  const full = [{ x: m.x, y: m.y }, ...T2.slice(1).map(t => tc(t[0], t[1]))];
-  const base: any = { full, path: null, len: 0, ap: 0, en: 0, cut: true, mode, drawn: true, tiles: T2, wps: [], wpAP: 0 };
+// runs out; a waypoint past the cut is dropped (and costs nothing). Same return shape as planMove, plus wps / wpAP / length.
+export function planDrawn(m, pts: { x: number; y: number }[], mode, wps: any[] = []) {
+  let full = drawnPoints(m, pts);
+  if (full.length < 2) return null;
+  const length = full.reduce((s, q, i) => i ? s + plain(full[i - 1], q) : 0, 0);
+  // each waypoint becomes a vertex of the path at its distance along it
+  const W8 = wps.filter(w => w.d > 0.05 && w.d <= length + 1e-6).sort((a, b) => a.d - b.d).slice(0, TUNE.FACE_WAYPOINTS_MAX).map(w => ({ ...w }));
+  for (const w of W8) {
+    const q = along(full, w.d); if (!q) continue;
+    const prev = full[q.seg - 1], next = full[q.seg];
+    if (plain(prev, q) < 1e-3) w.i = q.seg - 1; else if (plain(q, next) < 1e-3) w.i = q.seg;
+    else { full = [...full.slice(0, q.seg), { x: q.x, y: q.y }, ...full.slice(q.seg)]; w.i = q.seg; }
+  }
+  const base: any = { full, path: null, len: 0, ap: 0, en: 0, cut: true, mode, drawn: true, length, wps: [], wpAP: 0 };
   if (mode !== 'CREEP' && partHurt(m, 'LEGS')) return { ...base, why: 'LEGS' };
   if (mode === 'SPRINT' && TUNE.RETRIEVE_NO_SPRINT && isCarrier(m)) return { ...base, why: 'CARGO' };
   const lame = partGone(m, 'LEGS') ? TUNE.LEGS_GONE_MULT : 1;
   const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
-  const cum = [0]; for (let i = 1; i < full.length; i++) cum.push(cum[i - 1] + pathCost([full[i - 1], full[i]]));
-  const fullLen = cum[cum.length - 1];
-  const seen = new Set<number>(), W8 = [];
-  for (const w of wps) { // each waypoint sits on the first visit to its tile (the start tile never: turn there with a tap)
-    const i = T2.findIndex((t, k) => k > 0 && t[0] === w.tx && t[1] === w.ty);
-    if (i > 0 && !seen.has(i)) { seen.add(i); W8.push({ ...w, i }); }
-  }
-  W8.sort((a, b) => a.i - b.i); W8.length = Math.min(W8.length, TUNE.FACE_WAYPOINTS_MAX);
-  const free = m.freeTurns || 0;
-  for (let k = W8.length; k >= 0; k--) {
+  const cum = [0]; for (let i = 1; i < full.length; i++) cum.push(cum[i - 1] + segCost(full[i - 1], full[i]));
+  const fullLen = cum[cum.length - 1], free = m.freeTurns || 0, WI = W8.filter(w => w.i > 0);
+  for (let k = WI.length; k >= 0; k--) {
     const wpAP = Math.max(0, k - free) * TUNE.AP_TURN;
     const apLen = (m.ap - wpAP) * tpa, enLen = ept > 0 ? m.en / ept : 1e9, len = Math.min(fullLen, apLen, enLen);
-    if (k > 0 && cum[W8[k - 1].i] > len + 1e-6) continue; // the k-th waypoint is past where this move would stop
-    const r: any = { ...base, cut: len < fullLen - 1e-3, why: apLen <= enLen ? 'AP' : 'EN', wps: W8.slice(0, k), wpAP, tpa, ept, lame, cum };
+    if (k > 0 && cum[WI[k - 1].i] > len + 1e-6) continue; // the k-th waypoint is past where this move would stop
+    const r: any = { ...base, cut: len < fullLen - 1e-3, why: apLen <= enLen ? 'AP' : 'EN', wps: WI.slice(0, k), wpAP, tpa, ept, lame, cum };
     if (len < 0.25) return r;
     r.path = r.cut ? clipPathCost(full, len) : full; r.len = len;
     r.ap = Math.ceil(len / tpa - 1e-6) + wpAP; r.en = Math.ceil(len * ept - 1e-6);
@@ -388,7 +417,7 @@ export function moveText() {
   return ' · moves tap ' + s.tap + ' drawn ' + s.drawn + ' wp ' + s.wp + s.intr.map(t => ' [INTERRUPT ' + t + ']').join('');
 }
 export function replan() {
-  G.plan = G.planD ? planDrawn(G.p, G.planD.tiles, G.pmode, G.planD.wps) : G.planT ? planMove(G.p, G.planT.x, G.planT.y, G.pmode) : null;
+  G.plan = G.planD ? planDrawn(G.p, G.planD.pts, G.pmode, G.planD.wps) : G.planT ? planMove(G.p, G.planT.x, G.planT.y, G.pmode) : null;
   if (G.planT) G.planT.cut = !!(G.plan && G.plan.cut);
 }
 // ---- radar pulse ----
@@ -507,24 +536,25 @@ export function doUplink() {
 export function playerFree() { return G.mode === 'hunt' && G.phase === 'PLAYER' && !G.act; }
 export function cmdMoveMode(m) { G.pmode = m; }
 export function cmdTarget(x, y) { G.planD = null; G.planT = { x, y, cut: false }; replan(); } // tapped move destination; MOVE executes it
-// R17: a drawn path (tiles from the view's stroke). Waypoints already on the new path's tiles are kept.
-export function cmdDraw(tiles: number[][]) {
+// R17: a drawn path (the view's stroke, world points). Waypoints further along than keepTo (tiles) are dropped: the view
+// passes the redraw point when you drag from the middle of the path (Door Kickers style: the rest is thrown away).
+export function cmdDraw(pts: { x: number; y: number }[], keepTo = Infinity) {
   if (!TUNE.DRAW_PATH_ENABLED || !playerFree()) return;
-  const wps = G.planD ? G.planD.wps : [];
-  G.planT = null; G.planD = { tiles, wps }; replan();
-  if (G.plan && G.plan.tiles) G.planD.wps = wps.filter(w => G.plan.tiles.some((t, k) => k > 0 && t[0] === w.tx && t[1] === w.ty));
+  const wps = G.planD ? G.planD.wps.filter(w => w.d <= keepTo) : [];
+  G.planT = null; G.planD = { pts, wps }; replan();
 }
-// R17: set (or re-aim) the facing waypoint on path tile (tx, ty). false = not on the path, or FACE_WAYPOINTS_MAX already set.
-export function cmdWaypoint(tx: number, ty: number, fx: number, fy: number) {
-  if (!G.planD || !G.plan || !G.plan.tiles || !playerFree()) return false;
-  if (!G.plan.tiles.some((t, k) => k > 0 && t[0] === tx && t[1] === ty)) return false;
-  const w = G.planD.wps.find(w => w.tx === tx && w.ty === ty);
+// R17: set (or re-aim) the facing waypoint d tiles along the drawn path. false = off the path, or FACE_WAYPOINTS_MAX already set.
+const WP_SAME = 0.6; // tiles: a waypoint this close along the path is the same one
+export function cmdWaypoint(d: number, fx: number, fy: number) {
+  if (!G.planD || !G.plan || !G.plan.drawn || !playerFree() || d <= 0.05 || d > G.plan.length + 1e-6) return false;
+  const w = G.planD.wps.find(w => Math.abs(w.d - d) < WP_SAME);
   if (w) { w.fx = fx; w.fy = fy; }
   else if (G.planD.wps.length >= TUNE.FACE_WAYPOINTS_MAX) return false;
-  else G.planD.wps.push({ tx, ty, fx, fy });
+  else G.planD.wps.push({ d, fx, fy });
   replan(); return true;
 }
-export function cmdClearWaypoint(tx: number, ty: number) { if (G.planD) { G.planD.wps = G.planD.wps.filter(w => w.tx !== tx || w.ty !== ty); replan(); } }
+export function waypointNear(d: number) { return G.planD ? G.planD.wps.find(w => Math.abs(w.d - d) < WP_SAME) || null : null; }
+export function cmdClearWaypoint(d: number) { if (G.planD) { G.planD.wps = G.planD.wps.filter(w => Math.abs(w.d - d) >= WP_SAME); replan(); } }
 export function cmdClearDraw() { G.planD = null; replan(); }
 export function cmdMove() { if (G.plan && G.plan.path) doMove(G.p, G.plan); }
 export function cmdUplink() { if (uplinkBlock() === '') doUplink(); }

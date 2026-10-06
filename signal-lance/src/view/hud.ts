@@ -41,7 +41,7 @@ export function updateHud(dt) {
   $('init').innerHTML = initStrip();
   const p = G.p, mine = G.phase === 'PLAYER';
   const other = G.lance.find(m => m !== p);
-  const turn = 'ROUND ' + G.turn + '  ' + (mine ? '<b>MECH ' + p.id + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>TAP WHERE TO FACE</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') +
+  const turn = 'ROUND ' + G.turn + '  ' + (mine ? '<b>MECH ' + p.id + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>TAP WHERE TO FACE</b>' : '') + (V.lookArm !== null ? '  <b style="color:#ff6">LOOK: TAP (OR DRAG) WHERE IT SHOULD LOOK</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') +
     (mine ? '  shots ' + p.turnShots + '/' + TUNE.SHOTS_PER_TURN : '') +
     (mine && G.plan && G.plan.drawn ? '  <b style="color:#8fe3ff">DRAWN PATH · looks ' + G.plan.wps.length + '/' + TUNE.FACE_WAYPOINTS_MAX + (V.wpWhy ? ' (' + V.wpWhy + ')' : '') + '</b>' : '') + // R17
     (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">MOVE STOPPED: CONTACT (' + G.intr.ap + 'AP kept)</b>' : '');
