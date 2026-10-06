@@ -9,35 +9,9 @@ import { playerTarget } from '../sim/turns.ts';
 import { T } from '../sim/world.ts';
 import { look } from './looks.ts';
 import { contactLabel } from './label.ts';
+import { frame, dots, seg, pad } from './kit.ts';
 
 const $ = (id: string) => document.getElementById(id)!;
-const SVGNS = 'http://www.w3.org/2000/svg';
-
-// Chamfer spec: which corners are cut (tl, tr, br, bl) and how deep, plus decorations
-type Frame = { cut: [number, number, number, number]; dots?: boolean; pip?: boolean; tab?: boolean };
-const frames = new Map<HTMLElement, Frame>();
-function framePath(w: number, h: number, c: number[], i = 0.5) {
-  const [a, b, d, e] = c;
-  return `M${a + i},${i} L${w - b - i},${i} L${w - i},${b + i} L${w - i},${h - d - i} L${w - d - i},${h - i} L${e + i},${h - i} L${i},${h - e - i} L${i},${a + i} Z`;
-}
-function drawFrame(el: HTMLElement) {
-  const f = frames.get(el)!, w = el.offsetWidth, h = el.offsetHeight;
-  let svg = el.querySelector(':scope > svg.frame') as SVGSVGElement;
-  if (!svg) { svg = document.createElementNS(SVGNS, 'svg') as any; svg.classList.add('frame'); el.prepend(svg); }
-  svg.setAttribute('viewBox', `0 0 ${w} ${h}`); svg.setAttribute('width', String(w)); svg.setAttribute('height', String(h));
-  let s = `<path class="fill" d="${framePath(w, h, f.cut)}"/><path class="line" d="${framePath(w, h, f.cut)}"/>`;
-  if (f.dots) for (let k = 0; k < 3; k++) s += `<circle class="line" cx="${f.cut[0] + 8 + k * 6}" cy="6" r="1.8"/>`;
-  if (f.pip) s += `<circle class="solid" cx="${w - 7}" cy="${h - 7}" r="1.6"/>`;
-  if (f.tab) s += `<path class="solid" d="M${w - f.cut[1] - 26},0.5 L${w - f.cut[1]},0.5 L${w - 0.5},${f.cut[1]} L${w - 0.5},${f.cut[1] + 4} L${w - f.cut[1] - 4},4 L${w - f.cut[1] - 22},4 Z"/>`;
-  svg.innerHTML = s;
-}
-const ro = new ResizeObserver(es => { for (const e of es) drawFrame(e.target as HTMLElement); });
-function frame(el: HTMLElement, f: Frame) { frames.set(el, f); ro.observe(el); drawFrame(el); }
-
-function dots(n: number, max: number, cls = '') { let s = ''; for (let i = 0; i < max; i++) s += `<i class="d${i < n ? ' on' : ''} ${cls}"></i>`; return `<span class="dots">${s}</span>`; }
-function seg(v: number, max: number, n = 12) { const k = Math.round(n * Math.max(0, v) / max); let s = ''; for (let i = 0; i < n; i++) s += `<i class="${i < k ? 'on' : ''}"></i>`; return `<span class="seg">${s}</span>`; }
-const pad = (n: number, w = 2) => String(Math.max(0, Math.floor(n))).padStart(w, '0');
-
 export function initHud() {
   frame($('hStat'), { cut: [0, 14, 0, 0], dots: true, pip: true });
   frame($('hInit'), { cut: [10, 0, 0, 10] });

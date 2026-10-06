@@ -12,6 +12,8 @@ import { updateFog, resetFog, FOG } from './fog.ts';
 import { initField, resizeField, renderField, resetScanDots } from './field.ts';
 import { drawMarks } from './marks.ts';
 import { initHud, applyLookCss, updateHud, buildTape } from './hud.ts';
+import { UIK, UIK_KNOBS, UIK_TIPS } from './kit.ts';
+import { initUi, showScreen, SCREENS, applyUiCss, currentScreen } from './ui.ts';
 
 const $ = (id: string) => document.getElementById(id)!;
 const gl = $('gl') as HTMLCanvasElement, marks = document.createElement('canvas');
@@ -96,9 +98,10 @@ function lookTo(i: number) {
 
 // ---- TUNE: a live knob for every number, colour and font in the look (+ the fog timings). COPY gives JSON to paste
 // back to Claude (or into looks.ts); PASTE applies JSON copied earlier. RESET puts the look back to its shipped values.
-const SHIPPED = LOOKS.map(L => ({ ...L })), FOG0 = { ...FOG };
+const SHIPPED = LOOKS.map(L => ({ ...L })), FOG0 = { ...FOG }, UIK0 = { ...UIK };
 const FOGK: Record<string, [number, number, number]> = { RESOLVE_S: [0.1, 4, 0.05], COLOUR_IN_S: [0.05, 3, 0.05], COLOUR_OUT_S: [0.1, 10, 0.1] };
-const tipAttr = (k: string) => (TIPS[k] || '').replace(/"/g, '&quot;');
+const tip = (k: string) => TIPS[k] || UIK_TIPS[k] || '';
+const tipAttr = (k: string) => tip(k).replace(/"/g, '&quot;');
 function slider(obj: any, k: string, [mn, mx, st]: [number, number, number], group: string) {
   return `<label class="kn"><span class="nm" data-tip="${k}" title="${tipAttr(k)}">${k}</span><input type="range" min="${mn}" max="${mx}" step="${st}" value="${obj[k]}" data-g="${group}" data-k="${k}"><b>${obj[k]}</b></label>`;
 }
@@ -108,6 +111,7 @@ function buildTune() {
   h += `<div class="why" id="tWhy">${fi >= 0 ? FONTS[fi].why : ''}</div>`;
   h += Object.keys(L).filter(k => KNOBS[k]).map(k => slider(L, k, KNOBS[k], 'look')).join('');
   h += '<div class="cols">' + Object.keys(L).filter(k => typeof L[k] === 'string' && L[k][0] === '#').map(k => `<label class="kc"><input type="color" value="${L[k]}" data-g="look" data-k="${k}"><span class="nm" data-tip="${k}" title="${tipAttr(k)}">${k}</span></label>`).join('') + '</div>';
+  h += '<div class="sub">ui kit (frames, menus)</div>' + Object.keys(UIK_KNOBS).map(k => slider(UIK, k, UIK_KNOBS[k], 'ui')).join('');
   h += '<div class="sub">fog timings (seconds)</div>' + Object.keys(FOGK).map(k => slider(FOG, k, FOGK[k], 'fog')).join('');
   $('lTune').innerHTML = h;
   ($('tFont') as HTMLSelectElement).addEventListener('change', e => {
@@ -120,16 +124,16 @@ $('lTune').addEventListener('click', e => {
   const n = (e.target as HTMLElement).closest('.nm') as HTMLElement | null; if (!n) return;
   e.preventDefault();
   for (const o of $('lTune').querySelectorAll('.nm.sel')) o.classList.remove('sel');
-  n.classList.add('sel'); $('tTip').innerHTML = '<b>' + n.dataset.tip + '</b> — ' + (TIPS[n.dataset.tip!] || '');
+  n.classList.add('sel'); $('tTip').innerHTML = '<b>' + n.dataset.tip + '</b> — ' + tip(n.dataset.tip!);
 });
 $('lTune').addEventListener('input', e => {
   const i = e.target as HTMLInputElement; if (!i.dataset.k) return;
-  const obj: any = i.dataset.g === 'fog' ? FOG : look;
+  const obj: any = i.dataset.g === 'fog' ? FOG : i.dataset.g === 'ui' ? UIK : look;
   obj[i.dataset.k] = i.type === 'range' ? +i.value : i.value;
   if (i.type === 'range') (i.nextElementSibling as HTMLElement).textContent = i.value;
-  applyLookCss();
+  applyLookCss(); if (i.dataset.g === 'ui') applyUiCss();
 });
-function settingsJson() { return JSON.stringify({ look: { ...look }, fog: { ...FOG } }, null, 1); }
+function settingsJson() { return JSON.stringify({ look: { ...look }, fog: { ...FOG }, ui: { ...UIK } }, null, 1); }
 $('lCopy').addEventListener('click', async () => {
   const j = settingsJson(), ta = $('lJson') as HTMLTextAreaElement; ta.value = j; ta.hidden = false; ta.select();
   try { await navigator.clipboard.writeText(j); $('lCopy').textContent = 'COPIED ✓'; } catch { $('lCopy').textContent = 'SELECT + COPY ↓'; }
@@ -142,11 +146,12 @@ $('lPaste').addEventListener('click', () => {
     const j = JSON.parse(ta.value), lk = j.look || j, idx = LOOKS.findIndex(L => L.name === lk.name);
     if (idx >= 0) { Object.assign(LOOKS[idx], lk); lookTo(idx); } else { Object.assign(look, lk); lookTo(S.lookI); }
     if (j.fog) Object.assign(FOG, j.fog);
+    if (j.ui) { Object.assign(UIK, j.ui); applyUiCss(); }
     buildTune(); $('lPaste').textContent = 'APPLIED ✓';
   } catch { $('lPaste').textContent = 'BAD JSON ✗'; }
   setTimeout(() => { $('lPaste').textContent = 'PASTE / APPLY'; }, 2000);
 });
-$('lReset').addEventListener('click', () => { Object.assign(LOOKS[S.lookI], SHIPPED[S.lookI]); Object.assign(FOG, FOG0); lookTo(S.lookI); });
+$('lReset').addEventListener('click', () => { Object.assign(LOOKS[S.lookI], SHIPPED[S.lookI]); Object.assign(FOG, FOG0); Object.assign(UIK, UIK0); applyUiCss(); lookTo(S.lookI); });
 $('lLooks').innerHTML = LOOKS.map((L, i) => `<button data-i="${i}">${L.name}</button>`).join('');
 $('lLooks').addEventListener('click', e => { const b = (e.target as HTMLElement).closest('button'); if (b) lookTo(+b.dataset.i!); });
 $('lFx').innerHTML = Object.keys(FX).map(k => `<label><input type="checkbox" data-k="${k}"${(FX as any)[k] ? " checked" : ""}> ${k}</label>`).join('');
@@ -166,10 +171,22 @@ $('lHide').addEventListener('click', () => document.body.classList.toggle('chrom
 $('lHud').addEventListener('click', () => document.body.classList.toggle('hud-off'));
 addEventListener('keydown', e => { if (e.key === 'ArrowRight') lookTo(S.lookI + 1); if (e.key === 'ArrowLeft') lookTo(S.lookI - 1); if (e.key === ' ') { e.preventDefault(); togglePause(); } if (e.key === 'h') $('lHide').click(); if (e.key === 's') toggleSim(); });
 
+// ---- FIELD / UI mode: UI mode lays the menu screens over the live field (dimmed); TAKE JOB drops back to the field
+function setMode(ui: boolean) {
+  document.body.classList.toggle('ui-on', ui);
+  $('lMode').textContent = ui ? '◂ BACK TO FIELD' : 'UI SCREENS ▸'; $('lScreens').hidden = !ui;
+  if (ui) showScreen(currentScreen());
+}
+$('lMode').addEventListener('click', () => setMode(!document.body.classList.contains('ui-on')));
+$('lScreens').innerHTML = SCREENS.map(n => `<button data-s="${n}">${n}</button>`).join('');
+$('lScreens').addEventListener('click', e => { const b = (e.target as HTMLElement).closest('button'); if (b) showScreen(b.dataset.s!); });
+
 initField(gl, marks);
 (window as any).__lab = { LOOKS, FX, S };
 initHud(); buildTape();
 addEventListener('resize', resize); resize();
 lookTo(0);
 start(0);
+initUi(() => setMode(false));
+if (/[?&#]ui(?![a-z])/.test(location.search + location.hash)) setMode(true);
 requestAnimationFrame(frame);

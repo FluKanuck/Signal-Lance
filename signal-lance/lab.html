@@ -3,7 +3,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <title>Signal Lance Visual Lab</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Fragment+Mono&family=Michroma&family=Azeret+Mono:wght@400;600&family=Doto:wght@600;800&family=Chakra+Petch:wght@400;600&family=Martian+Mono:wght@400;600&family=Chivo+Mono:wght@400;600&family=Saira+Condensed:wght@500;700&family=Share+Tech+Mono&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Fragment+Mono&family=Michroma&family=Azeret+Mono:wght@400;600&family=Doto:wght@600;800&family=Chakra+Petch:wght@400;600&family=Martian+Mono:wght@400;600&family=Chivo+Mono:wght@400;600&family=Saira+Condensed:wght@500;700&family=Share+Tech+Mono&family=DotGothic16&display=swap">
 <style>
 /* Lab chrome (plain, top) is deliberately NOT styled by the looks; everything under #hud is. */
 :root{--bg:#0b0a10;--ink:#b9b2ff;--dim:#5d5880;--font:monospace;--display:monospace;--hostile:#ff5d73;--objective:#ffd27a;--friend:#fff;color-scheme:dark}
@@ -13,38 +13,34 @@ html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);touch-action
 /* ---------- HUD (micrographics) ---------- */
 #hud{position:fixed;inset:0;pointer-events:none;font:11px/1.45 var(--font);color:var(--ink);letter-spacing:.04em;text-transform:uppercase}
 #hud>*{position:absolute}
-.panel{padding:10px 14px 10px 12px;box-sizing:border-box}
-.panel>svg.frame{position:absolute;inset:0;overflow:visible;pointer-events:none}
-svg.frame .fill{fill:var(--bg);fill-opacity:.62}
-svg.frame .line{fill:none;stroke:var(--ink);stroke-width:1}
-svg.frame .solid{fill:var(--ink)}
-.panel .body{position:relative}
-.row{display:flex;align-items:center;gap:6px;white-space:nowrap}
-.row.big{font:600 16px var(--display);letter-spacing:.06em}
-.row.hd b{font:600 12px var(--display);letter-spacing:.12em}
-.dim,.k{color:var(--dim)}
-.foe{color:var(--hostile)}
-.cap{font-size:9px;color:var(--dim);letter-spacing:.14em;margin-bottom:2px}
-.rule{height:1px;margin:5px 0;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 5px);opacity:.6}
-.pill{border:1px solid var(--ink);border-radius:9px;padding:0 6px;font-size:9px;line-height:14px}
-.pill.solid{background:var(--ink);color:var(--bg)}
-.dots{display:inline-flex;gap:3px}
-.dots i{width:7px;height:7px;border-radius:50%;border:1px solid var(--ink);box-sizing:border-box}
-.dots i.on{background:var(--ink)}
-.dots i.sm{width:5px;height:5px}
-.seg{display:inline-flex;gap:2px}
-.seg i{width:4px;height:9px;background:var(--ink);opacity:.18}
-.seg i.on{opacity:1}
-.parts{gap:10px}
-.part.hurt{color:var(--objective)} .part.hurt i{border-color:var(--objective)} .part.hurt i.on{background:var(--objective)}
-.part.gone{color:var(--hostile);text-decoration:line-through}
+#hud .panel{padding:10px 14px 10px 12px;box-sizing:border-box}
+#hud .panel .body{position:relative}
+#hud .row{display:flex;align-items:center;gap:6px;white-space:nowrap}
+#hud .row.big{font:600 16px var(--display);letter-spacing:.06em}
+#hud .row.hd b{font:600 12px var(--display);letter-spacing:.12em}
+#hud .dim,#hud .k{color:var(--dim)}
+#hud .foe{color:var(--hostile)}
+#hud .cap{font-size:9px;color:var(--dim);letter-spacing:.14em;margin-bottom:2px}
+#hud .rule{height:1px;margin:5px 0;background:repeating-linear-gradient(90deg,var(--ink) 0 2px,transparent 2px 5px);opacity:.6}
+#hud .pill{border:1px solid var(--ink);border-radius:9px;padding:0 6px;font-size:9px;line-height:14px}
+#hud .pill.solid{background:var(--ink);color:var(--bg)}
+#hud .dots{display:inline-flex;gap:3px}
+#hud .dots i{width:7px;height:7px;border-radius:50%;border:1px solid var(--ink);box-sizing:border-box}
+#hud .dots i.on{background:var(--ink)}
+#hud .dots i.sm{width:5px;height:5px}
+#hud .seg{display:inline-flex;gap:2px}
+#hud .seg i{width:4px;height:9px;background:var(--ink);opacity:.18}
+#hud .seg i.on{opacity:1}
+#hud .parts{gap:10px}
+#hud .part.hurt{color:var(--objective)} #hud .part.hurt i{border-color:var(--objective)} #hud .part.hurt i.on{background:var(--objective)}
+#hud .part.gone{color:var(--hostile);text-decoration:line-through}
 #hStat{left:calc(10px + env(safe-area-inset-left));top:10px;min-width:300px}
 #hInit{right:calc(10px + env(safe-area-inset-right));top:10px}
-.lts{display:flex;gap:5px}
-.lt{width:20px;height:20px;border:1px solid var(--ink);border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:10px}
-.lt.foe{border-color:var(--hostile);color:var(--hostile)}
-.lt.now{background:var(--ink);color:var(--bg)} .lt.foe.now{background:var(--hostile)}
-.lt.done{opacity:.35}
+#hud .lts{display:flex;gap:5px}
+#hud .lt{width:20px;height:20px;border:1px solid var(--ink);border-radius:50%;display:grid;place-items:center;font-weight:600;font-size:10px}
+#hud .lt.foe{border-color:var(--hostile);color:var(--hostile)}
+#hud .lt.now{background:var(--ink);color:var(--bg)} #hud .lt.foe.now{background:var(--hostile)}
+#hud .lt.done{opacity:.35}
 #hTgt{left:calc(10px + env(safe-area-inset-left));bottom:12px;min-width:260px}
 #hTape{left:50%;top:10px;transform:translateX(-50%);width:min(360px,40vw);height:30px;overflow:hidden;
   -webkit-mask:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent);mask:linear-gradient(90deg,transparent,#000 20%,#000 80%,transparent)}
@@ -69,6 +65,8 @@ svg.frame .solid{fill:var(--ink)}
 #lab{position:fixed;top:86px;right:10px;z-index:9;width:270px;max-height:calc(100vh - 100px);overflow-y:auto;touch-action:pan-y;background:rgba(0,0,0,.82);color:#ddd;font:12px system-ui,sans-serif;border:1px solid #444;border-radius:8px;padding:10px;display:flex;flex-direction:column;gap:8px}
 #lab button{font:600 11px system-ui;background:#2a2a2e;color:#ddd;border:1px solid #555;border-radius:5px;padding:6px 8px;cursor:pointer}
 #lab button.on{background:#ddd;color:#111}
+#lMode{flex:1;background:#3a3550!important;border-color:#8a80d0!important}
+#lScreens button{font-size:10px!important;padding:4px 6px!important}
 #lab .r{display:flex;flex-wrap:wrap;gap:5px;align-items:center}
 #lab select{width:100%;background:#2a2a2e;color:#ddd;border:1px solid #555;border-radius:5px;padding:5px}
 #lLook{font-weight:700;letter-spacing:.1em} #lNote,#lTry{opacity:.7;font-size:11px;line-height:1.35}
@@ -110,8 +108,11 @@ svg.frame .solid{fill:var(--ink)}
   </div>
   <button id="hEnd"><span>END TURN<small>→ NEXT</small></span></button>
 </div>
+<div id="ui"></div>
 <button id="lSim" title="Pause the sim only; effects keep running (S)">SIM ❚❚</button><button id="lPause" title="Freeze everything (space)">❚❚</button><button id="lHide">LAB ☰</button>
 <div id="lab">
+  <div class="r"><button id="lMode">UI SCREENS ▸</button></div>
+  <div class="r" id="lScreens" hidden></div>
   <div class="r" id="lLooks"></div>
   <div><span id="lLook"></span> <div id="lNote"></div></div>
   <select id="lPick"></select>
