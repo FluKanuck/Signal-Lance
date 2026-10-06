@@ -1,6 +1,6 @@
 # Signal Lance Roadmap
 
-**Updated:** 2026-10-06 after Round 15 (Missions: 3 new types, each "the read changed my plan"; no fun test, by slice design). The full map of the game lives in `claude/signal-lance-game-shape.md`.
+**Updated:** 2026-10-06 after Round 16 (Rolled ground: packed districts per hunt, "the map changed my plan"; no fun test, by slice design). The full map of the game lives in `claude/signal-lance-game-shape.md`.
 
 ## North star
 Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, then learn why.
@@ -41,13 +41,13 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | 3 | Suit building | Sharpened test in `signal-lance-construction.md` (3 frames, 2 reactors, ~7 modules, 1 mod, + THERMAL) | Mapped |
 | 4 | Pre-drop intel (ship) | Ship SIGINT scan with a risk dial; 3 ship slots, fit 2 | Mapped |
 | 5 | Operators | One per suit, one skill, Standard (critical + extract), injuries bench, 2 recruits | Mapped |
-| 2c | Draw your route | Door Kickers–style drawn path (tap-to-move kept), facing waypoints to look down alleys, movement interrupt (parked #10). Builds on `FREE_TURNS` / `AP_TURN` | **R17** (agreed in R16 scoping) |
+| 2c | Draw your route | Door Kickers–style drawn path (tap-to-move kept), facing waypoints to look down alleys, movement interrupt (parked #10). Builds on `FREE_TURNS` / `AP_TURN` | **R17, next** (agreed in R16 scoping). Jamie's "biggest missing piece" after R16; tap-to-move "did what I wanted" so far |
 | 6 | After the drop | Payout, salvage capped by the hold, repair with parts, medbay time | Partly (R11–R12) |
 | 7 | Learn why | After-action timeline: who heard whom, wrong calls, where the plan broke (the pillar's last beat) | Not mapped |
-| 2b | Block maps | ~6 interlocking 10×10 blocks, 3×3 grid rolled per hunt (parked #33), each block carrying its mission anchors. Timing set by Escort: pull forward if routes feel solved on one map | **R16 "Rolled ground" (pulled forward).** Trigger met (R15): Retrieve "only one sensible route… I would have changed route". Anchors table ready |
+| 2b | Block maps | ~6 interlocking 10×10 blocks, 3×3 grid rolled per hunt (parked #33), each block carrying its mission anchors. Timing set by Escort: pull forward if routes feel solved on one map | **Built (R16).** "The map changed my plan". Grid of blocks read "too much like a grid"; became **packed irregular districts** cropped at the edge (`MAP_LAYOUT` packed). Clutter a real choice ("went round it"). Escort got HOLD / HURRY / fork levers; per-mech EXTRACT. Big grids brutal in runner (4×4 17%, 5×3 0%) |
 | 8 | Campaign map | 5–6 districts, 2 factions, fuel per jump, upkeep, standing, 3 contracts on offer, faction intel | Mapped |
 
-Build order (lean, revisable at each scoping chat): Missions (R15) → **Block maps (R16)** → **Draw your route (R17)** → Suit building → Pre-drop intel → Operators + After → Learn why → Campaign map → slice fun test.
+Build order (lean, revisable at each scoping chat): Missions (R15) → Block maps (R16) → **Draw your route (R17)** → Suit building → Pre-drop intel → Operators + After → Learn why → Campaign map → slice fun test.
 
 ## Decisions
 | Round | Decision | Why |
@@ -75,6 +75,7 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → **Block m
 | 15 | Missions scope (Jamie): Bounty (variant bounties, quota then push your luck, a kill pays its true variant however it died), Retrieve (grab the guarded cargo; the field flips to hunting the carrier), Escort (a faction ally on a route of legs; you pick the leg at each junction). Uplink kept in the mix. Each hunt rolls its type, shown before refit. Built and tuned one step at a time, with a check-in before Steps 2 and 3; no fun test | Jamie's own types; "mission variety is key". Recon / find-the-one / cross-and-extract not picked |
 | 15 (result) | Missions read and connect: Bounty, Retrieve, Escort "the read changed my plan"; Uplink "not sure"; test bed "useful". No fun test (slice). Biggest missing piece: **"bigger loop"** (campaign, operators, ship) | R15 debriefs; fixed map caps route choice |
 | 16 | "Rolled ground": ~8 hand-drawn 12×12 blocks with anchors + modifier slots (sound zone, LoS set piece, ground clutter = low cover + slow + noisy, each its own knob), random grid (6×2 … 4×4, min 8 blocks), field scaled by area, escort graph from seams; hive map kept as `MAP_MODE` control. No fun test | R15 Retrieve "only one sensible route" (2b trigger). Jamie: "lots of variations… some real variety"; picked both clutter effects. Movement rework split to R17 so each reads cleanly |
+| 16 (result) | Map reads and connects: "the map changed my plan"; final changes "helped", weakest moment "felt fine". Grid → street blockers → **packed districts** (default) → start aprons. Escort controls (HOLD / HURRY / levers), shared cover cancels, EXTRACT per mech (closes #57). No fun test (slice) | Jamie: "still feels too much like a grid… irregular shape library… cut off by the map boundary". Biggest missing piece: drawn routes (R17) |
 | note | **Lance size: 1–4 ExoS deployed per mission** (Jamie, 2026-10-05; "ExoS", pronounced Ex-Oss, is his placeholder term for the exosuits). Today's builds use 2 | Jamie, during the R14 debrief |
 
 ## Parked ideas (by gate)
@@ -146,8 +147,12 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → **Block m
 54. Unrated by play: Twin pulse frozen-track lob payoff, Quiet gun miscall cost (R14; test bed now rated "useful", R15) — SIGINT / tooling
 55. Make push-your-luck bite at Bounty quota: over-quota pays more, or the field stiffens over time (R15, one data point) — missions
 56. Choose or refit the loadout after seeing the job type (R15) — suit building / company
-57. Extraction rule: a suit at the edge pulls the lance before the carrier/transport; only count it when the objective is out? (R15) — missions
+57. ~~Extraction rule~~ → done in R16 (EXTRACT per mech; hunt ends when all are out) — missions
 58. Runner: the inherited R13 sound-share flag (raise threshold or revisit sound); scripted lance always picks Escort NORTH and never pushes past quota (folds into #42) (R15) — tooling
 59. Escort route button can sit under HUD text near the map top (R15) — tooling
 60. **District theme and tone** across a whole map (industrial, slum, corporate block sets + matching building assets); zone theme parked with it (Jamie, R16 scoping) — campaign / content
 61. Interactive or destructible set pieces (fuel tanks, cranes) (R16 scoping) — hunt
+62. **Scrap cover by size (Jamie, R16):** clutter −15% to hit for small units instead of counting as a wall (−25%); larger units −5% once sizes exist; "low cover" in the odds line — combat
+63. Big districts brutal for the scripted lance (4×4 17%, 5×3 0%): `FIELD_SCALE_BY_AREA`, `STREET_KEEP`, grid weights; one debrief question once Jamie has played big maps (R16) — missions / balance
+64. Scripted lance ignores levers, HOLD / HURRY and clutter trade-offs; runner understates Escort (folds into #42) (R16) — tooling
+65. R16 scenarios still use the old block-grid layout; may want packed-layout versions (R16) — tooling
