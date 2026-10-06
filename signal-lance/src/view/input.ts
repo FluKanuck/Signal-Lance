@@ -2,7 +2,8 @@ import { TUNE } from '../tune.ts';
 import { W, H, T } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
 import { cx, cy } from '../sim/sensors.ts';
-import { endPlayerTurn, replan, playerFree, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect } from '../sim/turns.ts';
+import { legChoices, legButton } from '../sim/escort.ts';
+import { endPlayerTurn, replan, playerFree, cmdLeg, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect } from '../sim/turns.ts';
 import { V } from './state.ts';
 import { cv, vw, vh, resize } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
@@ -25,6 +26,7 @@ btn('bZout', () => { V.zoomI = 1; });
 btn('bCtr', () => { V.follow = true; });
 btn('bDbg', () => { V.dbg = !V.dbg; $('bDbg').classList.toggle('on', V.dbg); refreshHud(); });
 
+export const ROUTE_BTN_PX = 30; // R15 Escort: route button radius on screen (60 px across)
 export const ptr = { id: -1, sx: 0, sy: 0, lx: 0, ly: 0, pan: false };
 cv.addEventListener('pointerdown', e => {
   e.preventDefault();
@@ -76,6 +78,8 @@ export function onTap(sx, sy) {
     cmdGhost(wx, wy);
     syncButtons(); return;
   }
+  // R15 Escort: a route button (shown while the transport holds at a fork) picks that leg
+  for (const l of legChoices()) { const b = legButton(l.i); if (Math.hypot(wx - b.x, wy - b.y) <= ROUTE_BTN_PX / z) { cmdLeg(l.i); syncButtons(); return; } }
   // tap on a contact = select it
   for (const c of G.pc) {
     if (!c.on) continue;

@@ -4,28 +4,26 @@ import { $ } from './hud.ts';
 import { TUNE } from '../tune.ts';
 
 export const TEST = {
-  title: 'Round 15 test: Pick your fights (step 2: Retrieve)',
+  title: 'Round 15 test: Pick your fights (step 3: Escort, all four jobs)',
   question: 'When the job is more than "stand on the uplink", does reading the field change which fights you take, how you take them and when you leave?',
   newThings: [
-    'NEW (r15-s2): RETRIEVE jobs. Cargo (gold square) sits on a guarded tile. Stand on it and tap PICK UP (where UPLINK was).',
-    'Picking it up is LOUD: the whole field is alerted and switches from guarding to hunting the carrier. Everything that can move comes for it.',
-    'The carrier (gold box) can’t SPRINT. If the carrier is destroyed the cargo is lost and the hunt fails (not a contract loss unless both mechs die).',
-    'HAND OFF (same button, when the carrier stands next to the other mech) passes the cargo for ' + TUNE.RETRIEVE_HANDOFF_AP + ' AP. Carry it out the right edge to win. Another mech reaching the edge first pulls the lance out without it.',
-    'Jobs now roll UPLINK, BOUNTY or RETRIEVE. The type and goal are on top of each job card.',
-    'BOUNTY (step 1): kills pay their bounty (prices on the CARD); reach the quota (' + TUNE.BOUNTY_QUOTA + ' cr) for a win, then extract when you choose.',
-    'TEST BED: "Grab and go" (the flip) and "Hot potato" (the hand-off). The Bounty scenarios and older rounds are still there.',
+    'NEW (r15-s3): ESCORT jobs. A friendly transport (green diamond) walks from the left edge to the right along a route (green lines). Enemies can see, hear and shoot it like one of your mechs. If it dies, the hunt fails.',
+    'At each fork it stops and waits: tap NORTH or SOUTH on the map (big green buttons) on your turn. Scout ahead and listen before you choose. It walks ' + TUNE.ESCORT_MOVE + ' tiles each round.',
+    'Win when it walks out the right edge: pay + a bonus for the hits it has left. Careful: one of your mechs reaching the right edge first still pulls the whole lance out without it.',
+    'Jobs now roll all four types: UPLINK, BOUNTY (kills pay, reach the quota, leave when you choose), RETRIEVE (grab the cargo, the field hunts the carrier) and ESCORT. The type and goal are on top of each job card.',
+    'TEST BED: "Fork" (listen before you pick) and "Shadow" (time the call on a patrol). The Bounty and Retrieve scenarios are still there.',
   ],
-  howTo: 'Play the two new TEST BED scenarios first, then a couple of contracts with Retrieve jobs in the mix. After each hunt, tap the answers and add a note. When you finish, tap SEND LOG and send it to Jamie.',
+  howTo: 'Play Fork and Shadow first, then about 10 hunts in contracts with all four types rolling. After each hunt, tap the answers (the first one matters most) and add a note. When you finish, tap SEND LOG and send it to Jamie.',
 };
-// End-of-hunt questions (tap one answer each; optional). Answers go into the log line.
+// End-of-hunt questions (tap one answer each; optional). Answers go into the log line, next to the hunt's job type.
 export const QUESTIONS = [
-  { k: 'scout', q: 'Before the grab / the fight, you…', a: ['Read the guards first', 'Went straight in', 'Not a Retrieve'] },
-  { k: 'flip', q: 'When the field turned on the carrier…', a: ['Tense, had a plan', 'Panic, no plan', 'Barely noticed', 'Never grabbed it'] },
+  { k: 'read', q: 'On this job, reading the field…', a: ['Changed my plan', "Didn't change it", 'Not sure'] },
+  { k: 'how', q: 'What it changed most…', a: ['Which fights', 'How I fought', 'When I left', 'Which route', 'Nothing'] },
   { k: 'feel', q: 'This job felt…', a: ['Its own thing', 'Uplink with extra steps', 'Just a brawl'] },
 ];
 
 const BASICS = [
-  ['Goal', 'Each job has a type (top of the job card). UPLINK: stand in the gold ring and tap UPLINK on 3 turns, or destroy every enemy. BOUNTY: kills pay their bounty (prices on the CARD); reach the quota for a win, then extract at the right edge when you choose. RETRIEVE: PICK UP the cargo (the whole field then hunts the carrier, who can’t sprint), HAND OFF if needed, carry it out the right edge. Lose if both mechs are destroyed.'],
+  ['Goal', 'Each job has a type (top of the job card). UPLINK: stand in the gold ring and tap UPLINK on 3 turns, or destroy every enemy. BOUNTY: kills pay their bounty (prices on the CARD); reach the quota for a win, then extract at the right edge when you choose. RETRIEVE: PICK UP the cargo (the whole field then hunts the carrier, who can’t sprint), HAND OFF if needed, carry it out the right edge. ESCORT: keep the transport alive from the left edge to the right; at each fork, tap a route on the map. Lose if both mechs are destroyed.'],
   ['Turns', 'Everyone acts in initiative order (strip, top right). On your mech\'s turn you spend AP (the ● pips). END TURN passes to the next unit.'],
   ['Move', 'Tap the map to plot a path. Pick CREEP, NORM or SPRINT, then tap MOVE. Faster covers more ground but is louder.'],
   ['Find', 'Enemies are hidden. A contact is a red square with a circle: the circle is how unsure you are. Passive sensors draw cyan bearing lines; two crossing lines make a fix. RADAR gives a sharp fix but is very loud.'],

@@ -7,6 +7,7 @@ import { setSeed } from './rng.ts';
 import { G, newHunt, makeUnit, setActive, DEFAULT_LOAD } from './state.ts';
 import { setZones, zoneAtTile } from './zones.ts';
 import { syncHits } from './combat.ts';
+import { makeAlly } from './escort.ts';
 
 type Tile = [number, number];
 export type Scenario = {
@@ -20,10 +21,28 @@ export type Scenario = {
   tune?: Record<string, any>;            // TUNE overrides for this scenario only (top-level keys); restored afterwards
   question?: { q: string; a: string[] }; // one tap question when it ends
   mission?: string;                      // R15: the mission type (default UPLINK)
+  ally?: string;                         // R15 Escort: the route node the transport starts on (default the start; a fork = holding)
   earned?: number | 'quota';             // R15 Bounty: credits already banked at the start ('quota' = exactly BOUNTY_QUOTA)
 };
 
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 15 step 3 (Escort). Pack off. ----
+  {
+    name: 'Fork', round: 15, seed: 1521, mission: 'ESCORT', ally: 'J1',
+    tryThis: 'The transport waits at the west fork. One route is clean; on the other, a gun turret sits behind the blocks, and its steady radio carries to the fork. Listen first, then tap a route.',
+    uplink: [8, 11],
+    lance: [{ tile: [7, 12], load: { mortar: 1 } }, { tile: [9, 12] }],
+    field: [{ type: 'TURRET', variant: 'gun', tile: [15, 7], face: [8, 7] }],
+    question: { q: 'Did what you heard decide the route?', a: ['Yes, avoided it', 'Yes, went to kill it', 'No, guessed', 'Heard nothing'] },
+  },
+  {
+    name: 'Shadow', round: 15, seed: 1522, mission: 'ESCORT', ally: 'J2',
+    tryThis: 'The transport waits at the centre fork. A patrol drifts between the north and south routes. Track it, and send the transport down whichever route it has just left.',
+    uplink: [40, 11],
+    lance: [{ tile: [39, 11], load: { mortar: 1 } }, { tile: [38, 11] }],
+    field: [{ type: 'PATROL', variant: 'line', tile: [44, 14], state: 'PATROL' }],
+    question: { q: 'Did you time the call on the patrol?', a: ['Yes, it worked', 'Yes, it caught us anyway', 'No, just picked one'] },
+  },
   // ---- Round 15 step 2 (Retrieve). Pack off until the cargo moves (then it's on for the hunt). ----
   {
     name: 'Grab and go', round: 15, seed: 1511, mission: 'RETRIEVE',
@@ -171,6 +190,7 @@ export function startScenario(s: Scenario) {
       if (u.hasRadar) u.pulseCD = u.pulseN;
       return u;
     });
+    if (s.ally) G.ally = makeAlly(s.ally); // R15 Escort
     if (s.earned) G.mission.earned = s.earned === 'quota' ? G.mission.quota : s.earned; // R15 Bounty: start part (or all) of the way to the quota
   });
   G.tb = s;

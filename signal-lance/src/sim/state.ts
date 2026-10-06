@@ -6,6 +6,7 @@ import { rollZones, zoneAtTile } from './zones.ts';
 import { recordHunt } from './contract.ts';
 import { initParts } from './combat.ts';
 import { newMission } from './mission.ts';
+import { makeAlly, nearLegTiles } from './escort.ts';
 
 // Hooks the view sets so the sim can tell it things. Headless (runner) they stay no-ops.
 export const hooks = {
@@ -48,7 +49,8 @@ export const G: any = {
   seed: 1, // R6: this run's RNG seed (shown in DBG for replay in the runner)
   obs: {}, ids: {}, idStat: {}, eyesAny: false, // R14: per field unit id: what the lance observed, its committed ID, runner stats
   tb: null, // R14: the test-bed scenario being played (null = a normal hunt)
-  mtype: 'UPLINK', mission: null, pop: null, // R15: the rolled mission type, this hunt's mission (see mission.ts), the last bounty pop (view)
+  mtype: 'UPLINK', mission: null, pop: null, ally: null, // R15 s3: ally = the Escort transport (null otherwise)
+  // R15: the rolled mission type, this hunt's mission (see mission.ts), the last bounty pop (view)
 };
 for (let i = 0; i < 8; i++) G.fx.push({ on: false, x: 0, y: 0, t: 0, hit: false });
 for (let i = 0; i < 32; i++) G.shells.push({ on: false, x: 0, y: 0, ax: 0, ay: 0, vx: 0, vy: 0, left: 0, owner: null });
@@ -77,7 +79,10 @@ export function makeUnit(type: string, i: number, variant?: string) {
   u.emit = u.comms; // R13 test 2: comms (passive can hear it from the start)
   return u;
 }
-export function unitById(id) { for (const m of G.lance) if (m.id === id) return m; for (const u of G.units) if (u.id === id) return u; return null; }
+export function unitById(id) { for (const m of G.lance) if (m.id === id) return m; for (const u of G.units) if (u.id === id) return u; if (G.ally && G.ally.id === id) return G.ally; return null; }
+// R15 s3: the lance's side as the field sees it: both mechs plus the Escort transport (isMech stays "a mech you control")
+export function friends() { return G.ally ? [...G.lance, G.ally] : G.lance; }
+export function isFriend(m) { return G.lance.includes(m) || (!!G.ally && m === G.ally); }
 export function livingMechs() { return G.lance.filter(m => !m.dead); }
 export function isMech(m) { return G.lance.includes(m); }
 export function setActive(m) { G.p = m; G.load = m.load; }
@@ -120,6 +125,11 @@ function guardTile(taken) {
   const list = useZone && zg.length ? zg : useZone && zo.length ? zo : good.length ? good : ok.length ? ok : [{ x: ux, y: uy }];
   return list[Math.floor(rand() * list.length)];
 }
+// R15 s3: a legal tile near the route legs (seeded); statics then face the nearest leg point they can (they face the site)
+function legTile(list, taken) {
+  const ok = list.filter(t => farFromPlayer(t.x, t.y) && tileFree(t.x, t.y, taken));
+  return ok.length ? ok[Math.floor(rand() * ok.length)] : anyTile(taken);
+}
 function anyTile(taken, zonePref?: string) {
   let x = 0, y = 0;
   // R10: static 'anywhere' placement takes a zone tile with ZONE_STATIC_PREF (Ambush turrets: QUIET first)
@@ -157,13 +167,15 @@ export function newHunt(loads?, prep?: () => void) {
   // R7: build and place the field (seeded: same seed, same positions)
   const U = G.up; U.prog = 0; U.used = false; G.winBy = '';
   G.units = []; G.kills = 0; G.ei = 0;
+  G.ally = null;
   const taken = [];
+  const legT = G.mtype === 'ESCORT' ? nearLegTiles() : null; // R15 s3: an Escort field waits near the route legs
   let i = 0;
   const C = G.comp || TUNE.FIELD_COMPOSITIONS[0];
   for (const type of Object.keys(TUNE.FIELD_TYPES)) for (let n = 0; n < (C[type] || 0); n++) {
     const u = makeUnit(type, i++, rollVariant(type)); // R14: each slot rolls a variant (seeded, evenly)
     const ambush = C.NAME === 'Ambush' && type === 'TURRET'; // R10: Ambush turrets prefer QUIET ground and watch your spawn
-    const t = u.mobile ? anyTile(taken) : C.staticPlacement === 'anywhere' ? anyTile(taken, ambush ? 'QUIET' : '') : guardTile(taken); // R8: placement flag
+    const t = legT ? legTile(legT, taken) : u.mobile ? anyTile(taken) : C.staticPlacement === 'anywhere' ? anyTile(taken, ambush ? 'QUIET' : '') : guardTile(taken); // R8: placement flag
     taken.push(t);
     u.x = u.gx = (t.x + 0.5) * T; u.y = u.gy = (t.y + 0.5) * T;
     u.zoned = zoneAtTile(t.x, t.y)?.type || ''; // R10: the zone it started in (reporting / runner)
@@ -186,6 +198,7 @@ export function newHunt(loads?, prep?: () => void) {
     G.units.push(u);
   }
   newMission(G.mtype); G.pop = null; // R15
+  if (G.mtype === 'ESCORT') G.ally = makeAlly(); // R15 s3: the transport starts on the route's first node
   for (const c of G.pc) c.on = false;
   for (const s of G.shells) s.on = false;
   for (const f of G.fx) f.on = false;
@@ -206,7 +219,8 @@ export function newHunt(loads?, prep?: () => void) {
 // R15: mtype = the job's mission type (newHunt builds G.mission from it). It draws no random numbers.
 export function rollEnemy(seed: number, force?: string, mtype = 'UPLINK') {
   setSeed(seed); G.seed = seed; G.mtype = mtype;
-  const A = mtype === 'RETRIEVE' && anchors().cargo.length ? anchors().cargo : anchors().uplinks; // R15: from the per-map anchors table (cargo reuses the uplink tiles while its list is empty)
+  const X = anchors(), site = X.waypoints[X.escortSite];
+  const A = mtype === 'ESCORT' ? [site] : mtype === 'RETRIEVE' && X.cargo.length ? X.cargo : X.uplinks; // R15 s3: Escort's site = the centre fork // R15: from the per-map anchors table (cargo reuses the uplink tiles while its list is empty)
   let c = A.filter(u => canReach(u.x, u.y) && Math.hypot(u.x - spawnX, u.y - spawnY) >= TUNE.UPLINK_MIN_DIST);
   if (!c.length) c = A;
   const u = c[Math.floor(rand() * c.length)];

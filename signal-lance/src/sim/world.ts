@@ -42,8 +42,31 @@ export const MAP_ANCHORS = {
       { x: 38, y: 22, name: 'south street' },
     ],
     cargo: [],            // R15 step 2 (Retrieve): cargo tiles (empty = reuse the uplink candidates)
-    waypoints: [],        // R15 step 3 (Escort): the ally's route points
-    junctions: [],        // R15 step 3 (Escort): waypoints where the route forks
+    // R15 step 3 (Escort): the ally's route. Nodes are open tiles; a leg runs from one node to the next through its
+    // `via` tiles (A* between them). A node with 2 onward legs is a junction: the ally holds there until you pick one.
+    waypoints: {
+      S:  { x: 0,  y: 11, name: 'west edge' },
+      J1: { x: 8,  y: 11, name: 'west fork' },
+      A:  { x: 32, y: 7,  name: 'north street' },
+      B:  { x: 24, y: 16, name: 'south street' },
+      J2: { x: 40, y: 11, name: 'centre fork' },
+      C:  { x: 62, y: 7,  name: 'north yards' },
+      D:  { x: 55, y: 22, name: 'south road' },
+      X:  { x: 70, y: 12, name: 'east edge' },
+    },
+    legs: [
+      { from: 'S',  to: 'J1', via: [] },
+      { from: 'J1', to: 'A',  via: [[8, 7]],            name: 'NORTH' },
+      { from: 'J1', to: 'B',  via: [[6, 13], [6, 16]],  name: 'SOUTH' },
+      { from: 'A',  to: 'J2', via: [[40, 7]] },
+      { from: 'B',  to: 'J2', via: [[36, 15]] },
+      { from: 'J2', to: 'C',  via: [[52, 11], [56, 7]], name: 'NORTH' },
+      { from: 'J2', to: 'D',  via: [[46, 16], [46, 22]], name: 'SOUTH' },
+      { from: 'C',  to: 'X',  via: [] },
+      { from: 'D',  to: 'X',  via: [] },
+    ],
+    junctions: ['J1', 'J2'], // for INTEL and the runner (derivable: nodes with 2 onward legs)
+    escortSite: 'J2',        // the field's leash point in an Escort job (G.up)
   },
 };
 export const MAP_ID = 'hive'; // the map MAP_SRC draws

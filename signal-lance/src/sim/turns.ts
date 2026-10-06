@@ -1,6 +1,7 @@
 import { TUNE } from '../tune.ts';
 import { W, T, isSolid, findPath, tilesCrossed } from './world.ts';
-import { G, hooks, finishHunt, unitById, livingMechs, isMech, setActive } from './state.ts';
+import { G, hooks, finishHunt, unitById, livingMechs, isMech, isFriend, friends, setActive } from './state.ts';
+import { allyStep, pickLeg } from './escort.ts';
 import { rand } from './rng.ts';
 import { updateSensors, cx, cy, killContact, muzzleFlash } from './sensors.ts';
 import { bestContact, enemyDecide } from './bot.ts';
@@ -8,7 +9,7 @@ import { effEmit, zoneType } from './zones.ts';
 import { hitChance, rollPart, damagePart, partGone, partHurt } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
-import { onKill, onExtract, onClear, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
+import { onKill, onExtract, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
 // ============================ UPDATE ==================================
 export function moveAlong(m, speed, dt) {
@@ -48,7 +49,7 @@ export function updateShells(dt) {
       s.on = false; s.x = s.ax; s.y = s.ay;
       // R7: the shell hits the nearest living unit of the other side within HIT_RADIUS of where it lands
       let v = null, vd = TUNE.HIT_RADIUS * T;
-      for (const m of isMech(s.owner) ? G.units : G.lance) {
+      for (const m of isMech(s.owner) ? G.units : friends()) { // R15 s3: field shells can hit the Escort transport
         const d = Math.hypot(m.x - s.x, m.y - s.y);
         if (!m.dead && d <= vd) { v = m; vd = d; }
       }
@@ -73,6 +74,7 @@ export function updateShells(dt) {
     onKill(u); // R15: a Bounty kill pays its true variant's bounty, however it died
     killContact(G.pc, u.id); if (G.sel && !G.sel.on) G.sel = null;
   }
+  if (G.ally && G.ally.hits <= 0 && !G.ally.dead) { G.ally.dead = true; G.ally.path = null; G.ally.moving = false; for (const u of G.units) killContact(u.ec, G.ally.id); } // R15 s3
   for (const m of G.lance) if (m.hits <= 0 && !m.dead) { // R7 s2: a destroyed mech is out (skipped in the order)
     m.dead = true; m.radarOn = false; m.mask = false; m.path = null; m.moving = false;
     for (const u of G.units) killContact(u.ec, m.id);
@@ -104,7 +106,7 @@ export function beginUnit(m) {
   m.ap = Math.min(TUNE.AP_BANK_MAX, m.ap + TUNE.AP_PER_TURN);
   m.en = Math.min(m.enMax, m.en + TUNE.ENERGY_REGEN);
   m.turnShots = 0; m.mUsed = 0; m.freeTurns = TUNE.FREE_TURNS; m.movedT = 0; // R12: "target moved" counts this activation's tiles
-  const es = G.emitStat[isMech(m) ? 'P' : 'E']; es.n++; es.sum += m.emit; // R13: Emissions at activation start (runner)
+  if (m !== G.ally) { const es = G.emitStat[isMech(m) ? 'P' : 'E']; es.n++; es.sum += m.emit; } // R13: Emissions at activation start (runner)
   addEmit(m, -TUNE.SIGNAL_DECAY);
   if (!isMech(m)) m.emit = Math.max(m.emit, m.comms || 0); // R13 test 2: comms keep a field unit's EMIT up
   clearSound(m); // R13: last activation's sound is gone
@@ -113,9 +115,9 @@ export function beginUnit(m) {
 }
 // ---- R7 s2: initiative. Each round every living unit rolls INIT_BASE[type] + 0..INIT_ROLL; higher first,
 // ties to the player (then list order). Each unit acts on its own activation; END TURN passes it on.
-export function initOf(m) { return isMech(m) ? TUNE.INIT_BASE.MECH : TUNE.INIT_BASE[m.type]; }
+export function initOf(m) { return isMech(m) ? TUNE.INIT_BASE.MECH : m === G.ally ? TUNE.ESCORT_INIT : TUNE.INIT_BASE[m.type]; }
 export function startRound() {
-  const all = [...livingMechs(), ...G.units.filter(u => !u.dead)];
+  const all = [...livingMechs(), ...(G.ally && !G.ally.dead ? [G.ally] : []), ...G.units.filter(u => !u.dead)]; // R15 s3: the transport takes a turn
   for (const m of all) m.init = initOf(m) + Math.floor(rand() * (TUNE.INIT_ROLL + 1));
   all.forEach((m, i) => { m.ord = i; });
   G.order = all.sort((a, b) => b.init - a.init || (isMech(b) ? 1 : 0) - (isMech(a) ? 1 : 0) || a.ord - b.ord);
@@ -128,6 +130,13 @@ export function nextActivation() {
   if (G.oi >= G.order.length) { G.turn++; startRound(); return; }
   const m = G.order[G.oi];
   beginUnit(m);
+  if (m === G.ally) { // R15 s3: the transport walks its leg (or holds at a junction / waits for nothing)
+    G.phase = 'ALLY';
+    const path = allyStep();
+    if (!path) { nextActivation(); return; }
+    m.path = path; m.pi = 1; startAct({ k: 'MOVE', m, speed: TUNE.PLAYER_SPEED });
+    hooks.sync(); return;
+  }
   if (isMech(m)) {
     G.phase = 'PLAYER'; setActive(m);
     G.up.used = false; // one UPLINK per mech activation
@@ -176,13 +185,16 @@ export function stepAction(dt) {
   updateShells(dt);
   if (!livingMechs().length) { G.act = null; finishHunt('LOSS'); return; } // R7 s2: both mechs destroyed
   if (cargoLost()) { G.act = null; onCargoLost(); return; } // R15 Retrieve: the carrier is destroyed, the cargo with it
-  if (G.kills >= G.units.length) { G.act = null; onClear(); return; } // R7: whole field destroyed (R15: the mission decides what that means)
+  if (G.ally && G.ally.dead) { G.act = null; onAllyLost(); return; } // R15 Escort: the transport is destroyed
+  if (G.ally && Math.floor(G.ally.x / T) >= W - TUNE.EXTRACT_COLS) { G.act = null; onAllyOut(); return; } // R15 Escort: it made it
+  if (G.kills >= G.units.length && !isType('ESCORT')) { G.act = null; onClear(); return; } // R7: whole field destroyed (R15: the mission decides what that means)
   if (!p.dead && Math.floor(p.x / T) >= W - TUNE.EXTRACT_COLS) { G.act = null; onExtract(p); return; } // a mech reaching extraction pulls the lance out (R15: Bounty at quota = WIN)
   const done = a.k === 'MOVE' ? !a.m.path || a.age > 30 : a.t <= 0 && !shellsFlying();
   if (!done) return;
   a.m.moving = false; a.m.path = null; if (a.k === 'PULSE') a.m.radarOn = false;
   G.act = null;
   if (G.phase === 'ENEMY') G.ewait = TUNE.ENEMY_ACT_PAUSE;
+  else if (G.phase === 'ALLY') nextActivation(); // R15 s3: the transport's one move is its whole turn
   else { if (a.m === p && G.planT && !G.planT.cut) G.planT = null; replan(); hooks.sync(); }
 }
 export function faceTo(m, x, y) { const dx = x - m.x, dy = y - m.y, d = Math.hypot(dx, dy); if (d > 0) { m.fx = dx / d; m.fy = dy / d; } }
@@ -318,11 +330,11 @@ function lob(m, ax, ay, r, target) {
   const a = rand() * 6.2832, k = Math.sqrt(rand()) * r;
   const ix = ax + Math.cos(a) * k, iy = ay + Math.sin(a) * k, sp = TUNE.MORTAR_SPLASH * T, dmg = TUNE.MORTAR_DMG * TUNE.ARMOUR_HITS;
   let hit = false; const struck = [];
-  for (const u of [...G.units, ...G.lance]) {
+  for (const u of [...G.units, ...friends()]) { // R15 s3: a splash hurts the transport too
     if (u.dead || Math.hypot(u.x - ix, u.y - iy) > sp) continue;
     const alive = u.hits > 0;
     damagePart(u, rollPart(u), dmg); u.took = (u.took || 0) + 1; // R12: a splash hit rolls a part (no to-hit roll: scatter does that)
-    if (isMech(u)) { m.mFriendly++; hooks.playerHit(); }
+    if (isFriend(u)) { m.mFriendly++; if (isMech(u)) hooks.playerHit(); }
     else { hit = true; struck.push(u); if (alive && u.hits <= 0) m.mKills++; }
   }
   if (hit) m.mHits++;
@@ -356,6 +368,8 @@ export function cmdMoveMode(m) { G.pmode = m; }
 export function cmdTarget(x, y) { G.planT = { x, y, cut: false }; replan(); } // tapped move destination; MOVE executes it
 export function cmdMove() { if (G.plan && G.plan.path) doMove(G.p, G.plan); }
 export function cmdUplink() { if (uplinkBlock() === '') doUplink(); }
+// R15 s3: pick the route leg at the junction the transport holds at (no AP: it's an order, on your turn)
+export function cmdLeg(i: number) { if (playerFree()) { pickLeg(i); hooks.sync(); } }
 // R15: the objective button. Uplink: UPLINK. Retrieve: PICK UP the cargo, or HAND OFF if the active mech carries it.
 export function objectiveBlock() {
   if (isType('RETRIEVE')) return isCarrier(G.p) ? handoffBlock(G.p) : pickupBlock(G.p);

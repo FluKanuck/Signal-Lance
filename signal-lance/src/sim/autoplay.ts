@@ -8,8 +8,9 @@ import { G } from './state.ts';
 import { T, W } from './world.ts';
 import { cx, cy } from './sensors.ts';
 import { isType, quotaMet, carrier, isCarrier, pickupBlock, handoffTo, handoffBlock } from './mission.ts';
+import { legChoices, legPath } from './escort.ts';
 import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist,
-         cmdSelect, cmdFire, cmdUplink, cmdObjective, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp } from './turns.ts';
+         cmdSelect, cmdFire, cmdUplink, cmdObjective, cmdLeg, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp } from './turns.ts';
 
 export const AUTO_DT = 0.05;
 export const AUTO = { loud: false, quiet: false }; // R13: --loud = SPRINT every move, pulse radar whenever it can. R14: --quiet = CREEP every move
@@ -22,6 +23,10 @@ const siteAt = new WeakMap<object, number>(), BOT_HUNT_ROUNDS = 10;
 // Where this activation walks to (world coords)
 function goal() {
   const p = G.p, out = { x: (W - 1.5) * T, y: p.y };
+  if (isType('ESCORT')) { // R15 s3: shadow the transport a few tiles ahead of it, never into extraction first
+    const a = G.ally, w = a && a.walk ? a.walk : null, q = w ? w[Math.min(w.length - 1, 2)] : a;
+    return { x: Math.min(q.x, (W - TUNE.EXTRACT_COLS - 2) * T), y: q.y };
+  }
   if (isType('RETRIEVE')) { // R15 s2: to the cargo; then the carrier heads out and the other mech shadows it
     const c = carrier();
     return !c ? G.up : isCarrier(p) ? out : { x: c.x, y: c.y };
@@ -36,6 +41,11 @@ function goal() {
   return c && G.turn - siteAt.get(G.mission) < BOT_HUNT_ROUNDS ? { x: cx(c), y: cy(c) } : out;
 }
 const far = g => Math.hypot(g.x - G.p.x, g.y - G.p.y) / T > (g === G.up ? TUNE.UPLINK_RADIUS + 0.5 : 1);
+// R15 s3: the leg with the fewest known contacts within ESCORT_AMBUSH_RANGE + 1 of its path (ties: the first)
+function pickQuietLeg() {
+  const near = (i: number) => G.pc.filter(c => c.on && legPath(i).some(p => Math.hypot(p.x - cx(c), p.y - cy(c)) <= (TUNE.ESCORT_AMBUSH_RANGE + 1) * T)).length;
+  return legChoices().map(l => ({ i: l.i, n: near(l.i) })).sort((a, b) => a.n - b.n)[0].i;
+}
 // R15 s2: hand the cargo over when the carrier is at half hits or worse and the other mech next to it is healthier
 const frail = m => m.hits / m.maxHits;
 function wantHandoff() { const o = handoffTo(G.p); return !!o && handoffBlock(G.p) === '' && frail(G.p) <= 0.5 && frail(o) > frail(G.p); }
@@ -50,6 +60,7 @@ export function playerTurn() {
     if (mortarBlock(G.p, c) === '') { cmdMortar(); runAct(); continue; } // R9: lob at any contact that qualifies
     if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') { cmdFire(); runAct(); continue; }
     if (uplinkBlock() === '') { cmdUplink(); continue; }
+    if (legChoices().length) { cmdLeg(pickQuietLeg()); }
     if (pickupBlock(G.p) === '' || (isCarrier(G.p) && wantHandoff())) { cmdObjective(); continue; } // R15 s2
     const g = goal();
     if (!moved && far(g)) {

@@ -10,6 +10,8 @@ import { zoneAtTile, effEmit, zoneType } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
 import { traitLines, frozen, matchVariants, hasReading } from '../sim/ids.ts';
 import { isType, carrier } from '../sim/mission.ts';
+import { legChoices, legButton, legPath } from '../sim/escort.ts';
+import { anchors } from '../sim/world.ts';
 
 // R13: a sound ring (pale, solid, with short ticks so it reads as "waves", not the dashed orange EMIT ring)
 function soundRing(x, y, r, z, alpha, label?) {
@@ -97,6 +99,27 @@ export function render() {
       ctx.fillRect(U.x - 8, U.y - 8, 16, 16);
       ctx.font = 'bold ' + (13 / z) + 'px monospace'; ctx.fillText('CARGO', U.x - 22 / z, U.y - r - 6 / z);
     } else if (!c.dead) ctx.strokeRect(c.x - 14, c.y - 14, 28, 28);
+  }
+  // R15 Escort: every route leg as a faint line (the leg being walked brighter), the transport, and the route buttons at a fork
+  if (isType('ESCORT') && G.ally) {
+    const a = G.ally;
+    anchors().legs.forEach((_, i) => {
+      const P = legPath(i), on = i === a.leg;
+      ctx.strokeStyle = on ? 'rgba(120,230,160,0.7)' : 'rgba(120,230,160,0.22)'; ctx.lineWidth = (on ? 4 : 3) / z; ctx.setLineDash(on ? [] : [10 / z, 8 / z]);
+      ctx.beginPath(); ctx.moveTo(P[0].x, P[0].y); for (let k = 1; k < P.length; k++) ctx.lineTo(P[k].x, P[k].y); ctx.stroke(); ctx.setLineDash([]);
+    });
+    ctx.font = 'bold ' + (12 / z) + 'px monospace';
+    if (a.dead) { ctx.strokeStyle = ctx.fillStyle = '#888'; ctx.lineWidth = 4 / z; ctx.beginPath(); ctx.moveTo(a.x - 10, a.y - 10); ctx.lineTo(a.x + 10, a.y + 10); ctx.moveTo(a.x + 10, a.y - 10); ctx.lineTo(a.x - 10, a.y + 10); ctx.stroke(); ctx.fillText('TRANSPORT ✕', a.x + 12, a.y - 10); }
+    else {
+      ctx.fillStyle = '#7e9'; ctx.beginPath(); ctx.moveTo(a.x, a.y - 12); ctx.lineTo(a.x + 12, a.y); ctx.lineTo(a.x, a.y + 12); ctx.lineTo(a.x - 12, a.y); ctx.closePath(); ctx.fill();
+      ctx.fillText('TRANSPORT ' + a.hits + '/' + a.maxHits, a.x + 14, a.y - 12);
+    }
+    for (const l of legChoices()) {
+      const b = legButton(l.i), r = 30 / z;
+      ctx.fillStyle = 'rgba(30,60,40,0.85)'; ctx.strokeStyle = '#7e9'; ctx.lineWidth = 3 / z;
+      ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.2832); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = '#bfe'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.textAlign = 'center'; ctx.fillText(l.name || 'ROUTE', b.x, b.y + 4 / z); ctx.textAlign = 'left';
+    }
   }
   // R15 Bounty: the price of a kill pops over the wreck for a moment
   if (G.pop) {
@@ -294,8 +317,8 @@ export function render() {
     ctx.lineWidth = 16; ctx.strokeRect(0, 0, vw, vh);
   }
   // Round 5: uplink off-screen → gold arrow at the screen edge pointing at it, with distance (R15: uplink, and Retrieve's cargo until picked up)
-  if (isType('UPLINK') || (isType('RETRIEVE') && !G.mission.carrier)) {
-    const U = G.up, sx = vw / 2 + (U.x - V.camX) * z, sy = vh / 2 + (U.y - V.camY) * z, m = 24;
+  if (isType('UPLINK') || (isType('RETRIEVE') && !G.mission.carrier) || (isType('ESCORT') && G.ally && !G.ally.dead)) {
+    const U = isType('ESCORT') ? G.ally : G.up, sx = vw / 2 + (U.x - V.camX) * z, sy = vh / 2 + (U.y - V.camY) * z, m = 24; // R15 Escort: the arrow points at the transport
     if (sx < 0 || sx > vw || sy < 0 || sy > vh) {
       const ax = Math.max(m, Math.min(vw - 100, sx)) /* keep clear of the right button column */, ay = Math.max(70, Math.min(vh - m, sy)), a = Math.atan2(sy - ay, sx - ax);
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.fillStyle = '#fc3';

@@ -8,10 +8,11 @@ import { soundText } from '../sim/sound.ts';
 import { idText } from '../sim/ids.ts';
 import { setPack } from '../sim/pack.ts';
 import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
-import { MISSION_INFO, missionText, isType } from '../sim/mission.ts';
+import { MISSION_INFO, missionText, isType, escortBonus } from '../sim/mission.ts';
+import { anchors } from '../sim/world.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r15-s2';  // R15 step 2: RETRIEVE
+export const BUILD = 'r15-s3';  // R15 step 3: ESCORT (all four job types)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
@@ -79,7 +80,9 @@ export function intelText() {
   // R15: the mission type and its goal come first, so you know the job before you take it
   const M = MISSION_INFO[G.mtype], bounty = G.mtype === 'BOUNTY';
   const job = M.name + ': ' + M.goal + (bounty ? ' Quota ' + TUNE.BOUNTY_QUOTA + ' cr. Bigger field: ' + TUNE.BOUNTY_FIELD_EXTRA + ' more units on top of the INTEL.' : '');
-  const site = bounty ? (C.staticPlacement === 'uplink' && (C.TURRET || C.EMPLACEMENT) ? ' Dug in around ' + G.up.name + '.' : '') : (G.mtype === 'RETRIEVE' ? ' Cargo at ' : ' Uplink at ') + G.up.name + '.';
+  const site = bounty ? (C.staticPlacement === 'uplink' && (C.TURRET || C.EMPLACEMENT) ? ' Dug in around ' + G.up.name + '.' : '')
+    : G.mtype === 'ESCORT' ? ' Waiting along the route. Forks at ' + anchors().junctions.map(k => anchors().waypoints[k].name).join(' and ') + '.' // R15 s3
+    : (G.mtype === 'RETRIEVE' ? ' Cargo at ' : ' Uplink at ') + G.up.name + '.';
   return job + '\nINTEL: ' + C.NAME + '. ' + cap([...parts, tur].filter(Boolean).join(', ')) + '.' + site + zoneIntel(); // R8: names the composition
 }
 // R10: " Quiet ground: rail cut (NW). Noise: sump (S), SE apron."
@@ -151,8 +154,8 @@ export function showResult() {
   const outcome = G.outcome.split(' ')[0];
   const M = G.mission, bounty = isType('BOUNTY'); // R15
   const why = bounty ? { WIN: 'Bounty quota met: ' + M.earned + ' / ' + M.quota + ' cr.', LOSS: 'You were destroyed.', BAIL: 'Extracted under quota. Kept ' + M.earned + ' cr, no win.' }[outcome]
-    : { WIN: G.winBy === 'UPLINK' ? 'Uplink complete at ' + G.up.name + '.' : G.winBy === 'RETRIEVE' ? 'Cargo carried out by ' + G.mission.carrier + '.' : 'Field cleared.', LOSS: 'You were destroyed.', BAIL: 'You extracted without the job done.',
-        FAIL: 'The carrier (' + G.mission.carrier + ') was destroyed. The cargo is lost; the hunt failed.' }[outcome];
+    : { WIN: G.winBy === 'UPLINK' ? 'Uplink complete at ' + G.up.name + '.' : G.winBy === 'RETRIEVE' ? 'Cargo carried out by ' + G.mission.carrier + '.' : G.winBy === 'ESCORT' ? 'The transport made it out with ' + G.ally.hits + '/' + G.ally.maxHits + ' hits (bonus ' + escortBonus() + ' cr).' : 'Field cleared.', LOSS: 'You were destroyed.', BAIL: 'You extracted without the job done.',
+        FAIL: isType('ESCORT') ? 'The transport was destroyed. The hunt failed.' : 'The carrier (' + G.mission.carrier + ') was destroyed. The cargo is lost; the hunt failed.' }[outcome];
   $('resTxt').textContent = ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + killText() + ' — ' + fmtTime(G.time) + ' (' + G.turn + ' turns)';
   $('resWhy').innerHTML = why + '<br>' + (missionText() || 'Uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' at ' + G.up.name) + '<br>' + dmgSummary() + '<br>Field: ' + fieldSummary() + '<br>Loadout: ' + loadSummary() + (G.ct ? '<br><b>Lance: ' + lanceText() + '</b> · contract wins ' + G.ct.wins + '/' + G.ct.need + (G.ct.status !== 'ACTIVE' ? ' · CONTRACT ' + G.ct.status : '') : '');
   $('note').value = ''; resetAnswers();

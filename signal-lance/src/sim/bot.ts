@@ -1,7 +1,7 @@
 import { TUNE } from '../tune.ts';
 import { T, isSolid, randomReachable } from './world.ts';
 import { rand } from './rng.ts';
-import { G, unitById, isMech } from './state.ts';
+import { G, unitById, isFriend } from './state.ts';
 import { killContact, cx, cy } from './sensors.ts';
 import { partGone } from './combat.ts';
 import { canPay, doMove, doPulse, doShot, freeTurn, planMove, shootBlock } from './turns.ts';
@@ -96,7 +96,7 @@ function packTarget(e) {
   const cands = [];
   for (const c of e.ec) {
     const m = c.on ? unitById(c.id) : null;
-    if (m && isMech(m) && !m.dead) cands.push({ c, m, d: Math.hypot(cx(c) - e.x, cy(c) - e.y) / T });
+    if (m && isFriend(m) && !m.dead) cands.push({ c, m, d: Math.hypot(cx(c) - e.x, cy(c) - e.y) / T });
   }
   return cands.length ? pickPackTarget(e, cands) : null;
 }

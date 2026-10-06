@@ -2,9 +2,9 @@
 import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt } from '../src/sim/state.ts';
-import { T, W, anchors } from '../src/sim/world.ts';
+import { T, W, anchors, canReach as canReachTile } from '../src/sim/world.ts';
 import { newContract, takeJob } from '../src/sim/contract.ts';
-import { updateShells, uplinkBlock } from '../src/sim/turns.ts';
+import { updateShells, uplinkBlock, step } from '../src/sim/turns.ts';
 import { damagePart } from '../src/sim/combat.ts';
 import { onExtract, onClear, bountyOf, quotaMet } from '../src/sim/mission.ts';
 import { scenarioByName, startScenario, leaveScenario } from '../src/sim/scenarios.ts';
@@ -219,5 +219,97 @@ describe('R15 step 2 scenarios', () => {
     startScenario(scenarioByName('Hot potato'));
     expect(pickupBlock(G.lance[0])).not.toBe('RANGE');
     expect(G.units.map(u => u.variant).sort()).toEqual(['gun', 'heavy', 'search']);
+  });
+});
+
+// ---- R15 step 3: ESCORT ----
+import { makeAlly, legsFrom, legChoices, pickLeg, allyHolding, legPath, nearLegTiles } from '../src/sim/escort.ts';
+import { friends } from '../src/sim/state.ts';
+import { observe } from '../src/sim/sensors.ts';
+import { cmdLeg, nextActivation } from '../src/sim/turns.ts';
+import { onAllyLost, onAllyOut, escortBonus } from '../src/sim/mission.ts';
+import { playOut } from '../src/sim/autoplay.ts';
+
+describe('ESCORT', () => {
+  it('the route comes from the anchors table: every junction has exactly 2 onward legs, every leg walks', () => {
+    const X = anchors();
+    for (const j of X.junctions) expect(legsFrom(j).length).toBe(2);
+    X.legs.forEach((_, i) => { const P = legPath(i); expect(P.length).toBeGreaterThan(1); });
+    for (const k of Object.keys(X.waypoints)) { const n = X.waypoints[k]; expect(canReachTile(n.x, n.y)).toBe(true); }
+  });
+  it('an Escort hunt has the transport on the start node; other jobs have none', () => {
+    hunt('ESCORT'); expect(G.ally).not.toBeNull(); expect(G.ally.node).toBe('S'); expect(friends()).toContain(G.ally);
+    expect(G.ally.maxHits).toBe(TUNE.ESCORT_HITS);
+    hunt('UPLINK'); expect(G.ally).toBeNull();
+  });
+  it('the field is placed near the route legs', () => {
+    hunt('ESCORT', 9, 'Mixed');
+    const near = new Set(nearLegTiles().map(t => t.y * W + t.x));
+    for (const u of G.units) expect(near.has(Math.floor(u.y / T) * W + Math.floor(u.x / T))).toBe(true);
+  });
+  it('at a junction it holds until you pick a leg, then walks up to ESCORT_MOVE tiles a round along it', () => {
+    hunt('ESCORT');
+    G.ally = makeAlly('J1');
+    expect(allyHolding()).toBe(true);
+    expect(legChoices().map(l => l.name).sort()).toEqual(['NORTH', 'SOUTH']);
+    const x0 = G.ally.x, y0 = G.ally.y, north = legChoices().find(l => l.name === 'NORTH');
+    expect(pickLeg(north.i)).toBe(true);
+    expect(allyHolding()).toBe(false); expect(G.mission.legs).toEqual(['NORTH@J1']);
+    // run its activation: put it next in the order
+    G.order = [G.ally]; G.oi = -1; G.act = null; nextActivation();
+    for (let n = 0; n < 2000 && G.act; n++) step(0.05);
+    const moved = G.ally.movedT; // tiles walked this activation (the leg turns a corner)
+    expect(Math.hypot(G.ally.x - x0, G.ally.y - y0)).toBeGreaterThan(0);
+    expect(moved).toBeGreaterThan(TUNE.ESCORT_MOVE * 0.6); expect(moved).toBeLessThanOrEqual(TUNE.ESCORT_MOVE + 0.01);
+  });
+  it('the field senses it and can target it like a lance mech', () => {
+    hunt('ESCORT', 9, 'Sweep');
+    const a = G.ally, p = G.units[0];
+    for (const c of p.ec) c.on = false;
+    observe(p.ec, a.id, a.x, a.y, T, 0, 0, true, false, true, 'EYES');
+    p.x = a.x + 3 * T; p.y = a.y; p.ap = 8;
+    const act = enemyDecide(p);
+    expect(act).toBeTruthy();
+    expect(['FIRE', 'CHARGE', 'INVESTIGATE', 'HOLD', 'HUNT']).toContain(p.state);
+  });
+  it('a field shell hits it; its death fails the hunt (not a contract LOSS)', () => {
+    contractHunt('ESCORT');
+    damagePart(G.ally, 'CORE', 99); updateShells(0);
+    expect(G.ally.dead).toBe(true);
+    onAllyLost();
+    expect(G.outcome).toBe('FAIL'); expect(G.ct.status).toBe('ACTIVE'); expect(G.ct.results[0].pay).toBe(0);
+  });
+  it('win: the transport walks out; pay PAY_WIN + ESCORT_BONUS × hits left + kills', () => {
+    contractHunt('ESCORT');
+    damagePart(G.ally, 'CORE', 2); G.kills = 1;
+    const bonus = Math.round(TUNE.ESCORT_BONUS * G.ally.hits / G.ally.maxHits);
+    expect(escortBonus()).toBe(bonus);
+    onAllyOut();
+    expect(G.outcome).toBe('WIN ESCORT');
+    expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + bonus + TUNE.PAY_KILL);
+  });
+  it('clearing the field does not end an Escort: the scripted lance still walks it out', () => {
+    startScenario(scenarioByName('Fork')); playOut(80);
+    expect(G.outcome).toBe('WIN ESCORT');
+  });
+});
+
+describe('R15 step 3 scenarios', () => {
+  it('Fork: the transport holds at the west fork; the gun turret sits on one route, the other is clean', () => {
+    startScenario(scenarioByName('Fork'));
+    expect(allyHolding()).toBe(true); expect(G.ally.node).toBe('J1');
+    const g = G.units[0]; expect(g.variant).toBe('gun');
+    const segD = (p, q) => { const dx = q.x - p.x, dy = q.y - p.y, k = Math.max(0, Math.min(1, ((g.x - p.x) * dx + (g.y - p.y) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(p.x + dx * k - g.x, p.y + dy * k - g.y); };
+    const on = (i: number) => { const P = legPath(i); return P.slice(1).some((q, k) => segD(P[k], q) <= 2 * T); };
+    const [a, b] = legChoices(); expect(on(a.i) !== on(b.i)).toBe(true);
+  });
+  it('Shadow: the transport holds at the centre fork, one patrol between the two routes', () => {
+    startScenario(scenarioByName('Shadow'));
+    expect(G.ally.node).toBe('J2'); expect(allyHolding()).toBe(true);
+    expect(G.units.length).toBe(1); expect(G.units[0].type).toBe('PATROL');
+  });
+  it('cmdLeg only works on your turn', () => {
+    startScenario(scenarioByName('Shadow'));
+    G.phase = 'ENEMY'; cmdLeg(legChoices()[0].i); expect(allyHolding()).toBe(true);
   });
 });

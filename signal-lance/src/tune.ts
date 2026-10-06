@@ -158,7 +158,7 @@ export const TUNE = {
   COST_REBUILD: 200,     // credits to rebuild a lost mech (comes back at the refit cap, not full)
   REFIT_CAP: 0.8,        // Jamie: repairs / rearm / rebuild never go above this × what the mech started its previous hunt with (rounded down), so the lance never fully recovers
   // --- Round 15: mission types. Each briefed job rolls one (seeded, evenly). The INTEL names it before you take the job ---
-  MISSION_TYPES: ['UPLINK', 'BOUNTY', 'RETRIEVE'], // types a job can roll; each R15 step adds its type (Step 3 ESCORT)
+  MISSION_TYPES: ['UPLINK', 'BOUNTY', 'RETRIEVE', 'ESCORT'], // types a job can roll (R15: one type per step)
   // Step 1, BOUNTY: every kill pays its TRUE variant's bounty (credits), however it died (blind lob, gun, eyes on; no ID needed).
   // Set from each variant's FIGHT line: tougher, better armed or harder to find = more.
   BOUNTY: {
@@ -180,7 +180,16 @@ export const TUNE = {
   RETRIEVE_NO_SPRINT: true,  // the carrier can't SPRINT
   RETRIEVE_HANDOFF_AP: 1,    // AP for the carrier to HAND OFF the cargo to the other mech...
   RETRIEVE_HANDOFF_RANGE: 1.5, // ...standing within this many tiles
-  FIELD_SHUFFLE: 1,    // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
+  // Step 3, ESCORT: an unarmed faction transport walks the route legs (MAP_ANCHORS waypoints / legs) from the left edge to
+  // the right. It holds at each junction until you tap a leg. The field senses and fires on it like a lance mech.
+  ESCORT_HITS: 5,          // its hit pool (one part: CORE). Destroyed = the hunt fails. Build: 8 → 5 (runner: 8 won 93%, 5 → 68%, like Uplink)
+  ESCORT_MOVE: 8,          // tiles it walks per round (its own activation), at NORM speed and NORM sound
+  ESCORT_EMIT: 10,         // its radio: the EMIT floor, like a patrol's comms
+  ESCORT_ARMOUR: 1,        // armour plates for its signature (SIG_ARMOUR each), like a patrol
+  ESCORT_INIT: 4,          // its initiative base (as a patrol)
+  ESCORT_BONUS: 60,        // credits on a win × the ally's hits left / its max (on top of PAY_WIN + kills)
+  ESCORT_AMBUSH_RANGE: 4,  // tiles; in an Escort job every field unit is placed within this of a route leg ('anywhere' near the legs)
+  FIELD_SHUFFLE: 1,   // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
   // Per type. ARMOUR plates (signature as SIG_ARMOUR; hits = BASE_HITS + ARMOUR × ARMOUR_HITS), AMMO rounds,
   // CELLS energy cells (+ENERGY_CELL each), MOBILE 0 = never moves, RADAR/PASSIVE 0|1,
   // FIRE_UNC tiles (fires only at contacts at least this certain), NAME / PLURAL for INTEL and the result screen.
@@ -318,6 +327,7 @@ export const TUNE = {
     PATROL:      ['SENSORS', 'WEAPON', 'LEGS', 'CORE'],
     TURRET:      ['SENSORS', 'WEAPON', 'CORE'],     // static: no legs
     EMPLACEMENT: ['SENSORS', 'WEAPON', 'CORE'],     // static: no legs
+    ALLY:        ['CORE'],                          // R15 Escort: the transport is one hit pool
   },
   PART_WEIGHTS: { CORE: 40, LEGS: 25, WEAPON: 20, SENSORS: 15 }, // chance a hit lands on each part
   PART_SHARE:   { CORE: 0.5, LEGS: 0.2, WEAPON: 0.15, SENSORS: 0.15 }, // how the hit pool is split (mech, 6 hits → CORE 3, LEGS 1, WEAPON 1, SENSORS 1)

@@ -1,7 +1,7 @@
 import { TUNE } from '../tune.ts';
 import { T, tilesCrossed } from './world.ts';
 import { rand } from './rng.ts';
-import { G, hooks, unitById } from './state.ts';
+import { G, hooks, unitById, friends } from './state.ts';
 import { emitUnc } from './turns.ts';
 import { effEmit, noiseUnc, zoneType } from './zones.ts';
 import { eyesRange } from './combat.ts';
@@ -145,7 +145,7 @@ export function radarFix(o, m, list, id, jit, vx, vy, dt) {
 }
 // R7: the player senses every living field unit; every field unit senses the player (+ ghost) on its own.
 export function updateSensors(dt) {
-  const g = G.ghost, mechs = G.lance.filter(m => !m.dead);
+  const g = G.ghost, mechs = G.lance.filter(m => !m.dead), them = friends().filter(m => !m.dead); // R15 s3: the field also senses the Escort transport
   for (const m of G.lance) {
     m.fireT = Math.max(0, m.fireT - dt);
     m.jamming = m.mask || (g.on && g.owner === m);
@@ -178,7 +178,7 @@ export function updateSensors(dt) {
     // ---- this unit senses each mech (same rules) + ghost ----
     const tick = e.passive && (e.bearT -= dt) <= 0;
     if (tick) e.bearT = TUNE.BEARING_EVERY;
-    for (const p of mechs) {
+    for (const p of them) {
       const pv = p.moving ? p.spd * T : 0;
       if (canSee(e, p, eyesRange(e))) observe(e.ec, p.id, p.x, p.y, TUNE.UNC_EYES * T, p.fx * pv, p.fy * pv, true, false, true, 'EYES');
       else if (e.radarOn) radarFix(e, p, e.ec, p.id, e.ejit, p.fx * pv, p.fy * pv, dt);
@@ -204,7 +204,7 @@ export function updateSensors(dt) {
 // R7 muzzle flash: whoever is shot at gets a contact on the shooter, FLASH_UNC tiles uncertain,
 // centred on a real (random) error inside that circle. Works both ways.
 export function muzzleFlash(shooter, target, uncTiles = TUNE.FLASH_UNC) { // R9: mortar passes MORTAR_FLASH_UNC
-  if (!target || target.dead) return;
+  if (!target || target.dead || target === G.ally) return; // R15 s3: the transport has no sensors to note a flash with
   const list = G.lance.includes(target) ? G.pc : target.ec, u = uncTiles * T;
   if (list === G.pc) noteFired(shooter); // R14: it fired at you
   const a = rand() * 6.2832, r = 0.7 * Math.sqrt(rand());

@@ -6,7 +6,7 @@
 import { TUNE } from '../tune.ts';
 import { T } from './world.ts';
 import { rand } from './rng.ts';
-import { G, isMech } from './state.ts';
+import { G, isMech, isFriend, friends } from './state.ts';
 import { observe } from './sensors.ts';
 import { zoneType } from './zones.ts';
 import { noteSound } from './ids.ts';
@@ -29,10 +29,10 @@ export function soundRadius(m) { return (m.sound || 0) * (zoneType(m) === 'QUIET
 
 // Every sounding unit is heard by each living unit of the other side inside its radius.
 export function hearSounds() {
-  for (const s of [...G.lance, ...G.units]) {
+  for (const s of [...friends(), ...G.units]) { // R15 s3: the Escort transport's steps are heard by the field
     if (s.dead || !(s.sound > 0)) continue;
     const r = soundRadius(s) * T, u = TUNE.SOUND_UNC * T;
-    for (const l of isMech(s) ? G.units : G.lance) {
+    for (const l of isFriend(s) ? G.units : G.lance) {
       if (l.dead || Math.hypot(l.x - s.x, l.y - s.y) > r) continue;
       const list = isMech(l) ? G.pc : l.ec;
       // never loosen a better live fix: sound only says "something is over there"

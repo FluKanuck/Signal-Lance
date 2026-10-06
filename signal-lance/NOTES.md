@@ -15,7 +15,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
   `brief.ts` (tester splash, basics, end-of-hunt questions: update TEST + QUESTIONS every round).
 - R14: `src/sim/scenarios.ts` (the test bed), `src/sim/ids.ts` (observed traits, matcher, IDs), `src/view/testbed.ts`,
   `src/view/card.ts` (CARD and ID picker).
-- R15: `src/sim/mission.ts` (mission types: the hunt's goal, Bounty pay, extract / clear rules). Map anchors: `MAP_ANCHORS` in `world.ts`.
+- R15: `src/sim/mission.ts` (mission types: the hunt's goal, Bounty pay, Retrieve cargo, extract / clear rules), `src/sim/escort.ts`
+  (the Escort transport and its route). Map anchors (uplinks, cargo, escort route): `MAP_ANCHORS` in `world.ts`.
 - R13: `src/sim/sound.ts` (Sound), `src/sim/pack.ts` (alarm, pack target), `src/sim/autoplay.ts` (the scripted
   player, shared by the runner and the tests). `test/` holds the Vitest tests (`npm test`).
 - `src/main.ts`: wiring and the frame loop.
@@ -602,6 +603,33 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      hands off when the carrier is at half hits or worse and the mech beside it is healthier. Runner: a RETRIEVE info line
      (picked up, carried out, cargo lost, hand-offs, rounds from pickup to the end). The brief sets no Retrieve flags.
    - BUILD r15-s2.
+   R15 step 3 (ESCORT) ASSUMPTIONS
+   - Route data lives in MAP_ANCHORS.hive: `waypoints` (named nodes S, J1, A, B, J2, C, D, X), `legs` ({from, to, via
+     tiles, name}), `junctions` (J1, J2: 2 onward legs each) and `escortSite` (J2: the field's leash point, G.up). A leg
+     walks A* from node to node through its via tiles (sim/escort.ts legPath, cached). NORTH / SOUTH at both forks.
+   - The transport (G.ally, sim/escort.ts): unarmed, no sensors, one part (TUNE.PARTS.ALLY = CORE, ESCORT_HITS),
+     ESCORT_ARMOUR plates for its signature, comms EMIT ESCORT_EMIT (like a patrol), NORMAL move sound. It joins the
+     initiative order (ESCORT_INIT + the usual roll) and its activation is one MOVE action of up to ESCORT_MOVE tiles at
+     PLAYER_SPEED along its leg. Holding at a junction (no leg picked) = its activation passes.
+   - "The field can detect and fire on it like any lance unit": state.ts friends() = lance + ally. The field's sensing loop,
+     field shells, sound, the pack's targets (isFriend) and alarms all use it. isMech still means "a mech you control"
+     (initiative ties, HUD, LOSS). The lance's guns never hit it (shells hit the other side only); a mortar splash does.
+     A muzzle flash on it does nothing (it has no sensors). The lance gets no contact on it: you always see it.
+   - Leg pick: cmdLeg(i) on your turn (no AP), only while it holds at a junction. View: a 60 px round button per leg,
+     6 tiles along it, drawn on the map; tapping it comes before contact selection.
+   - Placement: every field unit in an Escort job goes on a legal tile within ESCORT_AMBUSH_RANGE of any leg ('anywhere'
+     near the legs, statics and patrols alike). Statics face the site (J2); patrols leash to it as usual.
+   - End: transport destroyed = FAIL (hunt failed, pays 0, contract goes on). Transport reaches extraction = WIN ESCORT,
+     pay PAY_WIN + round(ESCORT_BONUS × hits left / max) + kills × PAY_KILL. A mech reaching extraction first still pulls
+     the lance out (BAIL), as before (the HUD says so). Clearing the field does NOT end an Escort (only walking out wins).
+   - ESCORT_HITS 5 (brief named no value; 8 let the scripted lance win 93%, 5 → 68%, close to Uplink).
+   - Scenario data gains `ally` (the node the transport starts on; a junction = holding). Fork: gun turret on the north
+     street at (15,7), behind 5 walls from the fork, its steady comms audible there (strength ≈ 0.35 vs 0.25 needed).
+   - Scripted player: both mechs shadow the transport 2 path points ahead (never into extraction); at a fork it picks the
+     leg with the fewest known contacts near it (ties: NORTH). Runner ESCORT info line: shot at, heard, destroyed, hits
+     left, legs picked.
+   - End-of-hunt questions now ask the round's "read and connect" check per hunt (read: changed my plan / didn't / not
+     sure), logged next to the job type. BUILD r15-s3.
 ```
 
 ## TWEAK LOG
@@ -911,4 +939,12 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            first in pickPackTarget. Scenarios Grab and go, Hot potato. Runner (20 contracts, forced Retrieve): win 41%,
            picked up 38/46, cargo lost 10, pickup → end 3.7 rounds. Mixed check: same 2 known flags (sound share, gun 0%).
            BUILD r15-s2 | -
+   round15 step 2 debrief | "felt good, enemy aimed for the mech with the cargo"; weakest: "It felt fine". Reading the guards:
+           "really only one sensible route, and the guards there were unavoidable, but if I had the chance, I would have
+           changed route" | no change (map, not a knob). Counts as the Step 3 check-in: build Escort as briefed | -
+   round15 step 3 | Escort as briefed | NEW ESCORT (MISSION_TYPES + 'ESCORT', ESCORT_HITS 5 (build: 8 → 5, runner 93% →
+           68% wins), ESCORT_MOVE 8, ESCORT_EMIT 10, ESCORT_ARMOUR 1, ESCORT_INIT 4, ESCORT_BONUS 60, ESCORT_AMBUSH_RANGE 4,
+           PARTS.ALLY), route graph in MAP_ANCHORS, friends() / isFriend() for the field's targets. Scenarios Fork, Shadow.
+           Runner (20 contracts, forced Escort): win 68%, transport shot at in 85% of hunts, destroyed 18/60. Mixed check:
+           sound-share flag only. BUILD r15-s3 | -
 ```

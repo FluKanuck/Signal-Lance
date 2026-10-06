@@ -2,7 +2,7 @@
 // uplink leash and close in), press the wound (patrols go for the most damaged mech). All behind TUNE.PACK_ENABLED.
 import { TUNE } from '../tune.ts';
 import { T } from './world.ts';
-import { G, unitById, isMech } from './state.ts';
+import { G, unitById, isFriend } from './state.ts';
 import { observe } from './sensors.ts';
 import { effEmit } from './zones.ts';
 import { partGone } from './combat.ts';
@@ -21,7 +21,7 @@ export function alarmRadius(mech) { return TUNE.ALARM_RADIUS_BASE + TUNE.ALARM_R
 export function raiseAlarm(list, c, src: string) {
   if (!packOn() || list === G.pc || !OWN.includes(src)) return;
   const mech = unitById(c.id), from = G.units.find(u => u.ec === list);
-  if (!mech || !isMech(mech) || !from || from.dead) return;
+  if (!mech || !isFriend(mech) || !from || from.dead) return; // R15 s3: the transport too
   const r = alarmRadius(mech) * T, u = c.unc + TUNE.ALARM_UNC_ADD * T, to = [];
   for (const o of G.units) {
     if (o === from || o.dead || Math.hypot(o.x - from.x, o.y - from.y) > r) continue;

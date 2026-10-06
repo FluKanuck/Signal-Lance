@@ -11,6 +11,8 @@ import { soundRadius } from '../sim/sound.ts';
 import { revealed } from '../sim/ids.ts';
 import { isType, quotaMet, isCarrier, pickupBlock, handoffBlock } from '../sim/mission.ts';
 import { objectiveBlock } from '../sim/turns.ts';
+import { allyHolding } from '../sim/escort.ts';
+import { anchors } from '../sim/world.ts';
 
 // ============================ HUD =====================================
 export const $ = (id): any => document.getElementById(id);
@@ -60,6 +62,11 @@ export function updateHud(dt) {
 }
 // R15: the mission line. Uplink: progress pips and range. Bounty: earned / quota, the last kill's pop, and the call at quota.
 function goalLine(p) {
+  if (isType('ESCORT') && G.ally) { // R15 s3
+    const a = G.ally, N = anchors().waypoints, L = anchors().legs;
+    const where = allyHolding() ? '<b style="color:#7e9">HOLDING at ' + N[a.node].name + ': tap a route on the map</b>' : a.leg >= 0 ? 'heading for ' + N[L[a.leg].to].name : 'moving';
+    return '<br>TRANSPORT <b style="color:#7e9">' + Math.max(0, a.hits) + '/' + a.maxHits + ' hits</b>  ' + where + '  <span style="color:#aab">(a mech at the right edge first = the lance pulls out without it)</span>';
+  }
   if (isType('RETRIEVE')) { // R15 s2
     const M = G.mission;
     if (!M.carrier) return '<br>CARGO <b style="color:#fc3">at ' + G.up.name + '</b>' + (pickupBlock(p) !== 'RANGE' ? '  <b>IN RANGE: PICK UP</b>' : '  ' + Math.round(upDist(p)) + 't away') + '  (grabbing it alerts the whole field)';
@@ -135,7 +142,7 @@ export function syncButtons() {
   const sc = G.sel && G.sel.on ? G.sel : null, idv = sc && G.ids[sc.id] ? G.ids[sc.id].v : '';
   setBtn('bId', 'ID', !sc ? 'TAP ONE' : revealed(sc.id) ? 'SEEN' : idv ? idv + '?' : 'UNKNOWN', G.mode === 'hunt' && !!sc && !revealed(sc.id));
   // Round 5: uplink
-  $('bUp').hidden = isType('BOUNTY'); // R15: Bounty has no objective button; Retrieve uses it for PICK UP / HAND OFF
+  $('bUp').hidden = isType('BOUNTY') || isType('ESCORT'); // R15: Bounty and Escort have no objective button (Escort uses route buttons on the map); Retrieve uses it for PICK UP / HAND OFF
   w = G.mode === 'hunt' ? objectiveBlock() : 'RANGE';
   if (isType('RETRIEVE') && isCarrier(p)) setBtn('bUp', 'HAND OFF', w || TUNE.RETRIEVE_HANDOFF_AP + 'AP', free && !w);
   else if (isType('RETRIEVE')) setBtn('bUp', 'PICK UP', w === 'HELD' ? G.mission.carrier + ' HAS IT' : w || TUNE.RETRIEVE_PICKUP_AP + 'AP · LOUD', free && !w);
