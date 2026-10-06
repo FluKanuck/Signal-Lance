@@ -58,7 +58,8 @@ function resize() {
 
 let last = performance.now(), clock = 0;
 function frame(now: number) {
-  const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
+  // paused = a full freeze (sim, rings, sweep, flicker, spinners, fog fades); drawing carries on so pan/zoom/TUNE still show
+  const dt = S.run ? Math.min(0.05, (now - last) / 1000) : 0; last = now; clock += dt;
   if (S.run && G.mode === 'hunt') {
     for (let k = 0; k < S.speed; k++) { if (G.phase === 'PLAYER' && !G.act) botAct(); step(dt); }
   } else if (S.run && (S.endT += dt) > 3) start(S.scen); // hunt over: replay it
@@ -144,13 +145,15 @@ $('lFx').addEventListener('change', e => { const i = e.target as HTMLInputElemen
 const sel = $('lPick') as HTMLSelectElement;
 sel.innerHTML = scenarioList().map((s, i) => `<option value="${i}">R${s.round} · ${s.name}</option>`).join('');
 sel.addEventListener('change', () => start(+sel.value));
-$('lRun').addEventListener('click', () => { S.run = !S.run; $('lRun').textContent = S.run ? 'PAUSE' : 'PLAY'; });
+function togglePause() { S.run = !S.run; $('lRun').textContent = S.run ? 'PAUSE' : 'PLAY'; $('lPause').textContent = S.run ? '❚❚' : '▶'; $('lPause').classList.toggle('on', !S.run); }
+$('lRun').addEventListener('click', togglePause);
+$('lPause').addEventListener('click', togglePause);
 $('lSpeed').addEventListener('click', () => { S.speed = S.speed === 1 ? 3 : S.speed === 3 ? 8 : 1; $('lSpeed').textContent = '×' + S.speed; });
 $('lRestart').addEventListener('click', () => start(S.scen));
 $('lFollow').addEventListener('click', () => { S.follow = true; });
 $('lHide').addEventListener('click', () => document.body.classList.toggle('chrome-off'));
 $('lHud').addEventListener('click', () => document.body.classList.toggle('hud-off'));
-addEventListener('keydown', e => { if (e.key === 'ArrowRight') lookTo(S.lookI + 1); if (e.key === 'ArrowLeft') lookTo(S.lookI - 1); if (e.key === ' ') $('lRun').click(); if (e.key === 'h') $('lHide').click(); });
+addEventListener('keydown', e => { if (e.key === 'ArrowRight') lookTo(S.lookI + 1); if (e.key === 'ArrowLeft') lookTo(S.lookI - 1); if (e.key === ' ') { e.preventDefault(); togglePause(); } if (e.key === 'h') $('lHide').click(); });
 
 initField(gl, marks);
 (window as any).__lab = { LOOKS, FX, S };
