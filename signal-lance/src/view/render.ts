@@ -9,6 +9,7 @@ import { V } from './state.ts';
 import { zoneAtTile, effEmit, zoneType } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
 import { traitLines, frozen, matchVariants, hasReading } from '../sim/ids.ts';
+import { isType } from '../sim/mission.ts';
 
 // R13: a sound ring (pale, solid, with short ticks so it reads as "waves", not the dashed orange EMIT ring)
 function soundRing(x, y, r, z, alpha, label?) {
@@ -75,8 +76,8 @@ export function render() {
   for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (solid[y * W + x]) ctx.rect(x * T, y * T, T, T);
   ctx.fill();
   const p = G.p;
-  // Round 5: uplink point (gold): ring = where UPLINK works, diamond = the point, progress label
-  {
+  // Round 5: uplink point (gold): ring = where UPLINK works, diamond = the point, progress label (R15: uplink jobs only)
+  if (isType('UPLINK')) {
     const U = G.up, r = (TUNE.UPLINK_RADIUS + 0.5) * T;
     ctx.strokeStyle = ctx.fillStyle = '#fc3'; ctx.lineWidth = 3 / z;
     ctx.globalAlpha = 0.15; ctx.beginPath(); ctx.arc(U.x, U.y, r, 0, 6.2832); ctx.fill(); ctx.globalAlpha = 1;
@@ -84,6 +85,11 @@ export function render() {
     ctx.beginPath(); ctx.moveTo(U.x, U.y - 11); ctx.lineTo(U.x + 11, U.y); ctx.lineTo(U.x, U.y + 11); ctx.lineTo(U.x - 11, U.y); ctx.closePath(); ctx.stroke();
     ctx.font = 'bold ' + (13 / z) + 'px monospace';
     ctx.fillText('UPLINK ' + U.prog + '/' + TUNE.UPLINK_TURNS, U.x - 34 / z, U.y - r - 6 / z);
+  }
+  // R15 Bounty: the price of a kill pops over the wreck for a moment
+  if (G.pop) {
+    ctx.globalAlpha = Math.min(1, G.pop.t); ctx.fillStyle = '#fc3'; ctx.font = 'bold ' + (15 / z) + 'px monospace';
+    ctx.fillText('+' + G.pop.b + ' cr ' + G.pop.v, G.pop.x - 30 / z, G.pop.y - 18 / z - (2.5 - G.pop.t) * 12 / z); ctx.globalAlpha = 1;
   }
   // Round 4: move preview (faint = full route, bright = what you can afford, X = where you'll stop)
   if (G.plan && !G.act && G.phase === 'PLAYER') {
@@ -275,8 +281,8 @@ export function render() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.strokeStyle = 'rgba(255,40,40,' + (V.hitFlash / 0.4) + ')';
     ctx.lineWidth = 16; ctx.strokeRect(0, 0, vw, vh);
   }
-  // Round 5: uplink off-screen → gold arrow at the screen edge pointing at it, with distance
-  {
+  // Round 5: uplink off-screen → gold arrow at the screen edge pointing at it, with distance (R15: uplink jobs only)
+  if (isType('UPLINK')) {
     const U = G.up, sx = vw / 2 + (U.x - V.camX) * z, sy = vh / 2 + (U.y - V.camY) * z, m = 24;
     if (sx < 0 || sx > vw || sy < 0 || sy > vh) {
       const ax = Math.max(m, Math.min(vw - 100, sx)) /* keep clear of the right button column */, ay = Math.max(70, Math.min(vh - m, sy)), a = Math.atan2(sy - ay, sx - ax);

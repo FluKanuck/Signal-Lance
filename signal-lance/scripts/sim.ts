@@ -12,6 +12,7 @@
 //   --check                            exit 1 if any FLAG or WARNING was printed (run before shipping)
 //   --quiet                            R14: the scripted mechs CREEP every move
 //   --scenario earshot [--runs 10]     R14: play a test-bed scenario with the scripted player (seed, seed+1, ...)
+//   --mission bounty                   R15: force every hunt's mission type (games and contracts); contracts report a split by type
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
@@ -24,6 +25,8 @@ const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
 const GAMES = arg('--games', 10), ONE = arg('--seed', -1), VERBOSE = argv.includes('-v');
 const sarg = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : ''; };
+const MISSION = sarg('--mission').toUpperCase(); // R15
+if (MISSION && !TUNE.MISSION_TYPES.includes(MISSION) && MISSION !== 'UPLINK') throw new Error('--mission: unknown type ' + MISSION);
 const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0), SCEN = sarg('--scenario'), RUNS = arg('--runs', 10);
 AUTO.loud = argv.includes('--loud'); AUTO.quiet = argv.includes('--quiet'); // R14: --quiet = CREEP every move
 if (argv.includes('--pack')) TUNE.PACK_ENABLED = true; // R13 s2: the pack on (as the splash toggle does)
@@ -47,7 +50,7 @@ const loadB = () => AUTO.loud ? { armour: 1, radar: 1, passive: 1, ecm: 0, ammo:
 const loadA = () => ({ ...loadB(), mortar: 1 }); // R9: scripted A carries a mortar (9/10 slots)
 
 function playGame(seed: number, comp?: string) {
-  rollEnemy(seed, comp); newHunt([loadA(), loadB()]); // R7 s2: two scripted mechs, same loadout
+  rollEnemy(seed, comp, MISSION || 'UPLINK'); newHunt([loadA(), loadB()]); // R7 s2: two scripted mechs, same loadout
   return playOut(seed);
 }
 // play the already-started hunt to its end (or a stall)
@@ -124,6 +127,7 @@ function contracts(n: number) {
     const entering: any[] = []; let stall = false;
     while (G.ct.status === 'ACTIVE') {
       entering.push({ n: G.ct.hunt, carry: JSON.parse(JSON.stringify(G.ct.carry)) });
+      if (MISSION) for (const j of G.ct.jobs) j.mission = MISSION; // R15 --mission
       takeJob(0);
       const r = playOut(G.ct.huntSeed);
       shots.push(...G.shotLog); parts.push(...G.partLog); // R12
@@ -163,6 +167,7 @@ function contracts(n: number) {
   console.log(`  credits: avg earned ${(E / res.length).toFixed(0)}, avg spent ${(S / res.length).toFixed(0)} per contract; rebuilds ${rebuilds}`);
   const st = res.filter(r => r.status === 'STALL');
   console.log(st.length ? '  stalls over 80 rounds: ' + st.map(r => `contract ${r.c} H${r.reached}`).join(', ') : '  stalls over 80 rounds: none');
+  missionReport(res.flatMap(r => r.results), hunts);
   hitReport(shots, parts);
   soundReport(hunts);
   idReport(hunts);
@@ -183,11 +188,17 @@ function huntStats() {
     heardLance: G.lance.reduce((a: number, m: any) => a + (m.heardN || 0), 0), heardField: G.units.reduce((a: number, u: any) => a + (u.heardN || 0), 0),
     loudest: Math.max(0, ...G.lance.map((m: any) => m.loudest || 0)), sprints: G.lance.reduce((a: number, m: any) => a + (m.sprints || 0), 0),
     ids: (idTick(false), idSummary()), // R14: per field unit: read? narrowed? ID'd, right, before eyes
+    mission: G.mission.type, units: G.units.map((u: any) => ({ v: u.variant, dead: u.dead })), // R15
     alarms: G.alarmLog.length, allOn3, lost: G.lance.filter((m: any) => m.dead).length,
     pack: G.units.reduce((a: any, u: any) => { for (const k of ['HUNT', 'SEARCH', 'LEASH']) a[k] += (u.packN && u.packN[k]) || 0; return a; }, { HUNT: 0, SEARCH: 0, LEASH: 0 }) };
 }
 function soundReport(H: any[]) {
   const pc = (a: number, b: number) => b ? Math.round(100 * a / b) + '%' : '-';
+  // R15: the flags below were calibrated on uplink hunts. A Bounty field is bigger and the lance goes looking for fights,
+  // so Bounty hunts get an info line and stay out of the flags.
+  const BH = H.filter(h => h.mission === 'BOUNTY');
+  if (BH.length) { const F = BH.flatMap(h => h.E); console.log(`  SOUND field (Bounty hunts, info): first contacts ${F.length}, by sound ${F.filter((f: any) => f.src === 'SOUND').length} (${pc(F.filter((f: any) => f.src === 'SOUND').length, F.length)})`); }
+  if (H.some(h => h.mission === 'UPLINK')) H = H.filter(h => h.mission === 'UPLINK');
   for (const [side, name] of [['P', 'lance'], ['E', 'field']]) {
     const F = H.flatMap(h => h[side]), snd = F.filter((f: any) => f.src === 'SOUND').length;
     const by: Record<string, number> = {}; for (const f of F) by[f.src] = (by[f.src] || 0) + 1;
@@ -205,6 +216,26 @@ function soundReport(H: any[]) {
     if (H.length && on3 / H.length >= 0.75) console.log('  FLAG: the whole field is on the lance by round 3 in most hunts (the alarm is too strong)');
   }
   console.log(`  SOUND per hunt: field heard the lance ${avg('heardLance')}×, lance heard the field ${avg('heardField')}×, lance sprints ${avg('sprints')}, loudest ${avg('loudest')} | first contact on the lance, avg round ${(fol.reduce((a, h) => a + h.firstOnLance, 0) / Math.max(1, fol.length)).toFixed(1)}`);
+}
+
+// R15: hunts split by mission type (win rate, average pay, rounds), then the Bounty checks.
+function missionReport(R: any[], H: any[]) {
+  const pc = (a: number, b: number) => b ? Math.round(100 * a / b) + '%' : '-';
+  const types = [...new Set(R.map(r => r.mission))];
+  for (const t of types) {
+    const L = R.filter(r => r.mission === t), w = L.filter(r => r.outcome.startsWith('WIN')).length;
+    const by: Record<string, number> = {}; for (const r of L) by[r.outcome] = (by[r.outcome] || 0) + 1;
+    console.log(`  MISSION ${t.padEnd(7)} hunts ${L.length} | win ${w} (${pc(w, L.length)}) | avg pay ${(L.reduce((a, r) => a + r.pay, 0) / L.length).toFixed(0)} cr | avg rounds ${(L.reduce((a, r) => a + r.turns, 0) / L.length).toFixed(1)} | ` + Object.entries(by).sort().map(([k, v]) => `${k} ${v}`).join(', '));
+  }
+  const B = R.filter(r => r.mission === 'BOUNTY');
+  if (!B.length) return;
+  const met = B.filter(r => r.earned >= TUNE.BOUNTY_QUOTA).length;
+  console.log(`  BOUNTY quota met ${met}/${B.length} (${pc(met, B.length)}) | avg earned ${(B.reduce((a, r) => a + r.earned, 0) / B.length).toFixed(0)} cr`);
+  if (met / B.length < 0.2 || met / B.length > 0.9) console.log(`  FLAG: Bounty quota met in ${pc(met, B.length)} of Bounty hunts (outside 20–90%)`);
+  const V: Record<string, { n: number; k: number }> = {};
+  for (const h of H.filter(h => h.mission === 'BOUNTY')) for (const u of h.units) { const x = V[u.v] || (V[u.v] = { n: 0, k: 0 }); x.n++; if (u.dead) x.k++; }
+  console.log('  BOUNTY killed when present: ' + Object.entries(V).sort().map(([k, x]) => `${k} ${x.k}/${x.n}`).join(', '));
+  for (const [k, x] of Object.entries(V)) if (x.n >= 5 && (x.k / x.n > 0.9 || x.k / x.n < 0.05)) console.log(`  FLAG: ${k} killed in ${pc(x.k, x.n)} of the Bounty hunts it appears in (always or never worth it)`);
 }
 
 // R14: reading the signature. Over every field unit the lance ever had a contact on.

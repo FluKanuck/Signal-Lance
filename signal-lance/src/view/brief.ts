@@ -4,29 +4,28 @@ import { $ } from './hud.ts';
 import { TUNE } from '../tune.ts';
 
 export const TEST = {
-  title: 'Round 14 test: Read the signature',
-  question: 'If you match a contact’s traits against the CARD and commit an ID, does identifying things become a skill you use before you have eyes on, because a right call sharpens the track and the aim?',
+  title: 'Round 15 test: Pick your fights',
+  question: 'When the job is more than "stand on the uplink", does reading the field change which fights you take, how you take them and when you leave?',
   newThings: [
-    'Every enemy is now one of 9 variants (3 patrols, 3 turrets, 3 emplacements). They fight differently: tougher core, more rounds, looser or firmer lock.',
-    'Contacts read UNKNOWN until you ID them (SOUND if you have only heard them). Tap a contact: under it you see what your sensors have actually picked up: EMIT level, pulsing or steady, moved or still, steps or a shot heard.',
-    'CARD (left, above zoom) lists all 9 with their traits and one bold TELL. ID (next to it) lets you call the selected contact. Re-ID any time, for free.',
-    'NEW (r14-s2): a contact you have read shows how many variants still fit ("3 fit"), and the ID picker greys out the ones your reads rule out. You can still pick a greyed one.',
-    'A call shows as "name?" until eyes confirm it. Eyes show the truth; a wrong call flips and counts as a miscall.',
-    'Why bother: ID a turret or emplacement and its track freezes (it stops growing and never fades), so a mortar lob gets easier to line up. A right call made before eyes also adds +10% to hit. Call a patrol a turret and your track freezes on a spot it has already left.',
-    'TEST BED (loadout screen): short scenarios. Look-alikes, Quiet gun and Twin pulse test reading the signature; Earshot and Wounded are from Round 13.',
-    'The pack (splash toggle) and everything from Round 13 still hold.',
+    'Jobs now come in types. Each job card says its type and goal on top (gold), before you take it. This build: UPLINK (as before) or BOUNTY.',
+    'BOUNTY: no uplink. Every kill pays that enemy’s bounty, by what it really is (no ID needed to get paid). Heavy patrols and gun turrets pay far more than scouts. The CARD shows each price.',
+    'Reach the quota (' + TUNE.BOUNTY_QUOTA + ' cr) and the hunt is a WIN. Anything above it is a bonus. Extract (right edge) whenever you choose: at or over quota = WIN; under quota = no win, no loss, and you keep what you earned.',
+    'A Bounty field has ' + TUNE.BOUNTY_FIELD_EXTRA + ' extra enemies on top of the INTEL, so you can’t safely take everything. Read them, pick the ones worth the risk, and know when to leave.',
+    'The HUD shows BOUNTY earned / quota. A kill pops its price over the wreck.',
+    'TEST BED: "Price list" (who do you go after?) and "One more?" (at quota: extract or push?). The R13 and R14 scenarios are still there.',
+    'Everything from Round 14 (variants, CARD, ID, the pack toggle) still holds.',
   ],
-  howTo: 'Try the TEST BED scenarios first, then a few contracts. After each hunt, tap the answers and add a note. When you finish, tap SEND LOG and send it to Jamie.',
+  howTo: 'Play the two new TEST BED scenarios first, then a couple of contracts with Bounty jobs in the mix. After each hunt, tap the answers and add a note. When you finish, tap SEND LOG and send it to Jamie.',
 };
 // End-of-hunt questions (tap one answer each; optional). Answers go into the log line.
 export const QUESTIONS = [
-  { k: 'id', q: 'Before eyes-on, you mostly…', a: ['Waited for the tell', 'Guessed', 'Ignored the card'] },
-  { k: 'call', q: 'A right or wrong ID…', a: ['Saved me something', 'Cost me something', "Didn't matter"] },
-  { k: 'card', q: 'The CARD felt like…', a: ['A quick read', 'Homework', 'A giveaway', 'Never opened'] },
+  { k: 'pick', q: 'Which fights you took was decided by…', a: ['What they were worth', 'What they were', 'Whatever found me', 'Uplink job'] },
+  { k: 'leave', q: 'When you left, it was…', a: ['A real choice', 'Obvious', 'Forced (hurt / lost)', "Didn't extract"] },
+  { k: 'feel', q: 'This job felt…', a: ['Its own thing', 'Uplink with extra steps', 'Just a brawl'] },
 ];
 
 const BASICS = [
-  ['Goal', 'Win each hunt by UPLINK (stand in the gold ring, tap UPLINK on 3 turns) or CLEAR (destroy every enemy). Lose if both mechs are destroyed.'],
+  ['Goal', 'Each job has a type (top of the job card). UPLINK: stand in the gold ring and tap UPLINK on 3 turns, or destroy every enemy. BOUNTY: kills pay their bounty (prices on the CARD); reach the quota for a win, then extract at the right edge when you choose. Lose if both mechs are destroyed.'],
   ['Turns', 'Everyone acts in initiative order (strip, top right). On your mech\'s turn you spend AP (the ● pips). END TURN passes to the next unit.'],
   ['Move', 'Tap the map to plot a path. Pick CREEP, NORM or SPRINT, then tap MOVE. Faster covers more ground but is louder.'],
   ['Find', 'Enemies are hidden. A contact is a red square with a circle: the circle is how unsure you are. Passive sensors draw cyan bearing lines; two crossing lines make a fix. RADAR gives a sharp fix but is very loud.'],

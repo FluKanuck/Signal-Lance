@@ -126,14 +126,7 @@ export const TUNE = {
   PACK_SEARCH_ACTIVATIONS: 2, // a patrol whose contact faded searches its last estimate for this many of its activations
   PACK_SPRINT_ON_WOUNDED: true, // a patrol SPRINTs (if it has the Energy) toward a target that is BADLY or worse, or has no LEGS
   // --- Round 5: uplink objective (player only uses UPLINK; the bot knows where it is) ---
-  UPLINK_CANDIDATES: [  // hand-picked open street tiles {x, y} + the name INTEL uses; none in walled pockets
-    { x: 15, y: 3,  name: 'NW lane' },
-    { x: 43, y: 4,  name: 'north yard' },
-    { x: 27, y: 13, name: 'west plaza' },
-    { x: 45, y: 14, name: 'centre crossing' },
-    { x: 61, y: 19, name: 'SE alley' },
-    { x: 38, y: 22, name: 'south street' },
-  ],
+  // R15: the uplink candidates moved to the per-map anchors table (MAP_ANCHORS in sim/world.ts)
   UPLINK_MIN_DIST: 10,  // tiles; the rolled point is at least this far from the player's spawn
   UPLINK_RADIUS: 1,     // tiles; UPLINK works within this of the point (ring = this + 0.5)
   AP_UPLINK: 2,         // AP per UPLINK (max once per turn)
@@ -164,7 +157,24 @@ export const TUNE = {
   COST_SHELL: 30,        // credits per +1 mortar shell (R11 debrief: 15 → 30)
   COST_REBUILD: 200,     // credits to rebuild a lost mech (comes back at the refit cap, not full)
   REFIT_CAP: 0.8,        // Jamie: repairs / rearm / rebuild never go above this × what the mech started its previous hunt with (rounded down), so the lance never fully recovers
-  FIELD_SHUFFLE: 1,     // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
+  // --- Round 15: mission types. Each briefed job rolls one (seeded, evenly). The INTEL names it before you take the job ---
+  MISSION_TYPES: ['UPLINK', 'BOUNTY'], // types a job can roll; each R15 step adds its type (Step 2 RETRIEVE, Step 3 ESCORT)
+  // Step 1, BOUNTY: every kill pays its TRUE variant's bounty (credits), however it died (blind lob, gun, eyes on; no ID needed).
+  // Set from each variant's FIGHT line: tougher, better armed or harder to find = more.
+  BOUNTY: {
+    scout: 25,   // core 1, 10 rds: light, but pushes in
+    line: 35,    // core 1, 20 rds: the plain patrol
+    heavy: 80,   // core 3, 30 rds: armoured, patient, tight lock
+    sentry: 35,  // core 1, firm lock only
+    hush: 45,    // core 1, firm lock; you barely hear it fire (hard to find)
+    gun: 90,     // core 4, 30 rds, fires on looser locks: the most dangerous thing on the field
+    search: 60,  // core 4, 20 rds
+    fire: 50,    // core 1, but fires on a 3-tile fix
+    relay: 55,   // core 4, 10 rds
+  },
+  BOUNTY_QUOTA: 120,      // credits; reaching it makes the hunt a WIN (≈2–3 mid kills). Anything above it is kept as a bonus. Build: brief's 150 → 120 (runner: the scripted lance met 150 in only 13–25% of Bounty hunts)
+  BOUNTY_FIELD_EXTRA: 2,  // extra field units in a Bounty hunt (variant rolled from all 9, placed 'anywhere'), so you can't take everything
+  FIELD_SHUFFLE: 1,    // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
   // Per type. ARMOUR plates (signature as SIG_ARMOUR; hits = BASE_HITS + ARMOUR × ARMOUR_HITS), AMMO rounds,
   // CELLS energy cells (+ENERGY_CELL each), MOBILE 0 = never moves, RADAR/PASSIVE 0|1,
   // FIRE_UNC tiles (fires only at contacts at least this certain), NAME / PLURAL for INTEL and the result screen.

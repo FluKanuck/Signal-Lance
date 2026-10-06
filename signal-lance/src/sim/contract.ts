@@ -5,6 +5,7 @@ import { TUNE } from '../tune.ts';
 import { T } from './world.ts';
 import { G, rollEnemy, newHunt, setActive } from './state.ts';
 import { splitHits, syncHits, partsRead } from './combat.ts';
+import { huntPay } from './mission.ts';
 
 // Contract-level RNG (mulberry32 on its own state), so job rolls never disturb a hunt's seeded RNG.
 function crand(): number {
@@ -52,17 +53,17 @@ export function rollJobs() {
   let P = TUNE.FIELD_COMPOSITIONS;
   const pool = P.filter(c => (TUNE.FIELD_PLAYTEST_POOL || []).includes(c.NAME));
   if (pool.length >= 2) P = pool;
-  const a = pickWeighted(P), b = pickWeighted(P.filter(c => c !== a));
-  C.jobs = [a, b].map(c => ({ comp: c.NAME, seed: (crand() * 4294967296) >>> 0 }));
+  const a = pickWeighted(P), b = pickWeighted(P.filter(c => c !== a)), M = TUNE.MISSION_TYPES;
+  C.jobs = [a, b].map(c => ({ comp: c.NAME, seed: (crand() * 4294967296) >>> 0, mission: M[Math.floor(crand() * M.length)] })); // R15: each job rolls its type (the two may differ)
 }
 // Set the world up as job i (uplink, field roll, zones) without starting it: the view reads INTEL from it.
-export function previewJob(i: number) { const j = G.ct.jobs[i]; rollEnemy(j.seed, j.comp); }
+export function previewJob(i: number) { const j = G.ct.jobs[i]; rollEnemy(j.seed, j.comp, j.mission); }
 // Take job i: roll its setup, start the hunt with the locked loadouts, apply the carried state before round 1.
 export function takeJob(i: number) {
   const C = G.ct, j = C.jobs[i];
   C.taken = i; C.huntSeed = j.seed;
   for (const id of ['A', 'B']) { const c = C.carry[id]; if (!c.dead) C.ref[id] = { hits: c.hits, ammo: c.ammo, shells: c.shells }; } // R11 s2: the start the next refit cap is taken from
-  rollEnemy(j.seed, j.comp);
+  rollEnemy(j.seed, j.comp, j.mission);
   newHunt(C.loads, () => {
     for (const m of G.lance) {
       const c = C.carry[m.id];
@@ -81,10 +82,10 @@ export function recordHunt() {
   const kind = G.outcome.split(' ')[0];
   const won = kind === 'WIN';
   if (won) C.wins++;
-  const pay = kind === 'BAIL' ? 0 : (won ? TUNE.PAY_WIN : 0) + G.kills * TUNE.PAY_KILL; // R11 s2
+  const pay = huntPay(kind); // R11 s2; R15: Bounty pays its bounties (kept on a BAIL)
   C.credits += pay; C.earned += pay;
   C.results.push({
-    n: C.hunt, job: C.taken + 1, comp: G.comp.NAME, up: G.up.name, outcome: G.outcome, turns: G.turn,
+    n: C.hunt, job: C.taken + 1, mission: G.mission.type, earned: G.mission.earned, comp: G.comp.NAME, up: G.up.name, outcome: G.outcome, turns: G.turn,
     kills: G.kills, total: G.units.length,
     lost: G.lance.filter(m => m.dead && !before[m.id].dead).map(m => m.id),
     out: G.lance.map(m => m.id + ' ' + dmgWord(C.carry[m.id]) + (m.dead ? '' : ' (' + partsRead(C.carry[m.id]) + ')')), // R12: per-part read

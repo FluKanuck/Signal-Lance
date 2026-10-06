@@ -1,10 +1,11 @@
 import { TUNE } from '../tune.ts';
-import { W, H, T, spawnX, spawnY, canReach, isSolid, DX, DY, tilesCrossed } from './world.ts';
+import { W, H, T, spawnX, spawnY, canReach, isSolid, DX, DY, tilesCrossed, anchors } from './world.ts';
 import { rand, setSeed } from './rng.ts';
 import { startRound } from './turns.ts';
 import { rollZones, zoneAtTile } from './zones.ts';
 import { recordHunt } from './contract.ts';
 import { initParts } from './combat.ts';
+import { newMission } from './mission.ts';
 
 // Hooks the view sets so the sim can tell it things. Headless (runner) they stay no-ops.
 export const hooks = {
@@ -47,6 +48,7 @@ export const G: any = {
   seed: 1, // R6: this run's RNG seed (shown in DBG for replay in the runner)
   obs: {}, ids: {}, idStat: {}, eyesAny: false, // R14: per field unit id: what the lance observed, its committed ID, runner stats
   tb: null, // R14: the test-bed scenario being played (null = a normal hunt)
+  mtype: 'UPLINK', mission: null, pop: null, // R15: the rolled mission type, this hunt's mission (see mission.ts), the last bounty pop (view)
 };
 for (let i = 0; i < 8; i++) G.fx.push({ on: false, x: 0, y: 0, t: 0, hit: false });
 for (let i = 0; i < 32; i++) G.shells.push({ on: false, x: 0, y: 0, ax: 0, ay: 0, vx: 0, vy: 0, left: 0, owner: null });
@@ -172,6 +174,18 @@ export function newHunt(loads?, prep?: () => void) {
     if (u.hasRadar) u.pulseCD = u.pulseN;
     G.units.push(u);
   }
+  // R15 Bounty: the field outnumbers the quota. Extra units, variant rolled from all 9 (seeded, evenly), placed 'anywhere'.
+  if (G.mtype === 'BOUNTY') for (let n = 0; n < TUNE.BOUNTY_FIELD_EXTRA; n++) {
+    const keys = Object.keys(TUNE.FIELD_VARIANTS), vk = keys[Math.floor(rand() * keys.length)], type = TUNE.FIELD_VARIANTS[vk].TYPE;
+    const u = makeUnit(type, i++, vk), t = anyTile(taken, u.mobile ? undefined : '');
+    taken.push(t);
+    u.x = u.gx = (t.x + 0.5) * T; u.y = u.gy = (t.y + 0.5) * T;
+    u.zoned = zoneAtTile(t.x, t.y)?.type || ''; u.extra = true;
+    if (!u.mobile) { const dx = U.x - u.x, dy = U.y - u.y, d = Math.hypot(dx, dy) || 1; u.fx = dx / d; u.fy = dy / d; }
+    if (u.hasRadar) u.pulseCD = u.pulseN;
+    G.units.push(u);
+  }
+  newMission(G.mtype); G.pop = null; // R15
   for (const c of G.pc) c.on = false;
   for (const s of G.shells) s.on = false;
   for (const f of G.fx) f.on = false;
@@ -189,10 +203,12 @@ export function newHunt(loads?, prep?: () => void) {
 // (this roll, then the field's positions in newHunt). R7: no temperament / variant roll any more.
 // R8: then rolls the field composition (by weight); `force` = a composition NAME (runner --comp) skips the pick
 // but still draws the random number, so a forced run's positions match an unforced one with the same seed.
-export function rollEnemy(seed: number, force?: string) {
-  setSeed(seed); G.seed = seed;
-  let c = TUNE.UPLINK_CANDIDATES.filter(u => canReach(u.x, u.y) && Math.hypot(u.x - spawnX, u.y - spawnY) >= TUNE.UPLINK_MIN_DIST);
-  if (!c.length) c = TUNE.UPLINK_CANDIDATES;
+// R15: mtype = the job's mission type (newHunt builds G.mission from it). It draws no random numbers.
+export function rollEnemy(seed: number, force?: string, mtype = 'UPLINK') {
+  setSeed(seed); G.seed = seed; G.mtype = mtype;
+  const A = anchors().uplinks; // R15: from the per-map anchors table
+  let c = A.filter(u => canReach(u.x, u.y) && Math.hypot(u.x - spawnX, u.y - spawnY) >= TUNE.UPLINK_MIN_DIST);
+  if (!c.length) c = A;
   const u = c[Math.floor(rand() * c.length)];
   G.up.x = (u.x + 0.5) * T; G.up.y = (u.y + 0.5) * T; G.up.name = u.name;
   const P = TUNE.FIELD_COMPOSITIONS, tot = P.reduce((a, c) => a + (c.weight ?? 1), 0);

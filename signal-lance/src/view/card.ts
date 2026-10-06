@@ -18,7 +18,7 @@ let back = '';
 export function showCard(from = '') {
   back = from;
   $('cardGrid').innerHTML = grid(k => { const V = TUNE.FIELD_VARIANTS[k];
-    return '<div class="cv"><b class="n">' + esc(k) + '</b><br>' + V.TRAITS.map(esc).join('<br>') + '<br><span class="t">' + esc(V.TELL) + '</span><br><span class="f">' + esc(V.FIGHT) + '</span></div>'; });
+    return '<div class="cv"><b class="n">' + esc(k) + '</b> <span class="t">' + (TUNE.BOUNTY[k] || 0) + ' cr</span><br>' + V.TRAITS.map(esc).join('<br>') + '<br><span class="t">' + esc(V.TELL) + '</span><br><span class="f">' + esc(V.FIGHT) + '</span></div>'; });
   $('card').hidden = false; $('card').scrollTop = 0;
 }
 function closeCard() { $('card').hidden = true; if (back === 'idp') showPicker(); }

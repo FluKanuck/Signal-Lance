@@ -19,9 +19,34 @@ export type Scenario = {
   zones?: { type: 'QUIET' | 'NOISE'; x: number; y: number; name?: string }[];
   tune?: Record<string, any>;            // TUNE overrides for this scenario only (top-level keys); restored afterwards
   question?: { q: string; a: string[] }; // one tap question when it ends
+  mission?: string;                      // R15: the mission type (default UPLINK)
+  earned?: number | 'quota';             // R15 Bounty: credits already banked at the start ('quota' = exactly BOUNTY_QUOTA)
 };
 
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 15 step 1 (Bounty). Pack off. ----
+  {
+    name: 'Price list', round: 15, seed: 1501, mission: 'BOUNTY',
+    tryThis: 'Bounty, quota 50 here. North: a heavy patrol (80 cr). South: two scouts (25 each). Either route makes the quota. Listen, pick one, then extract.',
+    uplink: [37, 11], // the field's leash point (no uplink in a Bounty job)
+    lance: [{ tile: [36, 16], load: { mortar: 1 } }, { tile: [35, 16] }],
+    field: [
+      { type: 'PATROL', variant: 'heavy', tile: [38, 7], state: 'PATROL' },
+      { type: 'PATROL', variant: 'scout', tile: [29, 22], state: 'PATROL' },
+      { type: 'PATROL', variant: 'scout', tile: [44, 22], state: 'PATROL' },
+    ],
+    tune: { BOUNTY_QUOTA: 50 },
+    question: { q: 'Did the bounty change who you went after?', a: ['Yes, went for the big one', 'Yes, took the cheap safe ones', 'No, fought what came'] },
+  },
+  {
+    name: 'One more?', round: 15, seed: 1502, mission: 'BOUNTY',
+    tryThis: 'Bounty: you are already at quota, 5 tiles from extraction. Behind the blocks to the west, an emplacement pulses: 60 cr more. Extract now, or push?',
+    uplink: [56, 13],
+    lance: [{ tile: [64, 16], face: [56, 13], load: { mortar: 1 } }, { tile: [65, 16], face: [56, 13] }],
+    field: [{ type: 'EMPLACEMENT', variant: 'search', tile: [56, 13], face: [64, 16] }],
+    earned: 'quota',
+    question: { q: 'Extract or push? Did it feel like a real choice?', a: ['Pushed, worth it', 'Pushed, regretted it', 'Extracted, easy call', 'Extracted, but tempted'] },
+  },
   // ---- Round 14 (read the signature). Pack off. ----
   {
     name: 'Look-alikes', round: 14, seed: 1401,
@@ -105,6 +130,7 @@ export function startScenario(s: Scenario) {
   const U = G.up, up = ctr(s.uplink); U.x = up.x; U.y = up.y; U.name = 'test point';
   G.comp = { NAME: 'Test bed', staticPlacement: 'uplink' }; // no type counts: newHunt builds no field, prep below places it
   setZones(s.zones || []);
+  G.mtype = s.mission || 'UPLINK'; // R15
   const loads = s.lance.map(l => ({ ...DEFAULT_LOAD, ...(l.load || {}) }));
   newHunt(loads, () => {
     G.lance.forEach((m, i) => {
@@ -121,6 +147,7 @@ export function startScenario(s: Scenario) {
       if (u.hasRadar) u.pulseCD = u.pulseN;
       return u;
     });
+    if (s.earned) G.mission.earned = s.earned === 'quota' ? G.mission.quota : s.earned; // R15 Bounty: start part (or all) of the way to the quota
   });
   G.tb = s;
 }

@@ -29,6 +29,25 @@ export const MAP_SRC = [
   "..........####...........................................####...........",
   "........................................................................",
 ];
+// R15: mission anchors, per map (data only: mission code reads them through anchors(), never hard-codes tiles).
+// Block maps (parked #33) will each bring their own entry. Today there is one map.
+export const MAP_ANCHORS = {
+  hive: {
+    uplinks: [            // hand-picked open street tiles {x, y} + the name INTEL uses; none in walled pockets (was TUNE.UPLINK_CANDIDATES)
+      { x: 15, y: 3,  name: 'NW lane' },
+      { x: 43, y: 4,  name: 'north yard' },
+      { x: 27, y: 13, name: 'west plaza' },
+      { x: 45, y: 14, name: 'centre crossing' },
+      { x: 61, y: 19, name: 'SE alley' },
+      { x: 38, y: 22, name: 'south street' },
+    ],
+    cargo: [],            // R15 step 2 (Retrieve): cargo tiles (empty = reuse the uplink candidates)
+    waypoints: [],        // R15 step 3 (Escort): the ally's route points
+    junctions: [],        // R15 step 3 (Escort): waypoints where the route forks
+  },
+};
+export const MAP_ID = 'hive'; // the map MAP_SRC draws
+export function anchors() { return MAP_ANCHORS[MAP_ID]; }
 export const W = 72, H = MAP_SRC.length, N = W * H, T = TUNE.TILE;
 export const solid = new Uint8Array(N);
 export let spawnX = 1, spawnY = 12;

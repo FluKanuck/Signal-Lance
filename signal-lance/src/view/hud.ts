@@ -9,6 +9,7 @@ import { V } from './state.ts';
 import { zoneOf, effEmit } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
 import { revealed } from '../sim/ids.ts';
+import { isType, quotaMet } from '../sim/mission.ts';
 
 // ============================ HUD =====================================
 export const $ = (id): any => document.getElementById(id);
@@ -48,14 +49,24 @@ export function updateHud(dt) {
     (G.load.ecm ? '  ECM ' + (p.mask ? 'ON' : 'off') + (G.ghost.on ? '  GHOST ' + G.ghost.turns + 't' : '') : '') +
     oddsLine(p) + shotLine('P') + shotLine('E') +
     (G.splash ? '<br><b style="color:' + (G.splash.hit ? '#f63' : '#aaa') + '">SPLASH: ' + (G.splash.hit ? 'hit' : 'miss') + '</b>' : '') +
-    '<br>UPLINK <span style="color:#fc3">' + '◆'.repeat(G.up.prog) + '◇'.repeat(Math.max(0, TUNE.UPLINK_TURNS - G.up.prog)) + '</span> ' + G.up.name +
-      (uplinkBlock() !== 'RANGE' ? '  <b>IN RANGE</b>' : '  ' + Math.round(upDist(p)) + 't away') +
+    goalLine(p) +
 
     (V.dbg ? '<br>DBG ' + (G.ct ? 'ct ' + G.ct.seed + ' H' + G.ct.hunt + ' · hunt ' : '') + 'seed ' + G.seed + ' · ' + G.comp.NAME + '  ' + G.units.map(u => u.type.slice(0, 4) + '/' + u.variant + (u.dead ? ' X' : ' ' + u.state + (u.pack ? '/' + u.pack + (u.packTgt ? '→' + u.packTgt : '') : '') + ' E' + Math.round(u.emit) + ' snd' + Math.round(soundRadius(u)) + ' heard[' + u.ec.filter(c => c.on && (c.snd || c.shr)).map(c => c.id + (c.snd ? 's' : 'a')).join(',') + ']')).join(' | ') + // R13: EMIT, sound, sound(s)/alarm(a) contacts
       '<br>DBG pack ' + (TUNE.PACK_ENABLED ? 'ON' : 'off') + ' · alarms ' + G.alarmLog.length + (G.alarmLog.length ? ' (last R' + G.alarmLog[G.alarmLog.length - 1].turn + ' ' + G.alarmLog[G.alarmLog.length - 1].from + '→' + G.alarmLog[G.alarmLog.length - 1].to.join(',') + ' on ' + G.alarmLog[G.alarmLog.length - 1].mech + ')' : '') + ' · lance snd ' + G.lance.map(m => m.id + Math.round(soundRadius(m))).join(' ') +
       '<br>DBG zones ' + G.zones.map(z => z.type[0] + ':' + z.name).join(', ') + '  me eff S' + Math.round(effEmit(p)) +
       dbgShot('P') + dbgShot('E') +
       '<br>DBG sig ' + G.units.map(u => u.dead ? '-' : u.type[0] + sig(u).toFixed(1) + ' ' + detStrength(p, u).toFixed(2) + '/' + detStrength(u, p).toFixed(2)).join('  ') + '  (sig me→it/it→me)' : '');
+}
+// R15: the mission line. Uplink: progress pips and range. Bounty: earned / quota, the last kill's pop, and the call at quota.
+function goalLine(p) {
+  if (isType('BOUNTY')) {
+    const M = G.mission, met = quotaMet();
+    return '<br>BOUNTY <b style="color:' + (met ? '#6f6' : '#fc3') + '">' + M.earned + ' / ' + M.quota + ' cr</b>' +
+      (met ? '  <b style="color:#6f6">QUOTA MET: extract (right edge) or push for more</b>' : '  extract any time (keeps what you earned)') +
+      (G.pop ? '  <b style="color:#fc3">+' + G.pop.b + ' ' + G.pop.v + '</b>' : '');
+  }
+  return '<br>UPLINK <span style="color:#fc3">' + '◆'.repeat(G.up.prog) + '◇'.repeat(Math.max(0, TUNE.UPLINK_TURNS - G.up.prog)) + '</span> ' + G.up.name +
+    (uplinkBlock() !== 'RANGE' ? '  <b>IN RANGE</b>' : '  ' + Math.round(upDist(p)) + 't away');
 }
 // R12: the odds breakdown for the shot FIRE would take now (shown whenever FIRE is allowed)
 function oddsLine(p) {
@@ -117,6 +128,7 @@ export function syncButtons() {
   const sc = G.sel && G.sel.on ? G.sel : null, idv = sc && G.ids[sc.id] ? G.ids[sc.id].v : '';
   setBtn('bId', 'ID', !sc ? 'TAP ONE' : revealed(sc.id) ? 'SEEN' : idv ? idv + '?' : 'UNKNOWN', G.mode === 'hunt' && !!sc && !revealed(sc.id));
   // Round 5: uplink
+  $('bUp').hidden = !isType('UPLINK'); // R15: only an uplink job has one
   w = G.mode === 'hunt' ? uplinkBlock() : 'RANGE';
   setBtn('bUp', 'UPLINK', w || TUNE.AP_UPLINK + 'AP +' + TUNE.SIG_UPLINK + 'EMIT', free && !w);
   hudT = 0;

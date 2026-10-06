@@ -8,9 +8,10 @@ import { soundText } from '../sim/sound.ts';
 import { idText } from '../sim/ids.ts';
 import { setPack } from '../sim/pack.ts';
 import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
+import { MISSION_INFO, missionText, isType } from '../sim/mission.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r14-s2';  // R14 debrief 1: ID_SHOW_FITS ("N fit" + greyed picker)
+export const BUILD = 'r15-s1';  // R15 step 1: mission types, BOUNTY
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
@@ -75,7 +76,11 @@ export function intelText() {
   }
   const t = C.TURRET || 0;
   const tur = t ? 'reports of ' + (t > 1 ? t + ' hidden ' + TUNE.FIELD_TYPES.TURRET.PLURAL : 'a hidden ' + TUNE.FIELD_TYPES.TURRET.NAME) : '';
-  return 'INTEL: ' + C.NAME + '. ' + cap([...parts, tur].filter(Boolean).join(', ')) + '. Uplink at ' + G.up.name + '.' + zoneIntel(); // R8: names the composition
+  // R15: the mission type and its goal come first, so you know the job before you take it
+  const M = MISSION_INFO[G.mtype], bounty = G.mtype === 'BOUNTY';
+  const job = M.name + ': ' + M.goal + (bounty ? ' Quota ' + TUNE.BOUNTY_QUOTA + ' cr. Bigger field: ' + TUNE.BOUNTY_FIELD_EXTRA + ' more units on top of the INTEL.' : '');
+  const site = bounty ? (C.staticPlacement === 'uplink' && (C.TURRET || C.EMPLACEMENT) ? ' Dug in around ' + G.up.name + '.' : '') : ' Uplink at ' + G.up.name + '.';
+  return job + '\nINTEL: ' + C.NAME + '. ' + cap([...parts, tur].filter(Boolean).join(', ')) + '.' + site + zoneIntel(); // R8: names the composition
 }
 // R10: " Quiet ground: rail cut (NW). Noise: sump (S), SE apron."
 function zoneIntel() {
@@ -91,7 +96,7 @@ export function zoneText() {
 }
 export function enemySummary() { return 'field ' + G.units.map(u => u.type[0] + (u.dead ? 'x' : '')).join(''); }
 function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
-export function killText() { return 'kills ' + G.kills + '/' + G.units.length + zoneText() + mortarText() + shotsText() + soundText() + idText(); } // R14: IDs n (right, wrong, before eyes) // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
+export function killText() { return 'kills ' + G.kills + '/' + G.units.length + (missionText() ? ' · ' + missionText() : '') + zoneText() + mortarText() + shotsText() + soundText() + idText(); } // R14: IDs n (right, wrong, before eyes) // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
 // R9: "· mortar 3/5 hits, 2 kills (A)" — shells that hit the field / shells fired, kills, who carried it
 export function mortarText() {
   const ms = G.lance.filter(m => m.load.mortar);
@@ -144,9 +149,11 @@ export function showLoadout() {
 // Result screen (hooks.end: the sim has already set G.mode = 'result' and G.outcome).
 export function showResult() {
   const outcome = G.outcome.split(' ')[0];
-  const why = { WIN: G.winBy === 'UPLINK' ? 'Uplink complete at ' + G.up.name + '.' : 'Field cleared.', LOSS: 'You were destroyed.', BAIL: 'You extracted without the job done.' }[outcome];
+  const M = G.mission, bounty = isType('BOUNTY'); // R15
+  const why = bounty ? { WIN: 'Bounty quota met: ' + M.earned + ' / ' + M.quota + ' cr.', LOSS: 'You were destroyed.', BAIL: 'Extracted under quota. Kept ' + M.earned + ' cr, no win.' }[outcome]
+    : { WIN: G.winBy === 'UPLINK' ? 'Uplink complete at ' + G.up.name + '.' : 'Field cleared.', LOSS: 'You were destroyed.', BAIL: 'You extracted without the job done.' }[outcome];
   $('resTxt').textContent = ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + killText() + ' — ' + fmtTime(G.time) + ' (' + G.turn + ' turns)';
-  $('resWhy').innerHTML = why + '<br>Uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' at ' + G.up.name + '<br>' + dmgSummary() + '<br>Field: ' + fieldSummary() + '<br>Loadout: ' + loadSummary() + (G.ct ? '<br><b>Lance: ' + lanceText() + '</b> · contract wins ' + G.ct.wins + '/' + G.ct.need + (G.ct.status !== 'ACTIVE' ? ' · CONTRACT ' + G.ct.status : '') : '');
+  $('resWhy').innerHTML = why + '<br>' + (bounty ? missionText() : 'Uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' at ' + G.up.name) + '<br>' + dmgSummary() + '<br>Field: ' + fieldSummary() + '<br>Loadout: ' + loadSummary() + (G.ct ? '<br><b>Lance: ' + lanceText() + '</b> · contract wins ' + G.ct.wins + '/' + G.ct.need + (G.ct.status !== 'ACTIVE' ? ' · CONTRACT ' + G.ct.status : '') : '');
   $('note').value = ''; resetAnswers();
   $('res').hidden = false; $('res').scrollTop = 0;
 }
@@ -165,7 +172,7 @@ export function saveAndNext() {
   const stamp = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
   const note = $('note').value.replace(/[\r\n|]+/g, ' ').replace(/\s+/g, ' ').trim();
   const ans = answersText();
-  LOG.push(stamp + ' | ' + testerTag() + loadSummary() + ' | vs ' + enemySummary() + ' | ' + ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + killText() + (G.ct ? ' · ' + lanceText() + huntCr() : '') + ' uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' @' + G.up.name + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + dmgSummary() + ' | ' + (ans ? ans + ' | ' : '') + note);
+  LOG.push(stamp + ' | ' + testerTag() + loadSummary() + ' | vs ' + enemySummary() + ' | ' + ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + killText() + (G.ct ? ' · ' + lanceText() + huntCr() : '') + (isType('UPLINK') ? ' uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' @' + G.up.name : '') + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + dmgSummary() + ' | ' + (ans ? ans + ' | ' : '') + note);
   if (G.ct && G.ct.status !== 'ACTIVE') LOG.push(stamp + ' | ' + testerTag() + contractLine());
   store.set('signalLance.log', LOG);
   $('note').blur();
@@ -180,7 +187,7 @@ function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + G.ct.hunts
 // "C3 COMPLETE 2/3 · lost B in H2"
 function contractLine() {
   const C = G.ct, lost = C.results.flatMap(r => r.lost.map(id => id + ' in H' + r.n));
-  return 'C' + ctN + ' ' + C.status + ' ' + C.wins + '/' + C.results.length + (lost.length ? ' · lost ' + lost.join(', ') : ' · no mechs lost') + ' · ' + C.results.map(r => r.comp).join(' > ') + ' · cr earned ' + C.earned + ' spent ' + C.spent;
+  return 'C' + ctN + ' ' + C.status + ' ' + C.wins + '/' + C.results.length + (lost.length ? ' · lost ' + lost.join(', ') : ' · no mechs lost') + ' · ' + C.results.map(r => r.mission + ' ' + r.comp).join(' > ') + ' · cr earned ' + C.earned + ' spent ' + C.spent;
 }
 function startContract() {
   ctN++; store.set('signalLance.ctN', ctN);
@@ -215,7 +222,8 @@ export function showJobs() {
   const C = G.ct;
   $('load').hidden = $('res').hidden = $('cres').hidden = true;
   renderLance();
-  for (let i = 0; i < 2; i++) { previewJob(i); $('j' + i).textContent = intelText(); }
+  const esc = (t: string) => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+  for (let i = 0; i < 2; i++) { previewJob(i); const [job, intel] = intelText().split('\n'); $('j' + i).innerHTML = '<b style="color:#fc3">' + esc(job) + '</b><br>' + esc(intel); } // R15: the job type on top
   $('jobs').hidden = false; $('jobs').scrollTop = 0;
 }
 function pickJob(i) {
@@ -228,7 +236,7 @@ function showContractResult() {
   $('res').hidden = $('jobs').hidden = true;
   $('cTitle').textContent = 'CONTRACT ' + C.status;
   $('cSub').textContent = 'C' + ctN + ' · won ' + C.wins + ' of ' + C.results.length + ' hunts (need ' + C.need + ')' + (C.results.length < C.hunts ? ' · lance destroyed in hunt ' + C.results.length : '') + ' · credits earned ' + C.earned + ', spent ' + C.spent;
-  $('cHunts').innerHTML = C.results.map(r => '<div class="hunt"><b>Hunt ' + r.n + ' · job ' + r.job + '</b>' + r.comp + ' @ ' + r.up + '<br><b>' + r.outcome + '</b> · kills ' + r.kills + '/' + r.total +
+  $('cHunts').innerHTML = C.results.map(r => '<div class="hunt"><b>Hunt ' + r.n + ' · job ' + r.job + ' · ' + r.mission + '</b>' + r.comp + ' @ ' + r.up + '<br><b>' + r.outcome + '</b> · kills ' + r.kills + '/' + r.total +
     '<br>Mechs lost: ' + (r.lost.length ? r.lost.join(', ') : 'none') + '<br>Carried out: ' + r.out.join(', ') + '<br>Paid ' + r.pay + ' cr' + (r.buys.length ? '<br>Bought before: ' + buysText(r.buys) : '') + '</div>').join('');
   $('cres').hidden = false; $('cres').scrollTop = 0;
 }

@@ -8,6 +8,7 @@ import { effEmit, zoneType } from './zones.ts';
 import { hitChance, rollPart, damagePart, partGone, partHurt } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
+import { onKill, onExtract, onClear, isType } from './mission.ts';
 
 // ============================ UPDATE ==================================
 export function moveAlong(m, speed, dt) {
@@ -69,6 +70,7 @@ export function updateShells(dt) {
   for (const f of G.fx) if (f.on && (f.t -= dt) <= 0) f.on = false;
   for (const u of G.units) if (u.hits <= 0 && !u.dead) { // destroyed: wreck marker replaces its contact
     u.dead = true; u.radarOn = false; u.path = null; u.moving = false; G.kills++;
+    onKill(u); // R15: a Bounty kill pays its true variant's bounty, however it died
     killContact(G.pc, u.id); if (G.sel && !G.sel.on) G.sel = null;
   }
   for (const m of G.lance) if (m.hits <= 0 && !m.dead) { // R7 s2: a destroyed mech is out (skipped in the order)
@@ -81,6 +83,7 @@ export function updateShells(dt) {
 export function step(dt) {
   if (G.mode !== 'hunt') return;
   if (G.splash && (G.splash.t -= dt) <= 0) G.splash = null; // R9: the splash marker fades in real time
+  if (G.pop && (G.pop.t -= dt) <= 0) G.pop = null; // R15: so does the bounty pop
   if (G.act) stepAction(dt);
   else if (G.phase === 'ENEMY' && (G.ewait -= dt) <= 0) enemyStep();
 }
@@ -172,8 +175,8 @@ export function stepAction(dt) {
   updateSensors(dt);
   updateShells(dt);
   if (!livingMechs().length) { G.act = null; finishHunt('LOSS'); return; } // R7 s2: both mechs destroyed
-  if (G.kills >= G.units.length) { G.act = null; G.winBy = 'CLEAR'; finishHunt('WIN'); return; } // R7: whole field destroyed
-  if (!p.dead && Math.floor(p.x / T) >= W - TUNE.EXTRACT_COLS) { G.act = null; finishHunt('BAIL'); return; } // a mech reaching extraction pulls the lance out
+  if (G.kills >= G.units.length) { G.act = null; onClear(); return; } // R7: whole field destroyed (R15: the mission decides what that means)
+  if (!p.dead && Math.floor(p.x / T) >= W - TUNE.EXTRACT_COLS) { G.act = null; onExtract(); return; } // a mech reaching extraction pulls the lance out (R15: Bounty at quota = WIN)
   const done = a.k === 'MOVE' ? !a.m.path || a.age > 30 : a.t <= 0 && !shellsFlying();
   if (!done) return;
   a.m.moving = false; a.m.path = null; if (a.k === 'PULSE') a.m.radarOn = false;
@@ -332,6 +335,7 @@ export function playerTarget() { return G.sel && G.sel.on ? G.sel : bestContact(
 export function upDist(m) { return Math.hypot(G.up.x - m.x, G.up.y - m.y) / T; } // tiles from the point's centre
 // '' = can uplink; otherwise the one-word reason shown on the button
 export function uplinkBlock() {
+  if (!isType('UPLINK')) return 'NONE'; // R15: only an uplink job has one
   if (upDist(G.p) > TUNE.UPLINK_RADIUS + 0.5) return 'RANGE';
   if (G.up.used) return 'DONE';
   if (G.p.ap < TUNE.AP_UPLINK) return 'AP';

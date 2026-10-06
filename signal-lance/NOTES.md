@@ -15,6 +15,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
   `brief.ts` (tester splash, basics, end-of-hunt questions: update TEST + QUESTIONS every round).
 - R14: `src/sim/scenarios.ts` (the test bed), `src/sim/ids.ts` (observed traits, matcher, IDs), `src/view/testbed.ts`,
   `src/view/card.ts` (CARD and ID picker).
+- R15: `src/sim/mission.ts` (mission types: the hunt's goal, Bounty pay, extract / clear rules). Map anchors: `MAP_ANCHORS` in `world.ts`.
 - R13: `src/sim/sound.ts` (Sound), `src/sim/pack.ts` (alarm, pack target), `src/sim/autoplay.ts` (the scripted
   player, shared by the runner and the tests). `test/` holds the Vitest tests (`npm test`).
 - `src/main.ts`: wiring and the frame loop.
@@ -548,6 +549,39 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - R14 scenarios: Look-alikes (scout at 8 tiles, not ~12: a patrol radio isn't heard 12 tiles through walls; gun at
      11.7), Quiet gun (gun turret watching row 22 to the uplink: its tell needs bearings, so creep first), Twin pulse
      (search + relay at ~12, A carries a mortar). Pack off in all three.
+   R15 (Pick your fights) ASSUMPTIONS, step 1 (BOUNTY)
+   - Mission state lives in src/sim/mission.ts: one G.mission per hunt { type, earned, quota, kills, result, endTurn }.
+     The uplink keeps its own code paths (G.up, doUplink); the mission only decides what a kill pays, what extracting and
+     clearing the field mean, and what the hunt pays the contract. G.mtype is set by rollEnemy (3rd arg, draws no random
+     numbers); newHunt builds G.mission from it. A non-contract hunt (launch, runner games) is UPLINK unless forced.
+   - Job type: rolled in rollJobs from the contract RNG, one crand() per job after its seed, evenly from MISSION_TYPES.
+     This shifts every later contract roll vs R14 (same seeds, different contracts).
+   - "INTEL shows the type before the refit and loadout": loadouts lock for the whole contract (R11), so the type shows on
+     the job card, above the INTEL and next to the refit. The loadout can't react to it yet.
+   - Map anchors: MAP_ANCHORS in sim/world.ts (one entry, 'hive' = MAP_SRC). TUNE.UPLINK_CANDIDATES moved there as
+     `uplinks`; cargo / waypoints / junctions are empty until steps 2 and 3.
+   - Bounty field: the composition as rolled, plus BOUNTY_FIELD_EXTRA units. Each extra rolls a variant from all 9 (seeded,
+     evenly) and is placed 'anywhere' (mobile: any legal tile; static: the R10 zone-preferring 'anywhere' picker), facing the
+     site. Statics in the composition still guard the rolled uplink point ("the site"), and patrols still leash to it.
+     The uplink ring, arrow and UPLINK button are hidden; uplinkBlock() = 'NONE'. INTEL for a Bounty job says
+     "Dug in around <site>" when the composition has statics at the site.
+   - A kill pays TUNE.BOUNTY[true variant] the moment the unit is destroyed (turns.ts updateShells), however it died (gun,
+     aimed or blind lob, own splash). IDs don't matter. Shown as a "+80 cr heavy" pop over the wreck (2.5 s) and in the HUD.
+   - Extract (a lance mech reaches the extraction columns, as before): earned >= quota → WIN BOUNTY; else BAIL (not a win,
+     not a loss). Pay = bounties earned either way, replacing PAY_WIN + PAY_KILL. LOSS (both mechs destroyed) stays a LOSS
+     and pays its bounties too (the contract fails anyway).
+   - Field cleared in a Bounty job: same quota rule as extracting (WIN BOUNTY at quota, else BAIL). Simplest: there is
+     nothing left to earn, so the hunt ends.
+   - Scenario data gains `mission` and `earned` (a number, or 'quota' = exactly BOUNTY_QUOTA). Price list overrides
+     BOUNTY_QUOTA to 50 so both routes (heavy 80, or 2 scouts 25+25) reach it. The scenario's `uplink` tile is the
+     field's leash point; Bounty draws no ring.
+   - Scripted player (runner/tests), Bounty: walks to the site like the uplink bot, fighting what it meets; from there,
+     chases its best contact for 10 rounds; extracts at quota, when a mech is lost, or when nothing is left. Never pushes.
+   - Runner: --mission <TYPE> forces every hunt's type; contracts print MISSION lines (win rate, average pay, rounds per
+     type), BOUNTY quota-met and per-variant kill rates, and the brief's two flags (quota met <20% / >90%; a variant killed
+     in >90% / <5% of the Bounty hunts it appears in, min 5 appearances). The R13 sound-share flag now counts UPLINK hunts
+     only (it was calibrated on them); Bounty hunts get an info line.
+   - BUILD r15-s1. A new build clears the run log, as before.
 ```
 
 ## TWEAK LOG
@@ -843,4 +877,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            going to have to fight it … the information just doesn't give us anything other than position for a ranged
            lob." Confirmed: "Yes… AND.. but I just can't quite figure out what the and is." | no change: structural
            (objective forces the fight), not a TUNE knob. Round wrapped | -
+   round15 step 1 | R14: "irregardless of the enemy type, if around an uplink, I'm going to have to fight it"; the "and"
+           = "pick my fights and choose how to fight it" | NEW mission types (MISSION_TYPES ['UPLINK','BOUNTY']), BOUNTY
+           per variant (scout 25, line 35, heavy 80, sentry 35, hush 45, gun 90, search 60, fire 50, relay 55),
+           BOUNTY_FIELD_EXTRA 2, BOUNTY_QUOTA brief 150 → 120 at build (runner: the scripted lance met 150 in only 13–25%
+           of Bounty hunts; 120 → ~30–40%). Scenarios Price list, One more?. Runner (20 contracts): Bounty win 18%,
+           Uplink 64%; flags: sound share 58% (uplink hunts; 50% uplink-only, inherited R13 knife-edge), gun killed 0/12.
+           BUILD r15-s1 | -
 ```
