@@ -57,7 +57,7 @@ let extracted = false; // R16: the last playerTurn extracted its mech (the turn 
 export function playerTurn() {
   let moved = false; extracted = false;
   idTick(); // R14: commit an ID once a contact's traits narrow it to one variant
-  if (AUTO.loud && sensorsUp(G.p) && radarOf(G.p) && canPay(G.p, radarOf(G.p).ap, radarOf(G.p).en)) { cmdRadar(); runAct(); } // R13 --loud: pulse every activation it can
+  if (AUTO.loud && radarOf(G.p) && canPay(G.p, radarOf(G.p).ap, radarOf(G.p).en)) { cmdRadar(); runAct(); } // R13 --loud: pulse every activation it can
   for (let k = 0; k < 12 && G.mode === 'hunt'; k++) {
     const c = playerTarget();
     if (c && G.sel !== c) cmdSelect(c); // select + turn to face it (free once a turn)

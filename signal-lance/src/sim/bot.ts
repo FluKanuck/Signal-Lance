@@ -143,7 +143,7 @@ function countPack(e) { if (e.packCounted) return; e.packCounted = true; (e.pack
 function staticDecide(e, c, b) {
   e.goalX = e.goalY = -1; e.goalK = '';
   const R = radarOf(e);
-  if (R && has(e, 'RADAR') && !partGone(e, 'SENSORS') && !e.pulsed && e.pulseCD <= 0 && canPay(e, R.ap, R.en)) {
+  if (R && !e.pulsed && e.pulseCD <= 0 && canPay(e, R.ap, R.en)) {
     e.pulsed = true; e.pulseCD = e.pulseN; e.state = 'PULSE'; e.acted = true;
     let x, y;
     if (c) { x = cx(c); y = cy(c); }

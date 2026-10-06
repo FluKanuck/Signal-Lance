@@ -8,7 +8,7 @@ import { recordHunt } from './contract.ts';
 import { initParts } from './combat.ts';
 import { newMission } from './mission.ts';
 import { makeAlly, nearLegTiles } from './escort.ts';
-import { DEFAULT_FIT, toFit, fieldFit, fitHits, fitPool, fitRounds, fitShells, has, kitOf, plateCount, soundsOf } from './kit.ts';
+import { DEFAULT_FIT, toFit, fitStats, fieldFit, fitHits, fitPool, fitRounds, fitShells, has, kitOf, plateCount, soundsOf } from './kit.ts';
 
 // Hooks the view sets so the sim can tell it things. Headless (runner) they stay no-ops.
 export const hooks = {
@@ -76,6 +76,7 @@ export function makeUnit(type: string, i: number, variant?: string) {
   };
   initParts(u, type, F.BASE_HITS + fitHits(fit)); // R12: hit pool split across parts. R18: frame + plates from the fit
   u.enMax = u.en = fitPool(fit); // R18: base + batteries
+  // R18: the field keeps the R17 standing signature (SIG_STILL + plates × SIG_ARMOUR) and flat ENERGY_REGEN until its fits are designed
   u.variant = vk; u.comms = V.COMMS; u.pulseN = V.PULSE || TUNE.EMPL_PULSE_TURNS; // R14: its variant's EMIT floor and pulse rhythm
   u.snd = soundsOf(u, V.SOUND);    // R14: its own move / shot sound radii. R18: the shot's from its gun row
   u.emit = u.comms; // R13 test 2: comms (passive can hear it from the start)
@@ -97,9 +98,10 @@ function makeMech(id: string, fit) {
     sound: 0, heardBy: [], sndOff: { x: 0, y: 0 } }; // R13: this activation's sound radius (see sound.ts)
   m.items = kitOf(m.fit); m.armour = plateCount(m.fit); initParts(m, 'MECH', fitHits(m.fit)); // R12: parts. R18: frame hits + plates
   m.ammo = fitRounds(m.fit); m.snd = soundsOf(m);
+  const S = fitStats(m.fit); m.regen = S.regen; m.over = S.over; m.emBase = S.emBase; // R18: power, weight, signature from the fit
   // R9 mortar: shells left, shots this activation, and stats (shots, hits on the field, kills, friendly hits)
   m.shells = fitShells(m.fit); m.mUsed = 0; m.mShots = 0; m.mHits = 0; m.mKills = 0; m.mFriendly = 0; m.mBlind = 0;
-  m.enMax = m.en = fitPool(m.fit);
+  m.enMax = m.en = S.pool;
   return m;
 }
 export function livingUnits() { return G.units.filter(u => !u.dead); }

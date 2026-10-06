@@ -7,7 +7,7 @@ import { buildDistrict, type DistrictSpec } from './blocks.ts';
 import { rollPacked } from './packed.ts';
 import { setSeed } from './rng.ts';
 import { G, newHunt, makeUnit, setActive } from './state.ts';
-import { LOAD_DEFAULTS, fitFromLoad, has } from './kit.ts';
+import { LOAD_DEFAULTS, fitFromLoad, has, makeFit, HANGAR_TEMPLATES } from './kit.ts';
 import { setZones, zoneAtTile } from './zones.ts';
 import { syncHits } from './combat.ts';
 import { makeAlly } from './escort.ts';
@@ -18,7 +18,7 @@ export type Scenario = {
   tryThis: string;                       // one plain line: what Jamie should do
   seed: number;                          // RETRY replays it exactly
   uplink: Tile;
-  lance: { load?: any; tile: Tile; face?: Tile; legsLost?: number; en?: number; lost?: boolean }[]; // [A, B]; face = a tile to face (default: the uplink); R16: lost = out before it starts (one suit)
+  lance: { load?: any; fit?: any; tile: Tile; face?: Tile; legsLost?: number; en?: number; lost?: boolean }[]; // [A, B]; face = a tile to face (default: the uplink); R16: lost = out before it starts (one suit)
   field: { type: string; variant?: string; tile: Tile; face?: Tile; state?: string }[];
   zones?: { type: 'QUIET' | 'NOISE'; x: number; y: number; name?: string }[];
   tune?: Record<string, any>;            // TUNE overrides for this scenario only (top-level keys); restored afterwards
@@ -37,7 +37,26 @@ const district = (cols: number, rows: number, cells: string[], mods: [number, nu
 // R17: all three on one packed 4×2 district (seed 1701). Its long east-west street is row 13; alleys leave it north at
 // column 24 and south at columns 18 and 36.
 const D1701 = { seed: 1701, grid: '4x2' };
+// R18: a Bulwark with a plate on every location: load 20 / rated 18, so every move is OVERLOAD_SND_PER_PT × 2 louder
+export const HEAVY_FIT = () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery'], ['BACK', 'mortar']], ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS']);
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 18 (fit for the job). Pack off. Same packed district as R17. ----
+  {
+    name: 'Heavy load', round: 18, seed: 1801, mission: 'UPLINK', packed: D1701,
+    tryThis: 'A is a Bulwark plated on every location: 2 over its rated load, so every move is 2 tiles louder. A turret sits up the north alley, facing away: it can only hear you. Cross the alley mouth to the uplink. Try NORM, then RETRY and CREEP.',
+    uplink: [41, 13],
+    lance: [{ tile: [14, 13], face: [41, 13], fit: 'HEAVY' }, { tile: [12, 12], face: [41, 13], lost: true }],
+    field: [{ type: 'TURRET', variant: 'sentry', tile: [24, 8], face: [24, 0] }],
+    question: { q: 'Did the extra weight change how you moved?', a: ['Yes, I crept past', 'Yes, I went another way', 'No, I walked it', 'Didn’t notice the weight'] },
+  },
+  {
+    name: 'Back door', round: 18, seed: 1802, mission: 'UPLINK', packed: D1701,
+    tryThis: 'A carries the mortar on its BACK. A patrol is coming up the street behind you. A shot from behind your front arc hits the BACK instead of the arms, and a BACK hit can knock the mortar out. Turn to face it, or keep walking.',
+    uplink: [41, 13],
+    lance: [{ tile: [31, 13], face: [41, 13], fit: 'brawler' }, { tile: [33, 13], face: [41, 13] }],
+    field: [{ type: 'PATROL', variant: 'line', tile: [22, 13], face: [31, 13], state: 'PATROL' }],
+    question: { q: 'Did you turn to protect your BACK?', a: ['Yes, turned to face it', 'No, kept going', 'Didn’t know it was behind me', 'It hit my BACK first'] },
+  },
   // ---- Round 17 (eyes on the street). Pack off. ----
   {
     name: 'Side street', round: 17, seed: 1701, mission: 'UPLINK', packed: D1701,
@@ -253,7 +272,7 @@ export function startScenario(s: Scenario) {
   G.comp = { NAME: 'Test bed', staticPlacement: 'uplink' }; // no type counts: newHunt builds no field, prep below places it
   setZones(s.zones || []);
   G.mtype = s.mission || 'UPLINK'; // R15
-  const loads = s.lance.map(l => fitFromLoad({ ...LOAD_DEFAULTS, ...(l.load || {}) })); // R18: the old load numbers, as a fit
+  const loads = s.lance.map(l => l.fit === 'HEAVY' ? HEAVY_FIT() : typeof l.fit === 'string' ? HANGAR_TEMPLATES.find(t => t.id === l.fit).fit() : l.fit || fitFromLoad({ ...LOAD_DEFAULTS, ...(l.load || {}) })); // R18: a template id, HEAVY, a fit, or the old load numbers
   newHunt(loads, () => {
     G.lance.forEach((m, i) => {
       const L = s.lance[i], p = ctr(L.tile); m.x = p.x; m.y = p.y; face(m, L.face, up);

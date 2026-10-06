@@ -3,8 +3,24 @@
 import { CHASSIS, CHS, FRAMES, ITEMS, LOCS, PLATES, SKINS, byId } from './items.ts';
 import type { Ch, Chassis, Frame, HP, Item, Loc } from './items.ts';
 
-export const POOL_BASE = 100; // TUNE.ENERGY_BASE
+import { TUNE } from '../tune.ts';
+export const POOL_BASE = TUNE.ENERGY_BASE; // R18: the hunt's base pool
 /** The second hardpoint of a 2-hardpoint module holds `^<index of its first hardpoint>`. */
+/** R18: a build code is the build as base64 JSON (the toy's copy / paste codes; the hangar and the runner use them too). */
+export const toCode = (x: Build) => btoa(encodeURIComponent(JSON.stringify(x)));
+export function fromCode(code: string): Build | null {
+  let got: Build;
+  try { got = JSON.parse(decodeURIComponent(atob(code.trim()))) as Build; } catch { return null; }
+  if (!got || !byId(FRAMES, got.frame) || byId(FRAMES, got.frame).field) return null;
+  const fresh = emptyBuild(got.frame, got.chassis);
+  // Keep only what still matches the frame's hardpoints (rows may have changed since the code was made).
+  for (const l of LOCS) {
+    if (got.mounts?.[l]?.length === fresh.mounts[l].length) fresh.mounts[l] = got.mounts[l].map(id => id && (isCont(id) || byId(ITEMS, id)) ? id : null);
+    fresh.plate[l] = byId(PLATES, got.plate?.[l]) ? got.plate[l] : null; fresh.skin[l] = byId(SKINS, got.skin?.[l]) ? got.skin[l] : null;
+  }
+  fresh.stealthOn = !!got.stealthOn;
+  return fresh;
+}
 export const isCont = (id: string | null): id is string => !!id && id.startsWith('^');
 
 export interface Build {
@@ -72,10 +88,10 @@ export function unmount(b: Build, loc: Loc, idx: number): Build {
  */
 export function overloadPenalty(load: number, rated: number, max: number): { moveAP: number; servoSnd: number } {
   // PLACEHOLDER shape (Jamie to tune): Sound first, AP later. A little heavy = louder; very heavy = slower too.
-  // Each point over rated: +1 servo Sound per move. Past halfway to max: +1 AP per move.
+  // Each point over rated: +OVERLOAD_SND_PER_PT servo Sound per move. Past OVERLOAD_AP_FRAC of the way to max: +1 AP per move.
   const over = load - rated;
   if (over <= 0) return { moveAP: 0, servoSnd: 0 };
-  return { moveAP: over * 2 > max - rated ? 1 : 0, servoSnd: over };
+  return { moveAP: over > (max - rated) * TUNE.OVERLOAD_AP_FRAC ? 1 : 0, servoSnd: over * TUNE.OVERLOAD_SND_PER_PT };
 }
 
 // ── Totals ───────────────────────────────────────────────────────────────────────────────────

@@ -1,5 +1,5 @@
 import { TUNE } from '../tune.ts';
-import { has, radarOf, mortarOf } from '../sim/kit.ts';
+import { has, fitted, offWhy, radarOf, mortarOf } from '../sim/kit.ts';
 import { fireRange } from '../sim/turns.ts';
 import { G } from '../sim/state.ts';
 import { heardRange, sig, detStrength } from '../sim/sensors.ts';
@@ -49,7 +49,7 @@ export function updateHud(dt) {
     (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">MOVE STOPPED: CONTACT (' + G.intr.ap + 'AP kept)</b>' : '');
   const pips = '<span id="ap">' + '●'.repeat(p.ap) + '○'.repeat(Math.max(0, TUNE.AP_BANK_MAX - p.ap)) + '</span>';
   $('hud').innerHTML = turn + '<br>AP ' + pips + '  (+' + TUNE.AP_PER_TURN + '/turn)' +
-    '<br>EN <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.en / p.enMax) + '%"></div></span> ' + Math.round(p.en) + '/' + p.enMax + '  (+' + TUNE.ENERGY_REGEN + '/turn)' +
+    '<br>EN <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.en / p.enMax) + '%"></div></span> ' + Math.round(p.en) + '/' + p.enMax + '  (+' + (p.regen ?? TUNE.ENERGY_REGEN) + '/turn)' +
     '<br>EMIT <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.emit / TUNE.SIGNAL_MAX) + '%;background:#f93"></div></span> ' + Math.round(p.emit) + '  (−' + TUNE.SIGNAL_DECAY + '/turn)' +
       '  <b style="color:' + (p.sound ? '#e8f4ff' : '#778') + '">SOUND ' + (p.sound ? Math.round(soundRadius(p) * 10) / 10 : '–') + '</b>' + // R13: this activation's sound radius
 
@@ -123,27 +123,27 @@ export function syncButtons() {
   else setBtn('bMove', 'MOVE', !pl ? (TUNE.DRAW_PATH_ENABLED ? 'TAP OR DRAW' : 'TAP MAP') : pl.path ? pl.ap + 'AP ' + pl.en + 'EN' : pl.why, free && pl && pl.path); // R17: or draw from your ExoS
   // radar pulse
   const R = radarOf(p); // R18: the radar row's costs
-  $('bRadar').hidden = !R;
-  const sns = sensorsUp(p) ? '' : 'SNS'; // R13 test 2: sensors gone = no radar, ECM or ghost (the buttons said nothing before)
-  let w = R ? sns || costWhy(R.ap, R.en) : 'NONE';
+  $('bRadar').hidden = !fitted(p, 'RADAR');
+  // R13 test 2: a module's part gone = the button says which (R18: its own location's part: SNS, BCK, ...)
+  let w = R ? costWhy(R.ap, R.en) : offWhy(p, 'RADAR') || 'NONE';
   setBtn('bRadar', 'RADAR', w || R.ap + 'AP ' + R.en + 'EN +' + R.emit + 'EMIT', free && !w);
   // ECM + ghost
-  $('bEcm').hidden = !has(p, 'MASK'); $('bGhost').hidden = !has(p, 'GHOST'); // R18: two rows now
-  w = sns || costWhy(TUNE.AP_ECM, TUNE.ECM_EN);
+  $('bEcm').hidden = !fitted(p, 'MASK'); $('bGhost').hidden = !fitted(p, 'GHOST'); // R18: two rows now
+  w = offWhy(p, 'MASK') || costWhy(TUNE.AP_ECM, TUNE.ECM_EN);
   if (p.mask) setBtn('bEcm', 'ECM ON', TUNE.AP_ECM + 'AP ' + TUNE.ECM_EN + 'EN/turn', free, true);
   else setBtn('bEcm', 'ECM', w || TUNE.AP_ECM + 'AP ' + TUNE.ECM_EN + 'EN', free && !w);
-  w = sns || costWhy(TUNE.AP_ECM, TUNE.GHOST_COST);
+  w = offWhy(p, 'GHOST') || costWhy(TUNE.AP_ECM, TUNE.GHOST_COST);
   if (G.ghost.on) setBtn('bGhost', 'GHOST', G.ghost.turns + ' turns', false, true);
   else if (V.ghostArm) setBtn('bGhost', 'TAP MAP', 'to place', free, true);
   else setBtn('bGhost', 'GHOST', w || TUNE.AP_ECM + 'AP ' + TUNE.GHOST_COST + 'EN', free && !w);
   // fire
-  $('bFire').hidden = !has(p, 'GUN');
+  $('bFire').hidden = !fitted(p, 'GUN');
   w = shootBlock(p, playerTarget(), TUNE.PLAYER_FIRE_UNC, fireRange(p));
   const odds = w ? null : shotOdds(p, playerTarget()); // R12: the hit chance on the button
   setBtn('bFire', odds ? 'FIRE ' + odds.pct + '%' : 'FIRE', w || TUNE.AP_SHOT + 'AP', free && !w);
   // R9: mortar (only on a mech carrying it)
   const M = mortarOf(p);
-  $('bMortar').hidden = !M;
+  $('bMortar').hidden = !fitted(p, 'MORTAR');
   const wb = mortarBlindBlock(p); w = mortarBlock(p, playerTarget());
   if (V.mortarArm) setBtn('bMortar', 'TAP TARGET', V.mortarWhy || (w ? 'map = blind' : 'contact or map'), free, true);
   else setBtn('bMortar', 'MORTAR', wb || (M ? M.ap : 0) + 'AP · ' + p.shells + ' left' + (w ? ' · blind' : ''), free && !wb);

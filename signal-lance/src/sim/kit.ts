@@ -4,7 +4,7 @@
 import { TUNE } from '../tune.ts';
 import { ITEMS, LOCS, PLATES, byId } from './items.ts';
 import type { Item, Loc, RadarStats, GunStats, MortarStats } from './items.ts';
-import { emptyBuild, frameOf, itemsIn, mount, whyNot } from './fit.ts';
+import { emptyBuild, frameOf, itemsIn, modIn, mount, totals, whyNot } from './fit.ts';
 import type { Build } from './fit.ts';
 
 export type Fit = Build & { rounds?: number };
@@ -14,12 +14,25 @@ export type Fit = Build & { rounds?: number };
 export function kitOf(fit: Fit | null) { return fit ? LOCS.flatMap(loc => itemsIn(fit, loc).map(item => ({ item, loc }))) : []; }
 const kit = (u): { item: Item; loc: Loc }[] => (u && u.items) || [];
 export function itemsAt(u, loc: Loc): Item[] { return kit(u).filter(k => k.loc === loc).map(k => k.item); }
-// Is the item's location working? (Checkpoint 1: always. Checkpoint 2 makes locations parts.)
-export function online(_u, _loc: Loc) { return true; }
+// R18 (A4): locations are parts. Each location is one hit-location part; losing the part takes what is mounted there offline.
+export const LOC_PART: Record<Loc, string> = { MAST: 'SENSORS', ARMS: 'WEAPON', CORE: 'CORE', BACK: 'BACK', LEGS: 'LEGS' };
+export const PART_LOC: Record<string, Loc> = { SENSORS: 'MAST', WEAPON: 'ARMS', CORE: 'CORE', BACK: 'BACK', LEGS: 'LEGS' };
+// Is the location working? (its part still has hits; a unit without that part, e.g. a turret's LEGS, counts as working)
+export function online(u, loc: Loc) { const p = LOC_PART[loc]; return !(u && u.parts && u.parts[p] !== undefined && u.parts[p] <= 0); }
 export function has(u, tag: string) { return kit(u).some(k => k.item.tags.includes(tag) && online(u, k.loc)); }
+export function fitted(u, tag: string) { return kit(u).some(k => k.item.tags.includes(tag)); } // carried, working or not
+// "SNS" when everything carrying the tag sits on a part that's gone (the button's one-word reason), '' otherwise
+export function offWhy(u, tag: string) { const k = kit(u).find(k => k.item.tags.includes(tag)); return k && !has(u, tag) ? PART_SHORT[LOC_PART[k.loc]] : ''; }
+const PART_SHORT = { SENSORS: 'SNS', WEAPON: 'WPN', CORE: 'COR', BACK: 'BCK', LEGS: 'LEG' };
 export function active(u, id: string) { return kit(u).some(k => k.item.id === id && online(u, k.loc)); }
 const first = (u, f: (i: Item) => any) => { const k = kit(u).find(k => f(k.item) && online(u, k.loc)); return k ? f(k.item) : null; };
-export function radarOf(u): RadarStats | null { return first(u, i => i.radar); }
+// R18 (A9): a mod in the same location changes the radar's per-use EM (Cold processor: SENSOR EM × 0.6)
+export function radarOf(u): RadarStats | null {
+  const k = kit(u).find(k => k.item.radar && online(u, k.loc)); if (!k) return null;
+  const mod = u.fit ? modIn(u.fit, k.loc)?.mod : null;
+  const x = mod && (mod.tag === 'any' || k.item.tags.includes(mod.tag)) ? mod.emitMult?.EM ?? 1 : 1;
+  return x === 1 ? k.item.radar : { ...k.item.radar, emit: k.item.radar.emit * x, sig: k.item.radar.sig * x };
+}
 export function gunOf(u): GunStats | null { return first(u, i => i.gun); }
 export function mortarOf(u): MortarStats | null { return first(u, i => i.mortar); }
 
@@ -29,6 +42,17 @@ export function fitHits(fit: Fit) { return (frameOf(fit).hits || 0) + LOCS.reduc
 export function fitRounds(fit: Fit) { const g = kitOf(fit).find(k => k.item.gun); return g ? fit.rounds ?? g.item.gun.rounds : 0; }
 export function fitShells(fit: Fit) { const m = kitOf(fit).find(k => k.item.mortar); return m ? m.item.mortar.shells : 0; }
 export function fitPool(fit: Fit) { return TUNE.ENERGY_BASE + kitOf(fit).reduce((a, k) => a + (k.item.pool || 0), 0); }
+
+// R18 (A6 power, A7 weight, A8 signature): what a fit means in the hunt, worked out once when the unit is built.
+// regen = reactor output − idle draw (per own turn); pool = base + batteries; over = the overload penalty per move;
+// emBase = the standing EM signature (always-on emit + visibility, × SIG_EM_PER_PT; skins absorb their location's share).
+export function fitStats(fit: Fit) {
+  const t = totals(fit), em = t.sig.EM;
+  return { regen: t.net, pool: t.pool, load: t.load, rated: t.rated, max: t.max, over: { ap: t.penalty.moveAP, snd: t.penalty.servoSnd },
+    emBase: (em.e - em.u + em.v) * TUNE.SIG_EM_PER_PT, problems: t.problems, totals: t };
+}
+// Why this fit can't launch ('' = it can): no reactor, draw over output, or over its hard max load
+export function launchBlock(fit: Fit) { const p = totals(fit).problems; return p.length ? p[0] : ''; }
 
 // A unit's Sound radii (tiles) per event: moves from SOUND_RANGE, the shot and the launch from its gun / mortar row
 // (0 without one), then a field variant's own SOUND on top.
@@ -74,6 +98,26 @@ export const LOAD_DEFAULTS = { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2,
 export const DEFAULT_FIT: Fit = fitFromLoad(LOAD_DEFAULTS);
 // A fit as is, or old load numbers ({ armour, radar, ... }, the runner's and tests' shorthand) made into one.
 export function toFit(l): Fit { return l && l.frame ? l : fitFromLoad({ ...LOAD_DEFAULTS, ...(l || {}) }); }
+
+// ---- R18 (A10): the in-game hangar's starting fits, cheap-test set only. Line = the R17 default. ----
+export const HANGAR_TEMPLATES: { id: string; role: string; blurb: string; fit: () => Fit }[] = [
+  { id: 'scout', role: 'Scout', blurb: 'Wisp. Light and quiet on EM; Lamp radar to find things first. Few hits, no BACK: no mortar.',
+    fit: () => makeFit('wisp', [['MAST', 'lamp'], ['MAST', 'emarray'], ['MAST', 'mask'], ['ARMS', 'autocannon'], ['CORE', 'hotcore'], ['CORE', 'battery']]) },
+  { id: 'line', role: 'Line', blurb: 'Warden. The R17 suit: passive, mask and ghost, autocannon, a plate on the core.',
+    fit: () => structuredClone(DEFAULT_FIT) },
+  { id: 'brawler', role: 'Brawler', blurb: 'Bulwark. Plated arms, core and legs, a mortar on the back. Loud on EM, slow to kill.',
+    fit: () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'hotcore'], ['CORE', 'battery'], ['BACK', 'mortar']], ['ARMS', 'CORE', 'LEGS']) },
+];
+// Hangar-only rule while a suit carries one gun and one mortar (several weapons per suit is a later round): at most one of
+// each module row, except batteries. '' = fine, else why not.
+// One reactor per suit too (toy open question 4: the frame's INTERNAL hardpoints are the size cap).
+export function hangarWhy(b: Fit, id: string, replacing: string | null = null) {
+  if (id === replacing) return '';
+  const all = LOCS.flatMap(l => itemsIn(b, l)), it = byId(ITEMS, id), rep = byId(ITEMS, replacing);
+  if (it?.tags.includes('REACTOR') && !rep?.tags.includes('REACTOR') && all.some(i => i.tags.includes('REACTOR'))) return 'one reactor per suit';
+  if (id === 'battery') return '';
+  return all.some(i => i.id === id) ? 'one per suit' : '';
+}
 
 // A field unit's fit from its FIELD_TYPES row (+ variant STATS): FRAME, RADAR, PASSIVE, ARMOUR plates, AMMO rounds, CELLS.
 export function fieldFit(F): Fit {

@@ -5,7 +5,7 @@ import { rand } from './rng.ts';
 import { G } from './state.ts';
 import { effEmit } from './zones.ts';
 import { idBonus } from './ids.ts';
-import { gunOf } from './kit.ts';
+import { gunOf, radarOf, has } from './kit.ts';
 
 // ============================ PARTS ===================================
 // u.kind: 'MECH' or a FIELD_TYPES key. u.parts / u.pmax: hits left / at full, per part. u.hits stays the
@@ -36,18 +36,27 @@ export function hasPart(u, p) { return !!(u.parts && u.parts[p] !== undefined); 
 export function partGone(u, p) { return hasPart(u, p) && u.parts[p] <= 0; }
 export function partHurt(u, p) { return hasPart(u, p) && u.parts[p] < u.pmax[p]; } // R13: lost at least one hit (one leg)
 // Pick a part for a hit by PART_WEIGHTS (only the unit's own parts).
-export function rollPart(u) {
-  const L = partList(u.kind), tot = L.reduce((a, p) => a + TUNE.PART_WEIGHTS[p], 0);
+// R18 (A5): from = where the shot came from; outside the target's front arc it rolls BACK in place of WEAPON.
+export function rollPart(u, from?: { x: number; y: number }) {
+  const rear = !!from && fromBehind(u, from.x, from.y) && hasPart(u, 'BACK');
+  const w = (p: string) => rear ? (p === 'BACK' ? TUNE.PART_WEIGHTS.WEAPON : p === 'WEAPON' ? 0 : TUNE.PART_WEIGHTS[p]) : TUNE.PART_WEIGHTS[p] || 0;
+  const L = partList(u.kind), tot = L.reduce((a, p) => a + w(p), 0);
   let r = rand() * tot;
-  for (const p of L) { r -= TUNE.PART_WEIGHTS[p]; if (r < 0) return p; }
+  for (const p of L) { r -= w(p); if (r < 0) return p; }
   return 'CORE';
+}
+// R18 (A5): is (x, y) outside u's front arc (FRONT_ARC_HALF either side of its facing)?
+export function fromBehind(u, x: number, y: number) {
+  if (!TUNE.REAR_ARC) return false;
+  const dx = x - u.x, dy = y - u.y, d = Math.hypot(dx, dy);
+  return d > 0 && (dx * u.fx + dy * u.fy) / d < Math.cos(TUNE.FRONT_ARC_HALF * Math.PI / 180);
 }
 // n hits on part p. Hits on a destroyed part spill to CORE. Logs parts destroyed (runner / result).
 export function damagePart(u, p: string, n: number) {
   for (let k = 0; k < n && u.parts.CORE > 0; k++) {
     const q = u.parts[p] > 0 ? p : 'CORE';
     u.parts[q]--;
-    if (u.parts[q] === 0) { u.partsLost.push(q); G.partLog.push({ kind: u.kind, part: q }); if (q === 'SENSORS') { u.radarOn = false; u.mask = false; } }
+    if (u.parts[q] === 0) { u.partsLost.push(q); G.partLog.push({ kind: u.kind, part: q }); if (!radarOf(u)) u.radarOn = false; if (!has(u, 'MASK')) u.mask = false; } // R18: whatever was mounted there goes offline
   }
   syncHits(u);
 }
@@ -55,7 +64,7 @@ export function damagePart(u, p: string, n: number) {
 export function eyesRange(o) { return TUNE.EYES_RANGE * (partGone(o, 'SENSORS') ? TUNE.PART_SENSORS_EYES_MULT : 1); }
 
 // Per-part damage read, the existing words: ok / scratched / bloodied / badly / gone.
-export const PART_ABBR = { CORE: 'COR', LEGS: 'LEG', WEAPON: 'WPN', SENSORS: 'SNS' };
+export const PART_ABBR = { CORE: 'COR', LEGS: 'LEG', WEAPON: 'WPN', SENSORS: 'SNS', BACK: 'BCK' };
 export function partWord(u, p) {
   const f = u.parts[p] / u.pmax[p];
   return f <= 0 ? 'gone' : f <= TUNE.DMG_BADLY ? 'badly' : f <= TUNE.DMG_BLOODIED ? 'bloodied' : f < 1 ? 'scratched' : 'ok';
@@ -63,7 +72,7 @@ export function partWord(u, p) {
 // "COR ok · LEG badly · WPN ok · SNS gone" (works on a unit or on a carry record with parts / pmax)
 export function partsRead(u) {
   if (!u.parts) return '';
-  return ['CORE', 'LEGS', 'WEAPON', 'SENSORS'].filter(p => u.parts[p] !== undefined).map(p => PART_ABBR[p] + ' ' + partWord(u, p)).join(' · ');
+  return ['CORE', 'LEGS', 'WEAPON', 'SENSORS', 'BACK'].filter(p => u.parts[p] !== undefined).map(p => PART_ABBR[p] + ' ' + partWord(u, p)).join(' · ');
 }
 
 // ============================ TO-HIT ==================================

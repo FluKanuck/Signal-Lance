@@ -13,26 +13,18 @@ import { MISSION_INFO, missionText, isType, escortBonus } from '../sim/mission.t
 import { anchors, MAP, W, H } from '../sim/world.ts';
 import { mapText } from '../sim/blocks.ts';
 import { fieldCount } from '../sim/state.ts';
-import { fitFromLoad, fitText, has } from '../sim/kit.ts';
+import { fitText, has } from '../sim/kit.ts';
+import { buildHangar, renderHangar, currentFits, hangarBlock } from './hangar.ts';
+import { foundLines, foundText } from '../sim/found.ts';
 import { fitHasGun, fitHasMortar } from '../sim/contract.ts';
-import { ITEMS, byId } from '../sim/items.ts';
-const ROW = (id: string) => byId(ITEMS, id); // R18: the picker's numbers come from the item rows
+import { frameOf } from '../sim/fit.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r18-s1';  // R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
+export const BUILD = 'r18-s2';  // R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
 // ============================ LOADOUT / RESULT / RUN LOG ==============
-export const MODS = [
-  { k: 'armour',  name: 'Armour plate',  slots: 2, max: 5,  desc: '+3 hits · +1 signature' },
-  { k: 'radar',   name: 'Active radar',  slots: 2, max: 1,  desc: 'pulse ' + ROW('lamp').radar.ap + ' AP + ' + ROW('lamp').radar.en + ' EN · cone, sees through 4 walls · +' + ROW('lamp').radar.emit + ' EMIT' },
-  { k: 'passive', name: 'Passive suite', slots: 2, max: 1,  desc: 'bearing lines · cross two for a fix' },
-  { k: 'ecm',     name: 'ECM pod',       slots: 2, max: 1,  desc: 'mask (' + TUNE.AP_ECM + ' AP + ' + TUNE.ECM_EN + ' EN a turn) or ghost · jams' },
-  { k: 'ammo',    name: 'Autocannon',    slots: 1, max: 10, desc: '10 rounds per slot · a shot is heard ' + ROW('autocannon').gun.snd + ' tiles away' },
-  { k: 'cells',   name: 'Energy cell',   slots: 1, max: 10, desc: '+' + ROW('battery').pool + ' Energy' },
-  { k: 'mortar',  name: 'Mortar',        slots: 1, max: 1,  desc: ROW('mortar').mortar.shells + ' shells · ' + ROW('mortar').mortar.ap + ' AP · fires on a fix, no LoS · heard ' + ROW('mortar').mortar.snd + ' tiles away' }, // R9
-];
 // localStorage wrapped: falls back to memory if unavailable
 export const store = {
   get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch (_) { return d; } },
@@ -40,21 +32,8 @@ export const store = {
 };
 let LOG = store.get('signalLance.log', []);
 if (!Array.isArray(LOG) || store.get('signalLance.build', '') !== BUILD) { LOG = []; store.set('signalLance.ctN', 0); store.set('signalLance.log', LOG); store.set('signalLance.compBag', []); store.set('signalLance.build', BUILD); } // R10: a new build also starts a fresh shuffled set
-// R6: the loadout being edited lives here (view); LAUNCH hands copies to the sim.
-// R7 s2: one loadout per mech. A is the old saved loadout; B starts as a copy of A.
-const DEF = { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 };
-function readLoad(key) {
-  const l = store.get(key, null); if (!l) return null;
-  const out = { ...DEF };
-  for (const m of MODS) if (typeof l[m.k] === 'number') out[m.k] = Math.max(0, Math.min(m.max, l[m.k] | 0));
-  return slotsUsed(out) > TUNE.SLOTS ? { ...DEF } : out;
-}
-const loads = [readLoad('signalLance.load') || { ...DEF }, null];
-loads[1] = readLoad('signalLance.loadB') || { ...loads[0] };
-let cur = 0, load = loads[0]; // the mech being edited (0 = A, 1 = B)
-const LOAD_KEYS = ['signalLance.load', 'signalLance.loadB'];
-export function currentLoads() { return [fitFromLoad(loads[0]), fitFromLoad(loads[1])]; } // R18: the picker's numbers as fits (kit.ts)
-function pickMech(i) { cur = i; load = loads[i]; renderLoadout(); }
+// R18 (A10): the hangar (view/hangar.ts) replaced the slot picker. LAUNCH hands copies of the two fits to the sim.
+export function currentLoads() { return currentFits(); }
 // R7 briefing: accurate, rough composition of the field. The turret is only "reported".
 // R8 shuffled set (Jamie): every composition once per cycle, random order. Bag kept in localStorage so a
 // reload carries on the same cycle. FIELD_SHUFFLE 0 = no bag (the sim's seeded weighted roll).
@@ -91,7 +70,16 @@ export function intelText() {
     : G.mtype === 'ESCORT' ? ' Waiting along the route. Forks at ' + anchors().junctions.map(k => anchors().waypoints[k].name).join(' and ') + '.' // R15 s3
     : (G.mtype === 'RETRIEVE' ? ' Cargo at ' : ' Uplink at ') + G.up.name + '.';
   const dist = MAP.id === 'hive' ? 'The old hive map. ' : MAP.info.grid.replace('x', '×') + ' district, ' + W + '×' + H + '. '; // R16: a bigger map is something you prep for
-  return job + '\nINTEL: ' + dist + C.NAME + '. ' + cap([...parts, tur].filter(Boolean).join(', ')) + '.' + site + zoneIntel(); // R8: names the composition
+  return job + '\nINTEL: ' + dist + C.NAME + '. ' + cap([...parts, tur].filter(Boolean).join(', ')) + '.' + site + zoneIntel() + listenIntel(C); // R8: names the composition
+}
+// R18 (C7): what the field listens on, per channel, so the build can answer the briefing
+export function listenIntel(C) {
+  const n = k => fieldCount(C, k), ears = n('PATROL') + n('TURRET'), radar = n('EMPLACEMENT'), all = ears + radar;
+  if (!all) return '';
+  const L = ['SND: all ' + all + ' hear steps and shots (through walls)', 'eyes: all, ' + TUNE.EYES_RANGE + ' tiles in line of sight'];
+  if (ears) L.push('EM: ' + ears + ' with passive ears (' + [n('PATROL') && 'patrols', n('TURRET') && 'turrets'].filter(Boolean).join(', ') + ')');
+  if (radar) L.push('EM: ' + radar + ' radar (emplacements pulse; a pulse finds you through walls)');
+  return ' Listens on: ' + L.join(' · ') + '.';
 }
 // R10: " Quiet ground: rail cut (NW). Noise: sump (S), SE apron."
 function zoneIntel() {
@@ -107,7 +95,7 @@ export function zoneText() {
 }
 export function enemySummary() { return 'field ' + G.units.map(u => u.type[0] + (u.dead ? 'x' : '')).join(''); }
 function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
-export function killText() { return 'kills ' + G.kills + '/' + G.units.length + (missionText() ? ' · ' + missionText() : '') + zoneText() + mortarText() + shotsText() + soundText() + moveText() + idText(); } // R14: IDs n (right, wrong, before eyes) // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
+export function killText() { return 'kills ' + G.kills + '/' + G.units.length + (missionText() ? ' · ' + missionText() : '') + zoneText() + mortarText() + shotsText() + soundText() + moveText() + idText() + foundText(); } // R18: what found each suit first // R14: IDs n (right, wrong, before eyes) // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
 // R9: "· mortar 3/5 hits, 2 kills (A)" — shells that hit the field / shells fired, kills, who carried it
 export function mortarText() {
   const ms = G.lance.filter(m => has(m, 'MORTAR'));
@@ -115,32 +103,10 @@ export function mortarText() {
   let s = 0, h = 0, k = 0, f = 0, b = 0; for (const m of ms) { s += m.mShots; h += m.mHits; k += m.mKills; f += m.mFriendly; b += m.mBlind; }
   return ' · mortar ' + h + '/' + s + ' hits, ' + k + ' kills' + (b ? ', ' + b + ' blind' : '') + (f ? ', ' + f + ' on own' : '') + ' (' + (ms.length > 1 ? 'both' : ms[0].id) + ')';
 }
-export function slotsUsed(L = load) { let s = 0; for (const m of MODS) s += L[m.k] * m.slots; return s; }
 // both mechs' fits, as launched (R18: the fit, item by item)
 export function loadSummary() { return G.lance.map(m => m.id + ': ' + fitText(m.fit)).join(' / '); }
-export function buildLoadout() {
-  const box = $('mods');
-  for (const m of MODS) {
-    const row = document.createElement('div'); row.className = 'mrow';
-    row.innerHTML = '<button class="pm" data-k="' + m.k + '" data-d="-1">−</button>' +
-      '<div class="mname"><b>' + m.name + '</b> <span id="n_' + m.k + '"></span><small>' + m.slots + ' slot' + (m.slots > 1 ? 's' : '') + ' · ' + m.desc + '</small></div>' +
-      '<button class="pm" data-k="' + m.k + '" data-d="1">+</button>';
-    box.appendChild(row);
-  }
-  box.addEventListener('click', ev => {
-    const b = (ev.target as any).closest('.pm'); if (!b) return;
-    const m = MODS.find(x => x.k === b.dataset.k), d = +b.dataset.d, n = load[m.k] + d;
-    if (n < 0 || n > m.max || (d > 0 && slotsUsed() + m.slots > TUNE.SLOTS)) return;
-    load[m.k] = n; store.set(LOAD_KEYS[cur], load); renderLoadout();
-  });
-  $('bLA').addEventListener('click', () => pickMech(0));
-  $('bLB').addEventListener('click', () => pickMech(1));
-}
 export function renderLoadout() {
-  for (const m of MODS) $('n_' + m.k).textContent = m.k === 'ammo' ? '×' + load.ammo + ' (' + load.ammo * 10 + ' rds)' : '×' + load[m.k];
-  const u = slotsUsed();
-  $('bLA').classList.toggle('on', cur === 0); $('bLB').classList.toggle('on', cur === 1);
-  $('slots').textContent = 'MECH ' + 'AB'[cur] + '  SLOTS ' + u + ' / ' + TUNE.SLOTS + '  (' + (TUNE.SLOTS - u) + ' free)';
+  renderHangar();
   $('logv').textContent = LOG.length ? LOG.slice(-5).join('\n') : 'No runs logged yet.';
   $('logta').hidden = true;
 }
@@ -161,7 +127,7 @@ export function showResult() {
     : { WIN: G.winBy === 'UPLINK' ? 'Uplink complete at ' + G.up.name + '.' : G.winBy === 'RETRIEVE' ? 'Cargo carried out by ' + G.mission.carrier + '.' : G.winBy === 'ESCORT' ? 'The transport made it out with ' + G.ally.hits + '/' + G.ally.maxHits + ' hits (bonus ' + escortBonus() + ' cr).' : 'Field cleared.', LOSS: 'You were destroyed.', BAIL: 'You extracted without the job done.',
         FAIL: isType('ESCORT') ? 'The transport was destroyed. The hunt failed.' : 'The carrier (' + G.mission.carrier + ') was destroyed. The cargo is lost; the hunt failed.' }[outcome];
   $('resTxt').textContent = ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + killText() + ' — ' + fmtTime(G.time) + ' (' + G.turn + ' turns)';
-  $('resWhy').innerHTML = why + '<br>' + (missionText() || 'Uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' at ' + G.up.name) + '<br>' + dmgSummary() + '<br>Field: ' + fieldSummary() + '<br>Loadout: ' + loadSummary() + (G.ct ? '<br><b>Lance: ' + lanceText() + '</b> · contract wins ' + G.ct.wins + '/' + G.ct.need + (G.ct.status !== 'ACTIVE' ? ' · CONTRACT ' + G.ct.status : '') : '');
+  $('resWhy').innerHTML = why + '<br><b>' + foundLines().join('<br>') + '</b><br>' + (missionText() || 'Uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' at ' + G.up.name) + '<br>' + dmgSummary() + '<br>Field: ' + fieldSummary() + '<br>Loadout: ' + loadSummary() + (G.ct ? '<br><b>Lance: ' + lanceText() + '</b> · contract wins ' + G.ct.wins + '/' + G.ct.need + (G.ct.status !== 'ACTIVE' ? ' · CONTRACT ' + G.ct.status : '') : '');
   $('note').value = ''; resetAnswers();
   $('res').hidden = false; $('res').scrollTop = 0;
 }
@@ -205,7 +171,7 @@ function startContract() {
 function mechLine(id) {
   const c = G.ct.carry[id], L = G.ct.loads[id === 'A' ? 0 : 1];
   if (c.dead) return '<b class="lost">' + id + '  LOST</b>';
-  return '<b>' + id + '  ' + dmgWord(c) + '</b> · ' + partsRead(c) + (fitHasGun(L) ? ' · ' + c.ammo + ' rds' : '') + (fitHasMortar(L) ? ' · ' + c.shells + ' shells' : '');
+  return '<b>' + id + '  ' + dmgWord(c) + '</b> · ' + frameOf(L).name + ' · ' + partsRead(c) + (fitHasGun(L) ? ' · ' + c.ammo + ' rds' : '') + (fitHasMortar(L) ? ' · ' + c.shells + ' shells' : '');
 }
 // R11 s2: refit buttons for one mech (hidden before hunt 1: nothing to cap from, no credits)
 const RF = [['repair', 'REPAIR WORST', TUNE.COST_REPAIR], ['rounds', '+10 RDS', TUNE.COST_ROUNDS], ['shell', '+1 SHELL', TUNE.COST_SHELL], ['rebuild', 'REBUILD', TUNE.COST_REBUILD]];
@@ -272,7 +238,7 @@ export function launch() {
   V.follow = true; V.camX = G.p.x; V.camY = G.p.y; V.ghostArm = V.faceArm = false; V.hitFlash = 0;
   $('res').hidden = true;
 }
-$('bLaunch').addEventListener('click', () => { $('load').hidden = true; store.set(LOAD_KEYS[0], loads[0]); store.set(LOAD_KEYS[1], loads[1]); startContract(); }); // R11: locks loadouts, opens the job pick
+$('bLaunch').addEventListener('click', () => { const w = hangarBlock(); if (w) { $('intel').textContent = 'Can’t launch: ' + w + '.'; return; } $('load').hidden = true; startContract(); }); // R11: locks the fits, opens the job pick. R18: only fits that launch
 $('bJ0').addEventListener('click', () => pickJob(0));
 $('jlance').addEventListener('click', ev => { const b = (ev.target as any).closest('.rf'); if (!b) return; if (refit(b.dataset.id, b.dataset.k)) renderLance(); }); // R11 s2
 $('bJ1').addEventListener('click', () => pickJob(1));
@@ -306,5 +272,5 @@ $('bHelp').addEventListener('click', () => { basicsFrom = 'load'; $('basics').hi
 $('bBack').addEventListener('click', () => { $('basics').hidden = true; if (basicsFrom === 'splash') $('splash').hidden = false; });
 buildBrief(BUILD);
 buildQuestions();
-buildLoadout();
+buildHangar();
 $('ver').textContent = $('lver').textContent = VERSION;

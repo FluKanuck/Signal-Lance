@@ -20,7 +20,7 @@ export const TUNE = {
   SIG_FIRE: 6.0,        // UNUSED from R13 (the gun's firing spike is Sound now). Was: added briefly after each shot
   SIG_FIRE_TIME: 1.0,   // seconds the firing spike lasts
   // SIG_RADAR (12, added while radar is on): R18 moved to the radar's row (src/sim/items.ts, radar.sig)
-  SIG_ARMOUR: 1.0,      // added per armour plate
+  SIG_ARMOUR: 1.0,      // added per armour plate. R18: only for a unit with no fit (the Escort transport); a fit's EM comes from SIG_EM_PER_PT
   // --- detection ---
   DET_FALLOFF: 6,       // tiles; strength = sig / (1 + (dist/FALLOFF)^2)
   DET_WALL: 0.8,        // strength multiplier per building tile in between
@@ -88,7 +88,7 @@ export const TUNE = {
   AP_ECM: 1,            // AP to switch ECM on, and again at the start of each of your turns while on (also the ghost)
   ENERGY_BASE: 100,     // base Energy pool (was POWER_BASE)
   // ENERGY_CELL (50): R18 a battery row's pool (src/sim/items.ts)
-  ENERGY_REGEN: 10,     // Energy regained at the start of your own turn
+  ENERGY_REGEN: 10,     // Energy regained at the start of your own turn. R18: field units only (no reactor rows yet); a suit's regen = its reactor output − idle draw
   // RADAR_EN (25): R18 moved to the radar's row (radar.en)
   ECM_EN: 20,           // Energy per turn while ECM is on (paid with AP_ECM at turn start)
   MOVE_TILES_PER_AP: { CREEP: 1, NORMAL: 2, SPRINT: 3 },   // tiles bought by 1 AP
@@ -366,15 +366,27 @@ export const TUNE = {
   // CORE gone = unit destroyed. SENSORS gone = no radar / ECM / ghost, eyes × PART_SENSORS_EYES_MULT (passive still works).
   // WEAPON gone = the gun can't FIRE ("WPN"; mortar unaffected). LEGS gone = CREEP only ("LEGS").
   PARTS: {
-    MECH:        ['SENSORS', 'WEAPON', 'LEGS', 'CORE'],
-    PATROL:      ['SENSORS', 'WEAPON', 'LEGS', 'CORE'],
-    TURRET:      ['SENSORS', 'WEAPON', 'CORE'],     // static: no legs
-    EMPLACEMENT: ['SENSORS', 'WEAPON', 'CORE'],     // static: no legs
+    // R18 (A4): each part is a location of the fit (SENSORS = MAST, WEAPON = ARMS, CORE, LEGS, BACK). BACK is new: only a shot
+    // from behind can hit it (REAR_ARC), and it takes the BACK's modules offline when it goes
+    MECH:        ['SENSORS', 'WEAPON', 'LEGS', 'CORE', 'BACK'],
+    PATROL:      ['SENSORS', 'WEAPON', 'LEGS', 'CORE', 'BACK'],
+    TURRET:      ['SENSORS', 'WEAPON', 'CORE', 'BACK'],     // static: no legs
+    EMPLACEMENT: ['SENSORS', 'WEAPON', 'CORE', 'BACK'],     // static: no legs
     ALLY:        ['CORE'],                          // R15 Escort: the transport is one hit pool
   },
-  PART_WEIGHTS: { CORE: 40, LEGS: 25, WEAPON: 20, SENSORS: 15 }, // chance a hit lands on each part
-  PART_SHARE:   { CORE: 0.5, LEGS: 0.2, WEAPON: 0.15, SENSORS: 0.15 }, // how the hit pool is split (mech, 6 hits → CORE 3, LEGS 1, WEAPON 1, SENSORS 1)
+  PART_WEIGHTS: { CORE: 40, LEGS: 25, WEAPON: 20, SENSORS: 15, BACK: 0 }, // chance a hit lands on each part. R18: BACK only from behind (it takes WEAPON's weight then)
+  PART_SHARE:   { CORE: 0.5, LEGS: 0.2, WEAPON: 0.15, SENSORS: 0.15, BACK: 0 }, // R18: BACK takes no share; it gets its 1 hit on top of the pool (every part has at least 1)
+   // how the hit pool is split (mech, 6 hits → CORE 3, LEGS 1, WEAPON 1, SENSORS 1)
   PART_SENSORS_EYES_MULT: 0.5, // eyes range × this once SENSORS are gone
+  // --- Round 18: fit for the job (suit building). Rows in src/sim/items.ts, rules in src/sim/fit.ts + kit.ts ---
+  REAR_ARC: true,          // A5: a gun shot from outside the target's front arc rolls BACK in place of WEAPON (ARMS). Both sides
+  FRONT_ARC_HALF: 90,      // degrees either side of the target's facing that count as its front (90 = the front half)
+  OVERLOAD_SND_PER_PT: 1,  // A7: + this Sound (tiles) on every move per load point over the frame's rated load (toy placeholder)
+  OVERLOAD_AP_FRAC: 0.5,   // A7: past this fraction of the way from rated to max load, every move costs +1 AP (toy placeholder)
+  SIG_EM_PER_PT: 0.5,      // A8: standing EM signature per point of the fit's always-on EM emit + EM visibility (Warden 3 → 1.5 = the R17 default)
+  HANGAR_FRAMES: ['wisp', 'warden', 'bulwark'], // A10: the cheap-test set, the only things the in-game hangar offers (build-toy.html keeps them all)
+  HANGAR_ITEMS: ['coldburn', 'hotcore', 'lamp', 'emarray', 'mask', 'ghost', 'autocannon', 'mortar', 'battery', 'm_cold'],
+  HANGAR_PLATES: ['p_steel'],
   PART_MIN: { LEGS: 2 },       // R13 test 2 (Jamie): at least this many hits on a part (added on top of the pool): two legs
   LEGS_GONE_MULT: 0.5,         // R13 test 2: one leg gone = CREEP only; both gone = CREEP at this × distance per AP and speed
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---

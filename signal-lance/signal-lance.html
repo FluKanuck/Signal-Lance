@@ -28,6 +28,34 @@ button.on{background:var(--btnOn)}
 .panel{position:fixed;inset:0;z-index:5;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:calc(var(--top) + 4px) calc(16px + env(safe-area-inset-right,0px)) 12px calc(16px + env(safe-area-inset-left,0px));text-align:center;overflow-y:auto;touch-action:pan-y}
 #load{flex-direction:row;align-items:flex-start;justify-content:flex-start;text-align:left;gap:16px}
 #mods{flex:1.3;min-width:0;display:flex;flex-direction:column;gap:4px}
+/* R18: the hangar (loadout screen). Jamie's ExoS wireframe: cyan lines, panels tinted by what is fitted / selected */
+#hangar{flex:1.6;min-width:0;display:flex;flex-direction:column;gap:6px}
+#hangar button{min-height:48px;min-width:48px;font-size:12px;line-height:1.15}
+#htpl{flex-wrap:wrap;align-items:center} #htpl small{opacity:.7;margin:0 2px 0 6px} #hsuits button{flex:1}
+#hframe{font-size:12px;line-height:1.35}
+#hbody{display:flex;gap:10px;align-items:flex-start}
+#hsuit{flex:0 0 150px} #hsvg{width:150px;height:auto;display:block;background:#05090a;border:1px solid #234;border-radius:6px;touch-action:manipulation}
+.hline path{fill:#00f2fb}
+#hsvg .hp{fill:#070c0d} #hsvg .hp.fit{fill:#0d3436} #hsvg .hp.sel{fill:#167074}
+#hsvg .hback{stroke:#00f2fb;stroke-width:5;stroke-dasharray:12 8} #hsvg g.hp .hback{fill:#070c0d} #hsvg g.hp.fit .hback{fill:#0d3436} #hsvg g.hp.sel .hback{fill:#167074}
+#hsvg .hbtxt{fill:#00f2fb;font:bold 30px monospace;text-anchor:middle}
+#hsvg .hhit rect{fill:transparent;cursor:pointer}
+#hside{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.4}
+.hlhead{font-weight:bold} .hlhead small{font-weight:normal;opacity:.7}
+.hslots{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
+#hangar .hslot{flex:1 1 30%;min-width:84px;text-align:left;border-style:dashed;font-weight:normal}
+#hangar .hslot.full{border-style:solid;background:#2c2d30;border-color:#00b8c0}
+#hangar .hslot.plate{width:100%;flex:none;min-height:40px}
+.hbar{display:inline-block;width:70px;height:8px;border:1px solid var(--line);vertical-align:middle;position:relative}
+.hbar span{display:block;height:100%;background:var(--fg)} .hbar .warn{background:#e0c050} .hbar .bad{background:#ff8a80} .hbar .em{background:#e0a040} .hbar .snd{background:#cfd8dc}
+.warnt{color:#e0c050} .badt{color:#ff8a80} .okt{color:#70c080}
+#hsheet{position:fixed;inset:0;background:#000a;z-index:8;display:flex;align-items:flex-end;justify-content:center}
+#hsheet[hidden]{display:none}
+#hsbox{background:var(--bg);border-top:1px solid var(--line);width:100%;max-width:720px;max-height:80vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
+#hshead{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;font-weight:bold}
+#hopts{overflow-y:auto;padding:0 12px 12px;display:flex;flex-direction:column;gap:4px;touch-action:pan-y}
+.hopt{text-align:left;font-weight:normal;line-height:1.35;padding:6px 8px;flex-shrink:0}
+.hopt:disabled{opacity:.45}
 .mrow{display:flex;align-items:center;gap:8px}
 .zrow{display:flex;gap:6px}
 .mname{flex:1;min-width:0;line-height:1.25}
@@ -133,9 +161,13 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
 <button id="bDbg">DBG</button>
 <div id="ver"></div>
 <div id="load" class="panel" hidden>
-  <div id="mods"></div>
+  <div id="hangar">
+    <div class="zrow" id="hsuits"></div>
+    <div class="zrow" id="htpl"></div>
+    <div id="hframe"></div>
+    <div id="hbody"><div id="hsuit"></div><div id="hside"><div id="hloc"></div><div id="hread"></div></div></div>
+  </div>
   <div id="lside">
-    <div class="zrow" style="align-items:center"><button id="bLA">MECH A</button><button id="bLB">MECH B</button><div id="slots"></div></div>
     <div id="lver"></div>
     <div id="intel"></div>
     <div class="zrow"><button id="bQuick">LENGTH: 3 HUNTS</button><button id="bTB">TEST BED</button></div>
@@ -145,6 +177,7 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
     <textarea id="logta" rows="4" readonly hidden></textarea>
   </div>
 </div>
+<div id="hsheet" hidden><div id="hsbox"><div id="hshead"><span id="hstitle"></span><button id="hsclose">CLOSE</button></div><div id="hopts"></div></div></div>
 <div id="res" class="panel" hidden>
   <div id="resTxt" style="font-size:18px;font-weight:bold"></div>
   <div id="resWhy"></div>

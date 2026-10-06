@@ -151,7 +151,7 @@ export function fitHasMortar(fit) { return kitOf(fit).some(k => k.item.mortar); 
 // R12 step 1: "repair one hit" goes to the part missing the most hits (destroyed parts count; ties: CORE, LEGS, WEAPON, SENSORS).
 function repairWorst(c) {
   let best = '', miss = 0;
-  for (const p of ['CORE', 'LEGS', 'WEAPON', 'SENSORS']) { if (c.pmax[p] === undefined) continue; const m = c.pmax[p] - c.parts[p]; if (m > miss) { miss = m; best = p; } }
+  for (const p of ['CORE', 'LEGS', 'WEAPON', 'SENSORS', 'BACK']) { if (c.pmax[p] === undefined) continue; const m = c.pmax[p] - c.parts[p]; if (m > miss) { miss = m; best = p; } }
   if (best) c.parts[best]++;
   syncHits(c);
 }

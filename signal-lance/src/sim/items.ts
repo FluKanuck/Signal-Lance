@@ -20,7 +20,7 @@ export interface Frame {
   slots: Record<Loc, HP[]>;
   chassis: Chassis[];                               // materials this frame comes in
   role: string;
-  hits?: number;                                    // R18: base hits before plates (the old PLAYER_HITS / FIELD_TYPES.BASE_HITS)
+  hits?: number;                                    // R18: base hits before plates (the old PLAYER_HITS / FIELD_TYPES.BASE_HITS). R18: 3 for every hangar frame (= PLAYER_HITS); frames differ by hardpoints, load and visibility, plates add the hits
   field?: boolean;                                  // R18: a field unit's frame (turret, emplacement, patrol): never in a hangar
 }
 
@@ -75,13 +75,13 @@ const L = (MAST: HP[], ARMS: HP[], CORE: HP[], BACK: HP[], LEGS: HP[]) => ({ MAS
 const ALL: Chassis[] = ['steel', 'alloy', 'composite'];
 
 export const FRAMES: Frame[] = [
-  { id: 'wisp', name: 'Wisp', cls: 'Light', rated: 10, max: 13, vis: { VIS: 1, EM: 1, MAG: 2 }, slots: L(['S','S','O'], ['W'], ['I','I'], [], ['M','M']), chassis: ALL, role: 'Scout. Sees far, hits light, folds under fire' },
+  { id: 'wisp', name: 'Wisp', cls: 'Light', rated: 10, max: 13, hits: 3, vis: { VIS: 1, EM: 1, MAG: 2 }, slots: L(['S','S','O'], ['W'], ['I','I'], [], ['M','M']), chassis: ALL, role: 'Scout. Sees far, hits light, folds under fire' },
   { id: 'ferret', name: 'Ferret', cls: 'Light', rated: 9, max: 12, vis: { VIS: 1, EM: 1, MAG: 1 }, slots: L(['S','O'], ['W'], ['I'], ['U'], ['M','M','M']), chassis: ['composite'], role: 'Infiltrator. Quietest frame; tiny reactor space' },
   { id: 'jackal', name: 'Jackal', cls: 'Light', rated: 11, max: 14, vis: { VIS: 2, EM: 2, MAG: 2 }, slots: L(['S'], ['W','W'], ['I','I'], ['U'], ['M','M']), chassis: ALL, role: 'Skirmisher. Hit and fade' },
   { id: 'warden', name: 'Warden', cls: 'Medium', rated: 14, max: 18, hits: 3, vis: { VIS: 3, EM: 3, MAG: 3 }, slots: L(['S','S'], ['W','W'], ['I','I','O'], ['U'], ['M']), chassis: ALL, role: 'Line suit, all-rounder' },
   { id: 'lantern', name: 'Lantern', cls: 'Medium', rated: 13, max: 16, vis: { VIS: 3, EM: 3, MAG: 3 }, slots: L(['S','S','S','O'], ['W'], ['I','I','I'], [], ['M']), chassis: ALL, role: 'EW platform. Big reactor, big ears; one gun' },
   { id: 'sapper', name: 'Sapper', cls: 'Medium', rated: 15, max: 19, vis: { VIS: 3, EM: 2, MAG: 4 }, slots: L(['S'], ['W'], ['I','I'], ['U','U','O'], ['M']), chassis: ALL, role: 'Breacher and demolition' },
-  { id: 'bulwark', name: 'Bulwark', cls: 'Heavy', rated: 18, max: 22, vis: { VIS: 5, EM: 4, MAG: 5 }, slots: L(['S'], ['W','W','W'], ['I','I'], ['U'], ['M','M']), chassis: ALL, role: 'Brawler. Loud on every channel' },
+  { id: 'bulwark', name: 'Bulwark', cls: 'Heavy', rated: 18, max: 22, hits: 3, vis: { VIS: 5, EM: 4, MAG: 5 }, slots: L(['S'], ['W','W','W'], ['I','I'], ['U'], ['M','M']), chassis: ALL, role: 'Brawler. Loud on every channel' },
   { id: 'mule', name: 'Mule', cls: 'Heavy', rated: 17, max: 22, vis: { VIS: 5, EM: 4, MAG: 5 }, slots: L(['S'], ['W'], ['I','I','O'], ['U','U','U'], ['M']), chassis: ALL, role: 'Fire support: mortar and launcher platform' },
   { id: 'bastion', name: 'Bastion', cls: 'Assault', rated: 22, max: 26, vis: { VIS: 6, EM: 6, MAG: 7 }, slots: L(['S','S'], ['W','W','W'], ['I','I','I'], ['U','U'], ['M','M']), chassis: ['steel', 'alloy'], role: 'Walking fortress. Magnetometers find it from a district away' },
   { id: 'shepherd', name: 'Shepherd', cls: 'Medium', rated: 14, max: 18, vis: { VIS: 3, EM: 4, MAG: 3 }, slots: L(['S','S'], ['W'], ['I','I'], ['U','U','U','O'], ['M']), chassis: ALL, role: 'PLACEHOLDER drone carrier. Sees through its drones; weak alone, and its control links shout on EM' },

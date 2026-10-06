@@ -30,7 +30,7 @@ describe('turns: AP and Energy', () => {
     startHunt(1); const m = G.lance[0];
     m.ap = 0; m.en = 0; beginUnit(m);
     expect(m.ap).toBe(TUNE.AP_PER_TURN);
-    expect(m.en).toBe(TUNE.ENERGY_REGEN);
+    expect(m.en).toBe(m.regen); // R18: reactor output − idle draw
     m.ap = TUNE.AP_BANK_MAX; beginUnit(m);
     expect(m.ap).toBe(TUNE.AP_BANK_MAX);
   });

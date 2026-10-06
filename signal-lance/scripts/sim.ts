@@ -15,6 +15,9 @@
 //   --mission bounty                   R15: force every hunt's mission type (games and contracts); contracts report a split by type
 //   --map hive|blocks                  R16: the old fixed map, or a rolled block district every hunt (default: TUNE.MAP_MODE)
 //   --grid 4x3                         R16: force every district's grid (columns × rows); contracts report a split by grid
+//   --fit scout[,brawler]              R18: both suits (or A,B) use a hangar template id or a hangar build code
+//   --sweep 30                         R18: 30 contracts for each frame × reactor pair (the templates included); win rate per
+//                                      frame and per reactor, and what found the lance first, on which channel, from how far
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
@@ -23,6 +26,9 @@ import { upDist } from '../src/sim/turns.ts';
 import { idTick, idSummary } from '../src/sim/ids.ts';
 import { scenarioByName, startScenario, leaveScenario, SCENARIOS } from '../src/sim/scenarios.ts';
 import { MAP } from '../src/sim/world.ts';
+import { HANGAR_TEMPLATES, fitStats, fitText, launchBlock } from '../src/sim/kit.ts';
+import { fromCode } from '../src/sim/fit.ts';
+import { CHANNEL } from '../src/sim/found.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
@@ -53,8 +59,14 @@ const MAX_TURNS = 80;
 const FLAGS: string[] = [], log0 = console.log;
 console.log = (...a: any[]) => { const t = a.join(' '); if (/FLAG:|WARNING:/.test(t)) FLAGS.push(t.trim()); log0(...a); };
 // the game's default loadout; R13 --loud swaps ECM for radar (both 2 slots) so it has something to pulse
-const loadB = () => AUTO.loud ? { armour: 1, radar: 1, passive: 1, ecm: 0, ammo: 2, cells: 0, mortar: 0 } : { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 };
-const loadA = () => ({ ...loadB(), mortar: 1 }); // R9: scripted A carries a mortar (9/10 slots)
+const loadB0 = () => AUTO.loud ? { armour: 1, radar: 1, passive: 1, ecm: 0, ammo: 2, cells: 0, mortar: 0 } : { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 };
+const loadA0 = () => ({ ...loadB0(), mortar: 1 }); // R9: scripted A carries a mortar (9/10 slots)
+// R18 --fit: a template id or a build code per suit; the default stays the R17 scripted lance
+const fitArg = (s: string) => { const t = HANGAR_TEMPLATES.find(t => t.id === s); const f = t ? t.fit() : fromCode(s); if (!f) throw new Error('--fit: no template or build code ' + s); const w = launchBlock(f); if (w) throw new Error('--fit ' + s + ': ' + w); return f; };
+let FITS: any[] | null = sarg('--fit') ? sarg('--fit').split(',').map(fitArg) : null;
+const loadA = () => FITS ? FITS[0] : loadA0();
+const loadB = () => FITS ? FITS[FITS.length - 1] : loadB0();
+if (FITS) console.log('  (--fit A ' + fitText(FITS[0]) + ' | B ' + fitText(FITS[FITS.length - 1]) + ')');
 
 function playGame(seed: number, comp?: string) {
   rollEnemy(seed, comp, MISSION || 'UPLINK'); newHunt([loadA(), loadB()]); // R7 s2: two scripted mechs, same loadout
@@ -185,8 +197,37 @@ function contracts(n: number) {
   const anyCarried = res.some(r => r.entering.some((x: any) => x.n > 1 && Object.values(x.carry).some((m: any) => m.dead || m.hits < m.maxHits)));
   if (!anyCarried) console.log('  FLAG: nothing is ever carried (stakes are zero)');
   if (VERBOSE) for (const r of res) console.log(`    contract ${r.c}: ${r.status} ` + r.results.map((h: any) => `H${h.n} ${h.comp} ${h.outcome} ${h.kills}/${h.total} [${h.out.join(', ')}]`).join(' | '));
+  foundReport(hunts);
+  return { res, hunts };
 }
 
+// R18 (A12): what found each lance suit first, on which channel, from how far
+function foundReport(hunts: any[]) {
+  const F = hunts.flatMap(h => h.found), got = F.filter(Boolean), ch: Record<string, number[]> = {};
+  for (const f of got) (ch[CHANNEL[f.src] || f.src] ||= []).push(f.d);
+  const avg = (a: number[]) => (a.reduce((x, y) => x + y, 0) / Math.max(1, a.length)).toFixed(1);
+  console.log(`  FOUND (R18) suits found by the field ${got.length}/${F.length} | first heard on: ` + Object.entries(ch).sort((a, b) => b[1].length - a[1].length).map(([k, v]) => `${k} ${v.length} at ${avg(v)} tiles`).join(', '));
+  const rear = hunts.reduce((a, h) => a + h.rear, 0), all = hunts.reduce((a, h) => a + h.hitsAll, 0);
+  console.log(`  REAR (R18) gun hits from behind ${rear}/${all} (${Math.round(100 * rear / Math.max(1, all))}%)`);
+}
+// R18 (A11): build sweep. Every frame × reactor pair (from the frame's template, reactor swapped), N contracts each, both suits the same.
+function sweep(n: number) {
+  const rows: any[] = [];
+  for (const t of HANGAR_TEMPLATES) for (const r of ['coldburn', 'hotcore']) {
+    const f = t.fit(); f.mounts.CORE = f.mounts.CORE.map((id: string | null) => id === 'coldburn' || id === 'hotcore' ? r : id);
+    const why = launchBlock(f); if (why) { log0(`  ${t.role} + ${r}: can't launch (${why})`); continue; }
+    FITS = [f]; console.log = () => {}; const out = contracts(n); console.log = (...a: any[]) => { const s = a.join(' '); if (/FLAG:|WARNING:/.test(s)) FLAGS.push(s.trim()); log0(...a); };
+    const H = out.res.flatMap((c: any) => c.results), wins = H.filter((h: any) => h.outcome.startsWith('WIN')).length;
+    const F = out.hunts.flatMap((h: any) => h.found), got = F.filter(Boolean), ch: Record<string, number[]> = {};
+    for (const x of got) (ch[CHANNEL[x.src] || x.src] ||= []).push(x.d);
+    const s = fitStats(f), tpl = (t.id === 'line' ? 'coldburn' : 'hotcore') === r;
+    rows.push({ frame: f.frame, reactor: r, wins, hunts: H.length, complete: out.res.filter((c: any) => c.status === 'COMPLETE').length, n });
+    log0(`  ${(t.role + (tpl ? '*' : '')).padEnd(9)} ${f.frame.padEnd(8)} ${r.padEnd(9)} hunts ${H.length} | win ${wins} (${Math.round(100 * wins / Math.max(1, H.length))}%) | contracts ${rows[rows.length - 1].complete}/${n} | load ${s.load}/${s.rated} regen ${s.regen} EM ${s.emBase.toFixed(1)} | first heard: ` +
+      Object.entries(ch).sort((a, b) => b[1].length - a[1].length).map(([k, v]) => `${k} ${v.length} at ${(v.reduce((x, y) => x + y, 0) / v.length).toFixed(1)}t`).join(', '));
+  }
+  const by = (k: string) => { const g: Record<string, { w: number; h: number }> = {}; for (const r of rows) { const x = g[r[k]] ||= { w: 0, h: 0 }; x.w += r.wins; x.h += r.hunts; } return Object.entries(g).map(([n, x]) => `${n} ${Math.round(100 * x.w / Math.max(1, x.h))}%`).join(', '); };
+  log0(`== SWEEP (${n} contracts each, * = the template's own reactor) | win by frame: ${by('frame')} | by reactor: ${by('reactor')}`);
+}
 let last = { failed: 0, complete: 0, lost: 0, n: 0 }; // R13: the latest contracts() summary (--both compares two)
 // R13: this hunt's sound / emissions numbers (read right after the hunt ends)
 function huntStats() {
@@ -197,6 +238,8 @@ function huntStats() {
     loudest: Math.max(0, ...G.lance.map((m: any) => m.loudest || 0)), sprints: G.lance.reduce((a: number, m: any) => a + (m.sprints || 0), 0),
     ids: (idTick(false), idSummary()), // R14: per field unit: read? narrowed? ID'd, right, before eyes
     mission: G.mission.type, mres: G.mission.result, ally: G.ally ? { hits: Math.max(0, G.ally.hits), max: G.ally.maxHits, dead: G.ally.dead, shotAt: G.shotLog.filter((r: any) => r.target === 'ALLY').length, heard: G.ally.heardN || 0 } : null, legs: G.mission.legs.slice(), pickTurn: G.mission.pickTurn || 0, handoffs: G.mission.handoffs, endTurn: G.turn, units: G.units.map((u: any) => ({ v: u.variant, dead: u.dead })), // R15
+    found: G.lance.map((m: any) => G.firstLog.find((f: any) => f.side === 'E' && f.tgt === m.id && f.src !== 'GHOST') || null), // R18 (A12)
+    rear: G.shotLog.filter((r: any) => r.hit && r.rear).length, hitsAll: G.shotLog.filter((r: any) => r.hit).length,
     grid: MAP.info.grid, rerolls: MAP.info.rerolls || 0, moves: { ...G.moveStat }, outcome: G.mode === 'hunt' ? 'STALL' : G.outcome, // R16
     alarms: G.alarmLog.length, allOn3, lost: G.lance.filter((m: any) => m.dead).length,
     pack: G.units.reduce((a: any, u: any) => { for (const k of ['HUNT', 'SEARCH', 'LEASH']) a[k] += (u.packN && u.packN[k]) || 0; return a; }, { HUNT: 0, SEARCH: 0, LEASH: 0 }) };
@@ -344,6 +387,8 @@ if (SCEN) {
   log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;
   console.log(`== NORMAL vs LOUD: failed ${a.failed} vs ${b.failed} | complete ${a.complete} vs ${b.complete} | mechs lost ${a.lost} vs ${b.lost}`);
   if (b.lost < a.lost * 1.15 && b.failed < a.failed + 2) console.log('  FLAG: --loud does not lose noticeably more than normal (getting loud still carries no risk)');
+} else if (arg('--sweep', 0) > 0) {
+  sweep(arg('--sweep', 0));
 } else if (CONTRACTS > 0) {
   contracts(CONTRACTS);
 } else if (ONE >= 0) {

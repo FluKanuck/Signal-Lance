@@ -12,8 +12,11 @@ import { noteEmit, notePulse, noteMoved, noteFired, reveal, emitBand, frozen } f
 
 // ============================ SIGNATURE / DETECTION ===================
 // R13: electronic only. Moving and firing no longer reach passive sensors (they make Sound instead, see sound.ts).
+// R18 (A8): the standing part comes from the fit (m.emBase: always-on EM + EM visibility); a unit with no fit (the Escort
+// transport) keeps the old SIG_STILL + armour × SIG_ARMOUR.
 export function sig(m) {
-  return (TUNE.SIG_STILL + (m.radarOn ? radarOf(m)?.sig || 0 : 0) + m.armour * TUNE.SIG_ARMOUR + effEmit(m) * TUNE.SIGNAL_EMIT) * (m.mask ? TUNE.ECM_MASK_MULT : 1);
+  const base = m.emBase !== undefined ? m.emBase : TUNE.SIG_STILL + m.armour * TUNE.SIG_ARMOUR;
+  return (base + (m.radarOn ? radarOf(m)?.sig || 0 : 0) + effEmit(m) * TUNE.SIGNAL_EMIT) * (m.mask ? TUNE.ECM_MASK_MULT : 1);
 }
 // Passive sensors hear a unit pulsing radar or still carrying Emissions (R13: not moving or firing any more).
 export function emitting(m) { return m.radarOn || effEmit(m) > 0; } // R10: QUIET reads Emissions × SIG_MULT
@@ -66,7 +69,9 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, 
   if (!c) {
     if (!free) return null;
     c = free; c.on = true; c.id = id; c.dmg = ''; c.type = ''; c.unc = Math.max(TUNE.UNC_ACQUIRE * T, measU); c.tx = x; c.ty = y;
-    G.firstLog.push({ side: list === G.pc ? 'P' : 'E', src, turn: G.turn }); // R13: every new contact and the sense that made it (runner)
+    const by = list === G.pc ? null : G.units.find(u => u.ec === list); // R18 (A12): who found it, how far away
+    G.firstLog.push({ side: list === G.pc ? 'P' : 'E', src, turn: G.turn, tgt: id, by: by ? by.id : '', byType: by ? by.variant : '',
+      d: by && tgt ? Math.hypot(by.x - tgt.x, by.y - tgt.y) / T : 0 }); // R13: every new contact and the sense that made it (runner)
   }
   c.snd = src === 'SOUND'; // R13: true while the latest fix is sound only (never a lock; "SOUND" label)
   c.shr = src === 'ALARM';  // R13 s2: true while the latest fix is a shared alarm contact (never a lock)

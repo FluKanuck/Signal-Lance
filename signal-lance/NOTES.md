@@ -855,6 +855,49 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      the HUD hid the buttons).
    - Parity: `npm run sim` (50 games), `--contracts 60`, `--contracts 30 --loud`, `--contracts 20 --pack` and
      `--scenario earshot` give byte-identical output to R17 (bd91ae8).
+   R18 checkpoint 2 (the suit budget) ASSUMPTIONS
+   - A4: part = location (SENSORS = MAST, WEAPON = ARMS, CORE, LEGS, new BACK). BACK has PART_SHARE 0 and PART_WEIGHTS 0, so
+     it takes its 1 hit on top of the R17 pool (every suit and field unit gets +1 hit; CORE unchanged) and is only rolled from
+     behind. A module is offline while its location's part is at 0 (kit.ts online). The hard-coded "SENSORS gone = no radar /
+     ECM / ghost" became "that module's own part": the default fit's mask and EM array are on the MAST (offline with it),
+     its ghost on the CORE's OPEN hardpoint (stays up). Passive is now lost with the MAST (R17: passive survived). Eyes still
+     halve with SENSORS, and LEGS still limit moves (frame rules, not modules). Regen and pool are fixed at the hunt's start
+     (a lost part's draw isn't refunded). Buttons say which part is gone: SNS, WPN, BCK.
+   - A5: "outside the facing arc" = outside FRONT_ARC_HALF 90° either side of the target's facing (the front half), from
+     where the shell was fired. Gun shots only; a mortar splash rolls as before. Both sides; turrets and emplacements have a
+     BACK too.
+   - A6: a suit's regen = totals(fit).net (reactor output − idle draw, mods' drawAdd included), pool = ENERGY_BASE +
+     batteries. Field units keep the flat ENERGY_REGEN (their fits have no reactor rows yet). Can't launch: no reactor,
+     draw over output, or load over max (the hangar disables START CONTRACT and says why).
+   - A7: overloadPenalty from the toy with TUNE knobs (OVERLOAD_SND_PER_PT 1, OVERLOAD_AP_FRAC 0.5). The +AP is added once
+     per move (it shortens how far the AP takes you) and is kept if the move is interrupted; the +Sound goes on every move
+     and on the clutter crunch.
+   - A8: the standing EM signature of a suit = (fit always-on EM emit + EM visibility) × SIG_EM_PER_PT 0.5: Wisp 0.5, Warden
+     1.5 (= the R17 default's 0.5 + 1 plate), Bulwark 2.0. Plates no longer add EM (in the rows they add MAG, not modelled
+     yet). The radar's per-pulse EMIT and signature are its row's, times a mod's EM multiplier in the same location. Sound
+     per event: the gun's and mortar's rows (12, 14, per Jamie: today's values), moves = SOUND_RANGE by mode (the legs; the
+     cheap set has no servo rows) + overload. The field keeps the R17 standing signature (SIG_STILL + plates × SIG_ARMOUR):
+     moving it to the frame alone made the plated gun turret 40% quieter and broke the R14 look-alike scenario; field fits
+     get designed later (equipment plan C7).
+   - A9: mods from fit.ts totals (one per location, matching tags). Only the Cold processor is in the cheap set.
+   - A10: the hangar (view/hangar.ts) replaces the slot picker. Jamie's ExoS wireframe (Downloads/ExoS Wireframe.svg) is the
+     location picker: its C2PA stamp stripped (145 KB → 18 KB), outlines and panels split by position into MAST / ARMS /
+     CORE / LEGS (view/exos.ts, generated); BACK is a dashed pack behind the right shoulder. Panels tint teal when the
+     location carries something, bright when selected. Steel plate per location is a toggle. Hangar-only rules while a suit
+     has one gun button: one of each module row (batteries excepted) and one reactor. Changing frame keeps what still fits.
+     Fits saved per suit as build codes (signalLance.fitA / fitB; codes from the toy work, non-cheap rows are dropped).
+     The old picker and MODS table are gone.
+   - Frame base hits: 3 for all three (= PLAYER_HITS). A first guess of Wisp 2 / Bulwark 5 made the Bulwark win 83% in the
+     sweep; with 3 each, frames differ by hardpoints, rated / max load and EM visibility, and plates are the hits.
+   - Templates: Scout = Wisp (Lamp, EM array, mask, autocannon, Hot core, battery; no plate, no BACK hardpoints), Line =
+     the R17 default (Warden), Brawler = Bulwark (EM array, autocannon, Hot core, battery, mortar; plates ARMS, CORE, LEGS).
+     The Wisp has a BACK part (it can be hit there) but no BACK hardpoints.
+   - A11: runner `--fit` (template id or build code, A,B) and `--sweep N` (3 frames × 2 reactors, both suits the same fit).
+   - A12: the result screen and the log line say what found each suit first (G.firstLog now records who and how far):
+     channel = SND (sound), EM (passive), EM (radar), eyes, muzzle flash, alarm.
+   - C7: INTEL adds "Listens on": SND and eyes for all, EM passive ears (patrols, turrets), radar (emplacements). Counts are
+     the briefed field's; a Bounty's extra units are not listed (as before).
+   - Thermal optics is held back until checkpoint 3 (it has nothing to read yet).
 ```
 
 ## TWEAK LOG
@@ -1252,4 +1295,15 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            SIG_RADAR, PLAYER_FIRE_RANGE, ENEMY_FIRE_RANGE, HIT_BASE, SOUND_RANGE.SHOT / MORTAR, MORTAR_SHELLS, AP_MORTAR,
            MORTAR_MIN / MAX_RANGE, MORTAR_SCATTER_BASE / PER_UNC, AMMO_PER_SLOT, ENERGY_CELL → item rows (same values).
            Runner 60 contracts: wins 49% (R17 49%), output byte-identical to R17 on every runner mode tried. BUILD r18-s1 | -
+   round18 decision | Jamie: "for the autocannon stats, use what we have now, we will find a system to balance and tune all
+           the stats of all equipment down the road" | item rows keep today's hunt values (shot heard 12 tiles, not the toy's
+           6) | -
+   round18 s2 | brief checkpoint 2: A4 parts, A5 rear arc, A6 power, A7 weight, A8 EM + SND from items, A9 mods, A10 hangar
+           (Jamie: "use mine" = his ExoS wireframe), cheap set, templates, A11 sweeps, A12 found-by, C7 INTEL listens | NEW
+           REAR_ARC true, FRONT_ARC_HALF 90, OVERLOAD_SND_PER_PT 1, OVERLOAD_AP_FRAC 0.5, SIG_EM_PER_PT 0.5, HANGAR_FRAMES /
+           ITEMS / PLATES; PARTS + BACK. Runner 60 contracts (scripted R17 lance): hunt wins 52% (s1 49%: +1 BACK hit, regen 12
+           not 10); 26% of gun hits come from behind. Sweep (40 contracts each, both suits one fit): wisp 21%, warden 35%,
+           bulwark 80%; Cold-burn = Hot core exactly (Energy never runs short; the reactor choice waits for THERMAL). A Warden
+           with the Brawler's plates + mortar (16/14, +2 sound a move) wins ~81%: plates + mortar carry it, not the frame. First
+           found by: muzzle flash 32%, SND 30% (at ~5 tiles), eyes 27%, radar 3%. BUILD r18-s2 | -
 ```

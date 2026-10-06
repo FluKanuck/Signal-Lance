@@ -6,10 +6,10 @@ import { rand } from './rng.ts';
 import { updateSensors, cx, cy, killContact, muzzleFlash, canSee } from './sensors.ts';
 import { bestContact, enemyDecide } from './bot.ts';
 import { effEmit, zoneType } from './zones.ts';
-import { hitChance, rollPart, damagePart, partGone, partHurt, eyesRange } from './combat.ts';
+import { hitChance, rollPart, damagePart, partGone, partHurt, eyesRange, fromBehind } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
-import { has, gunOf, radarOf, mortarOf } from './kit.ts';
+import { has, fitted, gunOf, radarOf, mortarOf, offWhy } from './kit.ts';
 import { onKill, onAllOut, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
 // ============================ UPDATE ==================================
@@ -36,7 +36,7 @@ export function fire(m, ax, ay, rec?) { // R12: rec = this shot's to-hit record 
     s.rec = rec || null;
     const d = Math.hypot(ax - m.x, ay - m.y) || 1;
     s.on = true; s.x = m.x; s.y = m.y; s.ax = ax; s.ay = ay; s.left = d;
-    s.vx = (ax - m.x) / d; s.vy = (ay - m.y) / d; s.owner = m;
+    s.vx = (ax - m.x) / d; s.vy = (ay - m.y) / d; s.owner = m; s.sx = m.x; s.sy = m.y; // R18: where it was fired from (rear arc)
     m.ammo--; m.fireT = TUNE.SIG_FIRE_TIME; m.shots++;
     return true;
   }
@@ -61,9 +61,9 @@ export function updateShells(dt) {
       if (s.rec && !s.rec.roll) v = null;
       const hit = !!v;
       if (hit) {
-        const part = rollPart(v); damagePart(v, part, TUNE.SHOT_DAMAGE);
+        const part = rollPart(v, { x: s.sx, y: s.sy }); damagePart(v, part, TUNE.SHOT_DAMAGE); // R18: from behind = BACK
         s.owner.landed++; v.took = (v.took || 0) + 1; if (isMech(v)) hooks.playerHit();
-        if (s.rec) s.rec.part = part;
+        if (s.rec) { s.rec.part = part; s.rec.rear = fromBehind(v, s.sx, s.sy); }
       }
       if (s.rec) s.rec.hit = hit;
       impactFx(s.x, s.y, hit);
@@ -109,13 +109,13 @@ export function pay(m, ap, en) { m.ap -= ap; m.en -= en; }
 // One mech or field unit starts its own turn / activation: AP, Energy regen, Signal decay, ECM upkeep.
 export function beginUnit(m) {
   m.ap = Math.min(TUNE.AP_BANK_MAX, m.ap + TUNE.AP_PER_TURN);
-  m.en = Math.min(m.enMax, m.en + TUNE.ENERGY_REGEN);
+  m.en = Math.min(m.enMax, m.en + (m.regen ?? TUNE.ENERGY_REGEN)); // R18: a suit's reactor output − idle draw; field units the flat ENERGY_REGEN
   m.turnShots = 0; m.mUsed = 0; m.freeTurns = TUNE.FREE_TURNS; m.movedT = 0; // R12: "target moved" counts this activation's tiles
   if (m !== G.ally) { const es = G.emitStat[isMech(m) ? 'P' : 'E']; es.n++; es.sum += m.emit; } // R13: Emissions at activation start (runner)
   addEmit(m, -TUNE.SIGNAL_DECAY);
   if (!isMech(m)) m.emit = Math.max(m.emit, m.comms || 0); // R13 test 2: comms keep a field unit's EMIT up
   clearSound(m); // R13: last activation's sound is gone
-  if (partGone(m, 'SENSORS')) m.mask = false; // R12: no ECM without sensors
+  if (!has(m, 'MASK')) m.mask = false; // R12: no ECM without sensors. R18: without a working mask (its part gone)
   if (m.mask) { if (canPay(m, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(m, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(m, TUNE.SIGNAL_ECM); } else m.mask = false; }
 }
 // ---- R7 s2: initiative. Each round every living unit rolls INIT_BASE[type] + 0..INIT_ROLL; higher first,
@@ -258,14 +258,15 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
   const lame = partGone(m, 'LEGS') ? TUNE.LEGS_GONE_MULT : 1; // R13: both legs gone = half a creep
   const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
   apMax = Math.min(m.ap, apMax === undefined ? m.ap : apMax); enMax = Math.min(m.en, enMax === undefined ? m.en : enMax);
-  const fullLen = pathCost(full), apLen = apMax * tpa, enLen = ept > 0 ? enMax / ept : 1e9; // R16: tiles of movement (clutter costs CLUTTER_TILE_COST each)
+  const oAP = m.over ? m.over.ap : 0, oSnd = m.over ? m.over.snd : 0; // R18 (A7): overload: +AP and +Sound on every move
+  const fullLen = pathCost(full), apLen = Math.max(0, apMax - oAP) * tpa, enLen = ept > 0 ? enMax / ept : 1e9; // R16: tiles of movement (clutter costs CLUTTER_TILE_COST each)
   const len = Math.min(fullLen, apLen, enLen);
   const r: any = { full, path: null, len: 0, ap: 0, en: 0, cut: len < fullLen - 1e-3, why: apLen <= enLen ? 'AP' : 'EN', mode };
   if (len < 0.25) return r;
   r.path = r.cut ? clipPathCost(full, len) : full; r.len = len;
-  r.ap = Math.ceil(len / tpa - 1e-6); r.en = Math.ceil(len * ept - 1e-6);
+  r.ap = Math.ceil(len / tpa - 1e-6) + oAP; r.en = Math.ceil(len * ept - 1e-6); r.oAP = oAP;
   r.crunch = pathHitsClutter(r.path); // R16: entering any clutter tile adds CLUTTER_SOUND to this move's Sound (once)
-  r.snd = (m.snd || TUNE.SOUND_RANGE)[mode] + (r.crunch ? TUNE.CLUTTER_SOUND : 0); r.lame = lame; // R13: the sound radius this move will make (Emissions no longer rise with moves)
+  r.snd = (m.snd || TUNE.SOUND_RANGE)[mode] + oSnd + (r.crunch ? TUNE.CLUTTER_SOUND : 0); r.lame = lame; // R13: the sound radius this move will make (Emissions no longer rise with moves)
   r.tpa = tpa; r.ept = ept; r.wps = []; r.wpAP = 0; r.drawn = false; // R17: what the interrupt refund needs
   return r;
 }
@@ -349,22 +350,23 @@ export function planDrawn(m, pts: { x: number; y: number }[], mode, wps: any[] =
   const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
   const cum = [0]; for (let i = 1; i < full.length; i++) cum.push(cum[i - 1] + segCost(full[i - 1], full[i]));
   const fullLen = cum[cum.length - 1], free = m.freeTurns || 0, WI = W8.filter(w => w.i > 0);
+  const oAP = m.over ? m.over.ap : 0, oSnd = m.over ? m.over.snd : 0; // R18 (A7): overload
   for (let k = WI.length; k >= 0; k--) {
     const wpAP = Math.max(0, k - free) * TUNE.AP_TURN;
-    const apLen = (m.ap - wpAP) * tpa, enLen = ept > 0 ? m.en / ept : 1e9, len = Math.min(fullLen, apLen, enLen);
+    const apLen = Math.max(0, m.ap - wpAP - oAP) * tpa, enLen = ept > 0 ? m.en / ept : 1e9, len = Math.min(fullLen, apLen, enLen);
     if (k > 0 && cum[WI[k - 1].i] > len + 1e-6) continue; // the k-th waypoint is past where this move would stop
     const r: any = { ...base, cut: len < fullLen - 1e-3, why: apLen <= enLen ? 'AP' : 'EN', wps: WI.slice(0, k), wpAP, tpa, ept, lame, cum };
     if (len < 0.25) return r;
     r.path = r.cut ? clipPathCost(full, len) : full; r.len = len;
-    r.ap = Math.ceil(len / tpa - 1e-6) + wpAP; r.en = Math.ceil(len * ept - 1e-6);
+    r.ap = Math.ceil(len / tpa - 1e-6) + wpAP + oAP; r.en = Math.ceil(len * ept - 1e-6); r.oAP = oAP;
     r.crunch = pathHitsClutter(r.path);
-    r.snd = (m.snd || TUNE.SOUND_RANGE)[mode] + (r.crunch ? TUNE.CLUTTER_SOUND : 0);
+    r.snd = (m.snd || TUNE.SOUND_RANGE)[mode] + oSnd + (r.crunch ? TUNE.CLUTTER_SOUND : 0);
     return r;
   }
   return { ...base, why: 'AP' };
 }
 export function doMove(m, pl) {
-  pay(m, pl.ap, pl.en); makeSound(m, pl.mode); // R17: the clutter part of the sound waits until the mover actually steps into clutter
+  pay(m, pl.ap, pl.en); makeSound(m, pl.mode, m.over ? m.over.snd : 0); // R18: + overload. R17: the clutter part of the sound waits until the mover actually steps into clutter
   const nw = (pl.wps || []).length, free0 = m.freeTurns || 0;
   if (nw) m.freeTurns = Math.max(0, free0 - nw);
   if (isMech(m)) { G.moveStat.n++; if (pl.crunch) G.moveStat.c++; if (pl.drawn) { G.moveStat.drawn++; G.moveStat.wp += nw; } else G.moveStat.tap++; } // R16 runner: how often the lance crosses clutter; R17: drawn / tap, waypoints
@@ -389,7 +391,7 @@ function moveTick(a) {
   const t = Math.floor(m.y / T) * W + Math.floor(m.x / T);
   if (t !== a.tile) {
     a.tile = t; a.steps = (a.steps || 0) + 1;
-    if (a.crunch && isClutter(t % W, (t / W) | 0)) { makeSound(m, a.pl.mode, TUNE.CLUTTER_SOUND); a.crunch = false; }
+    if (a.crunch && isClutter(t % W, (t / W) | 0)) { makeSound(m, a.pl.mode, TUNE.CLUTTER_SOUND + (m.over ? m.over.snd : 0)); a.crunch = false; }
     updateSensors(0);
   }
   if (!a.known || !m.path || G.mode !== 'hunt') return;
@@ -406,7 +408,7 @@ export function interruptMove(a, u, why = 'eyes') { // why: what showed it (eyes
   const m = a.m, pl = a.pl;
   const walked = pathCost([...m.path.slice(0, m.pi), { x: m.x, y: m.y }]);
   const usedWp = Math.min(a.wpDone, (pl.wps || []).length), wpAP = Math.max(0, usedWp - a.free0) * TUNE.AP_TURN;
-  const ap = Math.min(pl.ap, Math.ceil(walked / pl.tpa - 1e-6) + wpAP), en = Math.min(pl.en, Math.ceil(walked * pl.ept - 1e-6));
+  const ap = Math.min(pl.ap, Math.ceil(walked / pl.tpa - 1e-6) + wpAP + (pl.oAP || 0)), en = Math.min(pl.en, Math.ceil(walked * pl.ept - 1e-6)); // R18: the overload AP is paid once a move starts
   m.ap += pl.ap - ap; m.en += pl.en - en; m.freeTurns = Math.max(0, a.free0 - usedWp);
   m.path = null; m.moving = false; a.intr = true;
   G.intr = { id: m.id, uid: u.id, why, t: TUNE.INTERRUPT_CUE_TIME, ap: pl.ap - ap }; // the view's "CONTACT — move stopped" cue
@@ -432,8 +434,8 @@ export function doPulse(m, x, y) { // R18: costs and EMIT from its radar row
 // ---- shots (same lock rule shape for both mechs) ----
 // '' = can shoot; otherwise the one-word reason shown on the FIRE button.
 export function shootBlock(m, c, uncMax, range) {
-  if (!c || !c.on || !gunOf(m)) return 'NONE'; // R18: no gun row fitted
-  if (partGone(m, 'WEAPON')) return 'WPN'; // R12
+  if (!c || !c.on || !fitted(m, 'GUN')) return 'NONE'; // R18: no gun row fitted
+  if (!gunOf(m)) return offWhy(m, 'GUN') || 'WPN'; // R12. R18: its part is gone (ARMS = WEAPON)
   if (m.ammo <= 0) return 'AMMO';
   if (m.turnShots >= TUNE.SHOTS_PER_TURN) return 'CAP';
   if (m.ap < TUNE.AP_SHOT) return 'AP';
@@ -464,7 +466,8 @@ export function doShot(m, c) {
 // '' = can fire; otherwise the one-word reason shown on the MORTAR button.
 export function mortarBlock(m, c) {
   const M = mortarOf(m); // R18: the mortar row's AP and ranges
-  if (!M || !c || !c.on) return 'NONE';
+  if (!fitted(m, 'MORTAR') || !c || !c.on) return 'NONE';
+  if (!M) return offWhy(m, 'MORTAR'); // R18: its part is gone (BACK)
   if (m.shells <= 0) return 'SHELLS';
   if (m.mUsed >= TUNE.MORTAR_PER_ACTIVATION) return 'CAP';
   if (m.ap < M.ap) return 'AP';
@@ -480,7 +483,8 @@ export function mortarScatter(c, m = G.p) { const M = mortarOf(m); return (M.sca
 // R9 run1: blind lob at a tapped map point. '' = can fire; else the one-word reason.
 export function mortarBlindBlock(m, x?, y?) {
   const M = mortarOf(m);
-  if (!M) return 'NONE';
+  if (!fitted(m, 'MORTAR')) return 'NONE';
+  if (!M) return offWhy(m, 'MORTAR');
   if (m.shells <= 0) return 'SHELLS';
   if (m.mUsed >= TUNE.MORTAR_PER_ACTIVATION) return 'CAP';
   if (m.ap < M.ap) return 'AP';
@@ -578,19 +582,19 @@ export function cmdObjective() {
   if (isType('RETRIEVE')) { if (isCarrier(G.p)) doHandoff(G.p); else doPickup(G.p); hooks.sync(); return; }
   doUplink();
 }
-export function sensorsUp(m) { return !partGone(m, 'SENSORS'); } // R12: radar / ECM / ghost need sensors
+export function sensorsUp(m) { return !partGone(m, 'SENSORS'); } // R12: radar / ECM / ghost need sensors. R18: kept for the eyes; modules ask has() (their own part)
 export function cmdRadar() {
   const R = radarOf(G.p);
-  if (!R || !sensorsUp(G.p)) return; // R13: the module is needed (the view only hid the button). R18: a radar row
+  if (!R) return; // R13: the module is needed (the view only hid the button). R18: a working radar row (its part not gone)
   if (!canPay(G.p, R.ap, R.en)) return;
   const c = G.sel && G.sel.on ? G.sel : null; // selected contact: turn to face it first
   doPulse(G.p, c ? cx(c) : null, c ? cy(c) : null);
 }
 export function cmdEcm() {
   if (G.p.mask) G.p.mask = false;
-  else if (has(G.p, 'MASK') && sensorsUp(G.p) && canPay(G.p, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(G.p, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(G.p, TUNE.SIGNAL_ECM); G.p.mask = true; }
+  else if (has(G.p, 'MASK') && canPay(G.p, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(G.p, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(G.p, TUNE.SIGNAL_ECM); G.p.mask = true; }
 }
-export function canGhost() { return !G.ghost.on && has(G.p, 'GHOST') && sensorsUp(G.p) && canPay(G.p, TUNE.AP_ECM, TUNE.GHOST_COST); }
+export function canGhost() { return !G.ghost.on && has(G.p, 'GHOST') && canPay(G.p, TUNE.AP_ECM, TUNE.GHOST_COST); }
 export function cmdGhost(x, y) {
   if (canGhost()) { pay(G.p, TUNE.AP_ECM, TUNE.GHOST_COST); G.ghost.on = true; G.ghost.owner = G.p; G.ghost.x = x; G.ghost.y = y; G.ghost.turns = TUNE.GHOST_TURNS; }
   replan();
