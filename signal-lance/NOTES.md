@@ -947,4 +947,6 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            PARTS.ALLY), route graph in MAP_ANCHORS, friends() / isFriend() for the field's targets. Scenarios Fork, Shadow.
            Runner (20 contracts, forced Escort): win 68%, transport shot at in 85% of hunts, destroyed 18/60. Mixed check:
            sound-share flag only. BUILD r15-s3 | -
+   round15 step 3 debrief | weakest: "It felt fine". Fork call decided by "a mix of all scan results, as well as gut feeling,
+           looking forward to the final route, trying to keep options open". Escort vs Uplink: "its own thing" | no change | -
 ```
