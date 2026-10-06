@@ -149,7 +149,7 @@ $('lPaste').addEventListener('click', () => {
 $('lReset').addEventListener('click', () => { Object.assign(LOOKS[S.lookI], SHIPPED[S.lookI]); Object.assign(FOG, FOG0); lookTo(S.lookI); });
 $('lLooks').innerHTML = LOOKS.map((L, i) => `<button data-i="${i}">${L.name}</button>`).join('');
 $('lLooks').addEventListener('click', e => { const b = (e.target as HTMLElement).closest('button'); if (b) lookTo(+b.dataset.i!); });
-$('lFx').innerHTML = Object.keys(FX).map(k => `<label><input type="checkbox" data-k="${k}" checked> ${k}</label>`).join('');
+$('lFx').innerHTML = Object.keys(FX).map(k => `<label><input type="checkbox" data-k="${k}"${(FX as any)[k] ? " checked" : ""}> ${k}</label>`).join('');
 $('lFx').addEventListener('change', e => { const i = e.target as HTMLInputElement; (FX as any)[i.dataset.k!] = i.checked; });
 const sel = $('lPick') as HTMLSelectElement;
 sel.innerHTML = scenarioList().map((s, i) => `<option value="${i}">R${s.round} · ${s.name}</option>`).join('');
