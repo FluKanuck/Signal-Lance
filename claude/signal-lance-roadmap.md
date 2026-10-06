@@ -1,6 +1,6 @@
 # Signal Lance Roadmap
 
-**Updated:** 2026-10-06 after Round 16 (Rolled ground: packed districts per hunt, "the map changed my plan"; no fun test, by slice design). The full map of the game lives in `claude/signal-lance-game-shape.md`.
+**Updated:** 2026-10-06 after Round 17 (Eyes on the street: drawn routes, look markers, interrupt; "moving became part of the hunt"; no fun test, by slice design). The full map of the game lives in `claude/signal-lance-game-shape.md`.
 
 ## North star
 Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, then learn why.
@@ -15,7 +15,7 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | Resource pools | Do separate pools (AP, Energy, Signal, Heat) create real trade-offs? | AP + Energy banked on purpose. Jamie R12: "no risk in having high signal"; sprint noise wrongly stacks. R13 split Signal into EMIT + SOUND: read **"at a glance"**; a SOUND contact helped find something; crept instead of sprinting once. Heat untested | 2 (R4, R13) |
 | SIGINT: signature matching | Does reading a signature and matching it against a reference manual (Cold Waters style) make identifying contacts a skill? | **R14: legible, but decides nothing.** 9 variants, card, ID; runner 27% ID'd before eyes, no flags. Jamie: "irregardless of the enemy type, if around an uplink, I'm going to have to fight it"; eyes win the race; `ID_SHOW_FITS` helped partly. **R15: the missions gave it the "and".** Bounty, Retrieve, Escort all "the read changed my plan"; Escort fork called from "a mix of all scan results… gut feeling". Later also pre-drop from the ship, plus faction intel | 2 (R14 flat, R15 yes) |
 | Suit building | Do frame (weight), reactor (power) and signature budgets force a real sacrifice, shaped by the INTEL? | Mapped. Cheap test: 3 frames, 2 reactors, ~6 modules | 0 |
-| Combat controls | Can you fire and manoeuvre as a tactical choice? | Passed (R4). R10 noise ended "stand off and pummel" | 3 |
+| Combat controls | Can you fire and manoeuvre as a tactical choice? | Passed (R4). R10 noise ended "stand off and pummel". **R17: drawn routes + look markers (Door Kickers style), interrupt "saved me", facing free (man-sized units)** | 4 |
 | Replay pull | Does the next run ask a new question? | Reframed into Company after R10 | 5 (reframed) |
 | Scale | Does a lance hunting a mixed field turn a duel into a plan? | Yes (R7). Split moved with mortar (R9), steady since | 3 |
 | Company / persistence | Does something carried between runs make you care? | Partly (R11): stakes land late (H1 flat, H3 tense). R12: part damage carried | 2 |
@@ -41,13 +41,13 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | 3 | Suit building | Sharpened test in `signal-lance-construction.md` (3 frames, 2 reactors, ~7 modules, 1 mod, + THERMAL) | Mapped |
 | 4 | Pre-drop intel (ship) | Ship SIGINT scan with a risk dial; 3 ship slots, fit 2 | Mapped |
 | 5 | Operators | One per suit, one skill, Standard (critical + extract), injuries bench, 2 recruits | Mapped |
-| 2c | Draw your route | Door Kickers–style drawn path (tap-to-move kept), facing waypoints to look down alleys, movement interrupt (parked #10). Builds on `FREE_TURNS` / `AP_TURN` | **R17 "Eyes on the street" (brief out).** Scoped: this-turn drawn path + facing waypoints + interrupt (stop, keep AP); no multi-turn walk |
+| 2c | Draw your route | Door Kickers–style drawn path (tap-to-move kept), facing waypoints to look down alleys, movement interrupt (parked #10). Builds on `FREE_TURNS` / `AP_TURN` | **Built (R17).** "Moving became part of the hunt". Controls reworked 3× in-round to Door Kickers style (freehand line, end handle, tap line → tap where to look, draggable eye). Interrupt "saved me" (runner: +9 pts win). `AP_TURN` 1→0. Big districts "about right" |
 | 6 | After the drop | Payout, salvage capped by the hold, repair with parts, medbay time | Partly (R11–R12) |
 | 7 | Learn why | After-action timeline: who heard whom, wrong calls, where the plan broke (the pillar's last beat) | Not mapped |
 | 2b | Block maps | ~6 interlocking 10×10 blocks, 3×3 grid rolled per hunt (parked #33), each block carrying its mission anchors. Timing set by Escort: pull forward if routes feel solved on one map | **Built (R16).** "The map changed my plan". Grid of blocks read "too much like a grid"; became **packed irregular districts** cropped at the edge (`MAP_LAYOUT` packed). Clutter a real choice ("went round it"). Escort got HOLD / HURRY / fork levers; per-mech EXTRACT. Big grids brutal in runner (4×4 17%, 5×3 0%) |
 | 8 | Campaign map | 5–6 districts, 2 factions, fuel per jump, upkeep, standing, 3 contracts on offer, faction intel | Mapped |
 
-Build order (lean, revisable at each scoping chat): Missions (R15) → Block maps (R16) → **Draw your route (R17)** → Suit building → Pre-drop intel → Operators + After → Learn why → Campaign map → slice fun test.
+Build order (lean, revisable at each scoping chat): Missions (R15) → Block maps (R16) → Draw your route (R17) → **Suit building (next: scoping chat)** → Pre-drop intel → Operators + After → Learn why → Campaign map → slice fun test.
 
 ## Decisions
 | Round | Decision | Why |
@@ -77,6 +77,7 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 | 16 | "Rolled ground": ~8 hand-drawn 12×12 blocks with anchors + modifier slots (sound zone, LoS set piece, ground clutter = low cover + slow + noisy, each its own knob), random grid (6×2 … 4×4, min 8 blocks), field scaled by area, escort graph from seams; hive map kept as `MAP_MODE` control. No fun test | R15 Retrieve "only one sensible route" (2b trigger). Jamie: "lots of variations… some real variety"; picked both clutter effects. Movement rework split to R17 so each reads cleanly |
 | 16 (result) | Map reads and connects: "the map changed my plan"; final changes "helped", weakest moment "felt fine". Grid → street blockers → **packed districts** (default) → start aprons. Escort controls (HOLD / HURRY / levers), shared cover cancels, EXTRACT per mech (closes #57). No fun test (slice) | Jamie: "still feels too much like a grid… irregular shape library… cut off by the map boundary". Biggest missing piece: drawn routes (R17) |
 | 17 | "Eyes on the street": drag-drawn path for this turn only (tap kept), up to 3 facing waypoints (`FREE_TURNS` / `AP_TURN`), eyes checked every step, new contact or LoS stops the move with unspent AP kept, stop-here marker (#20). Side: scrap = low cover `HIT_COVER_LOW` 15 (#62), cover source shown (#18), packed-layout scenarios (#65), escort button (#59). No fun test | R16 "best round in a while" (Jamie). Jamie: "shape the turn for that ExoS and look as you go to aim sensors down alleys"; interrupt = stop, keep AP. Multi-turn walk not picked |
+| 17 (result) | Drawn routes read and connect: "moving became part of the hunt"; interrupts "saved me"; weakest moment "felt fine". Spec overrides: freehand line, end handle, tap-to-look eye marker, stop ring removed; facing free (`AP_TURN` 0). Low cover 15 in. Runner 37% → 49%, mostly the interrupt. No fun test (slice) | Jamie: "facings shouldnt cost AP at all" (man-sized units). Next: "whatevers next in the plan" = suit building |
 | note | **Lance size: 1–4 ExoS deployed per mission** (Jamie, 2026-10-05; "ExoS", pronounced Ex-Oss, is his placeholder term for the exosuits). Today's builds use 2 | Jamie, during the R14 debrief |
 
 ## Parked ideas (by gate)
@@ -90,7 +91,7 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 7. Drones / scouts / expendable recon; deployable jammer or decoy — hunt
 8. Enemy AI, beyond R13: react when shot (cover, back off), flank, use zones, call for help as an action, relays and comms jamming — enemy behaviour
 9. Initiative delay/hold/interrupt; modules that change initiative — combat
-10. → **R17** (interrupt: stop, keep AP) — combat
+10. ~~Interrupt~~ → done in R17 (stop, keep AP) — combat
 11. Smarter fixes: no fix in impossible spots, no stale cross-referencing — hunt
 12. Zones that change movement cost or the observer's own sensors; QUIET does nothing for turrets — hunt
 13. RWR, enemy ECM ghosts, aimed radar pulse, passive bearings only on the enemy's turn — hunt
@@ -98,14 +99,14 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 15. Enemy AI managing its own Emissions/Sound (going quiet, ambushing); recheck passive feeling mandatory — hunt
 16. Pre-drop SIGINT scans (now from the ship, Gate 2); recon sniper team for HUMINT — hunt
 17. R12 step 2: aimed shots (`HIT_AIMED` −20), per-part repair (`COST_PART_RESTORE` 60). Later: salvage, crits, enemies aiming at parts — combat / company
-18. R12 build notes: legs and weapon at 2 hits; show which wall gives cover (→ R17); visible "disarmed" state; tap-to-show odds breakdown — combat
+18. R12 build notes: legs and weapon at 2 hits; ~~show which wall gives cover~~ (done R17); visible "disarmed" state; tap-to-show odds breakdown — combat
 19. **Emission taxonomy (Jamie R13 chat):** now decided as six channels (catalogue §1); sim rollout in steps. Was: separate EM / IR / EF / acoustic signatures; different sensors and weapons read each differently. Builds on R13's two channels; pairs with reactor heat/IR in suit building — hunt / resource pools
 
 49. Comms detection range: patrol "small radios" (`COMMS_EMIT` 10) carry ~14 tiles; probably needs its own shorter range (R13) — hunt
 50. RADAR may be mandatory: the `--loud` bot wins more because radar info outweighs the noise; watch in play (R13) — hunt
 
 **Quality of life (Gate 1, low)**
-20. Fast travel when no enemies tracked; END TURN auto-moves along a plotted path — combat ("you'll stop here" marker → R17)
+20. Fast travel when no enemies tracked; END TURN auto-moves along a plotted path; a tap move carrying on by itself after a stop (stop marker done R17, then removed by Jamie) — combat
 
 **Gate 2: a reason to care**
 21. Operators: one skill each, injury, fatigue; death per difficulty (Standard: critical + extract); recruits from districts, rescue, crew training — company
@@ -150,10 +151,16 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 56. Choose or refit the loadout after seeing the job type (R15) — suit building / company
 57. ~~Extraction rule~~ → done in R16 (EXTRACT per mech; hunt ends when all are out) — missions
 58. Runner: the inherited R13 sound-share flag (raise threshold or revisit sound); scripted lance always picks Escort NORTH and never pushes past quota (folds into #42) (R15) — tooling
-59. → R17. Escort route button can sit under HUD text near the map top (R15) — tooling
+59. ~~Done R17.~~ Escort route button can sit under HUD text near the map top (R15) — tooling
 60. **District theme and tone** across a whole map (industrial, slum, corporate block sets + matching building assets); zone theme parked with it (Jamie, R16 scoping) — campaign / content
 61. Interactive or destructible set pieces (fuel tanks, cranes) (R16 scoping) — hunt
-62. → R17 (small-unit value only). **Scrap cover by size (Jamie, R16):** clutter −15% to hit for small units instead of counting as a wall (−25%); larger units −5% once sizes exist; "low cover" in the odds line — combat
+62. Small-unit value done R17 (`HIT_COVER_LOW` 15). **Remaining: scrap cover by size (Jamie, R16):** clutter −15% to hit for small units instead of counting as a wall (−25%); larger units −5% once sizes exist; "low cover" in the odds line — combat
 63. Big districts brutal for the scripted lance (4×4 17%, 5×3 0%): `FIELD_SCALE_BY_AREA`, `STREET_KEEP`, grid weights; one debrief question once Jamie has played big maps (R16) — missions / balance
 64. Scripted lance ignores levers, HOLD / HURRY and clutter trade-offs; runner understates Escort (folds into #42) (R16) — tooling
-65. → R17 (new scenarios on packed layouts). R16 scenarios still use the old block-grid layout; may want packed-layout versions (R16) — tooling
+65. ~~Done R17~~ (packed-layout scenarios). R16 scenarios still use the old block-grid layout; may want packed-layout versions (R16) — tooling
+66. Interrupt knobs if it ever nags: ignore sound-only contacts, or eyes only (R17) — combat
+67. Look-menu polish: "✕ LOOK" doesn't follow a pan; hold on your ExoS opens the tooltip instead of a draw (R17) — tooling
+68. `FREE_TURNS` / `FACE_WAYPOINTS_MAX` mean little now facing is free; the cap of 3 could go (R17) — combat
+69. Scripted lance never draws paths or sets looks, so the runner can't value them (folds into #42) (R17) — tooling
+70. "Wait here" waypoint / go codes, Door Kickers style (R17) — combat
+71. Facing is free for man-sized ExoS; frame size could later bring turn cost and size-based cover back (R17; feeds suit building) — suit building
