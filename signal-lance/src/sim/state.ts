@@ -1,8 +1,9 @@
 import { TUNE } from '../tune.ts';
-import { W, H, T, spawnX, spawnY, canReach, isSolid, DX, DY, tilesCrossed, anchors } from './world.ts';
+import { W, H, T, spawnX, spawnY, canReach, isSolid, DX, DY, tilesCrossed, anchors, loadMap, HIVE } from './world.ts';
+import { rollDistrict } from './blocks.ts';
 import { rand, setSeed } from './rng.ts';
 import { startRound } from './turns.ts';
-import { rollZones, zoneAtTile } from './zones.ts';
+import { rollZones, zoneAtTile, areaScale } from './zones.ts';
 import { recordHunt } from './contract.ts';
 import { initParts } from './combat.ts';
 import { newMission } from './mission.ts';
@@ -50,6 +51,7 @@ export const G: any = {
   obs: {}, ids: {}, idStat: {}, eyesAny: false, // R14: per field unit id: what the lance observed, its committed ID, runner stats
   tb: null, // R14: the test-bed scenario being played (null = a normal hunt)
   mtype: 'UPLINK', mission: null, pop: null, ally: null, // R15 s3: ally = the Escort transport (null otherwise)
+  moveStat: { n: 0, c: 0 }, // R16: lance moves this hunt, and how many entered clutter (runner)
   // R15: the rolled mission type, this hunt's mission (see mission.ts), the last bounty pop (view)
 };
 for (let i = 0; i < 8; i++) G.fx.push({ on: false, x: 0, y: 0, t: 0, hit: false });
@@ -98,6 +100,12 @@ function makeMech(id: string, load) {
   return m;
 }
 export function livingUnits() { return G.units.filter(u => !u.dead); }
+// R16: how many of a type the composition fields on this map: × map area / FIELD_BASE_AREA (FIELD_SCALE_BY_AREA), rounded,
+// never below the composition's own count. INTEL shows the same numbers.
+export function fieldCount(C, type: string) {
+  const n = C[type] || 0;
+  return TUNE.FIELD_SCALE_BY_AREA ? Math.max(n, Math.round(n * areaScale())) : n;
+}
 
 // R7 spawns. Turret and emplacement: reachable tiles within GUARD_RADIUS of the uplink, preferring a
 // tile next to a building with clear LOS to the point. Patrols: anywhere reachable. Nothing within
@@ -172,7 +180,7 @@ export function newHunt(loads?, prep?: () => void) {
   const legT = G.mtype === 'ESCORT' ? nearLegTiles() : null; // R15 s3: an Escort field waits near the route legs
   let i = 0;
   const C = G.comp || TUNE.FIELD_COMPOSITIONS[0];
-  for (const type of Object.keys(TUNE.FIELD_TYPES)) for (let n = 0; n < (C[type] || 0); n++) {
+  for (const type of Object.keys(TUNE.FIELD_TYPES)) for (let n = 0; n < fieldCount(C, type); n++) { // R16: scaled by map area
     const u = makeUnit(type, i++, rollVariant(type)); // R14: each slot rolls a variant (seeded, evenly)
     const ambush = C.NAME === 'Ambush' && type === 'TURRET'; // R10: Ambush turrets prefer QUIET ground and watch your spawn
     const t = legT ? legTile(legT, taken) : u.mobile ? anyTile(taken) : C.staticPlacement === 'anywhere' ? anyTile(taken, ambush ? 'QUIET' : '') : guardTile(taken); // R8: placement flag
@@ -206,6 +214,7 @@ export function newHunt(loads?, prep?: () => void) {
   G.act = null; G.turn = 1; G.planT = null; G.plan = null;
   G.time = 0;
   G.obs = {}; G.ids = {}; G.idStat = {}; G.eyesAny = false; // R14: observed traits, committed IDs, runner stats (see ids.ts)
+  G.moveStat = { n: 0, c: 0 }; // R16
   G.shotLog = []; G.partLog = []; G.firstLog = []; G.alarmLog = []; G.emitStat = { P: { n: 0, sum: 0 }, E: { n: 0, sum: 0 } }; G.lastShot = { P: null, E: null };
   G.mode = 'hunt';
   if (prep) prep();
@@ -219,6 +228,7 @@ export function newHunt(loads?, prep?: () => void) {
 // R15: mtype = the job's mission type (newHunt builds G.mission from it). It draws no random numbers.
 export function rollEnemy(seed: number, force?: string, mtype = 'UPLINK') {
   setSeed(seed); G.seed = seed; G.mtype = mtype;
+  if (TUNE.MAP_MODE === 'blocks') rollDistrict(seed); else loadMap(HIVE); // R16: the hunt's district first (same seed, same map)
   const X = anchors(), site = X.waypoints[X.escortSite];
   const A = mtype === 'ESCORT' ? [site] : mtype === 'RETRIEVE' && X.cargo.length ? X.cargo : X.uplinks; // R15 s3: Escort's site = the centre fork // R15: from the per-map anchors table (cargo reuses the uplink tiles while its list is empty)
   let c = A.filter(u => canReach(u.x, u.y) && Math.hypot(u.x - spawnX, u.y - spawnY) >= TUNE.UPLINK_MIN_DIST);

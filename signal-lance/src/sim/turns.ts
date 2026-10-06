@@ -1,5 +1,5 @@
 import { TUNE } from '../tune.ts';
-import { W, T, isSolid, findPath, tilesCrossed } from './world.ts';
+import { W, T, isSolid, isClutter, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter } from './world.ts';
 import { G, hooks, finishHunt, unitById, livingMechs, isMech, isFriend, friends, setActive } from './state.ts';
 import { allyStep, pickLeg } from './escort.ts';
 import { rand } from './rng.ts';
@@ -15,7 +15,7 @@ import { onKill, onExtract, onClear, onAllyOut, onAllyLost, isType, isCarrier, c
 export function moveAlong(m, speed, dt) {
   m.moving = false;
   if (!m.path) return;
-  let step = speed * T * dt;
+  let step = speed * T * dt / (isClutter(Math.floor(m.x / T), Math.floor(m.y / T)) ? TUNE.CLUTTER_TILE_COST : 1); // R16: wading through clutter is slow to watch too
   while (step > 0 && m.path) {
     const wp = m.path[m.pi], dx = wp.x - m.x, dy = wp.y - m.y, d = Math.hypot(dx, dy);
     if (d <= step) { m.x = wp.x; m.y = wp.y; step -= d; m.movedT = (m.movedT || 0) + d / T; if (++m.pi >= m.path.length) m.path = null; }
@@ -232,17 +232,19 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
   const lame = partGone(m, 'LEGS') ? TUNE.LEGS_GONE_MULT : 1; // R13: both legs gone = half a creep
   const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
   apMax = Math.min(m.ap, apMax === undefined ? m.ap : apMax); enMax = Math.min(m.en, enMax === undefined ? m.en : enMax);
-  const fullLen = pathLen(full), apLen = apMax * tpa, enLen = ept > 0 ? enMax / ept : 1e9;
+  const fullLen = pathCost(full), apLen = apMax * tpa, enLen = ept > 0 ? enMax / ept : 1e9; // R16: tiles of movement (clutter costs CLUTTER_TILE_COST each)
   const len = Math.min(fullLen, apLen, enLen);
   const r: any = { full, path: null, len: 0, ap: 0, en: 0, cut: len < fullLen - 1e-3, why: apLen <= enLen ? 'AP' : 'EN', mode };
   if (len < 0.25) return r;
-  r.path = r.cut ? clipPath(full, len) : full; r.len = len;
+  r.path = r.cut ? clipPathCost(full, len) : full; r.len = len;
   r.ap = Math.ceil(len / tpa - 1e-6); r.en = Math.ceil(len * ept - 1e-6);
-  r.snd = TUNE.SOUND_RANGE[mode]; r.lame = lame; // R13: the sound radius this move will make (Emissions no longer rise with moves)
+  r.crunch = pathHitsClutter(r.path); // R16: entering any clutter tile adds CLUTTER_SOUND to this move's Sound (once)
+  r.snd = (m.snd || TUNE.SOUND_RANGE)[mode] + (r.crunch ? TUNE.CLUTTER_SOUND : 0); r.lame = lame; // R13: the sound radius this move will make (Emissions no longer rise with moves)
   return r;
 }
 export function doMove(m, pl) {
-  pay(m, pl.ap, pl.en); makeSound(m, pl.mode);
+  pay(m, pl.ap, pl.en); makeSound(m, pl.mode, pl.crunch ? TUNE.CLUTTER_SOUND : 0);
+  if (isMech(m)) { G.moveStat.n++; if (pl.crunch) G.moveStat.c++; } // R16 runner: how often the lance crosses clutter
   m.path = pl.path; m.pi = 1; m.creep = pl.mode === 'CREEP';
   startAct({ k: 'MOVE', m, speed: MODE_SPEED[pl.mode] * (pl.lame || 1) });
 }

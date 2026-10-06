@@ -16,7 +16,7 @@ describe('every scenario', () => {
     startScenario(s);
     expect(G.tb).toBe(s);
     expect(G.ct).toBeNull();
-    expect(G.lance.map(tile)).toEqual(s.lance.map(l => l.tile));
+    expect(G.lance.filter((m, i) => !s.lance[i].lost).map(tile)).toEqual(s.lance.filter(l => !l.lost).map(l => l.tile)); // R16: a lost mech is off the map
     expect(G.units.map(tile)).toEqual(s.field.map(f => f.tile));
     expect(G.units.map(u => u.type)).toEqual(s.field.map(f => f.type));
     for (const t of [...s.lance.map(l => l.tile), ...s.field.map(f => f.tile), s.uplink]) expect(canReach(t[0], t[1])).toBe(true);

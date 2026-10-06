@@ -1,6 +1,6 @@
 // Round 12 step 1: to-hit roll and hit locations. Both sides, same rules.
 import { TUNE } from '../tune.ts';
-import { T, isSolid } from './world.ts';
+import { T, isSolid, isClutter } from './world.ts';
 import { rand } from './rng.ts';
 import { G } from './state.ts';
 import { effEmit } from './zones.ts';
@@ -68,7 +68,7 @@ export function partsRead(u) {
 // ============================ TO-HIT ==================================
 // Distance (tiles) from point (px,py) to the tile square at (ix,iy).
 function dRect(px, py, ix, iy) { const dx = Math.max(ix - px, 0, px - (ix + 1)), dy = Math.max(iy - py, 0, py - (iy + 1)); return Math.hypot(dx, dy); }
-// Cover: the shot line from (sx,sy) to the target passes closer than COVER_GRAZE to a wall tile that is within
+// Cover: the shot line from (sx,sy) to the target passes closer than COVER_GRAZE to a wall (or R16 clutter) tile that is within
 // COVER_RANGE of the target. The last 0.5 tile of the line (the target's own tile) is ignored, so a wall
 // just behind the target doesn't count. World coords in.
 export function inCover(sx, sy, tx, ty) {
@@ -76,7 +76,7 @@ export function inCover(sx, sy, tx, ty) {
   if (len < 1) return false;
   const R = TUNE.COVER_RANGE, walls = [];
   for (let iy = Math.floor(by - R - 1); iy <= Math.floor(by + R + 1); iy++) for (let ix = Math.floor(bx - R - 1); ix <= Math.floor(bx + R + 1); ix++)
-    if (isSolid(ix, iy) && dRect(bx, by, ix, iy) <= R) walls.push([ix, iy]);
+    if ((isSolid(ix, iy) || isClutter(ix, iy)) && dRect(bx, by, ix, iy) <= R) walls.push([ix, iy]); // R16: clutter is low cover
   if (!walls.length) return false;
   const t0 = Math.max(0, 1 - (R + TUNE.COVER_GRAZE + 1) / len), t1 = 1 - 0.5 / len, st = 0.05 / len;
   for (let t = t0; t <= t1; t += st) {

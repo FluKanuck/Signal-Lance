@@ -126,7 +126,7 @@ describe('comms (R13 test 2)', () => {
   });
   it('turrets stay silent', () => {
     startHunt(3, 'Turret nest');
-    const t = G.units.find(u => u.type === 'TURRET');
+    const t = G.units.find(u => u.type === 'TURRET' && !u.comms); // R16: seeds roll differently on block maps; a gun turret has a radio
     beginUnit(t);
     expect(emitting(t)).toBe(false);
   });

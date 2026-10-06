@@ -2,7 +2,8 @@
 // a scenario answers "does it read?"). Data only, written by the agent from the round brief: no editor, no free spawn.
 // A scenario plays as one hunt outside any contract, logs as [TESTBED <name>] and never counts toward contract stats.
 import { TUNE } from '../tune.ts';
-import { T } from './world.ts';
+import { T, loadMap, HIVE } from './world.ts';
+import { buildDistrict, type DistrictSpec } from './blocks.ts';
 import { setSeed } from './rng.ts';
 import { G, newHunt, makeUnit, setActive, DEFAULT_LOAD } from './state.ts';
 import { setZones, zoneAtTile } from './zones.ts';
@@ -15,7 +16,7 @@ export type Scenario = {
   tryThis: string;                       // one plain line: what Jamie should do
   seed: number;                          // RETRY replays it exactly
   uplink: Tile;
-  lance: { load?: any; tile: Tile; face?: Tile; legsLost?: number; en?: number }[]; // [A, B]; face = a tile to face (default: the uplink)
+  lance: { load?: any; tile: Tile; face?: Tile; legsLost?: number; en?: number; lost?: boolean }[]; // [A, B]; face = a tile to face (default: the uplink); R16: lost = out before it starts (one suit)
   field: { type: string; variant?: string; tile: Tile; face?: Tile; state?: string }[];
   zones?: { type: 'QUIET' | 'NOISE'; x: number; y: number; name?: string }[];
   tune?: Record<string, any>;            // TUNE overrides for this scenario only (top-level keys); restored afterwards
@@ -23,9 +24,51 @@ export type Scenario = {
   mission?: string;                      // R15: the mission type (default UPLINK)
   ally?: string;                         // R15 Escort: the route node the transport starts on (default the start; a fork = holding)
   earned?: number | 'quota';             // R15 Bounty: credits already banked at the start ('quota' = exactly BOUNTY_QUOTA)
+  map?: DistrictSpec;                    // R16: a fixed block district (no roll); none = the hive map
 };
 
+// R16 test-bed districts (fixed: no roll, no rotation). cells are row-major block names.
+const district = (cols: number, rows: number, cells: string[], mods: [number, number][], forks: number[], paint?: any[]) =>
+  ({ cols, rows, cells: cells.map(b => ({ b, rot: 0, mir: false })), mods, forks, paint });
+
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 16 (rolled ground). Pack off. ----
+  {
+    name: 'Long way round', round: 16, seed: 1601, mission: 'RETRIEVE',
+    tryThis: 'Cargo up the street to the east. The short way crunches through scrap at the yard gate, and a patrol listens in the yard. The long way (through the plaza, or the top street) is clean. Pick a way, PICK UP, carry it out the right edge.',
+    map: district(4, 2, ['towers', 'yard', 'alleys', 'depot', 'warren', 'plaza', 'towers', 'lot'], [[1, 3]], [1, 1]),
+    uplink: [30, 11], // the cargo tile
+    lance: [{ tile: [2, 12], face: [30, 12], load: { mortar: 1 } }, { tile: [2, 11], face: [30, 11] }],
+    field: [{ type: 'PATROL', variant: 'line', tile: [19, 6], state: 'PATROL' }],
+    question: { q: 'Did the clutter change your route?', a: ['Yes, went the long way', 'Yes, crunched through on purpose', 'No, didn’t notice it', 'No, not worth going round'] },
+  },
+  {
+    name: 'Two districts: strip', round: 16, seed: 1611, mission: 'ESCORT', ally: 'J1',
+    tryThis: 'A long 6×2 district. The transport waits at the west fork. NORTH runs the top street past a kiosk that blocks the view; SOUTH runs the bottom street. Read the map, then tap a route. Then try Two districts: square.',
+    map: district(6, 2, ['towers', 'alleys', 'plaza', 'warren', 'alleys', 'depot', 'lot', 'towers', 'yard', 'avenue', 'warren', 'towers'], [[2, 1]], [1, 1]),
+    uplink: [24, 12],
+    lance: [{ tile: [23, 11], load: { mortar: 1 } }, { tile: [22, 12] }],
+    field: [{ type: 'TURRET', variant: 'sentry', tile: [31, 2], face: [31, 0] }],
+    question: { q: 'Did the map shape change your leg call?', a: ['Yes, avoided the blind corner', 'Yes, went to clear it first', 'No, picked on gut', 'Didn’t notice it'] },
+  },
+  {
+    name: 'Two districts: square', round: 16, seed: 1612, mission: 'ESCORT', ally: 'J1',
+    tryThis: 'The same fork on a square 3×3 district: NORTH runs the top street past the kiosk, SOUTH runs the seam street through the middle of the map. Read the map, then tap a route.',
+    map: district(3, 3, ['towers', 'plaza', 'alleys', 'warren', 'yard', 'depot', 'alleys', 'towers', 'lot'], [[1, 1]], [1, 1]),
+    uplink: [12, 12],
+    lance: [{ tile: [11, 11], load: { mortar: 1 } }, { tile: [10, 12] }],
+    field: [{ type: 'TURRET', variant: 'sentry', tile: [19, 2], face: [19, 0] }],
+    question: { q: 'Did the map shape change your leg call?', a: ['Yes, avoided the blind corner', 'Yes, went to clear it first', 'No, picked on gut', 'Didn’t notice it'] },
+  },
+  {
+    name: 'Crunch', round: 16, seed: 1621, mission: 'UPLINK',
+    tryThis: 'One suit. Scrap lies across the street between you and the uplink. A sentry in the lot to the north faces away, but it is in earshot of the scrap. Crunch through fast, creep through, or go round to the south.',
+    map: district(3, 2, ['alleys', 'lot', 'depot', 'plaza', 'towers', 'warren'], [[1, 1]], [1], [{ x: 19, y: 11, w: 3, h: 2, ch: ',' }]),
+    uplink: [27, 11],
+    lance: [{ tile: [10, 12], face: [27, 11], load: { mortar: 1 } }, { tile: [9, 12], lost: true }],
+    field: [{ type: 'TURRET', variant: 'sentry', tile: [24, 5], face: [24, 0] }],
+    question: { q: 'Did crossing the clutter feel like a real cost?', a: ['Yes, it heard me and turned', 'Yes, too slow', 'No, went round', 'No, it cost nothing'] },
+  },
   // ---- Round 15 step 3 (Escort). Pack off. ----
   {
     name: 'Fork', round: 15, seed: 1521, mission: 'ESCORT', ally: 'J1',
@@ -170,6 +213,7 @@ export function startScenario(s: Scenario) {
   applyTune(s.tune);
   G.ct = null; // never inside a contract
   setSeed(s.seed); G.seed = s.seed;
+  if (s.map) { if (!buildDistrict(s.map)) throw new Error('scenario ' + s.name + ': district not reachable'); } else loadMap(HIVE); // R16
   const U = G.up, up = ctr(s.uplink); U.x = up.x; U.y = up.y; U.name = 'test point';
   G.comp = { NAME: 'Test bed', staticPlacement: 'uplink' }; // no type counts: newHunt builds no field, prep below places it
   setZones(s.zones || []);
@@ -180,8 +224,9 @@ export function startScenario(s: Scenario) {
       const L = s.lance[i], p = ctr(L.tile); m.x = p.x; m.y = p.y; face(m, L.face, up);
       if (L.legsLost) { m.parts.LEGS = Math.max(0, m.parts.LEGS - L.legsLost); if (!m.parts.LEGS) m.partsLost.push('LEGS'); syncHits(m); }
       if (L.en !== undefined) m.en = L.en;
+      if (L.lost) { m.dead = true; m.hits = 0; m.x = m.y = -10 * T; } // R16: off the map, out of the order (as a contract's lost mech)
     });
-    setActive(G.lance[0]);
+    setActive(G.lance.find(m => !m.dead));
     G.units = s.field.map((f, i) => {
       const u = makeUnit(f.type, i, f.variant), p = ctr(f.tile);
       u.x = u.gx = p.x; u.y = u.gy = p.y; face(u, f.face, up);

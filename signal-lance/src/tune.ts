@@ -189,6 +189,20 @@ export const TUNE = {
   ESCORT_INIT: 4,          // its initiative base (as a patrol)
   ESCORT_BONUS: 60,        // credits on a win × the ally's hits left / its max (on top of PAY_WIN + kills)
   ESCORT_AMBUSH_RANGE: 4,  // tiles; in an Escort job every field unit is placed within this of a route leg ('anywhere' near the legs)
+  // --- Round 16: rolled ground. Every hunt builds a new district from hand-drawn blocks (sim/blocks.ts) ---
+  MAP_MODE: 'blocks',      // 'blocks' = a new district every hunt; 'hive' = the old fixed map (MAP_SRC), as the control (splash toggle)
+  BLOCK_SIZE: 12,          // tiles per block side (blocks are square, with a 1-tile street ring)
+  MAP_GRIDS: ['6x2', '5x2', '4x2', '4x3', '3x3', '5x3', '4x4'], // columns × rows; each hunt rolls one evenly (seeded)
+  MAP_MIN_BLOCKS: 8,       // a grid with fewer blocks than this is never rolled
+  MAP_ROTATE: true,        // blocks may be placed rotated (0/90/180/270) and mirrored (seeded)
+  MAP_REROLL_MAX: 20,      // tries (seed, seed+1, ...) before giving up on a district where the mission's tiles aren't all reachable
+  FIELD_SCALE_BY_AREA: true, // a bigger district gets a bigger field: each type's count × map area / FIELD_BASE_AREA, rounded, never below the composition's own
+  FIELD_BASE_AREA: 1728,   // tiles; the hive map's area (72 × 24)
+  ZONE_SCALE_BY_AREA: true,// zone counts (ZONE_COUNT_MIN / MAX) scale the same way on block maps
+  MOD_SPAWN_CHANCE: 0.5,   // each block's modifier slot (sound zone, set piece, ground clutter) spawns with this chance per hunt
+  CLUTTER_TILE_COST: 2,    // tiles of movement each clutter tile costs to cross (1 = off). Same for everyone; pathing goes round it if it can
+  CLUTTER_SOUND: 3,        // tiles added to a move's Sound if it enters any clutter tile (once per move; 0 = off)
+  ESCORT_FORKS: 2,         // forks on a block map's escort route (each with two onward legs round different blocks)
   FIELD_SHUFFLE: 1,   // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
   // Per type. ARMOUR plates (signature as SIG_ARMOUR; hits = BASE_HITS + ARMOUR × ARMOUR_HITS), AMMO rounds,
   // CELLS energy cells (+ENERGY_CELL each), MOBILE 0 = never moves, RADAR/PASSIVE 0|1,

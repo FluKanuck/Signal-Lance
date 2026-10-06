@@ -2,18 +2,19 @@
 // It holds at each junction until the player picks a leg. The field senses, hunts and fires on it like a lance mech
 // (state.ts friends()); the lance's own guns never hit it (a mortar splash does). Its death fails the hunt.
 import { TUNE } from '../tune.ts';
-import { T, W, anchors, findPath, canReach } from './world.ts';
+import { T, W, anchors, findPath, canReach, mapGen, pathCost, clipPathCost, pathHitsClutter } from './world.ts';
 import { G } from './state.ts';
 import { initParts } from './combat.ts';
-import { clipPath, pathLen } from './turns.ts';
+import { pathLen } from './turns.ts';
 import { makeSound } from './sound.ts';
 
 const ctr = (n) => ({ x: (n.x + 0.5) * T, y: (n.y + 0.5) * T });
 // The legs leaving node k (index into anchors().legs)
 export function legsFrom(k: string) { return anchors().legs.map((l, i) => ({ ...l, i })).filter(l => l.from === k); }
 // A leg's walk, in world points: A* from node to node through its via tiles (cached per map; the route never changes)
-const cache: Record<number, any[]> = {};
+let cache: Record<number, any[]> = {}, cacheGen = -1;
 export function legPath(i: number) {
+  if (cacheGen !== mapGen) { cache = {}; cacheGen = mapGen; } // R16: a new map, new routes
   if (cache[i]) return cache[i];
   const L = anchors().legs[i], N = anchors().waypoints, pts = [N[L.from], ...L.via.map(([x, y]) => ({ x, y })), N[L.to]];
   let out = [ctr(pts[0])];
@@ -76,19 +77,17 @@ export function legButton(i: number) {
 // Returns the path to walk, or null.
 export function allyStep() {
   const a = G.ally; if (!a || a.dead || a.leg < 0) return null;
-  const rest = a.walk, left = pathLen(rest);
-  const n = Math.min(TUNE.ESCORT_MOVE, left);
-  // walk from where it stands along what's left of the leg
-  const pts = [{ x: a.x, y: a.y }, ...rest.slice(1)], path = clipPath(pts, n);
+  // walk from where it stands along what's left of the leg (R16: clutter costs it CLUTTER_TILE_COST a tile, like everyone)
+  const pts = [{ x: a.x, y: a.y }, ...a.walk.slice(1)], left = pathCost(pts);
+  const n = Math.min(TUNE.ESCORT_MOVE, left), path = clipPathCost(pts, n);
   if (n >= left - 1e-3) { // reaches the leg's end node this activation
     const to = anchors().legs[a.leg].to; a.node = to; a.leg = -1; a.walk = null;
     const L = legsFrom(to); if (L.length === 1) { startLeg(a, L[0].i); a.walk = legPath(L[0].i); }
   } else {
     // keep the unwalked remainder: the clip's end point + every later point
-    const end = path[path.length - 1]; let k = 1, acc = 0;
-    for (; k < pts.length; k++) { const d = Math.hypot(pts[k].x - pts[k - 1].x, pts[k].y - pts[k - 1].y); if (acc + d >= n * T - 1e-6) break; acc += d; }
-    a.walk = [end, ...pts.slice(k)];
+    const end = path[path.length - 1], k = path.length - 1, full = pts[k] && pts[k].x === end.x && pts[k].y === end.y;
+    a.walk = full ? pts.slice(k) : [end, ...pts.slice(k)];
   }
-  makeSound(a, 'NORMAL');
+  makeSound(a, 'NORMAL', pathHitsClutter(path) ? TUNE.CLUTTER_SOUND : 0);
   return path.length > 1 ? path : null;
 }

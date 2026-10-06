@@ -15,6 +15,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
   `brief.ts` (tester splash, basics, end-of-hunt questions: update TEST + QUESTIONS every round).
 - R14: `src/sim/scenarios.ts` (the test bed), `src/sim/ids.ts` (observed traits, matcher, IDs), `src/view/testbed.ts`,
   `src/view/card.ts` (CARD and ID picker).
+- R16: `src/sim/blocks.ts` (the block library, district roll / build, the seam-built escort route, mapText). The map
+  itself is per-hunt state in `world.ts` (loadMap).
 - R15: `src/sim/mission.ts` (mission types: the hunt's goal, Bounty pay, Retrieve cargo, extract / clear rules), `src/sim/escort.ts`
   (the Escort transport and its route). Map anchors (uplinks, cargo, escort route): `MAP_ANCHORS` in `world.ts`.
 - R13: `src/sim/sound.ts` (Sound), `src/sim/pack.ts` (alarm, pack target), `src/sim/autoplay.ts` (the scripted
@@ -630,6 +632,52 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      left, legs picked.
    - End-of-hunt questions now ask the round's "read and connect" check per hunt (read: changed my plan / didn't / not
      sure), logged next to the job type. BUILD r15-s3.
+   R16 (Rolled ground) ASSUMPTIONS
+   - The map is per-hunt state (sim/world.ts loadMap): W, H, N, walls, clutter, spawn, reach and the anchors table are
+     `export let` live bindings, so every reader (sim, runner, view, camera) sees the current map. Path buffers are sized
+     to the biggest map loaded so far. MAP_MODE 'hive' loads MAP_SRC (no random draws: hive hunts replay R15 exactly);
+     'blocks' rolls a district in rollEnemy right after setSeed, before the site / composition / zones (so a seed's
+     other rolls differ from hive). The splash MAP button sets MAP_MODE (remembered; '[HIVE]' tags the log).
+   - Blocks (sim/blocks.ts): 8 hand-drawn 12×12 blocks (plaza, alleys, yard, avenue, lot, warren, towers, depot), each with
+     a full 1-tile street ring. Spots = uplink AND cargo tiles (cargo reuses them; no separate cargo spots), named
+     "<spot> <cell>" with cells A1, B2... (column letter, row number). Rotation (0–270) and mirroring are on (MAP_ROTATE).
+   - Grid: even seeded pick from MAP_GRIDS with ≥ MAP_MIN_BLOCKS blocks. Blocks: even pick, never the same as the left or
+     upper neighbour. Extraction = the rightmost EXTRACT_COLS columns of the last block column, forced open (as hive).
+     Spawn = left edge, mid-height (nearest open tile).
+   - Each modifier slot has ONE kind, chosen by hand per block (so pieces fit), and rolls MOD_SPAWN_CHANCE. Clutter =
+     a rect painted on street tiles only. A clutter slot touching a block edge spills one tile over into the next
+     block's ring, so it spans the whole seam street ("rubble across the street"). Set piece = a rect drawn '%' (a wall,
+     drawn rust): kept only if no street tile loses its way to the spawn. Zone slot = a centre for rollZones.
+   - Reachability: after building, every spot, every route node and the right edge must be reachable, else reroll (fresh
+     draws, up to MAP_REROLL_MAX). The blocks have no walled pockets, so 0 rerolls in 300+ runner hunts.
+   - Block density: the first draw was 30% walls (hive 42%) with 30% of nearby tiles in sight (hive 19%), and the scripted
+     lance lost far more. Redrawn denser (36–38% walls, ~22% in sight); the plaza and the lot stay the open ones.
+   - Zones: on block maps rollZones draws from the zone slots that spawned (not ZONE_CANDIDATES), with ZONE_COUNT_MIN/MAX
+     × area / FIELD_BASE_AREA (ZONE_SCALE_BY_AREA), rounded. The near-uplink rule is unchanged.
+   - Field scale: per type, max(count, round(count × area / 1728)); INTEL shows the scaled counts. Bounty extras unscaled.
+     4×3 = the hive's area (no change); 4×4 ×1.33, 5×3 ×1.25; smaller grids never drop below the composition.
+   - Clutter cost is per distance: a straight stretch inside a clutter tile costs CLUTTER_TILE_COST × its length (sampled
+     every 1/8 tile), which is ≈ COST per tile crossed. planMove's length, AP, Energy and clipping all use it; A* weights
+     entering a clutter tile × COST; path smoothing only shortcuts when the shortcut costs no more. Units also walk
+     slower on screen in clutter (speed ÷ COST). The "target moved" to-hit term still counts real tiles.
+   - Clutter Sound: if a move's (clipped) path enters any clutter tile, its sound radius = the mode's radius (the unit's
+     own, for variants) + CLUTTER_SOUND, once. The Escort transport pays both too. A crunching scout can read "loud
+     steps" on the ID card: that's the real sound.
+   - Clutter cover: clutter tiles count as walls for inCover only. Standing ON clutter also counts as cover (your own
+     tile is within COVER_RANGE). LoS, radar walls and shells ignore clutter.
+   - Escort on blocks: seam lines are the rows y = 0, 12, 24, …, H−1 and columns x = 0, 12, …, W−1 (always street).
+     Forks J1..Jn (n = min(ESCORT_FORKS, cols−1)) sit on column lines spread evenly, each on a seeded interior seam row.
+     From each fork: NORTH runs the seam row one block up, SOUTH one block down, both rejoining at the next fork, the last
+     pair running out the right edge. S = left edge on J1's row; escortSite = the last fork. Node names "fork at C2".
+   - INTEL: "<C>×<R> district, <W>×<H>." before the composition ("The old hive map." on hive). Log line and DBG carry
+     mapText ("MAP 4x3 seed 1234 · blocks: … · mods: 3 clutter, 1 set piece, 2 zones"; zones = the ones rolled in).
+   - Test bed: Scenario gains `map` (a fixed DistrictSpec: no roll, no rotation) and lance `lost` (one suit). Specs can
+     carry `paint` (hand-placed tiles, test bed only): Crunch's clutter band across the street. Old scenarios load hive.
+     "Two districts" is two entries (strip 6×2, square 3×3) rather than one rerun with --grid.
+   - Tests: rule tests (helpers.startHunt) default to the hive map, since they place units by its geometry. The R13
+     "turrets stay silent" test now picks a radio-silent turret (seeds roll gun turrets differently now).
+   - Scripted lance (bot only): the Escort shadow goal stays 5 columns short of extraction (was 2), because A*'s
+     nearest-free snap could land it in extraction on a block map (a BAIL). BUILD r16-s1.
 ```
 
 ## TWEAK LOG
@@ -949,4 +997,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            sound-share flag only. BUILD r15-s3 | -
    round15 step 3 debrief | weakest: "It felt fine". Fork call decided by "a mix of all scan results, as well as gut feeling,
            looking forward to the final route, trying to keep options open". Escort vs Uplink: "its own thing" | no change | -
+   round16 | build as briefed | NEW block districts (MAP_MODE 'blocks', BLOCK_SIZE 12, MAP_GRIDS, MAP_MIN_BLOCKS 8, MAP_ROTATE,
+           MAP_REROLL_MAX 20, FIELD_SCALE_BY_AREA, FIELD_BASE_AREA 1728, ZONE_SCALE_BY_AREA, MOD_SPAWN_CHANCE 0.5), clutter
+           (CLUTTER_TILE_COST 2, CLUTTER_SOUND 3), ESCORT_FORKS 2. Scenarios Long way round, Two districts (strip / square),
+           Crunch. Build: blocks redrawn denser (first draw 30% walls: blocks won 34% vs hive 57%) and edge clutter slots
+           that span the seam street (clutter on 4–5% of lance moves → 7–9%). Runner, 60 contracts: blocks win 50% of hunts
+           (hive 58%): Escort 71% (85), Uplink 54% (77), Retrieve 30% (42), Bounty 33% (24); grids 26–67%, no grid flag;
+           0 rerolls. --check: sound-share flag gone on blocks (46%); Bounty "sentry killed 0%" fires (hive 3/9). BUILD r16-s1 | -
 ```

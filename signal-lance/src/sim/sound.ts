@@ -13,8 +13,9 @@ import { noteSound } from './ids.ts';
 
 // Raise m's sound for this activation to event `kind` (a SOUND_RANGE key) if that is louder. The offset that
 // listeners' contacts sit at is rolled when the sound grows, then held (so the contact doesn't jitter).
-export function makeSound(m, kind: string) {
-  const r = (m.snd || TUNE.SOUND_RANGE)[kind] || 0; // R14: a field unit's variant sets its own radii
+// R16: extra = tiles added on top (a move that crunches through clutter: CLUTTER_SOUND).
+export function makeSound(m, kind: string, extra = 0) {
+  const r = ((m.snd || TUNE.SOUND_RANGE)[kind] || 0) + extra; // R14: a field unit's variant sets its own radii
   if (kind === 'SPRINT' && isMech(m)) m.sprints = (m.sprints || 0) + 1; // log line: sprints this hunt
   if (r <= (m.sound || 0)) return;
   m.sound = r; m.sndKind = kind; // R14: what made it (a step or a shot: the lance writes it down)

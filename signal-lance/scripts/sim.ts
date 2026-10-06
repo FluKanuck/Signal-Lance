@@ -13,6 +13,8 @@
 //   --quiet                            R14: the scripted mechs CREEP every move
 //   --scenario earshot [--runs 10]     R14: play a test-bed scenario with the scripted player (seed, seed+1, ...)
 //   --mission bounty                   R15: force every hunt's mission type (games and contracts); contracts report a split by type
+//   --map hive|blocks                  R16: the old fixed map, or a rolled block district every hunt (default: TUNE.MAP_MODE)
+//   --grid 4x3                         R16: force every district's grid (columns × rows); contracts report a split by grid
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
@@ -20,6 +22,7 @@ import { playOut as autoPlayOut, AUTO } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
 import { idTick, idSummary } from '../src/sim/ids.ts';
 import { scenarioByName, startScenario, leaveScenario, SCENARIOS } from '../src/sim/scenarios.ts';
+import { MAP } from '../src/sim/world.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
@@ -30,7 +33,11 @@ if (MISSION && !TUNE.MISSION_TYPES.includes(MISSION) && MISSION !== 'UPLINK') th
 const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0), SCEN = sarg('--scenario'), RUNS = arg('--runs', 10);
 AUTO.loud = argv.includes('--loud'); AUTO.quiet = argv.includes('--quiet'); // R14: --quiet = CREEP every move
 if (argv.includes('--pack')) TUNE.PACK_ENABLED = true; // R13 s2: the pack on (as the splash toggle does)
-const BOTH = argv.includes('--both'); // R13 s2: run --contracts twice, normal then --loud, and compare
+const BOTH = argv.includes('--both');
+const MAPMODE = sarg('--map'), GRID = sarg('--grid'); // R16
+if (MAPMODE) { if (!['hive', 'blocks'].includes(MAPMODE)) throw new Error('--map: hive or blocks'); TUNE.MAP_MODE = MAPMODE; }
+if (GRID) { if (!/^\d+x\d+$/.test(GRID)) throw new Error('--grid: CxR, e.g. 4x3'); TUNE.MAP_GRIDS = [GRID]; TUNE.MAP_MIN_BLOCKS = 1; }
+console.log(`  (map: ${TUNE.MAP_MODE}${GRID ? ' ' + GRID : ''})`); // R13 s2: run --contracts twice, normal then --loud, and compare
 // --set KEY=VALUE (repeatable, dotted paths ok): try a tune value without editing tune.ts, e.g. --set SOUND_RANGE.NORMAL=4
 argv.forEach((k, i) => {
   if (k !== '--set') return;
@@ -168,6 +175,7 @@ function contracts(n: number) {
   const st = res.filter(r => r.status === 'STALL');
   console.log(st.length ? '  stalls over 80 rounds: ' + st.map(r => `contract ${r.c} H${r.reached}`).join(', ') : '  stalls over 80 rounds: none');
   missionReport(res.flatMap(r => r.results), hunts);
+  mapReport(hunts);
   hitReport(shots, parts);
   soundReport(hunts);
   idReport(hunts);
@@ -189,6 +197,7 @@ function huntStats() {
     loudest: Math.max(0, ...G.lance.map((m: any) => m.loudest || 0)), sprints: G.lance.reduce((a: number, m: any) => a + (m.sprints || 0), 0),
     ids: (idTick(false), idSummary()), // R14: per field unit: read? narrowed? ID'd, right, before eyes
     mission: G.mission.type, mres: G.mission.result, ally: G.ally ? { hits: Math.max(0, G.ally.hits), max: G.ally.maxHits, dead: G.ally.dead, shotAt: G.shotLog.filter((r: any) => r.target === 'ALLY').length, heard: G.ally.heardN || 0 } : null, legs: G.mission.legs.slice(), pickTurn: G.mission.pickTurn || 0, handoffs: G.mission.handoffs, endTurn: G.turn, units: G.units.map((u: any) => ({ v: u.variant, dead: u.dead })), // R15
+    grid: MAP.info.grid, rerolls: MAP.info.rerolls || 0, moves: { ...G.moveStat }, outcome: G.mode === 'hunt' ? 'STALL' : G.outcome, // R16
     alarms: G.alarmLog.length, allOn3, lost: G.lance.filter((m: any) => m.dead).length,
     pack: G.units.reduce((a: any, u: any) => { for (const k of ['HUNT', 'SEARCH', 'LEASH']) a[k] += (u.packN && u.packN[k]) || 0; return a; }, { HUNT: 0, SEARCH: 0, LEASH: 0 }) };
 }
@@ -247,6 +256,24 @@ function missionReport(R: any[], H: any[]) {
   for (const h of H.filter(h => h.mission === 'BOUNTY')) for (const u of h.units) { const x = V[u.v] || (V[u.v] = { n: 0, k: 0 }); x.n++; if (u.dead) x.k++; }
   console.log('  BOUNTY killed when present: ' + Object.entries(V).sort().map(([k, x]) => `${k} ${x.k}/${x.n}`).join(', '));
   for (const [k, x] of Object.entries(V)) if (x.n >= 5 && (x.k / x.n > 0.9 || x.k / x.n < 0.05)) console.log(`  FLAG: ${k} killed in ${pc(x.k, x.n)} of the Bounty hunts it appears in (always or never worth it)`);
+}
+
+// R16: hunts split by grid size (win rate, average rounds), map rerolls, and how often the lance's moves crossed clutter.
+function mapReport(H: any[]) {
+  const pc = (a: number, b: number) => b ? Math.round(100 * a / b) + '%' : '-', win = (L: any[]) => L.filter(h => h.outcome.startsWith('WIN')).length;
+  const all = win(H) / Math.max(1, H.length);
+  const grids = [...new Set(H.map(h => h.grid))].sort();
+  for (const g of grids) {
+    const L = H.filter(h => h.grid === g), w = win(L);
+    console.log(`  MAP ${g.padEnd(5)} hunts ${L.length} | win ${w} (${pc(w, L.length)}) | avg rounds ${(L.reduce((a, h) => a + h.endTurn, 0) / L.length).toFixed(1)}`);
+    if (L.length >= 5 && Math.abs(w / L.length - all) > 0.3) console.log(`  FLAG: grid ${g} wins ${pc(w, L.length)}, more than 30 points from the overall ${pc(win(H), H.length)}`);
+  }
+  if (MAP.id === 'hive' && grids.length === 1 && grids[0] === 'hive') return;
+  const rr = H.filter(h => h.rerolls > 0).length, mv = H.reduce((a, h) => a + h.moves.n, 0), mc = H.reduce((a, h) => a + h.moves.c, 0);
+  console.log(`  MAP rerolls: ${rr}/${H.length} hunts needed one (${pc(rr, H.length)}) | lance moves into clutter ${mc}/${mv} (${pc(mc, mv)})`);
+  if (rr / Math.max(1, H.length) > 0.05) console.log(`  FLAG: unreachable rerolls in ${pc(rr, H.length)} of hunts (over 5%)`);
+  if (mv && mc / mv < 0.05) console.log(`  FLAG: clutter crossed in only ${pc(mc, mv)} of lance moves (it's never on the way)`);
+  if (mv && mc / mv > 0.6) console.log(`  FLAG: clutter crossed in ${pc(mc, mv)} of lance moves (it's everywhere)`);
 }
 
 // R14: reading the signature. Over every field unit the lance ever had a contact on.

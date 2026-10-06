@@ -9,10 +9,12 @@ import { idText } from '../sim/ids.ts';
 import { setPack } from '../sim/pack.ts';
 import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
 import { MISSION_INFO, missionText, isType, escortBonus } from '../sim/mission.ts';
-import { anchors } from '../sim/world.ts';
+import { anchors, MAP, W, H } from '../sim/world.ts';
+import { mapText } from '../sim/blocks.ts';
+import { fieldCount } from '../sim/state.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r15-s3';  // R15 step 3: ESCORT (all four job types)
+export const BUILD = 'r16-s1';  // R16: rolled ground (block districts, clutter)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
@@ -71,11 +73,11 @@ export function intelText() {
   const parts = [];
   const C = G.comp;
   for (const k of Object.keys(TUNE.FIELD_TYPES)) {
-    const n = C[k] || 0, F = TUNE.FIELD_TYPES[k];
+    const n = fieldCount(C, k), F = TUNE.FIELD_TYPES[k]; // R16: scaled with the district's size
     if (!n || k === 'TURRET') continue;
     parts.push(n + ' ' + (n > 1 ? F.PLURAL : F.NAME));
   }
-  const t = C.TURRET || 0;
+  const t = fieldCount(C, 'TURRET');
   const tur = t ? 'reports of ' + (t > 1 ? t + ' hidden ' + TUNE.FIELD_TYPES.TURRET.PLURAL : 'a hidden ' + TUNE.FIELD_TYPES.TURRET.NAME) : '';
   // R15: the mission type and its goal come first, so you know the job before you take it
   const M = MISSION_INFO[G.mtype], bounty = G.mtype === 'BOUNTY';
@@ -83,7 +85,8 @@ export function intelText() {
   const site = bounty ? (C.staticPlacement === 'uplink' && (C.TURRET || C.EMPLACEMENT) ? ' Dug in around ' + G.up.name + '.' : '')
     : G.mtype === 'ESCORT' ? ' Waiting along the route. Forks at ' + anchors().junctions.map(k => anchors().waypoints[k].name).join(' and ') + '.' // R15 s3
     : (G.mtype === 'RETRIEVE' ? ' Cargo at ' : ' Uplink at ') + G.up.name + '.';
-  return job + '\nINTEL: ' + C.NAME + '. ' + cap([...parts, tur].filter(Boolean).join(', ')) + '.' + site + zoneIntel(); // R8: names the composition
+  const dist = MAP.id === 'hive' ? 'The old hive map. ' : MAP.info.grid.replace('x', '×') + ' district, ' + W + '×' + H + '. '; // R16: a bigger map is something you prep for
+  return job + '\nINTEL: ' + dist + C.NAME + '. ' + cap([...parts, tur].filter(Boolean).join(', ')) + '.' + site + zoneIntel(); // R8: names the composition
 }
 // R10: " Quiet ground: rail cut (NW). Noise: sump (S), SE apron."
 function zoneIntel() {
@@ -176,7 +179,7 @@ export function saveAndNext() {
   const stamp = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
   const note = $('note').value.replace(/[\r\n|]+/g, ' ').replace(/\s+/g, ' ').trim();
   const ans = answersText();
-  LOG.push(stamp + ' | ' + testerTag() + loadSummary() + ' | vs ' + enemySummary() + ' | ' + ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + killText() + (G.ct ? ' · ' + lanceText() + huntCr() : '') + (isType('UPLINK') ? ' uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' @' + G.up.name : '') + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + dmgSummary() + ' | ' + (ans ? ans + ' | ' : '') + note);
+  LOG.push(stamp + ' | ' + testerTag() + loadSummary() + ' | vs ' + enemySummary() + ' | ' + ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + mapText(G.zones.length) + ' · ' + killText() + (G.ct ? ' · ' + lanceText() + huntCr() : '') + (isType('UPLINK') ? ' uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' @' + G.up.name : '') + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + dmgSummary() + ' | ' + (ans ? ans + ' | ' : '') + note);
   if (G.ct && G.ct.status !== 'ACTIVE') LOG.push(stamp + ' | ' + testerTag() + contractLine());
   store.set('signalLance.log', LOG);
   $('note').blur();
@@ -186,7 +189,7 @@ export function saveAndNext() {
 let ctN = store.get('signalLance.ctN', 0) | 0; // contract number for the log (C3)
 // " · +140 cr (bought A repair×2)" for this hunt's log line
 function huntCr() { const r = G.ct.results[G.ct.results.length - 1]; return r ? ' · +' + r.pay + ' cr' + (r.buys.length ? ' (bought ' + buysText(r.buys) + ')' : '') : ''; }
-function testerTag() { const t = store.get('signalLance.tester', ''); return (t ? '[' + t + '] ' : '') + (TUNE.PACK_ENABLED ? '[PACK] ' : ''); } // R13: pack runs are tagged
+function testerTag() { const t = store.get('signalLance.tester', ''); return (t ? '[' + t + '] ' : '') + (TUNE.PACK_ENABLED ? '[PACK] ' : '') + (TUNE.MAP_MODE === 'hive' ? '[HIVE] ' : ''); } // R13: pack runs are tagged (R16: so are old-map runs)
 function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + G.ct.hunts + ' · ' : ''; }
 // "C3 COMPLETE 2/3 · lost B in H2"
 function contractLine() {
@@ -290,6 +293,10 @@ $('bQuick').addEventListener('click', () => { store.set('signalLance.quick', ctH
 function showPack() { $('bPack').textContent = 'THE PACK: ' + (TUNE.PACK_ENABLED ? 'ON' : 'OFF'); $('bPack').classList.toggle('on', TUNE.PACK_ENABLED); }
 setPack(!!store.get('signalLance.pack', false)); showPack();
 $('bPack').addEventListener('click', () => { setPack(!TUNE.PACK_ENABLED); store.set('signalLance.pack', TUNE.PACK_ENABLED); showPack(); });
+// R16: the map toggle (remembered; tags the log). NEW DISTRICTS by default; OLD HIVE is the R15 map, for comparison.
+function showMap() { $('bMap').textContent = 'MAP: ' + (TUNE.MAP_MODE === 'hive' ? 'OLD HIVE' : 'NEW DISTRICTS'); $('bMap').classList.toggle('on', TUNE.MAP_MODE !== 'hive'); }
+TUNE.MAP_MODE = store.get('signalLance.map', 'blocks') === 'hive' ? 'hive' : 'blocks'; showMap();
+$('bMap').addEventListener('click', () => { TUNE.MAP_MODE = TUNE.MAP_MODE === 'hive' ? 'blocks' : 'hive'; store.set('signalLance.map', TUNE.MAP_MODE); showMap(); });
 $('tester').addEventListener('change', () => store.set('signalLance.tester', $('tester').value.trim()));
 $('bCont').addEventListener('click', () => { store.set('signalLance.tester', $('tester').value.trim()); $('tester').blur(); $('splash').hidden = true; });
 $('bBasics').addEventListener('click', () => { basicsFrom = 'splash'; $('splash').hidden = true; $('basics').hidden = false; $('basics').scrollTop = 0; });

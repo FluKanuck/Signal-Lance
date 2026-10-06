@@ -25,7 +25,7 @@ function goal() {
   const p = G.p, out = { x: (W - 1.5) * T, y: p.y };
   if (isType('ESCORT')) { // R15 s3: shadow the transport a few tiles ahead of it, never into extraction first
     const a = G.ally, w = a && a.walk ? a.walk : null, q = w ? w[Math.min(w.length - 1, 2)] : a;
-    return { x: Math.min(q.x, (W - TUNE.EXTRACT_COLS - 2) * T), y: q.y };
+    return { x: Math.min(q.x, (W - TUNE.EXTRACT_COLS - 5) * T), y: q.y }; // R16: -5, so A*'s nearest-free snap (up to 3 tiles) never lands in extraction
   }
   if (isType('RETRIEVE')) { // R15 s2: to the cargo; then the carrier heads out and the other mech shadows it
     const c = carrier();

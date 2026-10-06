@@ -1,6 +1,6 @@
 import { TUNE } from '../tune.ts';
 import { partsRead } from '../sim/combat.ts';
-import { W, H, T, solid } from '../sim/world.ts';
+import { W, H, T, solid, clutter } from '../sim/world.ts';
 import { G, unitById } from '../sim/state.ts';
 import { bestContact } from '../sim/bot.ts';
 import { heardRange, canSee, cx, cy } from '../sim/sensors.ts';
@@ -43,6 +43,16 @@ export function render() {
   ctx.setTransform(dpr * z, 0, 0, dpr * z, dpr * (vw / 2 - V.camX * z), dpr * (vh / 2 - V.camY * z));
   // ground
   ctx.fillStyle = '#2c2d30'; ctx.fillRect(0, 0, W * T, H * T);
+  const x0 = Math.max(0, Math.floor((V.camX - vw / 2 / z) / T)), x1 = Math.min(W - 1, Math.floor((V.camX + vw / 2 / z) / T));
+  const y0 = Math.max(0, Math.floor((V.camY - vh / 2 / z) / T)), y1 = Math.min(H - 1, Math.floor((V.camY + vh / 2 / z) / T));
+  // R16: ground clutter (scrap, glass, rubble): a brown tile with a few seeded specks. Slow and loud to cross, low cover.
+  ctx.fillStyle = '#4a4033'; ctx.beginPath();
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (clutter[y * W + x]) ctx.rect(x * T, y * T, T, T);
+  ctx.fill();
+  ctx.fillStyle = '#7d6c52'; ctx.beginPath();
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (clutter[y * W + x])
+    for (let k = 0; k < 4; k++) { const h = (x * 73 + y * 151 + k * 37) % 97; ctx.rect(x * T + (h % 9) * 3 + 2, y * T + ((h * 7) % 9) * 3 + 2, 4, 3); }
+  ctx.fill();
   // extraction zone (green = information)
   ctx.fillStyle = 'rgba(60,200,90,0.25)'; ctx.fillRect((W - TUNE.EXTRACT_COLS) * T, 0, TUNE.EXTRACT_COLS * T, H * T);
   // R10: signal terrain (always known: it's terrain, not intel). QUIET = cool blue, dotted edge;
@@ -71,12 +81,13 @@ export function render() {
     ctx.fillText((q ? 'QUIET ' : 'NOISE ') + zn.name.replace(/ \(.*\)/, ''), (zn.x - 2.5) * T, (zn.y + 0.5) * T + 4 / z);
     if (V.dbg) { ctx.fillStyle = '#d0f'; ctx.fillText('DBG ' + zn.type + ' ' + zn.tiles.length + 't', (zn.x - 2.5) * T, (zn.y + 1.5) * T); }
   }
-  // buildings (only visible tiles)
-  const x0 = Math.max(0, Math.floor((V.camX - vw / 2 / z) / T)), x1 = Math.min(W - 1, Math.floor((V.camX + vw / 2 / z) / T));
-  const y0 = Math.max(0, Math.floor((V.camY - vh / 2 / z) / T)), y1 = Math.min(H - 1, Math.floor((V.camY + vh / 2 / z) / T));
+  // buildings (only visible tiles); R16: set pieces (gantries, containers, wrecks) in rust, outlined: walls you can't see past
   ctx.fillStyle = '#6b6d72'; ctx.beginPath();
-  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (solid[y * W + x]) ctx.rect(x * T, y * T, T, T);
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (solid[y * W + x] === 1) ctx.rect(x * T, y * T, T, T);
   ctx.fill();
+  ctx.fillStyle = '#7a5a3c'; ctx.strokeStyle = '#a07a50'; ctx.lineWidth = 2 / z; ctx.beginPath();
+  for (let y = y0; y <= y1; y++) for (let x = x0; x <= x1; x++) if (solid[y * W + x] === 2) ctx.rect(x * T + 1, y * T + 1, T - 2, T - 2);
+  ctx.fill(); ctx.stroke();
   const p = G.p;
   // Round 5: uplink point (gold): ring = where UPLINK works, diamond = the point, progress label (R15: uplink jobs only)
   if (isType('UPLINK')) {

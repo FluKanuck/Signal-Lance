@@ -4,22 +4,23 @@ import { $ } from './hud.ts';
 import { TUNE } from '../tune.ts';
 
 export const TEST = {
-  title: 'Round 15 test: Pick your fights (step 3: Escort, all four jobs)',
-  question: 'When the job is more than "stand on the uplink", does reading the field change which fights you take, how you take them and when you leave?',
+  title: 'Round 16 test: Rolled ground',
+  question: 'When every hunt rolls a new map, do routes stop feeling solved, so that where you go becomes part of reading the field?',
   newThings: [
-    'NEW (r15-s3): ESCORT jobs. A friendly transport (green diamond) walks from the left edge to the right along a route (green lines). Enemies can see, hear and shoot it like one of your mechs. If it dies, the hunt fails.',
-    'At each fork it stops and waits: tap NORTH or SOUTH on the map (big green buttons) on your turn. Scout ahead and listen before you choose. It walks ' + TUNE.ESCORT_MOVE + ' tiles each round.',
-    'Win when it walks out the right edge: pay + a bonus for the hits it has left. Careful: one of your mechs reaching the right edge first still pulls the whole lance out without it.',
-    'Jobs now roll all four types: UPLINK, BOUNTY (kills pay, reach the quota, leave when you choose), RETRIEVE (grab the cargo, the field hunts the carrier) and ESCORT. The type and goal are on top of each job card.',
-    'TEST BED: "Fork" (listen before you pick) and "Shadow" (time the call on a patrol). The Bounty and Retrieve scenarios are still there.',
+    'NEW (r16-s1): every hunt is a new district built from city blocks: plazas, alleys, walled yards, avenues, scrap lots, warrens, towers, depots. The grid changes too, from a short 4×2 to a big 4×4. The job card says how big (e.g. "4×3 district, 48×36"). Bigger districts have a bigger field.',
+    'Brown speckled ground is scrap, glass and rubble. Each tile costs ' + TUNE.CLUTTER_TILE_COST + ' tiles of movement, and walking into it adds ' + TUNE.CLUTTER_SOUND + ' to that move’s sound. It counts as low cover. Enemies pay the same, so listen for them crunching.',
+    'Rusty outlined shapes are set pieces (wrecks, containers, gantries): walls you can’t see or shoot through. Quiet and noise zones now sit inside the blocks.',
+    'Escort routes follow the streets between blocks: two forks, each with a NORTH and a SOUTH leg.',
+    'MAP button on this screen: NEW DISTRICTS (default) or OLD HIVE (the old map), to compare. Play at least one hunt on the old map.',
+    'TEST BED: "Long way round", "Two districts: strip" and "Two districts: square", and "Crunch".',
   ],
-  howTo: 'Play Fork and Shadow first, then about 10 hunts in contracts with all four types rolling. After each hunt, tap the answers (the first one matters most) and add a note. When you finish, tap SEND LOG and send it to Jamie.',
+  howTo: 'Play the four new scenarios first, then about 10 hunts in contracts on new districts (and one on the old hive). After each hunt, tap the answers (the first one matters most) and add a note, especially if tap-to-move fought you. When you finish, tap SEND LOG and send it to Jamie.',
 };
 // End-of-hunt questions (tap one answer each; optional). Answers go into the log line, next to the hunt's job type.
 export const QUESTIONS = [
-  { k: 'read', q: 'On this job, reading the field…', a: ['Changed my plan', "Didn't change it", 'Not sure'] },
-  { k: 'how', q: 'What it changed most…', a: ['Which fights', 'How I fought', 'When I left', 'Which route', 'Nothing'] },
-  { k: 'feel', q: 'This job felt…', a: ['Its own thing', 'Uplink with extra steps', 'Just a brawl'] },
+  { k: 'map', q: 'This district…', a: ['Changed my plan', "Didn't change it", 'Not sure'] },
+  { k: 'clutter', q: 'Scrap and rubble…', a: ['Crossed it on purpose', 'Went round it', 'Never in my way', 'Heard an enemy crunch'] },
+  { k: 'move', q: 'Tap-to-move…', a: ['Did what I wanted', 'Took clutter I’d avoid', 'Walked a line I didn’t want', 'Couldn’t look down a street'] },
 ];
 
 const BASICS = [
@@ -29,7 +30,7 @@ const BASICS = [
   ['Find', 'Enemies are hidden. A contact is a red square with a circle: the circle is how unsure you are. Passive sensors draw cyan bearing lines; two crossing lines make a fix. RADAR gives a sharp fix but is very loud.'],
   ['Fight', 'Tap a contact to select it. FIRE needs a tight fix, range and line of sight; the button says why if it\'s blocked, or shows your hit chance. Hits strike a part (core, legs, weapon, sensors). MORTAR fires on a fix with no line of sight, but scatters more on a fuzzy one.'],
   ['Noise', 'Two kinds. EMIT (orange bar, orange dashed ring) is electronic: radar, ECM and uplink add to it, it fades a little each turn, and passive sensors pick it up from far away. SOUND (pale ring with ticks) is moving and shooting: one radius per turn (the loudest thing you did), heard through walls, gone at your next turn.'],
-  ['Ground', 'Blue dotted areas are quiet ground: you are harder to hear there. Amber hatched areas are noise: fixes on anything inside are blurry.'],
+  ['Ground', 'Every hunt is a new district (the job card gives its size). Blue dotted areas are quiet ground: you are harder to hear there. Amber hatched areas are noise: fixes on anything inside are blurry. Brown speckled scrap is slow (2 tiles of movement a tile) and loud (+3 sound), but it is low cover. Rusty outlined set pieces are walls.'],
   ['ID', 'Enemies come in 9 variants. Tap a contact to see what your sensors have picked up about it, open the CARD to compare, then tap ID to call it. A turret or emplacement call freezes its track; a right call before eyes adds +10% to hit.'],
   ['ECM', 'ECM masks you each turn it is on. GHOST places a fake contact for enemies.'],
   ['Camera', 'Drag to pan. Z+ / Z− zoom. CTR recentres.'],
