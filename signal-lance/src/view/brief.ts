@@ -1,5 +1,6 @@
 // Tester splash, basics screen and end-of-hunt questions (chore, R11). View only.
-// UPDATE TEST + QUESTIONS EVERY ROUND: they tell remote testers what this build is testing.
+// UPDATE TEST + QUESTIONS EVERY ROUND: they tell remote testers what this build is testing. When a round ends, move its
+// newThings (condensed) to the top of HISTORY, so a returning tester can page back through everything since they last played.
 import { $ } from './hud.ts';
 import { TUNE } from '../tune.ts';
 
@@ -10,12 +11,41 @@ export const TEST = {
     'NEW (r16-s1): every hunt is a new district built from city blocks: plazas, alleys, walled yards, avenues, scrap lots, warrens, towers, depots. The grid changes too, from a short 4×2 to a big 4×4. The job card says how big (e.g. "4×3 district, 48×36"). Bigger districts have a bigger field.',
     'Brown speckled ground is scrap, glass and rubble. Each tile costs ' + TUNE.CLUTTER_TILE_COST + ' tiles of movement, and walking into it adds ' + TUNE.CLUTTER_SOUND + ' to that move’s sound. It counts as low cover. Enemies pay the same, so listen for them crunching.',
     'Rusty outlined shapes are set pieces (wrecks, containers, gantries): walls you can’t see or shoot through. Quiet and noise zones now sit inside the blocks.',
-    'Escort routes follow the streets between blocks: two forks, each with a NORTH and a SOUTH leg.',
+    'NEW (r16-s3): the streets between blocks are no longer a clean grid. Some stretches have rubble across them (slow, loud), some are shut by a barricade, and some have a chicane: walls on alternate lanes you can weave through but can’t see straight past.',
+    'NEW (r16-s3): hover the mouse over anything on the map, or hold a finger on it, to see what it is and what it does. A hold never moves or selects.',
+    'Escort routes follow the open streets: at each fork, up to three legs, NORTH, AHEAD (straight on) and SOUTH, only where the streets let you through.',
     'MAP button on this screen: NEW DISTRICTS (default) or OLD HIVE (the old map), to compare. Play at least one hunt on the old map.',
     'TEST BED: "Long way round", "Two districts: strip" and "Two districts: square", and "Crunch".',
   ],
+  round: 16,
   howTo: 'Play the four new scenarios first, then about 10 hunts in contracts on new districts (and one on the old hive). After each hunt, tap the answers (the first one matters most) and add a note, especially if tap-to-move fought you. When you finish, tap SEND LOG and send it to Jamie.',
 };
+// Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
+export const HISTORY = [
+  { round: 15, title: 'Round 15: Pick your fights', lines: [
+    'Jobs come in four types, shown on top of each job card: UPLINK (stand in the ring and uplink), BOUNTY, RETRIEVE and ESCORT.',
+    'BOUNTY: every kill pays that enemy’s bounty (prices on the CARD). Reach the quota for a win, then extract when you choose. The field has extra enemies.',
+    'RETRIEVE: PICK UP the guarded cargo. That alerts the whole field, which hunts the carrier (who can’t sprint). HAND OFF to the other mech, carry it out the right edge.',
+    'ESCORT: a friendly transport walks from the left edge to the right. Keep it alive; at each fork it waits for you to tap a route on the map.',
+  ] },
+  { round: 14, title: 'Round 14: Read the signature', lines: [
+    'Every enemy is one of 9 variants (3 patrols, 3 turrets, 3 emplacements). They fight differently.',
+    'Tap a contact to see what your sensors picked up (EMIT, pulses, moved or still, steps or a shot heard). The CARD lists the 9 with one bold TELL each; "3 fit" shows how many still match.',
+    'ID calls a contact. A turret or emplacement call freezes its track; a right call before eyes adds +10% to hit.',
+    'The TEST BED (loadout screen): short scenarios that test one thing each.',
+  ] },
+  { round: 13, title: 'Round 13: Loud gets company', lines: [
+    'Noise is two things. EMIT (orange) is electronic: radar, ECM and uplink. It builds up, fades slowly and carries far.',
+    'SOUND (pale ring with ticks) is moving and shooting. One radius per turn, heard through walls, gone at your next turn. A heard-only contact is a hollow SOUND square: never enough to shoot.',
+    'Patrols carry radios (a small steady EMIT), so passive sensors find them. Turrets stay silent.',
+    'Two legs: lose one and you can only CREEP; lose both and you creep at half distance.',
+    'THE PACK (splash toggle): one enemy that senses you alerts others nearby, and patrols leave their posts to hunt you.',
+  ] },
+  { round: 12, title: 'Round 12: Pick your shot', lines: [
+    'Shots roll to hit: FIRE shows your chance and the yellow ODDS line shows why (range, target moved, cover, a loud target).',
+    'A hit strikes a part: core, legs, weapon or sensors. Same rules for the enemy. Part damage carries through the contract; REPAIR fixes the worst part first.',
+  ] },
+];
 // End-of-hunt questions (tap one answer each; optional). Answers go into the log line, next to the hunt's job type.
 export const QUESTIONS = [
   { k: 'map', q: 'This district…', a: ['Changed my plan', "Didn't change it", 'Not sure'] },
@@ -34,6 +64,7 @@ const BASICS = [
   ['ID', 'Enemies come in 9 variants. Tap a contact to see what your sensors have picked up about it, open the CARD to compare, then tap ID to call it. A turret or emplacement call freezes its track; a right call before eyes adds +10% to hit.'],
   ['ECM', 'ECM masks you each turn it is on. GHOST places a fake contact for enemies.'],
   ['Camera', 'Drag to pan. Z+ / Z− zoom. CTR recentres.'],
+  ['Look', 'Hover the mouse over anything on the map, or hold a finger on it, to see what it is and what it does.'],
 ];
 
 // Simple legend, drawn with the same colours as the game.
@@ -71,11 +102,33 @@ const LAYOUT = `<svg viewBox="0 0 300 150" width="300" height="150" style="max-w
 </svg>`;
 
 function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
+// The splash pages through rounds: this one first, then HISTORY. The last round a tester opened is remembered (this
+// device), so a returning tester is told how many rounds they missed and pages back through them with ‹ / › or a swipe.
+const PAGES = () => [{ round: TEST.round, title: 'New in this build', lines: TEST.newThings }, ...HISTORY];
+let page = 0;
+function seenGet() { try { return Number(localStorage.getItem('signalLance.seenRound')) || 0; } catch (_) { return 0; } }
+function seenSet(n: number) { try { localStorage.setItem('signalLance.seenRound', String(n)); } catch (_) {} }
+function showPage() {
+  const P = PAGES(), pg = P[page];
+  $('spPage').innerHTML = '<p><b>' + esc(pg.title) + (page ? '' : ' (Round ' + pg.round + ')') + '</b> <span style="opacity:.7">' + (page + 1) + '/' + P.length + '</span></p><ul>' +
+    pg.lines.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>';
+  ($('spPrev') as any).disabled = page >= P.length - 1; ($('spNext') as any).disabled = page <= 0;
+}
 export function buildBrief(build: string) {
+  const seen = seenGet(), missed = HISTORY.filter(h => seen && h.round > seen).length;
   $('spTitle').textContent = TEST.title + ' · ' + build;
   $('spBody').innerHTML = '<p><b>The game:</b> you run two mechs, A and B. Find hidden enemies with your sensors, then win the hunt.</p>' +
-    '<p><b>This test:</b> ' + esc(TEST.question) + '</p><p><b>New in this build:</b></p><ul>' + TEST.newThings.map(t => '<li>' + esc(t) + '</li>').join('') + '</ul>' +
+    '<p><b>This test:</b> ' + esc(TEST.question) + '</p>' +
+    (missed ? '<p style="color:#fc3"><b>Welcome back.</b> Last time you played Round ' + seen + '. Tap ‹ (or swipe) for the ' + missed + ' round' + (missed > 1 ? 's' : '') + ' of changes since.</p>' : '') +
+    '<div id="spHist"><div class="zrow" style="justify-content:space-between"><button id="spPrev">‹ OLDER</button><button id="spNext">NEWER ›</button></div><div id="spPage"></div></div>' +
     '<p>' + esc(TEST.howTo) + '</p>';
+  page = 0; showPage();
+  const go = (d: number) => { const n = Math.max(0, Math.min(PAGES().length - 1, page + d)); if (n !== page) { page = n; showPage(); } };
+  $('spPrev').addEventListener('click', () => go(1)); $('spNext').addEventListener('click', () => go(-1));
+  let sx = -1; // swipe: left = older, right = newer
+  $('spHist').addEventListener('pointerdown', e => { sx = e.clientX; });
+  $('spHist').addEventListener('pointerup', e => { if (sx >= 0 && Math.abs(e.clientX - sx) > 50) go(e.clientX < sx ? 1 : -1); sx = -1; });
+  seenSet(TEST.round);
   $('bsText').innerHTML = BASICS.map(([h, t]) => '<p><b>' + h + ':</b> ' + esc(t) + '</p>').join('');
   $('bsArt').innerHTML = LAYOUT + LEGEND;
 }

@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
 import { G, fieldCount } from '../src/sim/state.ts';
 import { setSeed } from '../src/sim/rng.ts';
-import { T, W, H, MAP, loadMap, HIVE, canReach, isClutter, findPath, pathHitsClutter, tilesCrossed, anchors } from '../src/sim/world.ts';
+import { T, W, H, MAP, loadMap, HIVE, canReach, isSolid, isClutter, findPath, pathHitsClutter, tilesCrossed, anchors } from '../src/sim/world.ts';
 import { rollDistrict, rollSpec, buildDistrict, BLOCKS, mapText, routeOk } from '../src/sim/blocks.ts';
 import { planMove, doMove } from '../src/sim/turns.ts';
 import { inCover } from '../src/sim/combat.ts';
@@ -71,7 +71,7 @@ describe('districts', () => {
   });
   it('the log line names the grid, blocks and mods', () => {
     roll(3, '4x3');
-    expect(mapText(2)).toMatch(/^MAP 4x3 seed 3 · blocks: \w+(, \w+){11} · mods: \d+ clutter, \d+ set pieces?, 2 zones$/);
+    expect(mapText(2)).toMatch(/^MAP 4x3 seed 3 · blocks: \w+(, \w+){11} · mods: \d+ clutter, \d+ set pieces?, 2 zones · streets: \d+ rubble, \d+ shut, \d+ choked$/);
   });
   it('the field scales with area (never below the composition), zones roll from the block slots', () => {
     const mixed = TUNE.FIELD_COMPOSITIONS[0];
@@ -132,6 +132,22 @@ function startHuntOn() {
   loadMap(def);
 }
 
+describe('street blockers (R16 debrief)', () => {
+  it('stretches of street get rubble, barricades and chokes, never in extraction, and every street tile stays reachable', () => {
+    let bar = 0, rub = 0, chk = 0;
+    for (let s = 1; s <= 40; s++) {
+      roll(s); const c = MAP.info.counts; bar += c.BARRICADE; rub += c.RUBBLE; chk += c.CHOKE;
+      for (let y = 0; y < H; y++) for (let x = W - TUNE.EXTRACT_COLS; x < W; x++) expect(isSolid(x, y)).toBe(false);
+      for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (MAP.rows[y][x] === '.' || MAP.rows[y][x] === ',') expect(canReach(x, y)).toBe(true);
+    }
+    expect(bar).toBeGreaterThan(0); expect(rub).toBeGreaterThan(0); expect(chk).toBeGreaterThan(0);
+  });
+  it('SEAM_BLOCK_CHANCE 0 gives the open grid back', () => {
+    const k = TUNE.SEAM_BLOCK_CHANCE; TUNE.SEAM_BLOCK_CHANCE = 0;
+    try { roll(5); const c = MAP.info.counts; expect(c.RUBBLE + c.BARRICADE + c.CHOKE).toBe(0); } finally { TUNE.SEAM_BLOCK_CHANCE = k; }
+  });
+});
+
 describe('escort route on block maps', () => {
   it(`ESCORT_FORKS forks, each with two different onward legs, and every route reaches extraction`, () => {
     for (const g of TUNE.MAP_GRIDS) for (const s of [1, 2, 3]) {
@@ -139,14 +155,15 @@ describe('escort route on block maps', () => {
       const A = anchors();
       expect(A.junctions.length).toBe(Math.min(TUNE.ESCORT_FORKS, Number(g.split('x')[0]) - 1));
       for (const j of A.junctions) {
-        const L = legsFrom(j); expect(L.length).toBe(2);
-        expect(L.map(l => l.name).sort()).toEqual(['NORTH', 'SOUTH']);
-        expect(legPath(L[0].i).map(p => Math.round(p.y)).join()).not.toBe(legPath(L[1].i).map(p => Math.round(p.y)).join());
+        const L = legsFrom(j); expect(L.length).toBeGreaterThanOrEqual(2); expect(L.length).toBeLessThanOrEqual(3);
+        for (const l of L) expect(['NORTH', 'AHEAD', 'SOUTH']).toContain(l.name);
+        expect(new Set(L.map(l => l.name)).size).toBe(L.length);
+        const sig = L.map(l => legPath(l.i).map(p => Math.round(p.x) + ',' + Math.round(p.y)).join()); expect(new Set(sig).size).toBe(L.length); // the legs really differ
       }
       // walk every route: S → ... → X, and X's leg ends in extraction
-      const walk = (k: string): boolean => k === 'X' || legsFrom(k).every(l => legPath(l.i).length > 1 && walk(l.to));
+      const walk = (k: string): boolean => k[0] === 'X' || legsFrom(k).every(l => legPath(l.i).length > 1 && walk(l.to));
       expect(walk('S')).toBe(true);
-      expect(A.waypoints.X.x).toBeGreaterThanOrEqual(W - TUNE.EXTRACT_COLS);
+      for (const k of Object.keys(A.waypoints).filter(k => k[0] === 'X')) expect(A.waypoints[k].x).toBeGreaterThanOrEqual(W - TUNE.EXTRACT_COLS); // every exit is in extraction
       expect(A.waypoints.S.x).toBe(0);
     }
   });

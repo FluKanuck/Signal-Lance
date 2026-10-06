@@ -678,6 +678,32 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      "turrets stay silent" test now picks a radio-silent turret (seeds roll gun turrets differently now).
    - Scripted lance (bot only): the Escort shadow goal stays 5 columns short of extraction (was 2), because A*'s
      nearest-free snap could land it in extraction on a block map (a BAIL). BUILD r16-s1.
+   R16 debrief changes (r16-s3) ASSUMPTIONS
+   - Street blockers: a "stretch" = one block-length of seam street between two crossings (crossing tiles never get one),
+     on interior seams (2 lanes) and the top, bottom and left map edges (1 lane); never in extraction. Each rolls
+     SEAM_BLOCK_CHANCE in rollSpec (so a seed still fixes the whole map). RUBBLE 2-3 long across all lanes (clutter: always
+     goes in). BARRICADE 1-2 long across all lanes (wall). CHOKE = a chicane, 2 tiles of wall on one lane then 2 on the
+     other lane one tile further on (weave through, no straight sightline); on a one-lane edge street it becomes RUBBLE.
+     Walls (barricades, chicanes, set pieces) go in only if no street tile loses its way to the spawn. Walls drawn rust.
+   - A district whose Escort route fails (a fork left with fewer than 2 open legs, or the start row shut) is rescued by
+     turning its barricades to rubble one at a time (last rolled first) before any reroll: 23% of districts needed a
+     reroll before this rescue, 0% after.
+   - Escort route on the network: fork columns as before; for each fork row (rolled first, then every other combination)
+     a leg NORTH / AHEAD / SOUTH exists if every stretch on its way is open: down its own column to the leg's row, along
+     that row to the next fork's column, then along that column to the next fork. The last fork's legs exit on their own
+     row (end nodes X = AHEAD, XN, XS). Legs walk A* through their corner points, so rubble on a leg is walked through
+     (or round, if a cheap way exists).
+   - The choke as briefed (one lane) left long views down the streets 100% clear; the chicane takes them to ~80% (scratch
+     measure: points 9-24 tiles apart on the same street). Values as agreed (0.35; 0.4 / 0.3 / 0.3).
+   - Tooltips (view/tip.ts, Jamie): mouse hover shows at once; touch = hold a still finger TIP_HOLD_MS (450 ms). A hold
+     never taps, selects or pans; sliding the held finger reads other things; the tip hides 1.5 s after the finger lifts.
+     Priority: route button, your mechs, transport, contacts, wrecks, ghost, uplink / cargo ring, then the ground (zone,
+     extraction, wall, clutter, closed yard, street). Set pieces and street walls share one label ("Wreck / barricade").
+   - Round history (Jamie): the splash's "new in this build" pages back through earlier rounds (‹ OLDER / NEWER ›, or a
+     swipe) from HISTORY in brief.ts (R15 → R12, condensed from each round's tester text). The last round opened on this
+     device is remembered (localStorage signalLance.seenRound); a returning tester gets "Welcome back, last time you played
+     Round N: tap ‹ for the M rounds since". First-time testers (nothing stored) see no welcome line.
+   - Bug fix (r16-s2): the HUD's last-shot line crashed the frame loop the first time the field shot the Escort transport.
 ```
 
 ## TWEAK LOG
@@ -1008,4 +1034,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            transport's field type (it has none) the first time the field shot it, which killed the frame loop. An R15 bug,
            hit more often now that the transport is shot more on block maps. Fixed (who() names it "transport"). Checked
            with 160 random-input hunts in the browser (blocks + hive) running the real HUD and renderer: no errors. BUILD r16-s2 | -
+   round16 debrief 1 | Jamie: "for the blocks, they cant always have a full path grid system … no reason to not allow me to
+           take the centre road all the way … some sort of system to add randomised blockers, debris, buildings etc along grids
+           to deny access and provide LoS blockers down long stretches" | NEW SEAM_BLOCK_CHANCE 0.35, SEAM_BLOCK_KINDS RUBBLE 0.4 /
+           BARRICADE 0.3 / CHOKE (chicane) 0.3; Escort forks offer NORTH / AHEAD / SOUTH where the streets are open (2-3 legs).
+           Also (Jamie): map tooltips (hover / hold) and round history on the splash. Runner 60 contracts: wins 48% (was 50%),
+           Escort 53%, Uplink 51%, Retrieve 45%, Bounty 41%; clutter on 17% of lance moves (was 7-9%); 0 rerolls. BUILD r16-s3 | -
 ```

@@ -7,6 +7,7 @@ import { endPlayerTurn, replan, playerFree, cmdLeg, cmdMoveMode, cmdTarget, cmdM
 import { V } from './state.ts';
 import { cv, vw, vh, resize } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
+import { showTip, hideTip, TIP_HOLD_MS } from './tip.ts';
 
 // ============================ INPUT ===================================
 export function btn(id, fn) { $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); }); }
@@ -27,16 +28,24 @@ btn('bCtr', () => { V.follow = true; });
 btn('bDbg', () => { V.dbg = !V.dbg; $('bDbg').classList.toggle('on', V.dbg); refreshHud(); });
 
 export const ROUTE_BTN_PX = 30; // R15 Escort: route button radius on screen (60 px across)
-export const ptr = { id: -1, sx: 0, sy: 0, lx: 0, ly: 0, pan: false };
+export const ptr = { id: -1, sx: 0, sy: 0, lx: 0, ly: 0, pan: false, held: false, holdT: 0 as any, hideT: 0 as any };
+const toWorld = (sx, sy) => { const z = TUNE.ZOOMS[V.zoomI]; return [(sx - vw / 2) / z + V.camX, (sy - vh / 2) / z + V.camY]; };
+const tipHere = (sx, sy) => { const [wx, wy] = toWorld(sx, sy); showTip(sx, sy, wx, wy); };
 cv.addEventListener('pointerdown', e => {
   e.preventDefault();
   if (ptr.id !== -1) return; // ignore second finger
-  ptr.id = e.pointerId; ptr.sx = ptr.lx = e.clientX; ptr.sy = ptr.ly = e.clientY; ptr.pan = false;
+  ptr.id = e.pointerId; ptr.sx = ptr.lx = e.clientX; ptr.sy = ptr.ly = e.clientY; ptr.pan = false; ptr.held = false;
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
+  // R16: a still finger (or button) held TIP_HOLD_MS shows what is under it; that press then never taps or pans
+  clearTimeout(ptr.holdT); clearTimeout(ptr.hideT); hideTip();
+  ptr.holdT = setTimeout(() => { if (ptr.id !== -1 && !ptr.pan) { ptr.held = true; tipHere(ptr.lx, ptr.ly); } }, TIP_HOLD_MS);
 });
+cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && ptr.id === -1) hideTip(); });
 cv.addEventListener('pointermove', e => {
+  if (ptr.id === -1 && e.pointerType === 'mouse') { tipHere(e.clientX, e.clientY); return; } // R16: mouse hover
   if (e.pointerId !== ptr.id) return;
-  if (!ptr.pan && Math.hypot(e.clientX - ptr.sx, e.clientY - ptr.sy) > TUNE.DRAG_PX) { ptr.pan = true; V.follow = false; }
+  if (ptr.held) { ptr.lx = e.clientX; ptr.ly = e.clientY; tipHere(e.clientX, e.clientY); return; } // slide the held finger to read other things
+  if (!ptr.pan && Math.hypot(e.clientX - ptr.sx, e.clientY - ptr.sy) > TUNE.DRAG_PX) { ptr.pan = true; V.follow = false; clearTimeout(ptr.holdT); }
   if (ptr.pan) {
     const z = TUNE.ZOOMS[V.zoomI];
     V.camX = Math.max(0, Math.min(W * T, V.camX - (e.clientX - ptr.lx) / z));
@@ -46,7 +55,8 @@ cv.addEventListener('pointermove', e => {
 });
 export function ptrEnd(e) {
   if (e.pointerId !== ptr.id) return;
-  ptr.id = -1;
+  ptr.id = -1; clearTimeout(ptr.holdT);
+  if (ptr.held) { ptr.held = false; ptr.hideT = setTimeout(hideTip, e.pointerType === 'mouse' ? 0 : 1500); return; } // R16: a hold was a look, not a tap
   if (!ptr.pan && e.type === 'pointerup') onTap(e.clientX, e.clientY);
 }
 cv.addEventListener('pointerup', ptrEnd);

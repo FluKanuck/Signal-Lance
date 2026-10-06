@@ -231,9 +231,9 @@ import { onAllyLost, onAllyOut, escortBonus } from '../src/sim/mission.ts';
 import { playOut } from '../src/sim/autoplay.ts';
 
 describe('ESCORT', () => {
-  it('the route comes from the anchors table: every junction has exactly 2 onward legs, every leg walks', () => {
+  it('the route comes from the anchors table: every junction has 2 or 3 onward legs, every leg walks', () => {
     const X = anchors();
-    for (const j of X.junctions) expect(legsFrom(j).length).toBe(2);
+    for (const j of X.junctions) { expect(legsFrom(j).length).toBeGreaterThanOrEqual(2); expect(legsFrom(j).length).toBeLessThanOrEqual(3); } // R16: NORTH / AHEAD / SOUTH on block maps
     X.legs.forEach((_, i) => { const P = legPath(i); expect(P.length).toBeGreaterThan(1); });
     for (const k of Object.keys(X.waypoints)) { const n = X.waypoints[k]; expect(canReachTile(n.x, n.y)).toBe(true); }
   });
@@ -251,10 +251,10 @@ describe('ESCORT', () => {
     hunt('ESCORT');
     G.ally = makeAlly('J1');
     expect(allyHolding()).toBe(true);
-    expect(legChoices().map(l => l.name).sort()).toEqual(['NORTH', 'SOUTH']);
-    const x0 = G.ally.x, y0 = G.ally.y, north = legChoices().find(l => l.name === 'NORTH');
+    expect(legChoices().length).toBeGreaterThanOrEqual(2);
+    const x0 = G.ally.x, y0 = G.ally.y, north = legChoices()[0];
     expect(pickLeg(north.i)).toBe(true);
-    expect(allyHolding()).toBe(false); expect(G.mission.legs).toEqual(['NORTH@J1']);
+    expect(allyHolding()).toBe(false); expect(G.mission.legs).toEqual([north.name + '@J1']);
     // run its activation: put it next in the order
     G.order = [G.ally]; G.oi = -1; G.act = null; nextActivation();
     for (let n = 0; n < 2000 && G.act; n++) step(0.05);
