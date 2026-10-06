@@ -71,7 +71,13 @@ These started as hard rules, set up early (with Jamie's ADHD in mind) to stop he
 
 ## Ending a round
 
-A round ends when Jamie has played the runs the brief asks for and run the fun test, or when he calls it. Then write a status report and save it to the project as `claude/signal-lance-round<N>.md`, using this shape:
+A round ends when Jamie has played the runs the brief asks for and run the fun test, or when he calls it.
+
+**Before the report, update the tester screens (Jamie, R16):** in `src/view/brief.ts`,
+- bring `BASICS` (the GAMEPLAY BASICS screen) up to date with everything the round added or changed: new mechanics, terrain, controls, map items;
+- move the round's `TEST.newThings`, condensed, to the top of `HISTORY`, so a returning tester can page back through it on the splash.
+
+Ship that as the round's last build. Then write a status report and save it to the project as `claude/signal-lance-round<N>.md`, using this shape:
 
 - Header: date, build (project, rough line count), branch and commits, artifact URL
 - **Purpose:** the round's question
