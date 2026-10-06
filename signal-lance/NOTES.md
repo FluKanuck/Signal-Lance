@@ -848,6 +848,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      3 hits (the toy's guess was 2; ARMOUR_HITS 3 stays for the mortar's damage). A variant's own SOUND.SHOT (hush 5)
      still overrides its gun's. The shared rules stay in TUNE (lock rule FIRE_UNC, shots per turn, radar walls / unc,
      mortar splash / damage / blind lob).
+   - Jamie (after r18-s1): "for the autocannon stats, use what we have now, we will find a system to balance and tune all
+     the stats of all equipment down the road". So the sim keeps today's numbers wherever a toy row disagrees (the
+     autocannon's shot is heard 12 tiles, not the toy's SND 6). The toy's sig values stay as they are for the hangar bars.
    - Small fix found on the way (equipment plan): cmdEcm and canGhost now check the fit has a mask / ghost (before, only
      the HUD hid the buttons).
    - Parity: `npm run sim` (50 games), `--contracts 60`, `--contracts 30 --loud`, `--contracts 20 --pack` and
