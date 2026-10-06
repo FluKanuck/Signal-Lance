@@ -283,10 +283,26 @@ const RVERT = /* glsl */`
   ${FOG_GLSL}
   attribute float rr;             // ring radius / max range
   attribute float rid;            // random id per dot
-  uniform vec2 centre; uniform float size, amt, spinAmt, time, phase, rate, persist, drop, fadePow, gap;
+  uniform vec2 centre, facing; uniform float size, amt, spinAmt, time, phase, rate, persist, drop, fadePow, gap, cone, coneCos, closeR;
   uniform vec3 cNear, cFar;
   varying vec3 vCol; varying float vA;
   float hh(float n) { return fract(sin(n) * 43758.5453); }
+  // Exact line of sight from this ExoS to one dot: the same grid DDA as sim/world.ts tilesCrossed, stopping at the
+  // first building tile (fog texture B channel = solid). 12-tile range needs at most ~17 steps; 28 is the safe cap.
+  float los(vec2 a, vec2 b) {
+    float TT = ${T.toFixed(1)};
+    vec2 t = floor(a / TT), e = floor(b / TT), d = b - a, s = sign(d), ad = abs(d);
+    vec2 tDelta = vec2(ad.x > 0.0 ? TT / ad.x : 1e9, ad.y > 0.0 ? TT / ad.y : 1e9);
+    vec2 tMax = vec2(ad.x > 0.0 ? (s.x > 0.0 ? (t.x + 1.0) * TT - a.x : a.x - t.x * TT) / ad.x : 1e9,
+                     ad.y > 0.0 ? (s.y > 0.0 ? (t.y + 1.0) * TT - a.y : a.y - t.y * TT) / ad.y : 1e9);
+    float n = abs(e.x - t.x) + abs(e.y - t.y);
+    for (int i = 0; i < 28; i++) {
+      if (float(i) >= n) break;
+      if (tMax.x < tMax.y) { tMax.x += tDelta.x; t.x += s.x; } else { tMax.y += tDelta.y; t.y += s.y; }
+      if (fogTile(t).b > 0.5) return 0.0;
+    }
+    return 1.0;
+  }
   void main() {
     float a = atan(position.y, position.x);
     float turn = time * rate * 6.2832 + phase - a;                  // head angle relative to this dot
@@ -294,13 +310,15 @@ const RVERT = /* glsl */`
     float keep = step(drop, hh(rid + rev * 17.13));                  // this pass's dropout
     float jit = (hh(rid * 1.37 + rev * 3.1) - 0.5) * gap * 0.4;      // this pass's radial jitter
     vec2 w = centre + normalize(position.xy) * (length(position.xy) + jit); // world (sim coords, y down)
-    vec3 ft = fogTile(floor(w / ${T.toFixed(1)}));
     float inMap = step(0.0, w.x) * step(0.0, w.y) * step(w.x, grid.x * ${T.toFixed(1)}) * step(w.y, grid.y * ${T.toFixed(1)});
-    float ok = (useFog < 0.5 ? 1.0 : step(0.05, ft.r)) * (1.0 - step(0.5, ft.b)) * inMap * keep; // shadows: tiles seen now, never inside walls
+    vec2 dv = w - centre; float dl = length(dv);
+    float inCone = cone < 0.5 || dl < closeR ? 1.0 : step(coneCos, dot(dv / max(dl, 0.001), facing)); // the ExoS's eyes cone (sim rule)
+    float ok = inMap * keep * inCone;
+    if (ok > 0.0) ok *= los(centre, w);                              // shadows: exact LoS per dot, per ExoS (also kills dots inside walls)
     float hot = 1.0 - smoothstep(0.0, 0.04, behind);                 // just swept: flash
     float life = mix(1.0, persist, smoothstep(0.0, 1.0, behind));     // then settle to persist until the next pass
     vCol = mix(cNear, cFar, rr) * life * amt + vec3(hot * spinAmt);
-    vA = ok * pow(1.0 - rr, fadePow) * life * (useFog < 0.5 ? 1.0 : ft.r); // slow fade out to max visual range
+    vA = ok * pow(1.0 - rr, fadePow) * life;                         // slow fade out to max visual range
     gl_PointSize = ok * size * (1.0 + hot * 0.8);
     gl_Position = projectionMatrix * modelViewMatrix * vec4(w.x, -w.y, position.z, 1.0);
   }`;
@@ -390,7 +408,8 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
   for (let i = 0; i < 4; i++) {
     const rm = new THREE.ShaderMaterial({ vertexShader: RVERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
       uniforms: { ...fogU(), centre: { value: new THREE.Vector2() }, size: { value: 1.5 }, amt: { value: 1 }, spinAmt: { value: 0.5 }, time: mat.uniforms.time, phase: { value: i * 2.1 },
-        rate: { value: 0.5 }, persist: { value: 0.3 }, drop: { value: 0.2 }, fadePow: { value: 1.5 }, gap: { value: 3 }, cNear: C(), cFar: C() } });
+        rate: { value: 0.5 }, persist: { value: 0.3 }, drop: { value: 0.2 }, fadePow: { value: 1.5 }, gap: { value: 3 }, cNear: C(), cFar: C(),
+        facing: { value: new THREE.Vector2(1, 0) }, cone: { value: 1 }, coneCos: { value: Math.cos(TUNE.EYES_HALF_ANG * Math.PI / 180) }, closeR: { value: TUNE.EYES_CLOSE * T } } });
     const r = new THREE.Points(rg, rm); r.frustumCulled = false; r.renderOrder = 2; rings.push(r); scene.add(r);
   }
   // spinners
@@ -431,7 +450,8 @@ export function renderField(t: number, dt: number, camX: number, camY: number, z
     u.eyes.value[i].set(m ? m.x : 0, m ? m.y : 0, m && !m.dead ? 1 : 0, 0);
     r.visible = !!m && !m.dead && FX.rings && L.scanAmt > 0;
     if (r.visible) { ru.centre.value.set(m.x, m.y); ru.size.value = size * 0.85; ru.amt.value = L.scanAmt; ru.spinAmt.value = L.scanSpin; ru.cNear.value.set(L.scanNear); ru.cFar.value.set(L.scanFar);
-      ru.rate.value = L.scanRate; ru.persist.value = L.scanPersist; ru.drop.value = L.scanDrop; ru.fadePow.value = L.scanFade; ru.gap.value = L.scanGap; }
+      ru.rate.value = L.scanRate; ru.persist.value = L.scanPersist; ru.drop.value = L.scanDrop; ru.fadePow.value = L.scanFade; ru.gap.value = L.scanGap;
+      ru.facing.value.set(m.fx, m.fy); ru.cone.value = L.scanCone; ru.coneCos.value = Math.cos(TUNE.EYES_HALF_ANG * Math.PI / 180); ru.closeR.value = TUNE.EYES_CLOSE * T; }
   }
   spinPts.visible = FX.spinners; if (FX.spinners) updateSpinners(dt);
   fogTex.needsUpdate = true; marksTex.needsUpdate = true;
