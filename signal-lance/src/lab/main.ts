@@ -1,0 +1,113 @@
+// Visual lab entry: runs a real test-bed scenario through the real sim, driven by a small real-time bot (so moves,
+// shots and sound rings animate), and draws it with the lab renderer. Nothing here changes game rules.
+import { TUNE } from '../tune.ts';
+import { G } from '../sim/state.ts';
+import { solid, W, T } from '../sim/world.ts';
+import { scenarioList, startScenario, leaveScenario } from '../sim/scenarios.ts';
+import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, mortarBlock, cmdSelect, cmdFire, cmdMortar, cmdUplink, cmdObjective, cmdMoveMode, cmdTarget, cmdMove } from '../sim/turns.ts';
+import { isType, carrier, isCarrier, pickupBlock } from '../sim/mission.ts';
+import { idTick } from '../sim/ids.ts';
+import { LOOKS, FX, look, setLook } from './looks.ts';
+import { updateFog, resetFog } from './fog.ts';
+import { initField, resizeField, renderField } from './field.ts';
+import { drawMarks } from './marks.ts';
+import { initHud, applyLookCss, updateHud, buildTape } from './hud.ts';
+
+const $ = (id: string) => document.getElementById(id)!;
+const gl = $('gl') as HTMLCanvasElement, marks = document.createElement('canvas');
+const S = { run: true, speed: 1, zoom: 0.9, camX: 0, camY: 0, follow: true, scen: 0, endT: 0, lookI: 0 };
+let vw = 0, vh = 0, dpr = 1;
+
+// ---- real-time bot: one action at a time, so the sim animates between them (autoplay.ts runs them all instantly)
+let actP: any = null, actTurn = -1, acts = 0, moved = false;
+function goal() {
+  const out = { x: (W - 1.5) * T, y: G.p.y };
+  if (isType('RETRIEVE')) { const c = carrier(); return !c ? G.up : isCarrier(G.p) ? out : { x: c.x, y: c.y }; }
+  if (isType('BOUNTY')) { const c = playerTarget(); return G.mission.earned >= G.mission.quota ? out : c && c.on ? { x: c.tx, y: c.ty } : G.up; }
+  return G.up;
+}
+function botAct() {
+  if (G.p !== actP || G.turn !== actTurn) { actP = G.p; actTurn = G.turn; acts = 0; moved = false; idTick(); }
+  if (++acts > 8) { endPlayerTurn(); return; }
+  const c = playerTarget();
+  if (c && G.sel !== c) cmdSelect(c);
+  if (mortarBlock(G.p, c) === '') return cmdMortar();
+  if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') return cmdFire();
+  if (uplinkBlock() === '') return cmdUplink();
+  if (pickupBlock(G.p) === '') return cmdObjective();
+  const g = goal();
+  if (!moved && Math.hypot(g.x - G.p.x, g.y - G.p.y) > T * 1.2) {
+    moved = true; cmdMoveMode('NORMAL'); cmdTarget(g.x, g.y);
+    if (G.plan && G.plan.path) return cmdMove();
+  }
+  endPlayerTurn();
+}
+
+function start(i: number) {
+  if (G.tb) leaveScenario();
+  S.scen = i; const s = scenarioList()[i]; startScenario(s);
+  resetFog(); updateFog(0, solid, true); S.follow = true; S.camX = G.p.x; S.camY = G.p.y; S.endT = 0;
+  $('lScen').textContent = s.name + ' · R' + s.round;
+  $('lTry').textContent = s.tryThis;
+}
+
+function resize() {
+  dpr = Math.min(window.devicePixelRatio || 1, 2); vw = innerWidth; vh = innerHeight;
+  resizeField(vw, vh, dpr);
+}
+
+let last = performance.now(), clock = 0;
+function frame(now: number) {
+  const dt = Math.min(0.05, (now - last) / 1000); last = now; clock += dt;
+  if (S.run && G.mode === 'hunt') {
+    for (let k = 0; k < S.speed; k++) { if (G.phase === 'PLAYER' && !G.act) botAct(); step(dt); }
+  } else if (S.run && (S.endT += dt) > 3) start(S.scen); // hunt over: replay it
+  updateFog(dt, solid);
+  if (S.follow && G.p) { const k = Math.min(1, dt * 3); S.camX += (G.p.x - S.camX) * k; S.camY += (G.p.y - S.camY) * k; }
+  drawMarks(marks, vw, vh, dpr, S.camX, S.camY, S.zoom);
+  renderField(clock, S.camX, S.camY, S.zoom, vh, G.lance, dpr);
+  updateHud(dt);
+  requestAnimationFrame(frame);
+}
+
+// ---- input: drag = pan (stops following), wheel / pinch = zoom, double-tap = follow again
+const ptrs = new Map<number, { x: number; y: number }>(); let pinch0 = 0, zoom0 = 1;
+gl.addEventListener('pointerdown', e => { gl.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; pinch0 = Math.hypot(a.x - b.x, a.y - b.y); zoom0 = S.zoom; } });
+gl.addEventListener('pointermove', e => {
+  const q = ptrs.get(e.pointerId); if (!q) return;
+  if (ptrs.size === 1) { S.follow = false; S.camX -= (e.clientX - q.x) / S.zoom; S.camY -= (e.clientY - q.y) / S.zoom; }
+  q.x = e.clientX; q.y = e.clientY;
+  if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; S.zoom = Math.max(0.3, Math.min(3, zoom0 * Math.hypot(a.x - b.x, a.y - b.y) / pinch0)); }
+});
+const up = (e: PointerEvent) => ptrs.delete(e.pointerId);
+gl.addEventListener('pointerup', up); gl.addEventListener('pointercancel', up);
+gl.addEventListener('dblclick', () => { S.follow = true; });
+gl.addEventListener('wheel', e => { e.preventDefault(); S.zoom = Math.max(0.3, Math.min(3, S.zoom * Math.exp(-e.deltaY * 0.0015))); }, { passive: false });
+
+// ---- lab panel
+function lookTo(i: number) {
+  S.lookI = (i + LOOKS.length) % LOOKS.length; setLook(S.lookI); applyLookCss();
+  $('lLook').textContent = look.name; $('lNote').textContent = look.note;
+  for (const b of document.querySelectorAll<HTMLElement>('#lLooks button')) b.classList.toggle('on', +b.dataset.i! === S.lookI);
+}
+$('lLooks').innerHTML = LOOKS.map((L, i) => `<button data-i="${i}">${L.name}</button>`).join('');
+$('lLooks').addEventListener('click', e => { const b = (e.target as HTMLElement).closest('button'); if (b) lookTo(+b.dataset.i!); });
+$('lFx').innerHTML = Object.keys(FX).map(k => `<label><input type="checkbox" data-k="${k}" checked> ${k}</label>`).join('');
+$('lFx').addEventListener('change', e => { const i = e.target as HTMLInputElement; (FX as any)[i.dataset.k!] = i.checked; });
+const sel = $('lPick') as HTMLSelectElement;
+sel.innerHTML = scenarioList().map((s, i) => `<option value="${i}">R${s.round} · ${s.name}</option>`).join('');
+sel.addEventListener('change', () => start(+sel.value));
+$('lRun').addEventListener('click', () => { S.run = !S.run; $('lRun').textContent = S.run ? 'PAUSE' : 'PLAY'; });
+$('lSpeed').addEventListener('click', () => { S.speed = S.speed === 1 ? 3 : S.speed === 3 ? 8 : 1; $('lSpeed').textContent = '×' + S.speed; });
+$('lRestart').addEventListener('click', () => start(S.scen));
+$('lFollow').addEventListener('click', () => { S.follow = true; });
+$('lHide').addEventListener('click', () => document.body.classList.toggle('chrome-off'));
+$('lHud').addEventListener('click', () => document.body.classList.toggle('hud-off'));
+addEventListener('keydown', e => { if (e.key === 'ArrowRight') lookTo(S.lookI + 1); if (e.key === 'ArrowLeft') lookTo(S.lookI - 1); if (e.key === ' ') $('lRun').click(); if (e.key === 'h') $('lHide').click(); });
+
+initField(gl, marks);
+initHud(); buildTape();
+addEventListener('resize', resize); resize();
+lookTo(0);
+start(0);
+requestAnimationFrame(frame);
