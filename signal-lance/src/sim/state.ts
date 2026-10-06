@@ -228,7 +228,7 @@ export function newHunt(loads?, prep?: () => void) {
 // R15: mtype = the job's mission type (newHunt builds G.mission from it). It draws no random numbers.
 export function rollEnemy(seed: number, force?: string, mtype = 'UPLINK') {
   setSeed(seed); G.seed = seed; G.mtype = mtype;
-  if (TUNE.MAP_MODE === 'blocks') rollDistrict(seed); else loadMap(HIVE); // R16: the hunt's district first (same seed, same map)
+  if (TUNE.MAP_MODE === 'blocks') rollDistrict(seed, undefined, mtype === 'ESCORT'); else loadMap(HIVE); // R16: only an Escort needs a convoy route // R16: the hunt's district first (same seed, same map)
   const X = anchors(), site = X.waypoints[X.escortSite];
   const A = mtype === 'ESCORT' ? [site] : mtype === 'RETRIEVE' && X.cargo.length ? X.cargo : X.uplinks; // R15 s3: Escort's site = the centre fork // R15: from the per-map anchors table (cargo reuses the uplink tiles while its list is empty)
   let c = A.filter(u => canReach(u.x, u.y) && Math.hypot(u.x - spawnX, u.y - spawnY) >= TUNE.UPLINK_MIN_DIST);

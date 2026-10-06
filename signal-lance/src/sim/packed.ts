@@ -40,13 +40,14 @@ const DIRS: Record<string, Cell> = { N: [0, -1], E: [1, 0], S: [0, 1], W: [-1, 0
 // why the last build failed (runner / tests): 'spots' | 'exit' | 'escort'
 export const fails: Record<string, number> = {};
 function fail(why: string) { fails[why] = (fails[why] || 0) + 1; return false; }
-export function rollPacked(seed: number, grid?: string) {
+// escort: the hunt is an Escort job, so the district must have a convoy route (other jobs don't reroll for it)
+export function rollPacked(seed: number, grid?: string, escort = true) {
   let k = 0;
-  for (; k < TUNE.MAP_REROLL_MAX; k++) if (buildPacked(seed, grid)) break;
+  for (; k < TUNE.MAP_REROLL_MAX; k++) if (buildPacked(seed, grid, escort)) break;
   return k;
 }
 
-function buildPacked(seed: number, grid?: string): boolean {
+function buildPacked(seed: number, grid?: string, escort = true): boolean {
   const Gs = TUNE.MAP_GRIDS.filter(g => { const [c, r] = g.split('x').map(Number); return c * r >= TUNE.MAP_MIN_BLOCKS; });
   const g = grid || Gs[Math.floor(rand() * Gs.length)] || '6x2';
   const [cols, rows] = g.split('x').map(Number), S = TUNE.BLOCK_SIZE, C = S >> 1, W = cols * S, H = rows * S;
@@ -175,6 +176,17 @@ function buildPacked(seed: number, grid?: string): boolean {
       for (let x = W - TUNE.EXTRACT_COLS - 1; x > 0 && !seen[by * W + x]; x--) mp[by][x] = '.'; } }
   const fillPockets = () => { const R = reachN().seen; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (open(x, y) && !R[y * W + x] && x < W - TUNE.EXTRACT_COLS) mp[y][x] = '#'; };
   fillPockets();
+  // R16 (Jamie: "im going to have to take multiple rounds just to get out of this cramped area"): spawn on the left-edge row
+  // with the most street within SPAWN_LOOK steps, and clear a staging apron there
+  let sy = H >> 1, best = -1e9;
+  for (let y = 2; y < H - 2; y++) {
+    const dist = new Int16Array(W * H).fill(-1), q = [y * W]; dist[q[0]] = 0; let n = 0;
+    for (let h = 0; h < q.length; h++) { const i = q[h], x = i % W, yy = (i / W) | 0; n++; if (dist[i] >= TUNE.SPAWN_LOOK) continue;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) { const nx = x + dx, ny = yy + dy; if (open(nx, ny) && dist[ny * W + nx] < 0) { dist[ny * W + nx] = dist[i] + 1; q.push(ny * W + nx); } } }
+    const score = n - Math.abs(y - (H >> 1)) * 0.5; if (score > best) { best = score; sy = y; }
+  }
+  const AW = TUNE.SPAWN_APRON.W, AH = TUNE.SPAWN_APRON.H;
+  for (let y = Math.max(0, sy - (AH >> 1)); y < Math.min(H, sy + (AH >> 1) + 1); y++) for (let x = 0; x < AW; x++) mp[y][x] = '.';
   const named = (p) => ({ x: p.x, y: p.y, name: p.name + ' ' + cellName(Math.min(cols - 1, Math.floor(p.x / S)), Math.min(rows - 1, Math.floor(p.y / S))) });
   const ups = spots.map(shift).filter(inMap).filter(p => open(p.x, p.y)).map(named);
   // too few objective spots (a district of small pieces): add street crossings far from the spawn
@@ -185,16 +197,16 @@ function buildPacked(seed: number, grid?: string): boolean {
   const zs = zoneSlots.map(shift).filter(inMap).map(p => ({ ...named(p), name: p.name + ' (' + named(p).name.split(' ').pop() + ')' }));
   counts.zone = zs.length;
   const anchors: any = { uplinks: ups, cargo: [], zoneSlots: zs, waypoints: {}, legs: [], junctions: [], escortSite: '' };
-  loadMap({ id: 'blocks', rows: mp.map(r => r.join('')), anchors, info: { grid: g, w: W, h: H, layout: 'packed', blocks, counts, seed, rerolls: 0 } });
+  loadMap({ id: 'blocks', rows: mp.map(r => r.join('')), anchors, info: { grid: g, w: W, h: H, layout: 'packed', blocks, counts, seed, rerolls: 0 }, spawn: { x: 0, y: sy } });
   if (ups.filter(u => canReach(u.x, u.y)).length < 2) return fail('spots');
   let out = false; for (let y = 0; y < H && !out; y++) out = canReach(W - 1, y);
   if (!out) return fail('exit');
-  if (escortPaths(anchors, W, H)) return true;
+  if (escortPaths(anchors, W, H, sy) || !escort) return true;
   // no two ways somewhere: soften street walls to rubble, last placed first, until the Escort finds them
   for (const rc of bars.reverse()) {
     paint(rc, ',', '%'); fillPockets(); counts.softened = (counts.softened || 0) + 1;
-    loadMap({ id: 'blocks', rows: mp.map(r => r.join('')), anchors, info: MAP.info });
-    if (escortPaths(anchors, W, H)) return true;
+    loadMap({ id: 'blocks', rows: mp.map(r => r.join('')), anchors, info: MAP.info, spawn: { x: 0, y: sy } });
+    if (escortPaths(anchors, W, H, sy) || !escort) return true;
   }
   return fail('escort');
 }
@@ -205,7 +217,7 @@ function buildPacked(seed: number, grid?: string): boolean {
 // that keeps off the first (A* with a penalty on and next to it), then one off both. A leg that mostly repeats an
 // earlier one is dropped; every fork needs 2. Legs are named by where they run: NORTH / AHEAD / SOUTH (2 legs: NORTH,
 // SOUTH). Each leg stores its walk, so the transport follows exactly that path.
-function escortPaths(A, W: number, H: number): boolean {
+function escortPaths(A, W: number, H: number, sy: number): boolean { // sy: the spawn row (the transport starts beside the lance)
   const n = Math.max(1, TUNE.ESCORT_FORKS), at = (x, y) => ({ x: (x + 0.5) * T, y: (y + 0.5) * T });
   const junction = (x, y) => [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => canReach(x + dx, y + dy)).length >= 3;
   const near = (tx: number, ty: number) => {
@@ -221,36 +233,45 @@ function escortPaths(A, W: number, H: number): boolean {
   // up to 3 different walks from tile `from` to tile `to`: each next one with the earlier ones (and their neighbours)
   // penalised, pushing harder (×1, ×3, ×8) until it finds a way that mostly differs. Shared stretches within
   // ESCORT_SHARED tiles of either end don't count (every leg has to leave the fork and arrive at the same place).
-  const legsBetween = (from, to) => {
+  // R16 (Jamie: routes "progress and then back track"): a leg may travel at most ESCORT_BACKTRACK tiles west in all, and be
+  // at most ESCORT_DETOUR × the shortest leg's length; anything loopier is dropped.
+  const plen = (P) => { let L = 0; for (let i = 1; i < P.length; i++) L += Math.hypot(P[i].x - P[i - 1].x, P[i].y - P[i - 1].y); return L / T; };
+  const west = (P) => { let w = 0; for (let i = 1; i < P.length; i++) w += Math.max(0, P[i - 1].x - P[i].x); return w / T; };
+  const legsBetween = (from, targets) => {
     const pen = new Float32Array(W * H), found: { P: any[]; t: Set<number> }[] = [], R = TUNE.ESCORT_SHARED;
-    const mid = (i: number) => { const x = i % W, y = (i / W) | 0; return Math.hypot(x - from.x, y - from.y) > R && Math.hypot(x - to.x, y - to.y) > R; };
-    for (const mult of [0, 1, 3, 8, 8]) {
+    let base = 1e9;
+    for (const mult of [0, 1, 3, 8]) for (const to of targets) {
       if (found.length >= 3) break;
       if (mult && !found.length) break;
+      const mid = (i: number) => { const x = i % W, y = (i / W) | 0; return Math.hypot(x - from.x, y - from.y) > R && Math.hypot(x - to.x, y - to.y) > R; };
       setPenalty(mult ? pen.map(v => v * mult) : null);
       const a = at(from.x, from.y), b = at(to.x, to.y), P = findPath(a.x, a.y, b.x, b.y);
       setPenalty(null);
-      if (!P) break;
+      if (!P) continue;
+      const L = plen(P); if (!mult) base = Math.min(base, L);
+      if (west(P) > TUNE.ESCORT_BACKTRACK || L > TUNE.ESCORT_DETOUR * base) continue;
       const all = tilesOf(P), m = all.filter(mid), t = new Set(m.length >= 4 ? m : all); // a short leg is compared whole
       if (found.some(f => { let sh = 0; for (const i of t) if (f.t.has(i)) sh++; return sh > 0.5 * t.size; })) continue;
       found.push({ P, t });
-      for (const i of tilesOf(P)) { const x = i % W, y = (i / W) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W && ny < H) pen[ny * W + nx] = TUNE.ESCORT_LEG_SPREAD; } }
+      for (const i of all) { const x = i % W, y = (i / W) | 0; for (let dy = -1; dy <= 1; dy++) for (let dx = -1; dx <= 1; dx++) { const nx = x + dx, ny = y + dy; if (nx >= 0 && ny >= 0 && nx < W && ny < H) pen[ny * W + nx] = TUNE.ESCORT_LEG_SPREAD; } }
     }
     return found;
   };
-  for (let attempt = 0; attempt < 8; attempt++) { // fork spots: evenly across, at a seeded height; other heights if a fork has no choice
-    const forks = []; for (let k = 0; k < n; k++) forks.push(near(Math.round((k + 1) * W / (n + 1)), Math.round(H * (0.2 + 0.6 * rand()))));
+  for (let attempt = 0; attempt < 12; attempt++) { // fork spots: evenly across, at a seeded height; other heights if a fork has no choice
+    const jit = attempt < 4 ? 0 : (rand() - 0.5) * W / (n + 1) * 0.6; // later tries also slide the forks along
+    const forks = []; for (let k = 0; k < n; k++) forks.push(near(Math.round((k + 1) * W / (n + 1) + jit), Math.round(H * (0.2 + 0.6 * rand()))));
     if (forks.some(f => !f)) return false;
     const wp: any = {}, legs = [];
-    wp.S = { x: 0, y: forks[0].y, name: 'west edge' };
+    wp.S = { x: 0, y: sy, name: 'west edge' };
     forks.forEach((f, k) => { wp['J' + (k + 1)] = { ...f, name: 'fork at ' + cellName(Math.floor(f.x / TUNE.BLOCK_SIZE), Math.floor(f.y / TUNE.BLOCK_SIZE)) }; });
-    const p0 = findPath(at(0, forks[0].y).x, at(0, forks[0].y).y, at(forks[0].x, forks[0].y).x, at(forks[0].x, forks[0].y).y);
-    if (!p0) continue;
+    const p0 = findPath(at(0, sy).x, at(0, sy).y, at(forks[0].x, forks[0].y).x, at(forks[0].x, forks[0].y).y);
+    if (!p0 || west(p0) > TUNE.ESCORT_BACKTRACK) continue; // the first fork must be reachable without looping back
     legs.push({ from: 'S', to: 'J1', via: [], pts: p0 });
     let ok = true;
     for (let k = 0; k < n && ok; k++) {
-      const from = forks[k], last = k + 1 === n, to = last ? { x: W - 1, y: from.y } : forks[k + 1];
-      const found = legsBetween(from, to);
+      const from = forks[k], last = k + 1 === n; // the last fork's legs may leave by different stretches of the right edge
+      const exits = [from.y, Math.round(H * 0.2), Math.round(H * 0.8)].map(y => ({ x: W - 1, y: Math.max(0, Math.min(H - 1, y)) }));
+      const found = legsBetween(from, last ? exits : [forks[k + 1]]);
       if (found.length < 2) { ok = false; break; }
       const my = (P) => P.reduce((s, p) => s + p.y, 0) / P.length, sorted = found.slice().sort((p, q) => my(p.P) - my(q.P));
       const names = sorted.length === 3 ? ['NORTH', 'AHEAD', 'SOUTH'] : ['NORTH', 'SOUTH'];

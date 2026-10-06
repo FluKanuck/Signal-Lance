@@ -22,7 +22,7 @@ export function tipAt(wx: number, wy: number): [string, string[]] | null {
   for (const l of legChoices()) { const b = legButton(l.i); if (near(wx, wy, b.x, b.y, 30 / z)) return [l.name + ' route', ['Tap to send the transport this way. It walks ' + TUNE.ESCORT_MOVE + ' tiles a round and stops at the next fork.']]; }
   for (const m of G.lance) if (!m.dead && near(wx, wy, m.x, m.y, R)) return ['Your mech ' + m.id, [partsRead(m), 'AP ' + m.ap + ' · EN ' + Math.round(m.en) + ' · EMIT ' + Math.round(m.emit) + ' · ammo ' + m.ammo, 'Tap it on its turn to turn and face somewhere.']];
   const a = G.ally;
-  if (a && near(wx, wy, a.x, a.y, R)) return a.dead ? ['Transport (destroyed)', ['The escort failed.']] : ['Transport', [a.hits + '/' + a.maxHits + ' hits. Unarmed. The field can see, hear and shoot it like your mechs.', 'Win: it walks out the right edge. Lose it and the hunt fails.']];
+  if (a && near(wx, wy, a.x, a.y, R)) return a.dead ? ['Transport (destroyed)', ['The escort failed.']] : ['Transport', [a.hits + '/' + a.maxHits + ' hits. Unarmed. The field can see, hear and shoot it like your mechs.', 'Win: it walks out the right edge. Lose it and the hunt fails.', 'Orders (your turn, no AP): HOLD = skip its next move (' + a.holdsLeft + ' left); HURRY = sprint its next move, ' + TUNE.ESCORT_SPRINT + ' tiles, louder (' + a.hurriesLeft + ' left).' + (a.order ? ' Pending: ' + a.order + '.' : '')]];
   for (const c of G.pc) {
     if (!c.on || !near(wx, wy, cx(c), cy(c), Math.max(R, Math.min(c.unc, 40 / z)))) continue;
     const lost = c.lost > c.gap;

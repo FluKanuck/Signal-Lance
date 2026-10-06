@@ -1,7 +1,7 @@
 import { TUNE } from '../tune.ts';
 import { W, T, isSolid, isClutter, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter } from './world.ts';
 import { G, hooks, finishHunt, unitById, livingMechs, isMech, isFriend, friends, setActive } from './state.ts';
-import { allyStep, pickLeg } from './escort.ts';
+import { allyStep, pickLeg, giveOrder } from './escort.ts';
 import { rand } from './rng.ts';
 import { updateSensors, cx, cy, killContact, muzzleFlash } from './sensors.ts';
 import { bestContact, enemyDecide } from './bot.ts';
@@ -134,7 +134,7 @@ export function nextActivation() {
     G.phase = 'ALLY';
     const path = allyStep();
     if (!path) { nextActivation(); return; }
-    m.path = path; m.pi = 1; startAct({ k: 'MOVE', m, speed: TUNE.PLAYER_SPEED });
+    m.path = path; m.pi = 1; startAct({ k: 'MOVE', m, speed: m.hurrying ? TUNE.SPRINT_SPEED : TUNE.PLAYER_SPEED }); // R16: HURRY = sprint
     hooks.sync(); return;
   }
   if (isMech(m)) {
@@ -372,6 +372,8 @@ export function cmdMove() { if (G.plan && G.plan.path) doMove(G.p, G.plan); }
 export function cmdUplink() { if (uplinkBlock() === '') doUplink(); }
 // R15 s3: pick the route leg at the junction the transport holds at (no AP: it's an order, on your turn)
 export function cmdLeg(i: number) { if (playerFree()) { pickLeg(i); hooks.sync(); } }
+// R16 (Jamie): order the Escort transport to HOLD (skip its next move) or HURRY (sprint its next move). No AP; limited uses.
+export function cmdEscortOrder(kind: string) { if (playerFree() && giveOrder(kind)) hooks.sync(); }
 // R15: the objective button. Uplink: UPLINK. Retrieve: PICK UP the cargo, or HAND OFF if the active mech carries it.
 export function objectiveBlock() {
   if (isType('RETRIEVE')) return isCarrier(G.p) ? handoffBlock(G.p) : pickupBlock(G.p);

@@ -72,7 +72,7 @@ export const MAP_ANCHORS = {
 // R16: the map is per-hunt state. loadMap() swaps it in: size (W, H, N), walls, clutter, spawn, reachability and the
 // anchors table. Every reader imports these as live bindings, so they always see the current map. 'hive' = MAP_SRC above.
 // Tile chars: '#' building, '%' set piece (a wall, drawn apart), ',' ground clutter (R16), anything else street.
-export type MapDef = { id: string; rows: string[]; anchors: any; info?: any };
+export type MapDef = { id: string; rows: string[]; anchors: any; info?: any; spawn?: { x: number; y: number } };
 export let MAP: any = null;           // the loaded map: { id, rows, anchors, info } (info: grid, blocks, mods, seed, rerolls)
 export let W = 0, H = 0, N = 0;
 export const T = TUNE.TILE;
@@ -102,6 +102,7 @@ export function loadMap(def: MapDef) {
     }
   }
   // spawn: the map's P, else the left edge, mid-height (nearest open tile)
+  if (px < 0 && def.spawn) { px = def.spawn.x; py = def.spawn.y; } // R16: a packed district picks its own
   if (px < 0) { px = 0; py = H >> 1; for (let d = 0; d < H && isSolid(px, py); d++) { py = (H >> 1) + (d % 2 ? -1 : 1) * ((d + 1) >> 1); } }
   spawnX = px; spawnY = py;
   const q = [spawnY * W + spawnX], DX4 = [1, -1, 0, 0], DY4 = [0, 0, 1, -1]; reach[q[0]] = 1;

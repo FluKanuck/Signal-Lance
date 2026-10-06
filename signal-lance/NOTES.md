@@ -729,6 +729,19 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - MAP_LAYOUT 'grid' keeps the r16-s3 block grid (and the test bed's fixed districts still use it).
    - Measure (12 seeds, from random street tiles): longest straight open run 14.8 tiles (grid 23.7, hive 27.6); walls 54%
      (grid 36%, hive 42%); far tiles (9-12) in sight 8% (grid 10%, hive 7%).
+   R16 debrief 3 (r16-s6) ASSUMPTIONS
+   - Start zone (Jamie: spawning boxed in = rounds of boring travel): the spawn is the left-edge row (2..H-3) with the most
+     street within SPAWN_LOOK steps, minus 0.5 per row off mid-height; a SPAWN_APRON (4 deep × 9 tall) is cleared there.
+     The Escort transport starts on that row (S). The old grid layout keeps its mid-height spawn.
+   - Convoy orders (Jamie): HOLD and HURRY, on your turn, no AP, one pending at a time; the same order again cancels and
+     refunds; giving the other swaps (refunding the first). HOLD: its next activation does nothing (not allowed while it
+     already waits at a fork). HURRY: its next move covers ESCORT_SPRINT (12) tiles at SPRINT speed with SPRINT sound.
+     Jamie said "3 times" for the pause; HURRY got 3 as well (ESCORT_HURRIES). Buttons sit in the bottom row (Escort only).
+   - Escort legs (Jamie: routes "progress and then back track"): a leg may travel at most ESCORT_BACKTRACK (4) tiles west in
+     all and be at most ESCORT_DETOUR (1.8) × the shortest leg between the same places; the start leg too. The last fork's
+     legs aim at three stretches of the right edge (its own row, 20% and 80% of the height). Forks get 12 tries (later
+     ones also slide sideways) before walls are softened. Only Escort jobs need a route: other jobs never reroll for it,
+     so a seed's district depends on the job type (job card and hunt roll the same type). Escort districts reroll ~5%.
 ```
 
 ## TWEAK LOG
@@ -1074,4 +1087,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            STREET_KEEP 0.6, LOT_CHANCE 0.3, YARD_CHANCE 0.4, ALLEY_MAX 2, ESCORT_LEG_SPREAD 6, ESCORT_SHARED 5. Runner 60
            contracts: wins 47%; Escort 55%, Uplink 65%, Retrieve 25%, Bounty 29%; hunts longer (Escort 14.4 rounds); clutter on
            25% of lance moves; rerolls 3%. Flags: 6x2 82% (11 hunts), sound share (inherited). BUILD r16-s5 | -
+   round16 debrief 3 | Jamie: spawned boxed in ("im going to have to take multiple rounds just to get out of this cramped
+           area"); "an order to pause the convoy … say 3 times … increase speed … a sprint for 1 turn"; routes "progress and then
+           back track" | NEW SPAWN_APRON 4×9, SPAWN_LOOK 12; ESCORT_HOLDS 3, ESCORT_HURRIES 3, ESCORT_SPRINT 12; ESCORT_BACKTRACK
+           4, ESCORT_DETOUR 1.8. No leg now travels more than 4 tiles west (300 seeds). Runner 60 contracts: wins 41% (was 47%);
+           big grids hardest (4x4 forced, 40 contracts: 36%); rerolls 1%. Flags: hush 0% (Bounty), 4x4 10% (20 hunts; 36% when
+           forced), sound share (inherited). BUILD r16-s6 | -
 ```

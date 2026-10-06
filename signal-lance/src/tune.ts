@@ -188,6 +188,9 @@ export const TUNE = {
   ESCORT_ARMOUR: 1,        // armour plates for its signature (SIG_ARMOUR each), like a patrol
   ESCORT_INIT: 4,          // its initiative base (as a patrol)
   ESCORT_BONUS: 60,        // credits on a win × the ally's hits left / its max (on top of PAY_WIN + kills)
+  ESCORT_HOLDS: 3,         // R16 (Jamie): HOLD orders per Escort hunt: the transport skips its next move (one round), then carries on
+  ESCORT_HURRIES: 3,       // R16 (Jamie): HURRY orders per Escort hunt: its next move is a sprint (ESCORT_SPRINT tiles, SPRINT speed and sound)
+  ESCORT_SPRINT: 12,       // tiles the transport covers on a HURRY move (ESCORT_MOVE is the normal walk)
   ESCORT_AMBUSH_RANGE: 4,  // tiles; in an Escort job every field unit is placed within this of a route leg ('anywhere' near the legs)
   // --- Round 16: rolled ground. Every hunt builds a new district from hand-drawn blocks (sim/blocks.ts) ---
   MAP_MODE: 'blocks',      // 'blocks' = a new district every hunt; 'hive' = the old fixed map (MAP_SRC), as the control (splash toggle)
@@ -207,12 +210,16 @@ export const TUNE = {
   MAP_LAYOUT: 'packed',    // 'packed' = shapes packed on half-block cells, cropped at the map edge; 'grid' = the r16-s3 block grid
   MAP_EDGE_CROP: true,     // the packing is offset by a random part of a cell and cut off at the map edge (false = seams line up with the edges)
   SHAPE_WEIGHTS: { '1x1': 2, '1x2': 3, '1x3': 2, 'L3': 3, 'L4': 2, '2x2': 3, '2x3': 1 }, // pick weights (in half-block cells); 2x2 = a hand-drawn block
+  SPAWN_APRON: { W: 4, H: 9 }, // R16 (Jamie: spawning boxed in = boring rounds): a cleared staging area at the spawn, tiles deep × tall
+  SPAWN_LOOK: 12,          // the spawn row is the left-edge row with the most street tiles within this many steps (mid-height breaks ties)
   STREET_KEEP: 0.6,        // chance each side of a piece keeps its street ring (else its buildings run to the edge: narrow or closed streets)
   LOT_CHANCE: 0.3,         // a 1x1 piece is an open lot (with a spot) instead of a building
   YARD_CHANCE: 0.4,        // a piece of 3+ cells gets a courtyard (a spot), joined to the street by an alley
   ALLEY_MAX: 2,            // up to this many one-tile alleys cut straight across a generated piece
   ESCORT_SHARED: 5,        // tiles; Escort legs may share this much at each end (leaving the fork, arriving) without counting as the same way
-  ESCORT_LEG_SPREAD: 6,    // extra A* cost per tile on and next to an earlier Escort leg, so the next leg finds a different way
+  ESCORT_LEG_SPREAD: 6,
+  ESCORT_BACKTRACK: 4,     // tiles; an Escort leg may travel at most this far west in all (no loops back)
+  ESCORT_DETOUR: 1.8,      // an Escort leg may be at most this × the shortest leg between the same places    // extra A* cost per tile on and next to an earlier Escort leg, so the next leg finds a different way
   SEAM_BLOCK_CHANCE: 0.35, // R16 debrief: each stretch of street between two crossings gets a blocker with this chance (0 = the open grid)
   SEAM_BLOCK_KINDS: { RUBBLE: 0.4, BARRICADE: 0.3, CHOKE: 0.3 }, // weights: scrap across the street / a wall that shuts it / a wall over one lane
   FIELD_SHUFFLE: 1,   // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll

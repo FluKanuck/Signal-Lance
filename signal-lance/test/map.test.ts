@@ -108,6 +108,47 @@ describe('packed districts (R16 debrief 2)', () => {
   });
 });
 
+describe('R16 debrief 3: routes, start zones, convoy orders', () => {
+  it('no Escort leg loops back west more than ESCORT_BACKTRACK tiles', () => {
+    for (let s = 1; s <= 60; s++) {
+      roll(s);
+      for (const l of anchors().legs) { const P = legPath(anchors().legs.indexOf(l)); let w = 0; for (let i = 1; i < P.length; i++) w += Math.max(0, P[i - 1].x - P[i].x); expect(w / T).toBeLessThanOrEqual(TUNE.ESCORT_BACKTRACK + 1e-6); }
+    }
+  });
+  it('the spawn has a cleared staging apron, and the transport starts on the spawn row', () => {
+    for (let s = 1; s <= 20; s++) {
+      startHunt(s, undefined, 'blocks', 'ESCORT');
+      const sy = Math.floor(G.lance[0].y / T), A = TUNE.SPAWN_APRON;
+      for (let y = Math.max(0, sy - (A.H >> 1)); y < Math.min(H, sy + (A.H >> 1) + 1); y++) for (let x = 0; x < A.W; x++) expect(isSolid(x, y)).toBe(false);
+      expect(anchors().waypoints.S.y).toBe(sy);
+    }
+  });
+  it('HOLD: the transport skips its next move, then carries on; uses run out; the same order again cancels and refunds', async () => {
+    const { giveOrder, orderBlock, allyStep, makeAlly } = await import('../src/sim/escort.ts');
+    startHunt(3, undefined, 'blocks', 'ESCORT');
+    G.ally = makeAlly('S'); const a = G.ally; // on its first leg, walking
+    expect(giveOrder('HOLD')).toBe(true); expect(a.holdsLeft).toBe(TUNE.ESCORT_HOLDS - 1);
+    expect(giveOrder('HOLD')).toBe(true); expect(a.order).toBe(''); expect(a.holdsLeft).toBe(TUNE.ESCORT_HOLDS); // cancel = refund
+    giveOrder('HOLD'); const x0 = a.x;
+    expect(allyStep()).toBeNull(); expect(a.x).toBe(x0); expect(G.mission.holds).toBe(1); // skipped
+    expect(allyStep()).not.toBeNull(); // then it moves again
+    a.holdsLeft = 0; expect(orderBlock('HOLD')).toBe('USED');
+  });
+  it('HURRY: the next move is a sprint (ESCORT_SPRINT tiles, SPRINT sound); HOLD is refused while it waits at a fork', async () => {
+    const { giveOrder, orderBlock, allyStep, makeAlly } = await import('../src/sim/escort.ts');
+    const { pathLen } = await import('../src/sim/turns.ts');
+    startHunt(3, undefined, 'blocks', 'ESCORT');
+    G.ally = makeAlly('J1'); expect(orderBlock('HOLD')).toBe('FORK');
+    G.ally = makeAlly('S'); const a = G.ally; a.sound = 0;
+    expect(giveOrder('HURRY')).toBe(true);
+    const P = allyStep();
+    expect(pathLen(P)).toBeGreaterThan(TUNE.ESCORT_MOVE + 0.5);
+    expect(pathLen(P)).toBeLessThanOrEqual(TUNE.ESCORT_SPRINT + 0.01);
+    expect(a.sound).toBeGreaterThanOrEqual(TUNE.SOUND_RANGE.SPRINT);
+    expect(a.hurrying).toBe(true); expect(G.mission.hurries).toBe(1);
+  });
+});
+
 describe('clutter', () => {
   const ROWS = [
     '..........',

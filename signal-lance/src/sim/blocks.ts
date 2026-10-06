@@ -348,8 +348,8 @@ function relax(spec: DistrictSpec) {
 }
 // Roll and load this hunt's district from the shared RNG (rollEnemy calls it right after setSeed). A district whose
 // mission tiles can't all be reached is rerolled (fresh draws), up to MAP_REROLL_MAX times; the count is logged.
-export function rollDistrict(seed: number, grid?: string) {
-  if (TUNE.MAP_LAYOUT === 'packed') { const k = rollPacked(seed, grid); MAP.info.rerolls = k; return null; } // R16 debrief 2
+export function rollDistrict(seed: number, grid?: string, escort = true) {
+  if (TUNE.MAP_LAYOUT === 'packed') { const k = rollPacked(seed, grid, escort); MAP.info.rerolls = k; return null; } // R16 debrief 2
   let spec: DistrictSpec, k = 0;
   for (; k < TUNE.MAP_REROLL_MAX; k++) { spec = rollSpec(grid); spec.seed = seed; if (buildDistrict(spec) || relax(spec)) break; }
   MAP.info.rerolls = k;

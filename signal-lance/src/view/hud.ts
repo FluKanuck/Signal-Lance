@@ -11,7 +11,7 @@ import { soundRadius } from '../sim/sound.ts';
 import { revealed } from '../sim/ids.ts';
 import { isType, quotaMet, isCarrier, pickupBlock, handoffBlock } from '../sim/mission.ts';
 import { objectiveBlock } from '../sim/turns.ts';
-import { allyHolding } from '../sim/escort.ts';
+import { allyHolding, orderBlock } from '../sim/escort.ts';
 import { anchors } from '../sim/world.ts';
 import { mapText } from '../sim/blocks.ts';
 
@@ -66,7 +66,8 @@ function goalLine(p) {
   if (isType('ESCORT') && G.ally) { // R15 s3
     const a = G.ally, N = anchors().waypoints, L = anchors().legs;
     const where = allyHolding() ? '<b style="color:#7e9">HOLDING at ' + N[a.node].name + ': tap a route on the map</b>' : a.leg >= 0 ? 'heading for ' + N[L[a.leg].to].name : 'moving';
-    return '<br>TRANSPORT <b style="color:#7e9">' + Math.max(0, a.hits) + '/' + a.maxHits + ' hits</b>  ' + where + '  <span style="color:#aab">(a mech at the right edge first = the lance pulls out without it)</span>';
+    const ord = a.order ? '  <b style="color:#fc3">' + (a.order === 'HOLD' ? 'HOLDING next round' : 'SPRINTING next move') + '</b>' : '';
+    return '<br>TRANSPORT <b style="color:#7e9">' + Math.max(0, a.hits) + '/' + a.maxHits + ' hits</b>  ' + where + ord + '  <span style="color:#aab">(a mech at the right edge first = the lance pulls out without it)</span>';
   }
   if (isType('RETRIEVE')) { // R15 s2
     const M = G.mission;
@@ -148,5 +149,11 @@ export function syncButtons() {
   if (isType('RETRIEVE') && isCarrier(p)) setBtn('bUp', 'HAND OFF', w || TUNE.RETRIEVE_HANDOFF_AP + 'AP', free && !w);
   else if (isType('RETRIEVE')) setBtn('bUp', 'PICK UP', w === 'HELD' ? G.mission.carrier + ' HAS IT' : w || TUNE.RETRIEVE_PICKUP_AP + 'AP · LOUD', free && !w);
   else setBtn('bUp', 'UPLINK', w || TUNE.AP_UPLINK + 'AP +' + TUNE.SIG_UPLINK + 'EMIT', free && !w);
+  // R16: convoy orders (Escort only). Lit = pending; tap again to cancel.
+  const esc = isType('ESCORT') && !!G.ally && !G.ally.dead; $('bHold').hidden = $('bHurry').hidden = !esc;
+  if (esc) for (const [id, k, left] of [['bHold', 'HOLD', G.ally.holdsLeft], ['bHurry', 'HURRY', G.ally.hurriesLeft]]) {
+    const b = orderBlock(k), on = G.ally.order === k;
+    setBtn(id, k, on ? 'NEXT MOVE' : b === 'FORK' ? 'AT FORK' : b === 'USED' ? 'NONE LEFT' : left + ' left', free && b === '', on);
+  }
   hudT = 0;
 }

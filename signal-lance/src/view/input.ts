@@ -3,7 +3,7 @@ import { W, H, T } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
 import { cx, cy } from '../sim/sensors.ts';
 import { legChoices, legButton } from '../sim/escort.ts';
-import { endPlayerTurn, replan, playerFree, cmdLeg, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect } from '../sim/turns.ts';
+import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect } from '../sim/turns.ts';
 import { V } from './state.ts';
 import { cv, vw, vh, resize } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
@@ -15,6 +15,8 @@ export function btn(id, fn) { $(id).addEventListener('pointerdown', e => { e.pre
 export function order(id, fn) { btn(id, () => { if (playerFree()) { fn(); if (!G.act) { replan(); syncButtons(); } } }); }
 order('bEnd', () => { V.ghostArm = V.faceArm = V.mortarArm = false; endPlayerTurn(); });
 order('bUp', cmdObjective); // R15: UPLINK, or PICK UP / HAND OFF
+order('bHold', () => cmdEscortOrder('HOLD'));   // R16: the convoy skips its next move
+order('bHurry', () => cmdEscortOrder('HURRY')); // R16: the convoy sprints its next move
 order('bMove', () => { if (V.faceArm) { V.faceArm = false; return; } cmdMove(); }); // doubles as CANCEL while face mode is armed
 for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) order(id, () => cmdMoveMode(m));
 order('bRadar', cmdRadar);

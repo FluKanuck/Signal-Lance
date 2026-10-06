@@ -101,7 +101,7 @@ export function missionText() {
   const M = G.mission; if (!M) return '';
   const end = M.result ? ' · ' + M.result + ' round ' + M.endTurn : '';
   if (M.type === 'BOUNTY') return 'BOUNTY ' + M.earned + '/' + M.quota + ' · kills: ' + (M.kills.map(k => k.v + ' ' + k.b).join(', ') || 'none') + end;
-  if (M.type === 'ESCORT') return 'ESCORT transport ' + (G.ally ? (G.ally.dead ? 'destroyed' : G.ally.hits + '/' + G.ally.maxHits + ' hits') : '?') + ' · routes ' + (M.legs.join(', ') || 'none picked') + end;
+  if (M.type === 'ESCORT') return 'ESCORT transport ' + (G.ally ? (G.ally.dead ? 'destroyed' : G.ally.hits + '/' + G.ally.maxHits + ' hits') : '?') + ' · routes ' + (M.legs.join(', ') || 'none picked') + ' · holds ' + (M.holds || 0) + ', hurries ' + (M.hurries || 0) + end;
   if (M.type === 'RETRIEVE') return 'RETRIEVE ' + (M.carrier ? 'carried by ' + M.carrier : 'cargo untouched') + ' · pickups ' + M.pickups + ' · hand-offs ' + M.handoffs + end;
   return '';
 }

@@ -49,7 +49,8 @@ export function makeAlly(at = 'S') {
   const a: any = { id: 'ALLY', type: 'ALLY', x: n.x, y: n.y, fx: 1, fy: 0, path: null, pi: 0, moving: false, spd: 0, creep: false,
     radarOn: false, mask: false, jamming: false, fireT: 0, dead: false, shots: 0, landed: 0, ap: 0, en: 100, enMax: 100, turnShots: 0, freeTurns: 0,
     emit: TUNE.ESCORT_EMIT, comms: TUNE.ESCORT_EMIT, armour: TUNE.ESCORT_ARMOUR, bearT: 0, sound: 0, heardBy: [], sndOff: { x: 0, y: 0 }, movedT: 0,
-    node: at, leg: -1, walk: null, done: 0 }; // node it stands on (or last left), leg index it walks, that leg's points, tiles walked on it
+    node: at, leg: -1, walk: null, done: 0, // node it stands on (or last left), leg index it walks, that leg's points, tiles walked on it
+    order: '', holdsLeft: TUNE.ESCORT_HOLDS, hurriesLeft: TUNE.ESCORT_HURRIES, hurrying: false }; // R16: the pending order (HOLD / HURRY) and what's left
   initParts(a, 'ALLY', TUNE.ESCORT_HITS);
   a.load = { passive: 0, radar: 0, ecm: 0, ammo: 0, mortar: 0 };
   const L = legsFrom(at); if (L.length === 1) startLeg(a, L[0].i); // a single onward leg: just go
@@ -76,11 +77,30 @@ export function legButton(i: number) {
 }
 // The ally's activation: walk ESCORT_MOVE tiles along its leg (a MOVE action), or nothing (holding / arrived).
 // Returns the path to walk, or null.
+// ---- R16 (Jamie): orders to the convoy, given on your turn (no AP). One pending at a time; the same order again cancels
+// it and gives the use back. HOLD: it skips its next move (not while it waits at a fork). HURRY: its next move is a sprint.
+export function orderBlock(kind: string) {
+  const a = G.ally; if (!a || a.dead) return 'NONE';
+  if (a.order === kind) return '';
+  if (kind === 'HOLD' && allyHolding()) return 'FORK';
+  return (kind === 'HOLD' ? a.holdsLeft : a.hurriesLeft) > 0 ? '' : 'USED';
+}
+export function giveOrder(kind: string) {
+  const a = G.ally; if (orderBlock(kind) !== '') return false;
+  const refund = (k: string) => { if (k === 'HOLD') a.holdsLeft++; if (k === 'HURRY') a.hurriesLeft++; };
+  if (a.order === kind) { refund(kind); a.order = ''; return true; }
+  refund(a.order);
+  a.order = kind; if (kind === 'HOLD') a.holdsLeft--; else a.hurriesLeft--;
+  return true;
+}
 export function allyStep() {
-  const a = G.ally; if (!a || a.dead || a.leg < 0) return null;
+  const a = G.ally; if (a) a.hurrying = false;
+  if (!a || a.dead || a.leg < 0) return null;
+  if (a.order === 'HOLD') { a.order = ''; G.mission.holds = (G.mission.holds || 0) + 1; return null; } // R16: it waits this round
+  const hurry = a.order === 'HURRY'; if (hurry) { a.order = ''; a.hurrying = true; G.mission.hurries = (G.mission.hurries || 0) + 1; }
   // walk from where it stands along what's left of the leg (R16: clutter costs it CLUTTER_TILE_COST a tile, like everyone)
   const pts = [{ x: a.x, y: a.y }, ...a.walk.slice(1)], left = pathCost(pts);
-  const n = Math.min(TUNE.ESCORT_MOVE, left), path = clipPathCost(pts, n);
+  const n = Math.min(hurry ? TUNE.ESCORT_SPRINT : TUNE.ESCORT_MOVE, left), path = clipPathCost(pts, n);
   if (n >= left - 1e-3) { // reaches the leg's end node this activation
     const to = anchors().legs[a.leg].to; a.node = to; a.leg = -1; a.walk = null;
     const L = legsFrom(to); if (L.length === 1) { startLeg(a, L[0].i); a.walk = legPath(L[0].i); }
@@ -89,6 +109,6 @@ export function allyStep() {
     const end = path[path.length - 1], k = path.length - 1, full = pts[k] && pts[k].x === end.x && pts[k].y === end.y;
     a.walk = full ? pts.slice(k) : [end, ...pts.slice(k)];
   }
-  makeSound(a, 'NORMAL', pathHitsClutter(path) ? TUNE.CLUTTER_SOUND : 0);
+  makeSound(a, hurry ? 'SPRINT' : 'NORMAL', pathHitsClutter(path) ? TUNE.CLUTTER_SOUND : 0);
   return path.length > 1 ? path : null;
 }
