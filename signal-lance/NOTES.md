@@ -758,6 +758,18 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Escort / Retrieve (Jamie's log: the lance BAILed with the transport one step behind): a mech in the extraction columns
      waits there; the hunt does not end. It ends WIN when the transport walks out / the carrier carries the cargo out, and
      BAIL once every living mech is in extraction. Uplink and Bounty keep "one mech out = the lance leaves". (Parked R15 #5.)
+   R16 individual extraction (r16-s9) ASSUMPTIONS (replaces the r16-s8 rule)
+   - Jamie: "ExoS should extract individually using a new extract button that pops up when zone is entered, only when all
+     friendlies are extracted does the mission end". Entering the extraction columns ends nothing. While the active mech
+     stands there, EXTRACT shows: no AP, the mech leaves the map (m.out; moved off-map, out of the order, the field drops
+     its contacts on it, it can't be shot or heard) and its turn ends. The transport is out as soon as it walks in.
+   - The hunt ends when every living mech is out (onAllOut): Bounty WIN at quota, else BAIL; Retrieve WIN if the carrier
+     extracted with the cargo, else BAIL; Escort WIN if the transport is out, else BAIL ("left the transport"); Uplink BAIL.
+     Still immediate: the uplink completing, the field cleared (not Escort), transport / carrier destroyed (FAIL), every
+     mech destroyed (LOSS). One mech destroyed and the other extracted = everyone living is out.
+   - Judgement: Escort with every mech out but the transport still in = BAIL (else it would walk on alone and could wait
+     at an unset fork for ever).
+   - Scripted lance: extracts when it stands in the zone and its goal is to leave; follows the transport / cargo out.
 ```
 
 ## TWEAK LOG
@@ -1117,4 +1129,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round16 bug | Jamie's log (r16-s6, Escort 6x2): "i made it to the end, the escort 1 step behind me, but because i entered
            extract before the transport it counted as bailed" | Escort / Retrieve: a mech in extraction waits; BAIL only when all
            living mechs are out (turns.ts extractEnds). Runner 40 contracts: no stalls. BUILD r16-s8 | -
+   round16 rule | Jamie: "for other extracts/bails, ExoS should extract individually using a new extract button that pops
+           up when zone is entered, only when all friendlies are extracted does the mission end" | NEW EXTRACT button, m.out,
+           onAllOut (replaces s8). Runner 60 contracts: wins 37% (the lance must walk out after the objective; more exposure);
+           no stalls. Browser fuzz 60 hunts with extracts: no errors. BUILD r16-s9 | -
 ```

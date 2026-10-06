@@ -6,7 +6,7 @@ import { T, W, anchors, canReach as canReachTile } from '../src/sim/world.ts';
 import { newContract, takeJob } from '../src/sim/contract.ts';
 import { updateShells, uplinkBlock, step } from '../src/sim/turns.ts';
 import { damagePart } from '../src/sim/combat.ts';
-import { onExtract, onClear, bountyOf, quotaMet } from '../src/sim/mission.ts';
+import { onAllOut, onClear, bountyOf, quotaMet } from '../src/sim/mission.ts';
 import { scenarioByName, startScenario, leaveScenario } from '../src/sim/scenarios.ts';
 import { LOAD, LOAD_A } from './helpers.ts';
 
@@ -76,7 +76,7 @@ describe('BOUNTY', () => {
     contractHunt('BOUNTY');
     G.mission.earned = TUNE.BOUNTY_QUOTA + 35; G.kills = 3;
     expect(quotaMet()).toBe(true);
-    onExtract();
+    onAllOut();
     expect(G.outcome).toBe('WIN BOUNTY');
     const r = G.ct.results[0];
     expect(r.pay).toBe(TUNE.BOUNTY_QUOTA + 35); expect(r.mission).toBe('BOUNTY'); expect(G.ct.wins).toBe(1);
@@ -84,7 +84,7 @@ describe('BOUNTY', () => {
   it('extract under quota = not a win and not a loss: the contract goes on, bounties kept', () => {
     contractHunt('BOUNTY');
     G.mission.earned = TUNE.BOUNTY_QUOTA - 10;
-    onExtract();
+    onAllOut();
     expect(G.outcome).toBe('BAIL');
     expect(G.ct.results[0].pay).toBe(TUNE.BOUNTY_QUOTA - 10);
     expect(G.ct.wins).toBe(0); expect(G.ct.status).toBe('ACTIVE');
@@ -97,7 +97,7 @@ describe('BOUNTY', () => {
   it('uplink pay is unchanged: PAY_WIN + kills × PAY_KILL, and a BAIL pays nothing', () => {
     contractHunt('UPLINK'); G.kills = 2; onClear();
     expect(G.outcome).toBe('WIN CLEAR'); expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + 2 * TUNE.PAY_KILL);
-    contractHunt('UPLINK'); G.kills = 2; onExtract();
+    contractHunt('UPLINK'); G.kills = 2; onAllOut();
     expect(G.outcome).toBe('BAIL'); expect(G.ct.results[0].pay).toBe(0);
   });
 });
@@ -195,13 +195,13 @@ describe('RETRIEVE', () => {
     expect(G.outcome).toBe('FAIL'); expect(G.ct.status).toBe('ACTIVE'); expect(G.ct.wins).toBe(0);
     expect(G.ct.results[0].pay).toBe(0);
   });
-  it('win: the carrier reaches extraction; pay PAY_WIN + kills. Another mech extracting first = BAIL', () => {
+  it('win: the carrier extracts with the cargo (then everyone is out); pay PAY_WIN + kills. Out without it = BAIL', () => {
     contractHunt('RETRIEVE');
     const [A, B] = G.lance; onCargo(A); doPickup(A); G.kills = 1;
-    onExtract(A);
+    G.mission.cargoOut = true; onAllOut(); // R16: the carrier extracted, then the rest of the lance
     expect(G.outcome).toBe('WIN RETRIEVE'); expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + TUNE.PAY_KILL);
     contractHunt('RETRIEVE');
-    onCargo(G.lance[0]); doPickup(G.lance[0]); onExtract(G.lance[1]);
+    onCargo(G.lance[0]); doPickup(G.lance[0]); onAllOut();
     expect(G.outcome).toBe('BAIL');
     expect(huntPay('BAIL')).toBe(0);
   });
@@ -230,17 +230,29 @@ import { cmdLeg, nextActivation } from '../src/sim/turns.ts';
 import { onAllyLost, onAllyOut, escortBonus } from '../src/sim/mission.ts';
 import { playOut } from '../src/sim/autoplay.ts';
 
-describe('R16: extraction in Escort / Retrieve', () => {
-  it('a mech in extraction waits; the hunt ends when every living mech is out (BAIL), or the carrier is out (WIN)', async () => {
-    const { extractEnds } = await import('../src/sim/turns.ts');
-    hunt('ESCORT'); const [A, B] = G.lance;
-    A.x = (W - 1.5) * T; expect(extractEnds(A)).toBe(false); // B is still in the district
-    B.x = (W - 1.5) * T; expect(extractEnds(A)).toBe(true);  // both out: they leave
-    B.x = 2 * T; B.dead = true; expect(extractEnds(A)).toBe(true); // the only living mech is out
-    hunt('RETRIEVE'); const [C, D] = G.lance; G.mission.carrier = C.id;
-    C.x = (W - 1.5) * T; expect(extractEnds(C)).toBe(true); // the carrier walks out: WIN
-    D.x = (W - 1.5) * T; G.mission.carrier = ''; C.x = 2 * T; expect(extractEnds(D)).toBe(false);
-    hunt('UPLINK'); G.lance[0].x = (W - 1.5) * T; expect(extractEnds(G.lance[0])).toBe(true); // Uplink / Bounty: as before
+describe('R16: individual extraction (EXTRACT)', () => {
+  it('walking into extraction ends nothing; EXTRACT takes one mech off the map; the hunt ends once every living mech is out', async () => {
+    const T2 = await import('../src/sim/turns.ts');
+    for (const job of ['UPLINK', 'BOUNTY', 'RETRIEVE', 'ESCORT']) {
+      hunt(job); const [A, B] = G.lance;
+      expect(T2.extractBlock(A)).toBe('ZONE');
+      A.x = (W - 1.5) * T; expect(T2.extractBlock(A)).toBe('');
+      T2.leaveMap(A); expect(A.out).toBe(true); expect(T2.allOut()).toBe(false); expect(G.mode).toBe('hunt');
+      expect(friends()).not.toContain(A);
+      B.dead = true; expect(T2.allOut()).toBe(true); // the other is destroyed: everyone living is out
+    }
+  });
+  it('an extracted mech takes no turns and the field loses track of it', async () => {
+    const T2 = await import('../src/sim/turns.ts');
+    hunt('UPLINK'); const [A] = G.lance;
+    observe(G.units[0].ec, A.id, A.x, A.y, T, 0, 0, true, false, true, 'EYES');
+    T2.leaveMap(A);
+    expect(G.units[0].ec.some(c => c.on && c.id === A.id)).toBe(false);
+    T2.startRound(); expect(G.order).not.toContain(A);
+  });
+  it('Escort: everyone out with the transport out = WIN; the lance out without it = BAIL', () => {
+    contractHunt('ESCORT'); onAllyOut(); onAllOut(); expect(G.outcome).toBe('WIN ESCORT');
+    contractHunt('ESCORT'); onAllOut(); expect(G.outcome).toBe('BAIL'); expect(G.mission.result).toBe('left the transport');
   });
 });
 
@@ -299,7 +311,8 @@ describe('ESCORT', () => {
     damagePart(G.ally, 'CORE', 2); G.kills = 1;
     const bonus = Math.round(TUNE.ESCORT_BONUS * G.ally.hits / G.ally.maxHits);
     expect(escortBonus()).toBe(bonus);
-    onAllyOut();
+    onAllyOut(); expect(G.mode).toBe('hunt'); // R16: out, but the hunt goes on until the lance extracts
+    onAllOut();
     expect(G.outcome).toBe('WIN ESCORT');
     expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + bonus + TUNE.PAY_KILL);
   });

@@ -69,7 +69,7 @@ export function legChoices() { return allyHolding() ? legsFrom(G.ally.node) : []
 // R16 (Jamie: "railway style direction lever"): every fork the transport hasn't left yet, with its legs. Set a lever at
 // any of them ahead of time; reaching a set fork it carries straight on (in the same move); an unset fork = it stops and waits.
 export function forksAhead() {
-  const a = G.ally; if (!a || a.dead) return [];
+  const a = G.ally; if (!a || a.dead || a.out) return [];
   return anchors().junctions.filter(j => !a.passed.includes(j)).map(j => ({ node: j, legs: legsFrom(j), set: a.levers[j] ?? -1 }));
 }
 // Pick leg i: at the fork it waits at, it sets off on it (on its next activation); at a fork ahead, it sets (or, tapped
@@ -132,14 +132,14 @@ export function planAllyMove(a, budget: number) {
 }
 // The transport's next move as the view previews it: where it will stop (and why), or null (no move).
 export function allyNextStop() {
-  const a = G.ally; if (!a || a.dead || a.leg < 0 && !(legsFrom(a.node).length > 1 && a.levers[a.node] !== undefined)) return null;
+  const a = G.ally; if (!a || a.dead || a.out || a.leg < 0 && !(legsFrom(a.node).length > 1 && a.levers[a.node] !== undefined)) return null;
   if (a.order === 'HOLD') return { x: a.x, y: a.y, why: 'HOLD' };
   const p = planAllyMove(a, a.order === 'HURRY' ? TUNE.ESCORT_SPRINT : TUNE.ESCORT_MOVE), e = p.path[p.path.length - 1];
   return { x: e.x, y: e.y, why: p.stop };
 }
 export function allyStep() {
   const a = G.ally; if (a) a.hurrying = false;
-  if (!a || a.dead) return null;
+  if (!a || a.dead || a.out) return null;
   if (a.leg < 0 && legsFrom(a.node).length > 1 && a.levers[a.node] !== undefined) startLeg(a, a.levers[a.node]); // a lever set while it waited
   if (a.leg < 0) return null;
   if (a.order === 'HOLD') { a.order = ''; G.mission.holds = (G.mission.holds || 0) + 1; return null; } // R16: it waits this round

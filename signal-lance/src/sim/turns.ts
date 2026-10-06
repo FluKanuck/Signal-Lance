@@ -1,6 +1,6 @@
 import { TUNE } from '../tune.ts';
 import { W, T, isSolid, isClutter, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter } from './world.ts';
-import { G, hooks, finishHunt, unitById, livingMechs, isMech, isFriend, friends, setActive } from './state.ts';
+import { G, hooks, finishHunt, unitById, livingMechs, activeMechs, isMech, isFriend, friends, setActive } from './state.ts';
 import { allyStep, pickLeg, giveOrder } from './escort.ts';
 import { rand } from './rng.ts';
 import { updateSensors, cx, cy, killContact, muzzleFlash } from './sensors.ts';
@@ -9,7 +9,7 @@ import { effEmit, zoneType } from './zones.ts';
 import { hitChance, rollPart, damagePart, partGone, partHurt } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
-import { onKill, onExtract, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
+import { onKill, onAllOut, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
 // ============================ UPDATE ==================================
 export function moveAlong(m, speed, dt) {
@@ -117,7 +117,7 @@ export function beginUnit(m) {
 // ties to the player (then list order). Each unit acts on its own activation; END TURN passes it on.
 export function initOf(m) { return isMech(m) ? TUNE.INIT_BASE.MECH : m === G.ally ? TUNE.ESCORT_INIT : TUNE.INIT_BASE[m.type]; }
 export function startRound() {
-  const all = [...livingMechs(), ...(G.ally && !G.ally.dead ? [G.ally] : []), ...G.units.filter(u => !u.dead)]; // R15 s3: the transport takes a turn
+  const all = [...activeMechs(), ...(G.ally && !G.ally.dead && !G.ally.out ? [G.ally] : []), ...G.units.filter(u => !u.dead)]; // R15 s3: the transport takes a turn
   for (const m of all) m.init = initOf(m) + Math.floor(rand() * (TUNE.INIT_ROLL + 1));
   all.forEach((m, i) => { m.ord = i; });
   G.order = all.sort((a, b) => b.init - a.init || (isMech(b) ? 1 : 0) - (isMech(a) ? 1 : 0) || a.ord - b.ord);
@@ -186,9 +186,9 @@ export function stepAction(dt) {
   if (!livingMechs().length) { G.act = null; finishHunt('LOSS'); return; } // R7 s2: both mechs destroyed
   if (cargoLost()) { G.act = null; onCargoLost(); return; } // R15 Retrieve: the carrier is destroyed, the cargo with it
   if (G.ally && G.ally.dead) { G.act = null; onAllyLost(); return; } // R15 Escort: the transport is destroyed
-  if (G.ally && Math.floor(G.ally.x / T) >= W - TUNE.EXTRACT_COLS) { G.act = null; onAllyOut(); return; } // R15 Escort: it made it
+  if (G.ally && !G.ally.out && inExtract(G.ally)) { leaveMap(G.ally); onAllyOut(); } // R15 Escort: it made it (R16: it's out; the hunt ends once everyone is)
   if (G.kills >= G.units.length && !isType('ESCORT')) { G.act = null; onClear(); return; } // R7: whole field destroyed (R15: the mission decides what that means)
-  if (!p.dead && inExtract(p) && extractEnds(p)) { G.act = null; onExtract(p); return; } // a mech reaching extraction pulls the lance out (R15: Bounty at quota = WIN; R16: see extractEnds)
+  if (allOut()) { G.act = null; onAllOut(); return; } // R16: every friendly is extracted (or destroyed)
   const done = a.k === 'MOVE' ? !a.m.path || a.age > 30 : a.t <= 0 && !shellsFlying();
   if (!done) return;
   a.m.moving = false; a.m.path = null; if (a.k === 'PULSE') a.m.radarOn = false;
@@ -197,14 +197,25 @@ export function stepAction(dt) {
   else if (G.phase === 'ALLY') nextActivation(); // R15 s3: the transport's one move is its whole turn
   else { if (a.m === p && G.planT && !G.planT.cut) G.planT = null; replan(); hooks.sync(); }
 }
-// R16 (Jamie: "i made it to the end, the escort 1 step behind me, but because i entered extract before the transport it
-// counted as bailed"): in Escort and Retrieve, a mech in extraction just waits there; the hunt ends when the objective walks
-// out (transport / carrier) or when every living mech is in extraction (a BAIL). Uplink and Bounty: one mech out, as before.
+// R16 (Jamie: "ExoS should extract individually using a new extract button that pops up when zone is entered, only when all
+// friendlies are extracted does the mission end"). Walking into extraction ends nothing: a mech standing in it may EXTRACT
+// (no AP; it leaves the map and its turn ends). The transport is out when it walks in. The hunt ends once every living mech
+// is out (mission.ts onAllOut decides what that means); an uplink, a cleared field or a destroyed objective still end it at once.
 export function inExtract(m) { return Math.floor(m.x / T) >= W - TUNE.EXTRACT_COLS; }
-export function extractEnds(m) {
-  if (!isType('ESCORT') && !isType('RETRIEVE')) return true;
-  if (isCarrier(m)) return true;
-  return livingMechs().every(o => inExtract(o));
+export function leaveMap(m) {
+  m.out = true; m.path = null; m.moving = false; m.radarOn = false; m.mask = false; m.x = m.y = -20 * T;
+  for (const u of G.units) killContact(u.ec, m.id);
+}
+export function allOut() { const L = livingMechs(); return L.length > 0 && L.every(m => m.out); }
+export function extractBlock(m = G.p) { return !m || m.dead || m.out ? 'NONE' : !inExtract(m) ? 'ZONE' : ''; }
+export function cmdExtract() {
+  if (!playerFree() || extractBlock() !== '') return;
+  const m = G.p;
+  if (isCarrier(m)) { G.mission.cargoOut = true; G.mission.result = 'cargo out'; } // R15 Retrieve: the cargo leaves with it
+  G.mission.out = (G.mission.out || []).concat(m.id);
+  leaveMap(m);
+  if (allOut()) { onAllOut(); return; }
+  nextActivation();
 }
 export function faceTo(m, x, y) { const dx = x - m.x, dy = y - m.y, d = Math.hypot(dx, dy); if (d > 0) { m.fx = dx / d; m.fy = dy / d; } }
 // Change facing (no time): the first FREE_TURNS each turn are free, then AP_TURN each.

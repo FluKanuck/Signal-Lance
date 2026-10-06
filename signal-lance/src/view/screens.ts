@@ -14,7 +14,7 @@ import { mapText } from '../sim/blocks.ts';
 import { fieldCount } from '../sim/state.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r16-s8';  // R16: Escort / Retrieve: a mech in extraction waits (s7: levers, marker, shared cover)
+export const BUILD = 'r16-s9';  // R16: each mech EXTRACTs on its own; the hunt ends when every friendly is out (s8: Escort extraction wait)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');

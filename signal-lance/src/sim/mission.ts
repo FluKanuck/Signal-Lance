@@ -70,16 +70,17 @@ export function onCargoLost() { G.mission.endTurn = G.turn; G.mission.result = '
 
 // ---- R15 step 3: Escort ----
 export function onAllyLost() { G.mission.endTurn = G.turn; G.mission.result = 'transport lost'; finishHunt('FAIL'); }
-export function onAllyOut() { G.mission.endTurn = G.turn; G.mission.result = 'transport out'; G.winBy = 'ESCORT'; finishHunt('WIN'); }
+export function onAllyOut() { G.mission.allyOut = true; G.mission.result = 'transport out'; } // R16: the hunt ends once the lance is out too
 export function escortBonus() { const a = G.ally; return a ? Math.round(TUNE.ESCORT_BONUS * Math.max(0, a.hits) / a.maxHits) : 0; }
 
-// A lance mech m reached extraction. Uplink: BAIL (as before). Bounty: WIN at or over quota, else BAIL with the bounties
-// kept. Retrieve: WIN if m carries the cargo, else BAIL. R16: in Escort / Retrieve this is only called once every living mech is out (turns.ts extractEnds).
-export function onExtract(m?) {
-  G.mission.endTurn = G.turn; G.mission.result = 'extracted';
+// R16: every living mech has extracted. Bounty: WIN at or over quota, else BAIL with the bounties kept. Retrieve: WIN if the
+// carrier took the cargo out. Escort: WIN if the transport is out, else BAIL (the lance left it). Uplink: BAIL.
+export function onAllOut() {
+  const M = G.mission; M.endTurn = G.turn;
   if (quotaMet()) { G.winBy = 'BOUNTY'; finishHunt('WIN'); }
-  else if (m && isCarrier(m)) { G.mission.result = 'cargo out'; G.winBy = 'RETRIEVE'; finishHunt('WIN'); }
-  else finishHunt('BAIL');
+  else if (isType('RETRIEVE') && M.cargoOut) { M.result = 'cargo out'; G.winBy = 'RETRIEVE'; finishHunt('WIN'); }
+  else if (isType('ESCORT') && M.allyOut) { M.result = 'transport out'; G.winBy = 'ESCORT'; finishHunt('WIN'); }
+  else { M.result = isType('ESCORT') ? 'left the transport' : 'extracted'; finishHunt('BAIL'); }
 }
 // The whole field is destroyed. Uplink / Retrieve: WIN CLEAR. Escort: never called (turns.ts skips it: only the transport walking out wins). Bounty: same quota rule as extracting (nothing left to take).
 export function onClear() {

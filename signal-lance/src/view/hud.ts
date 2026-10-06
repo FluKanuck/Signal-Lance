@@ -10,7 +10,7 @@ import { zoneOf, effEmit } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
 import { revealed } from '../sim/ids.ts';
 import { isType, quotaMet, isCarrier, pickupBlock, handoffBlock } from '../sim/mission.ts';
-import { objectiveBlock } from '../sim/turns.ts';
+import { objectiveBlock, extractBlock } from '../sim/turns.ts';
 import { allyHolding, orderBlock } from '../sim/escort.ts';
 import { anchors } from '../sim/world.ts';
 import { mapText } from '../sim/blocks.ts';
@@ -49,7 +49,7 @@ export function updateHud(dt) {
     '<br>EMIT <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.emit / TUNE.SIGNAL_MAX) + '%;background:#f93"></div></span> ' + Math.round(p.emit) + '  (−' + TUNE.SIGNAL_DECAY + '/turn)' +
       '  <b style="color:' + (p.sound ? '#e8f4ff' : '#778') + '">SOUND ' + (p.sound ? Math.round(soundRadius(p) * 10) / 10 : '–') + '</b>' + // R13: this activation's sound radius
 
-    '<br><b>' + p.id + '</b> ' + partsRead(p) + (other ? '  <span style="color:#aab">' + other.id + ' ' + (other.dead ? 'destroyed' : partsRead(other)) + '</span>' : '') + // R12: per-part read
+    '<br><b>' + p.id + '</b> ' + partsRead(p) + (other ? '  <span style="color:#aab">' + other.id + ' ' + (other.dead ? 'destroyed' : other.out ? 'EXTRACTED' : partsRead(other)) + '</span>' : '') + // R12: per-part read
     '<br>' + (G.load.ammo ? '  AMMO ' + p.ammo : '') + (G.load.mortar ? '  SHELLS ' + p.shells : '') + '  KILLS ' + G.kills + '/' + G.units.length + '  T ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  EMIT heard ~' + Math.round(heardRange(p)) + 't' : '  EMIT silent') + zoneHud(p) +
     (G.load.ecm ? '  ECM ' + (p.mask ? 'ON' : 'off') + (G.ghost.on ? '  GHOST ' + G.ghost.turns + 't' : '') : '') +
     oddsLine(p) + shotLine('P') + shotLine('E') +
@@ -69,7 +69,7 @@ function goalLine(p) {
     const where = allyHolding() ? '<b style="color:#7e9">HOLDING at ' + N[a.node].name + ': tap a route on the map</b>' : a.leg >= 0 ? 'heading for ' + N[L[a.leg].to].name : 'moving';
     const lev = anchors().junctions.filter(j => !a.passed.includes(j)).map(j => N[j].name.replace('fork at ', '') + ' ' + (a.levers[j] !== undefined ? L[a.levers[j]].name : '—')).join(', ');
     const ord = (lev ? '  levers: ' + lev : '') + (a.order ? '  <b style="color:#fc3">' + (a.order === 'HOLD' ? 'HOLDING next round' : 'SPRINTING next move') + '</b>' : '');
-    return '<br>TRANSPORT <b style="color:#7e9">' + Math.max(0, a.hits) + '/' + a.maxHits + ' hits</b>  ' + where + ord + '  <span style="color:#aab">(a mech at the right edge waits there; both mechs out = the lance leaves without it)</span>';
+    return '<br>TRANSPORT <b style="color:#7e9">' + Math.max(0, a.hits) + '/' + a.maxHits + ' hits</b>  ' + where + ord + '  <span style="color:#aab">(the hunt ends when it and your mechs are out: EXTRACT at the right edge)</span>';
   }
   if (isType('RETRIEVE')) { // R15 s2
     const M = G.mission;
@@ -151,6 +151,9 @@ export function syncButtons() {
   if (isType('RETRIEVE') && isCarrier(p)) setBtn('bUp', 'HAND OFF', w || TUNE.RETRIEVE_HANDOFF_AP + 'AP', free && !w);
   else if (isType('RETRIEVE')) setBtn('bUp', 'PICK UP', w === 'HELD' ? G.mission.carrier + ' HAS IT' : w || TUNE.RETRIEVE_PICKUP_AP + 'AP · LOUD', free && !w);
   else setBtn('bUp', 'UPLINK', w || TUNE.AP_UPLINK + 'AP +' + TUNE.SIG_UPLINK + 'EMIT', free && !w);
+  // R16: EXTRACT, while the active mech stands in the extraction zone
+  $('bExtract').hidden = G.mode !== 'hunt' || extractBlock() !== '';
+  if (!$('bExtract').hidden) setBtn('bExtract', 'EXTRACT', 'leave the map', free);
   // R16: convoy orders (Escort only). Lit = pending; tap again to cancel.
   const esc = isType('ESCORT') && !!G.ally && !G.ally.dead; $('bHold').hidden = $('bHurry').hidden = !esc;
   if (esc) for (const [id, k, left] of [['bHold', 'HOLD', G.ally.holdsLeft], ['bHurry', 'HURRY', G.ally.hurriesLeft]]) {

@@ -1,7 +1,7 @@
 import { TUNE } from '../tune.ts';
 import { T, isSolid, randomReachable } from './world.ts';
 import { rand } from './rng.ts';
-import { G, unitById, isFriend } from './state.ts';
+import { G, unitById, isFriend, friends } from './state.ts';
 import { killContact, cx, cy } from './sensors.ts';
 import { partGone } from './combat.ts';
 import { canPay, doMove, doPulse, doShot, freeTurn, planMove, shootBlock } from './turns.ts';
@@ -49,7 +49,7 @@ export function pickPatrol(e) {
 // player. Returns a function that performs it, or null (= its activation is over).
 export function enemyDecide(e) {
   const F = e.ft;
-  if (e.dead || !G.lance.some(m => !m.dead)) return null;
+  if (e.dead || !friends().some(m => !m.dead)) return null; // R16: nothing of the lance's left in the district
   const c = bestContact(e.ec), tracked = c && c.lost <= c.gap;
   const cd = c ? Math.hypot(cx(c) - e.x, cy(c) - e.y) : 1e9;
   // R13 s2: with the pack on, a patrol picks its target among the lance mechs it knows about (own or shared contacts)

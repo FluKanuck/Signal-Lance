@@ -83,9 +83,11 @@ export function makeUnit(type: string, i: number, variant?: string) {
 }
 export function unitById(id) { for (const m of G.lance) if (m.id === id) return m; for (const u of G.units) if (u.id === id) return u; if (G.ally && G.ally.id === id) return G.ally; return null; }
 // R15 s3: the lance's side as the field sees it: both mechs plus the Escort transport (isMech stays "a mech you control")
-export function friends() { return G.ally ? [...G.lance, G.ally] : G.lance; }
+export function friends() { return (G.ally ? [...G.lance, G.ally] : G.lance).filter(m => !m.out); } // R16: extracted units are off the map
 export function isFriend(m) { return G.lance.includes(m) || (!!G.ally && m === G.ally); }
 export function livingMechs() { return G.lance.filter(m => !m.dead); }
+// R16: mechs still in the district (alive and not extracted): they take turns
+export function activeMechs() { return G.lance.filter(m => !m.dead && !m.out); }
 export function isMech(m) { return G.lance.includes(m); }
 export function setActive(m) { G.p = m; G.load = m.load; }
 function makeMech(id: string, load) {

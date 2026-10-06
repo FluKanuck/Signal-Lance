@@ -145,11 +145,11 @@ export function radarFix(o, m, list, id, jit, vx, vy, dt) {
 }
 // R7: the player senses every living field unit; every field unit senses the player (+ ghost) on its own.
 export function updateSensors(dt) {
-  const g = G.ghost, mechs = G.lance.filter(m => !m.dead), them = friends().filter(m => !m.dead); // R15 s3: the field also senses the Escort transport
+  const g = G.ghost, mechs = G.lance.filter(m => !m.dead && !m.out), them = friends().filter(m => !m.dead); // R15 s3: the field also senses the Escort transport
   for (const m of G.lance) {
     m.fireT = Math.max(0, m.fireT - dt);
     m.jamming = m.mask || (g.on && g.owner === m);
-    m.tick = !m.dead && m.load.passive && (m.bearT -= dt) <= 0; // R7 s2: each mech's passive suite samples on its own clock
+    m.tick = !m.dead && !m.out && m.load.passive && (m.bearT -= dt) <= 0; // R7 s2: each mech's passive suite samples on its own clock
     if (m.tick) m.bearT = TUNE.BEARING_EVERY;
   }
   for (const e of G.units) {

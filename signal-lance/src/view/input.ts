@@ -3,7 +3,7 @@ import { W, H, T } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
 import { cx, cy } from '../sim/sensors.ts';
 import { legButton, forksAhead } from '../sim/escort.ts';
-import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect } from '../sim/turns.ts';
+import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdExtract, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect } from '../sim/turns.ts';
 import { V } from './state.ts';
 import { cv, vw, vh, resize } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
@@ -17,6 +17,7 @@ order('bEnd', () => { V.ghostArm = V.faceArm = V.mortarArm = false; endPlayerTur
 order('bUp', cmdObjective); // R15: UPLINK, or PICK UP / HAND OFF
 order('bHold', () => cmdEscortOrder('HOLD'));   // R16: the convoy skips its next move
 order('bHurry', () => cmdEscortOrder('HURRY')); // R16: the convoy sprints its next move
+order('bExtract', cmdExtract); // R16: this mech leaves the map (the hunt ends once every living mech is out)
 order('bMove', () => { if (V.faceArm) { V.faceArm = false; return; } cmdMove(); }); // doubles as CANCEL while face mode is armed
 for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) order(id, () => cmdMoveMode(m));
 order('bRadar', cmdRadar);
