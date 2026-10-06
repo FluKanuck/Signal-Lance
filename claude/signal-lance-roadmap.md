@@ -1,6 +1,6 @@
 # Signal Lance Roadmap
 
-**Updated:** 2026-10-05 after Round 13 (partial: 3 contracts, fun test 2/5 so far; planning R14 without finishing it). The full map of the game lives in `claude/signal-lance-game-shape.md`.
+**Updated:** 2026-10-05 after Round 14 (about 2 quick contracts, fun test 2/5: "one more go" + "that's how it works"). The full map of the game lives in `claude/signal-lance-game-shape.md`.
 
 ## North star
 Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, then learn why.
@@ -11,9 +11,9 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | Strand | Question | Status | Rounds used |
 |---|---|---|---|
 | Hunt | Is finding and fighting with sensors fun? | Passed. R9 mortar, R10 terrain deepened it. R12: to-hit + parts made fights "richer" and different 3/3; % now "makes sense" (R13, 2/2 answers). Step 2 (aimed shots) parked | 1 (+R8–R10, R12) |
-| Enemy behaviour | Does an enemy that hunts you and presses an advantage make fights feel alive? | R13 built (pack behind a toggle). One pack-on contract: "came for me, fair", 8 alarms, no loss. **Unproven: did being loud cost anything?** (sound ring changed nothing with pack on). Runner can't judge it | 1 (R13, partial) |
+| Enemy behaviour | Does an enemy that hunts you and presses an advantage make fights feel alive? | R13 built (pack behind a toggle). One pack-on contract: "came for me, fair", 8 alarms, no loss. **Still unproven by play: did being loud cost anything?** "Earshot" not played in R14. Runner says yes (creep found round 2.1 by eyes; sprint round 1.0 by sound) | 1 (R13, partial) |
 | Resource pools | Do separate pools (AP, Energy, Signal, Heat) create real trade-offs? | AP + Energy banked on purpose. Jamie R12: "no risk in having high signal"; sprint noise wrongly stacks. R13 split Signal into EMIT + SOUND: read **"at a glance"**; a SOUND contact helped find something; crept instead of sprinting once. Heat untested | 2 (R4, R13) |
-| SIGINT: signature matching | Does reading a signature and matching it against a reference manual (Cold Waters style) make identifying contacts a skill? | **R14 written:** 3 variants per type (9-entry card, overlapping traits, one tell each), contacts UNKNOWN until ID'd; right ID = track behaves by type + `HIT_ID_BONUS` 10. Later also pre-drop from the ship, with a risk dial, plus faction-supplied intel | 1 (R14) |
+| SIGINT: signature matching | Does reading a signature and matching it against a reference manual (Cold Waters style) make identifying contacts a skill? | **R14: legible, but decides nothing.** 9 variants, card, ID; runner 27% ID'd before eyes, no flags. Jamie: "irregardless of the enemy type, if around an uplink, I'm going to have to fight it"; eyes win the race; `ID_SHOW_FITS` helped partly. **The problem is the mission, not the read**: there's an "and" Jamie can't name yet. Later also pre-drop from the ship, plus faction intel | 1 (R14, flat on use) |
 | Suit building | Do frame (weight), reactor (power) and signature budgets force a real sacrifice, shaped by the INTEL? | Mapped. Cheap test: 3 frames, 2 reactors, ~6 modules | 0 |
 | Combat controls | Can you fire and manoeuvre as a tactical choice? | Passed (R4). R10 noise ended "stand off and pummel" | 3 |
 | Replay pull | Does the next run ask a new question? | Reframed into Company after R10 | 5 (reframed) |
@@ -24,23 +24,29 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | City and factions | Does choosing the next contract feel like weighing pay against who you'll anger? | Mapped: flat node map of faction districts; per-faction standing (hated → alert fields, hunters, closed airspace, pricey fuel; liked → intel on their enemies); faction jobs vs deniable broker jobs. Pushed by upkeep + notoriety. Gate 2 | 0 |
 | Logistics / economy | Does keeping the company supplied create good decisions? | Payout + refit "helped" H1; R12 C2 earned 380, spent 240. **Now two currencies: credits + fuel** (fuel priced by faction). Parts are items, bought or looted; salvage automatic, capped by the hold | 1 |
 
-**Watch:** the fun test has been 0–2/5 for seven rounds (R6 0, R7 1, R8 0, R9 0, R10 2, R11 1, R12 1), almost all over 1–3 contracts or runs. **R13 (partial, 3 contracts): 2/5** (unplanned approach, "that's how it works"), tying the best. Each round's new thing gets a positive read, then the pull fades. R13 targets the pillar directly (Signal as risk). If it lands flat over a full ~4–5 contracts, that's a strong signal to rethink what the core loop is asking. The campaign layer is now well mapped; **don't build it until Gate 1 passes.**
+**Watch:** the fun test has been 0–2/5 for seven rounds (R6 0, R7 1, R8 0, R9 0, R10 2, R11 1, R12 1), almost all over 1–3 contracts or runs. **R13 (partial, 3 contracts): 2/5** (unplanned approach, "that's how it works"). **R14 (~2 contracts): 2/5** ("one more go", "that's how it works"), the first "one more go" since R4. Two 2/5s in a row: trending up, but the pull is still short-lived. Each round's new thing gets a positive read, then the pull fades. R13 targets the pillar directly (Signal as risk). If it lands flat over a full ~4–5 contracts, that's a strong signal to rethink what the core loop is asking. The campaign layer is now well mapped; **don't build it until Gate 1 passes.**
 
 ## Gates
-1. Core loop fun: not passed. Best recent 2/5 (R10, R13 partial). Order: R13 emissions + pack → signature matching in-hunt → suit budget
-2. Meta loop fun: started (R11). Contract + carry-over + refit hold as the frame. Order: operators (Standard death rules, recruits) → ship slots + pre-drop scan → city map (fuel, upkeep, factions, standing, faction intel)
-3. Content scaling: on hold. Full module catalogue, interiors/rooftops/verticality, block maps, mission types, infantry and vehicles, more factions and districts, Ironman and Story settings
+1+2. **Whole-loop slice (Gates 1 and 2 merged, 2026-10-05):** the fun is in the pieces feeding each other, so a single-strand fun test reads 2/5 forever. Build a thin version of every component, connect them, then run the fun test **once on the whole slice** (~10 hunts / 4–5 contracts, 3/5, with testers). Per component, the check is "does it read and connect?" in the test bed, not the fun test. Time box ~8–10 rounds; if the slice doesn't pass, look hard at the core
+3. Content scaling ("expand outward"): on hold until the slice passes. First wave: item condition, hunter teams, closed airspace, more factions, channels beyond THERMAL, Ironman/Story. Then the full catalogue, interiors/verticality, block maps, infantry and vehicles
 4. Production: narrowly open (TS + Vite, `sim/`/`view/`, runner, Pages, tester splash). Godot, the presentation pass, art and saves stay locked
 
-## Sequence
-| Round | Name | Question in short |
-|---|---|---|
-| 13 | Loud gets company | Done in part: channels readable, pack "fair"; loud-costs-you still open (carried into R14's debrief) |
-| 14 | Read the signature | Part 0: test bed (scenarios; closes R13 via "Earshot"/"Wounded"). Part 1: 9-variant card, commit an ID, right ID tightens track + aim |
-| 15 | ? | Likely suit budget (+ THERMAL) if signatures land |
-| — | Operators | One named operator per suit, one skill, Standard death (critical + extract), injuries that bench them, 2 recruits in one district |
-| — | City map | 6–8 districts, 3 factions, standing meters, upkeep per jump, faction fuel prices |
-| — | Gate 1 + 2 fun test | ~10 runs / ~4–5 contracts, 3/5 to pass |
+## The slice
+**Process (Jamie):** each component starts with its **own scoping chat** to decide what goes in, pulling in parked items and whatever earlier components taught us. The thin slices below are starting points, not specs. Then build, test and tune the component (one or two rounds) before moving on.
+
+| # | Component | Starting thin slice | Status |
+|---|---|---|---|
+| 1 | Hunt | Sensors, EMIT/SOUND, pack, to-hit + parts, mortar, zones, card + ID | Built (R1–R14) |
+| 2 | Missions | Scoped: Uplink (kept as control) + **Bounty → Retrieve → Escort**, one step each; each hunt rolls its type, shown in INTEL before refit | **R15 "Pick your fights" (3 steps)** |
+| 3 | Suit building | Sharpened test in `signal-lance-construction.md` (3 frames, 2 reactors, ~7 modules, 1 mod, + THERMAL) | Mapped |
+| 4 | Pre-drop intel (ship) | Ship SIGINT scan with a risk dial; 3 ship slots, fit 2 | Mapped |
+| 5 | Operators | One per suit, one skill, Standard (critical + extract), injuries bench, 2 recruits | Mapped |
+| 6 | After the drop | Payout, salvage capped by the hold, repair with parts, medbay time | Partly (R11–R12) |
+| 7 | Learn why | After-action timeline: who heard whom, wrong calls, where the plan broke (the pillar's last beat) | Not mapped |
+| 2b | Block maps | ~6 interlocking 10×10 blocks, 3×3 grid rolled per hunt (parked #33), each block carrying its mission anchors. Timing set by Escort: pull forward if routes feel solved on one map | Proposed |
+| 8 | Campaign map | 5–6 districts, 2 factions, fuel per jump, upkeep, standing, 3 contracts on offer, faction intel | Mapped |
+
+Build order (lean, revisable at each scoping chat): Missions → Suit building → Pre-drop intel → Operators + After → Learn why → Campaign map → slice fun test.
 
 ## Decisions
 | Round | Decision | Why |
@@ -63,6 +69,9 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | map 2 | Open threads closed. **City:** planet-spanning, faction-held districts, flat node travel, danger = faction base + your heat. **Push:** upkeep + per-faction notoriety (alert fields, hunter teams, closed airspace). **Contracts:** faction jobs and deniable broker jobs; basic info at any range, detail by SIGINT range. **Economy:** credits + fuel (priced by faction); parts are items, bought or looted; salvage automatic, capped by the hold. **Standing is two-way:** friendly factions supply intel on their enemies. **Death:** difficulty setting (Ironman / Standard critical + extract / Story), tune around Standard; recruits from districts, rescue, crew training | Jamie's answers in the open threads session. Campaign is mapped but stays unbuilt until Gate 1 passes |
 | map 3 | Construction deep dive: **locations = R12 hit parts**; typed hardpoints + 1–2 OPEN; weight = rated load + overload band (move AP, servo Sound); power = reactor output − draw = regen, batteries = pool; signature as **raw bars** (the debrief explains); **tags + mods scoped by location**; the **ship uses the same rules** (overload → fuel). Progression: **wide + sidegrades**; sources = faction markets, broker market, salvage, contract rewards (no reverse-engineering); **items with condition** (Sound / Worn / Failing; hits reliability and signature, never power); ship = refit sections + occasional hull trade-up. Then the **full catalogue** (~250 base rows, MegaMek-inspired breadth, nothing copied): **six signature channels** (VISUAL incl. lidar/EO, ACOUSTIC, THERMAL, EM, ELECTRIC, MAGNETIC = passive mass), sensor/jammer grades 1–3, **armour = plate + skin per location**, active stealth costs your EW. Sim rollout agreed: THERMAL (with the suit-budget round) → MAGNETIC → VISUAL → ELECTRIC, one at a time. Open questions closed: BACK hit only from the rear arc; one mod per location; 2-hardpoint modules rare and same-location; broker sells baseline steel frames, makers the rest; closed airspace = intercept roll vs ship signature; makers = Corporate, Foundry, Syndicate, **Old Army** (gated by company reputation) + broker. Rules in `claude/signal-lance-construction.md`, rows in `claude/signal-lance-catalogue.md` | Jamie asked for a catalogue deep dive during the R13 build. Treated as mapping (like the game shape sessions): nothing is built, and the suit-budget cheap test is sharpened |
 | 14 | "Read the signature" + **test bed**. Card is 3 variants per type (Jamie: "3 per type"); a right ID = track by type + to-hit +10 (Jamie: "10% is good"); wrong ID costs only the misleading track. Test bed = agent-written scenarios per round, `[TESTBED]` log, fun test still counts contracts only | R13: channels readable but deciding nothing yet; R13's open question took contracts and stayed open. Jamie: "better ways to test the new mechanics… a little button that loads a dev suite" |
+| 14 (result) | Read works, mission ignores it. Fun test 2/5 over ~2 contracts. `ID_SHOW_FITS` on (helped partly). Patrol step tells stay close-range for a baseline ExoS; acoustic sensors extend them later (Jamie) | Jamie: "the information just doesn't give us anything other than position for a ranged lob"; "Yes… AND… but I just can't quite figure out what the and is" |
+| slice | **Gates 1 and 2 merged into a whole-loop slice.** 8 components, each thin; fun test once on the connected slice. Each component gets its own scoping chat first. Missions is first | Jamie: "no one current item … could get that fun test passed … a spread of larger ideas that need to come together". R14: "I think it just being uplinks is boring right now"; wants mission variety; the "and" = "pick my fights and choose how to fight it" |
+| 15 | Missions scope (Jamie): Bounty (variant bounties, quota then push your luck, a kill pays its true variant however it died), Retrieve (grab the guarded cargo; the field flips to hunting the carrier), Escort (a faction ally on a route of legs; you pick the leg at each junction). Uplink kept in the mix. Each hunt rolls its type, shown before refit. Built and tuned one step at a time, with a check-in before Steps 2 and 3; no fun test | Jamie's own types; "mission variety is key". Recon / find-the-one / cross-and-extract not picked |
 | note | **Lance size: 1–4 ExoS deployed per mission** (Jamie, 2026-10-05; "ExoS", pronounced Ex-Oss, is his placeholder term for the exosuits). Today's builds use 2 | Jamie, during the R14 debrief |
 
 ## Parked ideas (by gate)
@@ -110,7 +119,7 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 **Gate 3: content**
 31. New enemy types: infantry, light-to-heavy vehicles
 32. Mission types: varied objectives, counter-objectives, more victory conditions
-33. Block map library: 6–8 interlinking 10×10 blocks, 3×3 grid rolled per hunt. Later: more blocks, themed districts, new tiles
+33. → slice row 2b. Block map library: 6–8 interlinking 10×10 blocks, 3×3 grid rolled per hunt. Later: more blocks, themed districts, new tiles
 34. Operator progression trees and specialisations
 35. Campaign depth: more factions and districts, faction-themed block sets, company personalisation, OSINT contract map
 36. IR emitters and modules; Heat pool; builds that change pool generation
@@ -129,3 +138,6 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 44. R8 rough edges: artifact and Pages keep separate run logs; same field can repeat across a cycle boundary
 45. Ported bug: hidden first hunt at page load; tighter TypeScript types
 51. Decoys and masking, to disguise what you are, to hide or lure the enemy — strand: hunt · parked 2026-10-05
+52. A "heard nothing close by" reading, so a scout can be told apart at range (R14) — SIGINT
+53. Picker hints: the full "only what fits" picker would give the answer away; greying is as far as it goes (R14) — SIGINT
+54. Unrated by play: Twin pulse frozen-track lob payoff, Quiet gun miscall cost; is the test bed useful? (R14) — SIGINT / tooling
