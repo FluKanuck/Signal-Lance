@@ -16,6 +16,7 @@ let cache: Record<number, any[]> = {}, cacheGen = -1;
 export function legPath(i: number) {
   if (cacheGen !== mapGen) { cache = {}; cacheGen = mapGen; } // R16: a new map, new routes
   if (cache[i]) return cache[i];
+  if (anchors().legs[i].pts) return (cache[i] = anchors().legs[i].pts); // R16: a packed district stores each leg's walk
   const L = anchors().legs[i], N = anchors().waypoints, pts = [N[L.from], ...L.via.map(([x, y]) => ({ x, y })), N[L.to]];
   let out = [ctr(pts[0])];
   for (let k = 1; k < pts.length; k++) { const a = ctr(pts[k - 1]), b = ctr(pts[k]), p = findPath(a.x, a.y, b.x, b.y); out = out.concat((p || [a, b]).slice(1)); }

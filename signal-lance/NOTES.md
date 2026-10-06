@@ -704,6 +704,31 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      device is remembered (localStorage signalLance.seenRound); a returning tester gets "Welcome back, last time you played
      Round N: tap ‹ for the M rounds since". First-time testers (nothing stored) see no welcome line.
    - Bug fix (r16-s2): the HUD's last-shot line crashed the frame loop the first time the field shot the Escort transport.
+   R16 debrief 2 (r16-s5) ASSUMPTIONS: packed districts (sim/packed.ts)
+   - Cells are half a block (6 tiles). The packing grid is the map + one cell on every side, offset by a seeded 0-5 tiles
+     (MAP_EDGE_CROP), so pieces run off the map edge and are cut there. Scan order row-major; at each empty cell, shapes
+     in a weighted random order (SHAPE_WEIGHTS), each shape's rotations / mirrors in random order; the first that fits
+     with its first cell there is placed (1x1 always fits). Library: 1x1, 1x2, 1x3, L3, L4, 2x2, 2x3 (in cells).
+   - 2x2 pieces are the 8 hand-drawn blocks (rotation / mirror, spots, mod slots as before). Others are generated: a
+     building mass inside a 1-tile street ring; LOT_CHANCE turns a 1x1 into an open lot (spot + zone slot, maybe scrap);
+     YARD_CHANCE gives a 3+ cell piece a courtyard (one cell opened up, an alley out, spot + zone slot, maybe a set
+     piece); 0..ALLEY_MAX one-tile alleys cut straight across (maybe with scrap).
+   - Each piece rolls STREET_KEEP per side (N/E/S/W): a dropped side runs its building to the edge (a hand-drawn block:
+     ring tiles become building where the tile inside is building). Where both neighbours drop, the street closes.
+   - The left map edge is always a road (the way in; walls never go on it). If the right edge is walled off, a street is
+     cut through to it. Open pockets the streets can't reach become building. Fewer than 3 objective spots: street
+     crossings at least 8 apart, in the right 70% of the map, are added ("crossing").
+   - Street blockers: about SEAM_BLOCK_CHANCE x 4 per block-area, each on a random street tile whose street runs 6+ tiles
+     one way and is at most 3 wide across (rubble / barricade / chicane across that width, as before).
+   - Escort: forks on reachable tiles about evenly across (a junction preferred), at a seeded height. Legs between forks
+     (or out the right edge): the shortest path, then shortest with a penalty (ESCORT_LEG_SPREAD, x1 / x3 / x8) on and
+     next to earlier legs; a leg sharing more than half of its middle (ESCORT_SHARED tiles at each end excluded) with an
+     earlier one is dropped. 2-3 legs named NORTH / (AHEAD) / SOUTH by average height. Each leg stores its walk (legPath
+     returns it). No 2 legs: other fork heights (8 tries), then street walls softened to rubble one at a time, then reroll
+     (3% of districts over 300 seeds).
+   - MAP_LAYOUT 'grid' keeps the r16-s3 block grid (and the test bed's fixed districts still use it).
+   - Measure (12 seeds, from random street tiles): longest straight open run 14.8 tiles (grid 23.7, hive 27.6); walls 54%
+     (grid 36%, hive 42%); far tiles (9-12) in sight 8% (grid 10%, hive 7%).
 ```
 
 ## TWEAK LOG
@@ -1043,4 +1068,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round16 debug | Jamie: "add a debug contract reroll button so we can make sure we get the mission type we want" | job
            screen DEBUG: REROLL JOBS: rolls the hunt's 2 jobs again (same hunt number; the contract RNG moves on). The hunt's log
            line carries "[DBG jobs rerolled ×N]". BUILD r16-s4 | -
+   round16 debrief 2 | Jamie: "still feels too much like a grid … irregular shape library of tiles, like 0.5 wide, 2 wide,
+           1.5 wide, L shape tiles … randomly placed to fit in the map footprint"; "shapes can extend past the map edge, they
+           are just cut off by the map boundary" | NEW MAP_LAYOUT 'packed' (default; 'grid' = s3), MAP_EDGE_CROP, SHAPE_WEIGHTS,
+           STREET_KEEP 0.6, LOT_CHANCE 0.3, YARD_CHANCE 0.4, ALLEY_MAX 2, ESCORT_LEG_SPREAD 6, ESCORT_SHARED 5. Runner 60
+           contracts: wins 47%; Escort 55%, Uplink 65%, Retrieve 25%, Bounty 29%; hunts longer (Escort 14.4 rounds); clutter on
+           25% of lance moves; rerolls 3%. Flags: 6x2 82% (11 hunts), sound share (inherited). BUILD r16-s5 | -
 ```

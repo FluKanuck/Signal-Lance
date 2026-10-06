@@ -1,7 +1,7 @@
 // Round 15 step 1: mission types and BOUNTY. Each test reads like a line from the brief.
 import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
-import { G, rollEnemy, newHunt } from '../src/sim/state.ts';
+import { G, rollEnemy, newHunt, fieldCount } from '../src/sim/state.ts';
 import { T, W, anchors, canReach as canReachTile } from '../src/sim/world.ts';
 import { newContract, takeJob } from '../src/sim/contract.ts';
 import { updateShells, uplinkBlock, step } from '../src/sim/turns.ts';
@@ -13,7 +13,7 @@ import { LOAD, LOAD_A } from './helpers.ts';
 afterEach(() => leaveScenario());
 const hunt = (mission: string, seed = 7, comp = 'Mixed') => { rollEnemy(seed, comp, mission); newHunt([{ ...LOAD_A }, { ...LOAD }]); };
 const kill = (u) => { damagePart(u, 'CORE', 99); updateShells(0); };
-const compTotal = (name: string) => { const C = TUNE.FIELD_COMPOSITIONS.find(c => c.NAME === name); return Object.keys(TUNE.FIELD_TYPES).reduce((a, k) => a + (C[k] || 0), 0); };
+const compTotal = (name: string) => { const C = TUNE.FIELD_COMPOSITIONS.find(c => c.NAME === name); return Object.keys(TUNE.FIELD_TYPES).reduce((a, k) => a + fieldCount(C, k), 0); }; // R16: scaled by map area
 // a contract whose first job is forced to this type, taken
 function contractHunt(mission: string, seed = 11) {
   newContract(seed, [{ ...LOAD_A }, { ...LOAD }]);
@@ -268,9 +268,10 @@ describe('ESCORT', () => {
     for (const c of p.ec) c.on = false;
     observe(p.ec, a.id, a.x, a.y, T, 0, 0, true, false, true, 'EYES');
     p.x = a.x + 3 * T; p.y = a.y; p.ap = 8;
+    G.up.x = a.x; G.up.y = a.y; // R16: keep the transport inside the patrol's leash (the fork can be anywhere on a packed map)
     const act = enemyDecide(p);
-    expect(act).toBeTruthy();
     expect(['FIRE', 'CHARGE', 'INVESTIGATE', 'HOLD', 'HUNT']).toContain(p.state);
+    if (p.state !== 'HOLD') expect(act).toBeTruthy(); // HOLD = it has the transport and waits out its patience (no action)
   });
   it('a field shell hits it; its death fails the hunt (not a contract LOSS)', () => {
     contractHunt('ESCORT');

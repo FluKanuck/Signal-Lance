@@ -82,6 +82,9 @@ export let reach = new Uint8Array(0);   // Round 5: street tiles reachable from 
 export let spawnX = 1, spawnY = 12;
 export let mapGen = 0;                  // bumps on every loadMap (caches keyed on the map check it)
 export function anchors() { return MAP.anchors; }
+// R16 (map building only): extra A* cost per tile, so a second Escort leg is pushed off the first one. null = none.
+export let penalty: Float32Array | null = null;
+export function setPenalty(p: Float32Array | null) { penalty = p; }
 export function loadMap(def: MapDef) {
   MAP = def; mapGen++;
   W = def.rows[0].length; H = def.rows.length; N = W * H;
@@ -198,7 +201,7 @@ export function findPath(wx0, wy0, wx1, wy1) {
       const nx = cx + DX[d], ny = cy + DY[d];
       if (isSolid(nx, ny)) continue;
       if (d >= 4 && (isSolid(nx, cy) || isSolid(cx, ny))) continue;
-      const n = ny * W + nx, g = gS[c] + DC[d] * (clutter[n] ? TUNE.CLUTTER_TILE_COST : 1); // R16: clutter costs more to enter
+      const n = ny * W + nx, g = gS[c] + DC[d] * (clutter[n] ? TUNE.CLUTTER_TILE_COST : 1) + (penalty ? penalty[n] : 0); // R16: clutter costs more to enter; penalty: map building only
       if (stamp[n] !== searchId || g < gS[n]) { stamp[n] = searchId; gS[n] = g; from[n] = c; hpush(n, g + heur(nx, ny, tx, ty)); }
     }
   }

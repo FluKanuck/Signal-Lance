@@ -18,14 +18,15 @@ const ctr = (x: number, y: number) => ({ x: (x + 0.5) * T, y: (y + 0.5) * T });
 const tiny = (rows: string[]) => loadMap({ id: 'test', rows, anchors: HIVE.anchors, info: { grid: 'test' } });
 
 describe('districts', () => {
-  it('every rolled district is reachable without a reroll: uplinks, route nodes and the right edge', () => {
+  it('every rolled district is reachable (rerolls rare): uplinks, route nodes and the right edge', () => {
+    let rr = 0;
     for (let s = 1; s <= 80; s++) {
-      roll(s);
-      expect(MAP.info.rerolls).toBe(0);
+      roll(s); if (MAP.info.rerolls) rr++;
       for (const u of anchors().uplinks) expect(canReach(u.x, u.y)).toBe(true);
       for (const n of Object.values(anchors().waypoints) as any[]) expect(canReach(n.x, n.y)).toBe(true);
       expect(routeOk()).toBe(true);
     }
+    expect(rr).toBeLessThanOrEqual(4); // 5%
   });
   it('a set piece never cuts a street tile off from the spawn', () => {
     for (let s = 1; s <= 40; s++) {
@@ -71,7 +72,7 @@ describe('districts', () => {
   });
   it('the log line names the grid, blocks and mods', () => {
     roll(3, '4x3');
-    expect(mapText(2)).toMatch(/^MAP 4x3 seed 3 · blocks: \w+(, \w+){11} · mods: \d+ clutter, \d+ set pieces?, 2 zones · streets: \d+ rubble, \d+ shut, \d+ choked$/);
+    expect(mapText(2)).toMatch(/^MAP 4x3 seed 3 · pieces: [^·]+ · mods: \d+ clutter, \d+ set pieces?, 2 zones · streets: \d+ rubble, \d+ shut, \d+ choked$/);
   });
   it('the field scales with area (never below the composition), zones roll from the block slots', () => {
     const mixed = TUNE.FIELD_COMPOSITIONS[0];
@@ -83,6 +84,27 @@ describe('districts', () => {
   });
   it('block hunts play out for every mission type (no stalls)', () => {
     for (const m of ['UPLINK', 'BOUNTY', 'RETRIEVE', 'ESCORT']) for (const s of [1, 2]) expect(playHunt(s, undefined, 80, 'blocks', m).outcome).not.toBe('STALL');
+  });
+});
+
+describe('packed districts (R16 debrief 2)', () => {
+  it('pieces come from the whole shape library, the left edge is a road, the map is cropped at random offsets', () => {
+    const shapes = new Set<string>();
+    for (let s = 1; s <= 20; s++) {
+      roll(s); expect(MAP.info.layout).toBe('packed');
+      for (const k of Object.keys(MAP.info.counts.shapes)) shapes.add(k);
+      for (let y = 0; y < H; y++) expect(isSolid(0, y)).toBe(false);
+    }
+    expect(shapes.size).toBeGreaterThanOrEqual(6);
+  });
+  it('STREET_KEEP shapes congestion: dropping street sides closes the map up', () => {
+    const openShare = () => { let o = 0; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (!isSolid(x, y)) o++; return o / (W * H); };
+    const k = TUNE.STREET_KEEP, avg = (v: number) => { TUNE.STREET_KEEP = v; let a = 0; for (let s = 1; s <= 8; s++) { roll(s, '4x3'); a += openShare(); } return a / 8; };
+    try { expect(avg(0.2)).toBeLessThan(avg(1)); } finally { TUNE.STREET_KEEP = k; }
+  });
+  it("MAP_LAYOUT 'grid' still builds the r16-s3 block grid", () => {
+    const l = TUNE.MAP_LAYOUT; TUNE.MAP_LAYOUT = 'grid';
+    try { roll(4, '4x3'); expect(MAP.info.layout).toBeUndefined(); expect(MAP.info.blocks.length).toBe(12); } finally { TUNE.MAP_LAYOUT = l; }
   });
 });
 

@@ -6,6 +6,7 @@
 import { TUNE } from '../tune.ts';
 import { rand } from './rng.ts';
 import { loadMap, canReach, findPath, isSolid, T, MAP } from './world.ts';
+import { rollPacked } from './packed.ts';
 
 // '#' building, '.' street, ',' ground clutter that is always there (the lot). Slots: zone = a QUIET / NOISE centre,
 // piece = a set piece rect (a wall: fallen gantry, container stack, dead vehicle), clutter = a scrap / glass / rubble patch.
@@ -145,12 +146,12 @@ export const BLOCKS: Block[] = [
 export function blockByName(n: string) { const b = BLOCKS.find(b => b.name === n); if (!b) throw new Error('no block ' + n); return b; }
 
 // ---- placing one block: rotation (quarter turns clockwise) then mirror (left-right) ----
-function tf(x: number, y: number, rot: number, mir: boolean) {
+export function tf(x: number, y: number, rot: number, mir: boolean) {
   const S = TUNE.BLOCK_SIZE;
   for (let k = 0; k < rot; k++) { const nx = S - 1 - y; y = x; x = nx; }
   return mir ? { x: S - 1 - x, y } : { x, y };
 }
-function tfRect(s: Slot, rot: number, mir: boolean) {
+export function tfRect(s: Slot, rot: number, mir: boolean) {
   const a = tf(s.x, s.y, rot, mir), b = tf(s.x + (s.w || 1) - 1, s.y + (s.h || 1) - 1, rot, mir);
   return { x: Math.min(a.x, b.x), y: Math.min(a.y, b.y), w: Math.abs(a.x - b.x) + 1, h: Math.abs(a.y - b.y) + 1 };
 }
@@ -348,6 +349,7 @@ function relax(spec: DistrictSpec) {
 // Roll and load this hunt's district from the shared RNG (rollEnemy calls it right after setSeed). A district whose
 // mission tiles can't all be reached is rerolled (fresh draws), up to MAP_REROLL_MAX times; the count is logged.
 export function rollDistrict(seed: number, grid?: string) {
+  if (TUNE.MAP_LAYOUT === 'packed') { const k = rollPacked(seed, grid); MAP.info.rerolls = k; return null; } // R16 debrief 2
   let spec: DistrictSpec, k = 0;
   for (; k < TUNE.MAP_REROLL_MAX; k++) { spec = rollSpec(grid); spec.seed = seed; if (buildDistrict(spec) || relax(spec)) break; }
   MAP.info.rerolls = k;
@@ -356,7 +358,8 @@ export function rollDistrict(seed: number, grid?: string) {
 // "MAP 4x3 seed 1234 · blocks: plaza, alleys, … · mods: 3 clutter, 1 set piece, 2 zones" (zones = the ones rolled in)
 export function mapText(zones?: number) {
   const I = MAP.info; if (MAP.id === 'hive') return 'MAP hive';
-  return 'MAP ' + I.grid + ' seed ' + I.seed + ' · blocks: ' + I.blocks.join(', ') + ' · mods: ' + I.counts.clutter + ' clutter, ' + I.counts.piece + ' set piece' + (I.counts.piece === 1 ? '' : 's') + ', ' + (zones ?? I.counts.zone) + ' zone' + ((zones ?? I.counts.zone) === 1 ? '' : 's') + ' · streets: ' + I.counts.RUBBLE + ' rubble, ' + I.counts.BARRICADE + ' shut, ' + I.counts.CHOKE + ' choked' + (I.rerolls ? ' · rerolls ' + I.rerolls : '');
+  const parts = I.layout === 'packed' ? ' · pieces: ' + Object.entries(I.counts.shapes).map(([k, v]) => k + '×' + v).join(', ') + (I.blocks.length ? ' (blocks: ' + I.blocks.join(', ') + ')' : '') : ' · blocks: ' + I.blocks.join(', ');
+  return 'MAP ' + I.grid + ' seed ' + I.seed + parts + ' · mods: ' + I.counts.clutter + ' clutter, ' + I.counts.piece + ' set piece' + (I.counts.piece === 1 ? '' : 's') + ', ' + (zones ?? I.counts.zone) + ' zone' + ((zones ?? I.counts.zone) === 1 ? '' : 's') + ' · streets: ' + I.counts.RUBBLE + ' rubble, ' + I.counts.BARRICADE + ' shut, ' + I.counts.CHOKE + ' choked' + (I.rerolls ? ' · rerolls ' + I.rerolls : '');
 }
 // for tests / DBG: a leg's walk exists between every pair of route nodes
 export function routeOk() { return MAP.anchors.legs.every(l => { const a = MAP.anchors.waypoints[l.from], b = MAP.anchors.waypoints[l.to]; return !!findPath((a.x + 0.5) * T, (a.y + 0.5) * T, (b.x + 0.5) * T, (b.y + 0.5) * T); }); }

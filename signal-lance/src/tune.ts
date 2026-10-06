@@ -203,6 +203,16 @@ export const TUNE = {
   CLUTTER_TILE_COST: 2,    // tiles of movement each clutter tile costs to cross (1 = off). Same for everyone; pathing goes round it if it can
   CLUTTER_SOUND: 3,        // tiles added to a move's Sound if it enters any clutter tile (once per move; 0 = off)
   ESCORT_FORKS: 2,         // forks on a block map's escort route (each with 2-3 onward legs: NORTH / AHEAD / SOUTH, open streets only)
+  // R16 debrief 2 (Jamie: "still feels too much like a grid"): packed districts of irregular shapes (sim/packed.ts)
+  MAP_LAYOUT: 'packed',    // 'packed' = shapes packed on half-block cells, cropped at the map edge; 'grid' = the r16-s3 block grid
+  MAP_EDGE_CROP: true,     // the packing is offset by a random part of a cell and cut off at the map edge (false = seams line up with the edges)
+  SHAPE_WEIGHTS: { '1x1': 2, '1x2': 3, '1x3': 2, 'L3': 3, 'L4': 2, '2x2': 3, '2x3': 1 }, // pick weights (in half-block cells); 2x2 = a hand-drawn block
+  STREET_KEEP: 0.6,        // chance each side of a piece keeps its street ring (else its buildings run to the edge: narrow or closed streets)
+  LOT_CHANCE: 0.3,         // a 1x1 piece is an open lot (with a spot) instead of a building
+  YARD_CHANCE: 0.4,        // a piece of 3+ cells gets a courtyard (a spot), joined to the street by an alley
+  ALLEY_MAX: 2,            // up to this many one-tile alleys cut straight across a generated piece
+  ESCORT_SHARED: 5,        // tiles; Escort legs may share this much at each end (leaving the fork, arriving) without counting as the same way
+  ESCORT_LEG_SPREAD: 6,    // extra A* cost per tile on and next to an earlier Escort leg, so the next leg finds a different way
   SEAM_BLOCK_CHANCE: 0.35, // R16 debrief: each stretch of street between two crossings gets a blocker with this chance (0 = the open grid)
   SEAM_BLOCK_KINDS: { RUBBLE: 0.4, BARRICADE: 0.3, CHOKE: 0.3 }, // weights: scrap across the street / a wall that shuts it / a wall over one lane
   FIELD_SHUFFLE: 1,   // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll

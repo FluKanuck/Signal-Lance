@@ -14,7 +14,7 @@ import { mapText } from '../sim/blocks.ts';
 import { fieldCount } from '../sim/state.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r16-s4';  // R16: debug REROLL JOBS on the job screen (s3: street blockers, AHEAD legs, tooltips, round history)
+export const BUILD = 'r16-s5';  // R16 debrief 2: packed districts of irregular pieces (s4: debug reroll jobs; s3: street blockers, AHEAD, tooltips, history)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
