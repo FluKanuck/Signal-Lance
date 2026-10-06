@@ -1208,4 +1208,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            look direction, instead … i should just be able to tap somewhere, that leaves a look marker, i can then click
            and drag that mark to maneuver it" | LOOK button removed: tap the path, then tap where to look (eye marker,
            draggable); ✕ LOOK shows on a point that has one. BUILD r17-s3 | -
+   round17 feedback (r17-s3) | Jamie: "we no longer need 1 free facing change and then paid by AP, being that now we are a
+           smaller man sized unit, facings shouldnt cost AP at all" | SPEC CHANGE (his call): AP_TURN 1 → 0, both sides
+           (turn on the spot, select-to-face, look points). FREE_TURNS kept (harmless at 0 cost). FACE_WAYPOINTS_MAX 3
+           kept. Runner 60 contracts: wins 49% (s3 49%). BUILD r17-s4 | -
 ```

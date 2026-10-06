@@ -29,7 +29,7 @@ export const TUNE = {
   EYES_HALF_ANG: 70,    // ...within this many degrees of facing (facing = last move direction)
   EYES_CLOSE: 2,        // tiles; inside this, eyes see all round (any facing), LOS still needed
   FREE_TURNS: 1,        // free changes of facing per turn (each mech)...
-  AP_TURN: 1,           // ...then this many AP per extra change of facing
+  AP_TURN: 0,           // ...then this many AP per extra change of facing. r17-s4 (Jamie: "now we are a smaller man sized unit, facings shouldnt cost AP at all"): 1 → 0, both sides
   DMG_BLOODIED: 0.5,    // enemy label BLOODIED at or below this fraction of its max hits
   DMG_BADLY: 0.25,      // enemy label BADLY DAMAGED at or below this fraction
   // --- contacts ---
