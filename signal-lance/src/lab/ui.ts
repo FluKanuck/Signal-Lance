@@ -260,7 +260,7 @@ const CTS: Ct[] = [
   { id: 'C-02', x: 0.56, y: 0.58, truth: 'fire', known: ['emit', 'moves', 'pulse'], turns: 5, snd: false, id_: '' },
   { id: 'C-03', x: 0.72, y: 0.3, truth: 'hush', known: ['shot'], turns: 2, snd: true, id_: '' },
 ];
-const D = { layout: 'ring', fits: true, open: null as Ct | null, hover: '', raf: 0, t0: 0 };
+const D = { layout: 'fan', fits: true, open: null as Ct | null, hover: '', raf: 0, t0: 0 };
 function sig(k: string) { // a variant's expected signature, from TUNE
   const V = TUNE.FIELD_VARIANTS[k], SR = TUNE.SOUND_RANGE, snd = { ...SR, ...V.SOUND };
   return { emit: V.PULSE === 1 ? 'high' : V.PULSE ? 'low→high' : V.COMMS ? 'low' : 'none', comms: V.COMMS, pulse: V.PULSE, moves: V.TYPE === 'PATROL', steps: snd.NORMAL, shot: snd.SHOT };
@@ -281,20 +281,27 @@ function wedge(r1: number, r2: number, a0: number, a1: number) {
   const p = (r: number, a: number) => (Math.cos(a) * r).toFixed(1) + ',' + (Math.sin(a) * r).toFixed(1), big = a1 - a0 > Math.PI ? 1 : 0;
   return `M${p(r1, a0)} A${r1},${r1} 0 ${big} 1 ${p(r1, a1)} L${p(r2, a1)} A${r2},${r2} 0 ${big} 0 ${p(r2, a0)} Z`;
 }
+// The dial has no centre of its own: it fans out of the contact's in-game TRK mark (brackets + square), which stays
+// visible in the middle. Inner arcs = field type, wedges = the nine variants. FAN labels run along the radius
+// (reading outward) so a name sits inside its long thin wedge instead of widening it.
 function radial(c: Ct) {
-  const fan = D.layout === 'fan', A0 = fan ? -Math.PI / 2 : -Math.PI / 2 - Math.PI / 9, span = fan ? Math.PI : Math.PI * 2, n = VK.length, step = span / n, gap = 0.025;
-  const r0 = fan ? 44 : 40, r1 = fan ? 58 : 54, r2 = fan ? 128 : 108, rt = 50;
-  let s = `<circle class="hub" r="${r0 - 8}"/><path class="sweep" d="M0,0 L${r0 - 8},0"/>`;
+  const fan = D.layout === 'fan', A0 = fan ? -Math.PI / 2 : -Math.PI / 2 - Math.PI / 9, span = fan ? Math.PI : Math.PI * 2, n = VK.length, step = span / n, gap = fan ? 0.018 : 0.025;
+  const r1 = 34, r2 = fan ? 128 : 108, rt = 27, P = (r: number, a: number) => [(Math.cos(a) * r).toFixed(1), (Math.sin(a) * r).toFixed(1)];
+  let s = '';
   TYPES.forEach((t, i) => { const a = A0 + i * 3 * step + gap, b = A0 + (i + 1) * 3 * step - gap, m = (a + b) / 2, tf = VK.slice(i * 3, i * 3 + 3).some(k => !fit(c, k).bad.length);
-    s += `<path class="tsec${D.fits && !tf ? ' dim' : ''}" d="M${(Math.cos(a) * (rt - 4)).toFixed(1)},${(Math.sin(a) * (rt - 4)).toFixed(1)} A${rt - 4},${rt - 4} 0 0 1 ${(Math.cos(b) * (rt - 4)).toFixed(1)},${(Math.sin(b) * (rt - 4)).toFixed(1)}"/>`;
-    const lr = fan ? r2 + 26 : r2 + 22; s += `<text class="d" x="${(Math.cos(m) * lr).toFixed(1)}" y="${(Math.sin(m) * lr).toFixed(1)}">${t}</text>`; });
+    const [ax, ay] = P(rt, a), [bx, by] = P(rt, b), [lx, ly] = P(r2 + (fan ? 24 : 22), m);
+    s += `<path class="tsec${D.fits && !tf ? ' dim' : ''}" d="M${ax},${ay} A${rt},${rt} 0 0 1 ${bx},${by}"/><text class="d" x="${lx}" y="${ly}">${t}</text>`; });
   VK.forEach((k, i) => {
-    const a = A0 + i * step + gap, b = A0 + (i + 1) * step - gap, m = (a + b) / 2, rm = (r1 + r2) / 2 + 4, F = fit(c, k), pick = c.id_ === k;
+    const a = A0 + i * step + gap, b = A0 + (i + 1) * step - gap, m = (a + b) / 2, F = fit(c, k), pick = c.id_ === k, deg = (m * 180 / Math.PI).toFixed(1);
+    const out = D.fits && F.bad.length ? ' style="opacity:.4"' : '', bty = ((TUNE.BOUNTY as any)[k] || 0) + ' CR';
     s += `<path class="wedge${pick ? ' pick' : ''}${D.fits && F.bad.length ? ' dim' : ''}${D.fits && !F.bad.length ? ' fit' : ''}${D.hover === k ? ' hot' : ''}" data-v="${k}" d="${wedge(r1, r2, a, b)}"/>`;
-    s += `<text class="${pick ? 'pk' : ''}" x="${(Math.cos(m) * rm).toFixed(1)}" y="${(Math.sin(m) * rm - 5).toFixed(1)}" style="${D.fits && F.bad.length ? 'opacity:.4' : ''}">${k}</text><text class="d${pick ? ' pk' : ''}" x="${(Math.cos(m) * rm).toFixed(1)}" y="${(Math.sin(m) * rm + 7).toFixed(1)}">${(TUNE.BOUNTY as any)[k] || 0} CR</text>`;
+    if (fan) { const [nx, ny] = P(r1 + 38, m), [bx, by] = P(r2 - 15, m);
+      s += `<text class="${pick ? 'pk' : ''}" x="${nx}" y="${ny}" transform="rotate(${deg} ${nx} ${ny})"${out}>${k}</text><text class="d${pick ? ' pk' : ''}" x="${bx}" y="${by}" transform="rotate(${deg} ${bx} ${by})">${bty}</text>`;
+    } else { const [x, y] = P((r1 + r2) / 2 + 4, m);
+      s += `<text class="${pick ? 'pk' : ''}" x="${x}" y="${(+y - 5).toFixed(1)}"${out}>${k}</text><text class="d${pick ? ' pk' : ''}" x="${x}" y="${(+y + 7).toFixed(1)}">${bty}</text>`; }
   });
   let tk = ''; const R3 = r2 + 6; for (let i = 0; i <= (fan ? 36 : 72); i++) { const a = A0 + i / (fan ? 36 : 72) * span, l = i % (fan ? 4 : 8) ? 2 : 5; tk += `M${(Math.cos(a) * R3).toFixed(1)},${(Math.sin(a) * R3).toFixed(1)} L${(Math.cos(a) * (R3 + l)).toFixed(1)},${(Math.sin(a) * (R3 + l)).toFixed(1)} `; }
-  s += `<path class="tk" d="${tk}"/><text y="-3" style="fill:var(--hostile)">${c.id}</text><text class="d" y="9">${c.id_ ? c.id_ + '?' : 'ID ?'}</text>`;
+  s += `<path class="tk" d="${tk}"/>`;
   const R = r2 + 40;
   return `<svg class="rad${fan ? ' fan' : ''}" width="${R * 2}" height="${R * 2}" viewBox="${-R} ${-R} ${R * 2} ${R * 2}" style="left:${-R}px;top:${-R}px">${s}</svg>`;
 }
@@ -319,7 +326,7 @@ function idDial() {
 function openDial(i: number) {
   const st = document.getElementById('stage'); if (!st) return;
   const c = CTS[i], w = st.clientWidth, h = st.clientHeight, x = c.x * w, y = c.y * h, dw = $('dialw');
-  D.open = c; D.hover = ''; D.t0 = performance.now();
+  D.open = c; D.hover = ''; D.t0 = performance.now(); markOpen(i);
   dw.style.left = x + 'px'; dw.style.top = y + 'px'; dw.innerHTML = radial(c); dw.classList.remove('open'); void dw.offsetWidth; dw.classList.add('open');
   placeReadout(x, y, w, h);
   cancelAnimationFrame(D.raf); D.raf = requestAnimationFrame(drawScopes);
@@ -332,7 +339,8 @@ function placeReadout(x: number, y: number, w: number, h: number) {
   if (lx < 0 || narrow) { lx = Math.max(0, Math.min(w - ew, x - ew / 2)); ly = y - R - eh >= 0 ? y - R - eh : Math.min(h - eh, y + R); } // phone: docked above the dial
   el.style.left = lx + 'px'; el.style.top = ly + 'px';
 }
-function closeDial() { D.open = null; cancelAnimationFrame(D.raf); const d = document.getElementById('dialw'); if (d) d.innerHTML = ''; const r = document.getElementById('rdoW'); if (r) r.innerHTML = ''; }
+function markOpen(i: number) { document.querySelectorAll<HTMLElement>('.idc .ct').forEach(e => e.classList.toggle('open', +e.dataset.ct! === i)); }
+function closeDial() { markOpen(-1); D.open = null; cancelAnimationFrame(D.raf); const d = document.getElementById('dialw'); if (d) d.innerHTML = ''; const r = document.getElementById('rdoW'); if (r) r.innerHTML = ''; }
 function refreshDial() { if (!D.open) return; const st = $('stage'), c = D.open; $('dialw').innerHTML = radial(c); placeReadout(c.x * st.clientWidth, c.y * st.clientHeight, st.clientWidth, st.clientHeight); }
 // the scopes: observed trace (ink) scrolling, the hovered variant's expected trace ghosted (dashed, objective colour)
 function drawScopes(now: number) {

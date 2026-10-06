@@ -257,7 +257,8 @@ svg.dial.f .bg{fill:currentColor;stroke:none} svg.dial.f circle,svg.dial.f path{
 .idc .ct svg{overflow:visible}
 .idc .ct .ring{animation:pulse 2.4s ease-out infinite;transform-origin:15px 15px}
 @keyframes pulse{0%{transform:scale(.6);opacity:1}100%{transform:scale(2.2);opacity:0}}
-.idc .ct .lbl{position:absolute;left:34px;top:-12px;white-space:nowrap;font-size:10px;line-height:1.4}
+.idc .ct.open .lbl{opacity:0}
+.idc .ct .lbl{transition:opacity .2s;position:absolute;left:34px;top:-12px;white-space:nowrap;font-size:10px;line-height:1.4}
 .idc .hint{position:absolute;left:50%;bottom:6px;transform:translateX(-50%);font-size:9px;color:var(--dim);letter-spacing:.2em;white-space:nowrap}
 .dialw{position:absolute;width:0;height:0;z-index:4}
 .dialw svg.rad{position:absolute;overflow:visible;left:0;top:0}
@@ -266,14 +267,12 @@ svg.dial.f .bg{fill:currentColor;stroke:none} svg.dial.f circle,svg.dial.f path{
 .rad .wedge:hover,.rad .wedge.hot{fill:color-mix(in srgb,var(--ink) 22%,var(--bg))}
 .rad .wedge.pick{fill:var(--ink)}
 .rad .wedge.fit{stroke:var(--objective)}
-.rad .tsec{fill:none;stroke:var(--ink);stroke-width:calc(var(--stroke) * 4)}
+.rad .tsec{fill:none;stroke:var(--hostile);stroke-width:calc(var(--stroke) * 3)}
 .rad .tsec.dim{stroke:var(--dim);opacity:.5}
 .rad text{fill:var(--ink);font:600 9px var(--font);letter-spacing:.12em;text-anchor:middle;dominant-baseline:middle;pointer-events:none;text-transform:uppercase}
 .rad text.d{fill:var(--dim);font-weight:400;font-size:7px}
 .rad text.pk{fill:var(--bg)}
 .rad .tk{stroke:var(--ink);opacity:.5}
-.rad .hub{fill:var(--bg);stroke:var(--hostile)}
-.rad .sweep{stroke:var(--hostile);opacity:.6;animation:spin 3s linear infinite;transform-origin:0 0}
 .dialw.open svg.rad{animation:radin .35s cubic-bezier(.2,1.4,.4,1)}
 @keyframes radin{from{transform:scale(.2) rotate(-60deg);opacity:0}to{transform:none;opacity:1}}
 .readout{position:absolute;width:340px;padding:16px 16px 14px;z-index:4;display:grid;gap:8px}
