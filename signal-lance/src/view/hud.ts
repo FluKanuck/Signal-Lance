@@ -42,7 +42,9 @@ export function updateHud(dt) {
   const p = G.p, mine = G.phase === 'PLAYER';
   const other = G.lance.find(m => m !== p);
   const turn = 'ROUND ' + G.turn + '  ' + (mine ? '<b>MECH ' + p.id + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>TAP WHERE TO FACE</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') +
-    (mine ? '  shots ' + p.turnShots + '/' + TUNE.SHOTS_PER_TURN : '');
+    (mine ? '  shots ' + p.turnShots + '/' + TUNE.SHOTS_PER_TURN : '') +
+    (mine && G.plan && G.plan.drawn ? '  <b style="color:#8fe3ff">DRAWN PATH · looks ' + G.plan.wps.length + '/' + TUNE.FACE_WAYPOINTS_MAX + (V.wpWhy ? ' (' + V.wpWhy + ')' : '') + '</b>' : '') + // R17
+    (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">MOVE STOPPED: CONTACT (' + G.intr.ap + 'AP kept)</b>' : '');
   const pips = '<span id="ap">' + '●'.repeat(p.ap) + '○'.repeat(Math.max(0, TUNE.AP_BANK_MAX - p.ap)) + '</span>';
   $('hud').innerHTML = turn + '<br>AP ' + pips + '  (+' + TUNE.AP_PER_TURN + '/turn)' +
     '<br>EN <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.en / p.enMax) + '%"></div></span> ' + Math.round(p.en) + '/' + p.enMax + '  (+' + TUNE.ENERGY_REGEN + '/turn)' +
@@ -116,7 +118,7 @@ export function syncButtons() {
   }
   const pl = G.plan;
   if (V.faceArm) setBtn('bMove', 'CANCEL', 'face', free, true);
-  else setBtn('bMove', 'MOVE', !pl ? 'TAP MAP' : pl.path ? pl.ap + 'AP ' + pl.en + 'EN' : pl.why, free && pl && pl.path);
+  else setBtn('bMove', 'MOVE', !pl ? (TUNE.DRAW_PATH_ENABLED ? 'TAP OR DRAW' : 'TAP MAP') : pl.path ? pl.ap + 'AP ' + pl.en + 'EN' : pl.why, free && pl && pl.path); // R17: or draw from your ExoS
   // radar pulse
   $('bRadar').hidden = !G.load.radar;
   const sns = sensorsUp(p) ? '' : 'SNS'; // R13 test 2: sensors gone = no radar, ECM or ghost (the buttons said nothing before)

@@ -4,4 +4,6 @@ export const V = {
   dbg: false,
   faceArm: false, ghostArm: false, mortarArm: false, mortarWhy: '',          // armed tap modes (tap own mech → face; GHOST → place)
   hitFlash: 0,                              // red screen border after taking a hit
+  drawPt: null as null | { sx: number; sy: number }, // R17: the finger while drawing a path (the AP cost shows next to it)
+  wpWhy: '',                                // R17: why the last waypoint wasn't set (MAX)
 };

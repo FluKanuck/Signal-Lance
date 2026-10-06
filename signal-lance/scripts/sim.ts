@@ -271,6 +271,10 @@ function mapReport(H: any[]) {
   if (MAP.id === 'hive' && grids.length === 1 && grids[0] === 'hive') return;
   const rr = H.filter(h => h.rerolls > 0).length, mv = H.reduce((a, h) => a + h.moves.n, 0), mc = H.reduce((a, h) => a + h.moves.c, 0);
   console.log(`  MAP rerolls: ${rr}/${H.length} hunts needed one (${pc(rr, H.length)}) | lance moves into clutter ${mc}/${mv} (${pc(mc, mv)})`);
+  const ni = H.reduce((a, h) => a + (h.moves.intr || []).length, 0), ki = H.filter(h => (h.moves.intr || []).length).length;
+  console.log(`  MOVE (R17) interrupts ${ni} in ${ki}/${H.length} hunts (${pc(ki, H.length)}), ${(ni / Math.max(1, mv) * 100).toFixed(0)}% of lance moves | tap ${H.reduce((a, h) => a + (h.moves.tap || 0), 0)} drawn ${H.reduce((a, h) => a + (h.moves.drawn || 0), 0)} (the scripted lance only taps)`);
+  const why: Record<string, number> = {}; for (const h of H) for (const t of h.moves.intr || []) { const k = t.split(' ').pop(); why[k] = (why[k] || 0) + 1; }
+  console.log(`  MOVE (R17) interrupts by what showed it: ${Object.entries(why).map(([k, v]) => k + ' ' + v).join(', ') || 'none'}`);
   if (rr / Math.max(1, H.length) > 0.05) console.log(`  FLAG: unreachable rerolls in ${pc(rr, H.length)} of hunts (over 5%)`);
   if (mv && mc / mv < 0.05) console.log(`  FLAG: clutter crossed in only ${pc(mc, mv)} of lance moves (it's never on the way)`);
   if (mv && mc / mv > 0.6) console.log(`  FLAG: clutter crossed in ${pc(mc, mv)} of lance moves (it's everywhere)`);
@@ -294,6 +298,7 @@ function hitReport(shots: any[], parts: any[]) {
   const P = shots.filter(r => r.mech), E = shots.filter(r => !r.mech);
   console.log(`  HIT overall ${pc(shots)}, avg shown ${avg(shots)} | lance ${pc(P)} | field ${pc(E)}`);
   console.log(`  HIT cover ${pc(shots.filter(r => r.cover))} vs open ${pc(shots.filter(r => !r.cover))}`);
+  console.log(`  HIT (R17) into clutter (low) cover ${pc(shots.filter(r => r.coverKind === 'LOW'))}, avg shown ${avg(shots.filter(r => r.coverKind === 'LOW'))} | into wall cover ${pc(shots.filter(r => r.coverKind === 'WALL'))}, avg shown ${avg(shots.filter(r => r.coverKind === 'WALL'))}`);
   const statics = (r: any) => r.ttype === 'TURRET' || r.ttype === 'EMPLACEMENT';
   console.log(`  HIT target moved ${pc(shots.filter(r => r.movedT > 0))} vs still ${pc(shots.filter(r => !(r.movedT > 0) && !statics(r)))} vs static ${pc(shots.filter(statics))}`);
   console.log(`  HIT range ≤4 ${pc(shots.filter(r => r.rangeT <= 4))} · 5–8 ${pc(shots.filter(r => r.rangeT > 4 && r.rangeT <= 8))} · 9–12 ${pc(shots.filter(r => r.rangeT > 8))}`);

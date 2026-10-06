@@ -5,27 +5,18 @@ import { $ } from './hud.ts';
 import { TUNE } from '../tune.ts';
 
 export const TEST = {
-  title: 'Round 16 test: Rolled ground',
-  question: 'When every hunt rolls a new map, do routes stop feeling solved, so that where you go becomes part of reading the field?',
+  title: 'Round 17 test: Eyes on the street',
+  question: 'When you can shape each ExoS’s move and aim its eyes as it walks, does moving through a district become part of the hunt rather than just getting from A to B?',
   newThings: [
-    'NEW (r16-s1): every hunt is a new district built from city blocks: plazas, alleys, walled yards, avenues, scrap lots, warrens, towers, depots. The grid changes too, from a short 4×2 to a big 4×4. The job card says how big (e.g. "4×3 district, 48×36"). Bigger districts have a bigger field.',
-    'Brown speckled ground is scrap, glass and rubble. Each tile costs ' + TUNE.CLUTTER_TILE_COST + ' tiles of movement, and walking into it adds ' + TUNE.CLUTTER_SOUND + ' to that move’s sound. It counts as low cover. Enemies pay the same, so listen for them crunching.',
-    'Rusty outlined shapes are set pieces (wrecks, containers, gantries): walls you can’t see or shoot through. Quiet and noise zones now sit inside the blocks.',
-    'NEW (r16-s9): every mech leaves on its own. Walk into the green extraction zone, then tap EXTRACT (no AP) to take that mech off the map. The hunt ends once all your living mechs are out: Escort wins if the transport walked out, Retrieve if the carrier extracted with the cargo, Bounty at quota. An uplink or a cleared field still wins at once.',
-    'NEW (r16-s7): cover you share does not count. If you stand right up against the same wall, barricade or scrap that covers your target, you lean round it: no cover penalty. Same rule for enemies.',
-    'NEW (r16-s7): Escort levers. Route buttons now show at every fork ahead: tap one to set that fork in advance (lit with a ✓; tap again to clear). Reaching a set fork, the transport carries straight on, even mid-move. An unset fork still stops it until you choose.',
-    'NEW (r16-s7): a dashed gold ring marks where the transport\'s next move will end ("waits at fork" if a lever isn\'t set). The transport is now in the turn strip (green T).',
-    'NEW (r16-s6): you start in a cleared staging area on the most open stretch of the left edge, and the Escort transport starts beside you.',
-    'NEW (r16-s6): Escort orders (bottom row, your turn, no AP): HOLD = the transport waits one round, then carries on (' + TUNE.ESCORT_HOLDS + ' per hunt). HURRY = its next move is a sprint, ' + TUNE.ESCORT_SPRINT + ' tiles instead of ' + TUNE.ESCORT_MOVE + ', and louder (' + TUNE.ESCORT_HURRIES + ' per hunt). Tap again to cancel.',
-    'NEW (r16-s5): districts are no longer a grid of blocks. They are packed from irregular pieces (half blocks, long strips, L shapes, and the hand-drawn blocks), cut off at the map edge. Streets jog, narrow, close and dead-end; some pieces are small open lots or have courtyards.',
-    'NEW (r16-s3): the streets between blocks are no longer a clean grid. Some stretches have rubble across them (slow, loud), some are shut by a barricade, and some have a chicane: walls on alternate lanes you can weave through but can’t see straight past.',
-    'NEW (r16-s3): hover the mouse over anything on the map, or hold a finger on it, to see what it is and what it does. A hold never moves or selects.',
-    'Escort routes follow the open streets: at each fork, up to three legs, NORTH, AHEAD (straight on) and SOUTH, only where the streets let you through.',
-    'MAP button on this screen: NEW DISTRICTS (default) or OLD HIVE (the old map), to compare. Play at least one hunt on the old map.',
-    'TEST BED: "Long way round", "Two districts: strip" and "Two districts: square", and "Crunch".',
+    'NEW (r17-s1): drag from your ExoS to draw this turn’s move. It snaps to tiles and skips walls. The path turns red and dashed past where your AP runs out; the gold ring is where you will stop, and the cost shows beside your finger. Scrap you draw through is crossed on purpose. Then tap MOVE. Tap-to-move still works as before.',
+    'NEW: aim your eyes as you walk. Tap a tile on your drawn path and drag to aim: the suit turns there and keeps looking that way until the next aim point or the end of the move. A faint cone shows where it will look. Up to ' + TUNE.FACE_WAYPOINTS_MAX + ' per move; the first uses your free turn, each one after costs ' + TUNE.AP_TURN + ' AP. Tap an aim point again to remove it.',
+    'NEW: your eyes work on every step of a move. If something new shows up (a contact you didn’t have, or your eyes landing on one you were tracking), the move stops on that tile: "CONTACT — move stopped". You keep the AP and energy you didn’t spend, so shoot, back off or draw again.',
+    'NEW: scrap and rubble are now low cover: −' + TUNE.HIT_COVER_LOW + '% to hit, not −' + TUNE.HIT_COVER + '%. Walls and set pieces are still full cover. When you aim at a target in cover, the piece giving the cover is outlined (yellow = wall, tan = scrap), and green shows cover you share with it (no penalty).',
+    'Escort route buttons no longer sit under the HUD text.',
+    'TEST BED: "Side street", "Trip wire" and "Scrap line".',
   ],
-  round: 16,
-  howTo: 'Play the four new scenarios first, then about 10 hunts in contracts on new districts (and one on the old hive). After each hunt, tap the answers (the first one matters most) and add a note, especially if tap-to-move fought you. When you finish, tap SEND LOG and send it to Jamie.',
+  round: 17,
+  howTo: 'Play the three new scenarios first, then about 10 hunts in contracts. Try drawing your moves and aiming down alleys. After each hunt, tap the answers (the first one matters most) and add a note, especially if a move stopped when you didn’t want it to. When you finish, tap SEND LOG and send it to Jamie.',
 };
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
@@ -62,23 +53,24 @@ export const HISTORY = [
 ];
 // End-of-hunt questions (tap one answer each; optional). Answers go into the log line, next to the hunt's job type.
 export const QUESTIONS = [
-  { k: 'map', q: 'This district…', a: ['Changed my plan', "Didn't change it", 'Not sure'] },
-  { k: 'clutter', q: 'Scrap and rubble…', a: ['Crossed it on purpose', 'Went round it', 'Never in my way', 'Heard an enemy crunch'] },
-  { k: 'move', q: 'Tap-to-move…', a: ['Did what I wanted', 'Took clutter I’d avoid', 'Walked a line I didn’t want', 'Couldn’t look down a street'] },
+  { k: 'look', q: 'Aiming your eyes on the path…', a: ['Found something', 'Ruled a street out', 'Didn’t use it', 'Too fiddly'] },
+  { k: 'stop', q: 'When a move stopped…', a: ['It saved me', 'Gave me time to plan', 'It nagged', 'Never stopped'] },
+  { k: 'draw', q: 'Drawing the move…', a: ['Changed how I crossed', 'Same as tapping', 'Fought me', 'Didn’t draw'] },
 ];
 
 const BASICS = [
   ['Goal', 'Each job has a type (top of the job card). UPLINK: stand in the gold ring and tap UPLINK on 3 turns, or destroy every enemy. BOUNTY: kills pay their bounty (prices on the CARD); reach the quota for a win, then extract at the right edge when you choose. RETRIEVE: PICK UP the cargo (the whole field then hunts the carrier, who can’t sprint), HAND OFF if needed, carry it out the right edge. ESCORT: keep the transport alive from the left edge to the right; at each fork, tap a route on the map (NORTH, AHEAD or SOUTH, where the streets are open). You can set the route at forks ahead of time (lit ✓); an unset fork stops it. HOLD makes it wait a round; HURRY makes it sprint its next move (3 of each per hunt). The gold dashed ring shows where its next move ends; T in the turn strip is its turn. To leave, walk into the green zone on the right and tap EXTRACT, mech by mech; the hunt ends when all your living mechs are out. Lose if both mechs are destroyed.'],
   ['Turns', 'Everyone acts in initiative order (strip, top right). On your mech\'s turn you spend AP (the ● pips). END TURN passes to the next unit.'],
-  ['Move', 'Tap the map to plot a path. Pick CREEP, NORM or SPRINT, then tap MOVE. Faster covers more ground but is louder.'],
+  ['Move', 'Tap the map to plot a path, or drag from your ExoS to draw one tile by tile (it skips walls; scrap you draw through is crossed on purpose). Pick CREEP, NORM or SPRINT, then tap MOVE. Faster covers more ground but is louder. A drawn path turns red and dashed past where your AP runs out; the gold ring is where you stop. No path carries over to the next turn.'],
+  ['Look', 'Your eyes see ahead of your facing (and all round up close), on every step of a move. Facing follows the way you walk. On a drawn path, tap a tile and drag to aim: the suit turns there and keeps looking that way (up to ' + TUNE.FACE_WAYPOINTS_MAX + ' per move; the first uses the free turn, then ' + TUNE.AP_TURN + ' AP each). If a step shows something new, the move stops on that tile and you keep the AP you didn’t spend.'],
   ['Find', 'Enemies are hidden. A contact is a red square with a circle: the circle is how unsure you are. Passive sensors draw cyan bearing lines; two crossing lines make a fix. RADAR gives a sharp fix but is very loud.'],
-  ['Fight', 'Tap a contact to select it. FIRE needs a tight fix, range and line of sight; the button says why if it\'s blocked, or shows your hit chance. Hits strike a part (core, legs, weapon, sensors). Cover (a wall or scrap close to the target) costs −25%, unless you are right up against the same piece of cover yourself. MORTAR fires on a fix with no line of sight, but scatters more on a fuzzy one.'],
+  ['Fight', 'Tap a contact to select it. FIRE needs a tight fix, range and line of sight; the button says why if it\'s blocked, or shows your hit chance. Hits strike a part (core, legs, weapon, sensors). Cover close to the target costs −' + TUNE.HIT_COVER + '% for a wall or set piece, −' + TUNE.HIT_COVER_LOW + '% for scrap (low cover), unless you are right up against the same piece of cover yourself. When you aim, the cover piece is outlined. MORTAR fires on a fix with no line of sight, but scatters more on a fuzzy one.'],
   ['Noise', 'Two kinds. EMIT (orange bar, orange dashed ring) is electronic: radar, ECM and uplink add to it, it fades a little each turn, and passive sensors pick it up from far away. SOUND (pale ring with ticks) is moving and shooting: one radius per turn (the loudest thing you did), heard through walls, gone at your next turn.'],
-  ['Ground', 'Every hunt is a new district (the job card gives its size), packed from irregular city pieces, so streets jog, narrow and dead-end. Blue dotted areas are quiet ground: you are harder to hear there. Amber hatched areas are noise: fixes on anything inside are blurry. Brown speckled scrap is slow (2 tiles of movement a tile) and loud (+3 sound), but it is low cover. Rusty outlined shapes are walls: set pieces in the blocks, and barricades that shut a street. A chicane (walls on alternate lanes) can be weaved through but not seen past.'],
+  ['Ground', 'Every hunt is a new district (the job card gives its size), packed from irregular city pieces, so streets jog, narrow and dead-end. Blue dotted areas are quiet ground: you are harder to hear there. Amber hatched areas are noise: fixes on anything inside are blurry. Brown speckled scrap is slow (2 tiles of movement a tile) and loud (+3 sound), but it is low cover (−' + TUNE.HIT_COVER_LOW + '% to hit). Rusty outlined shapes are walls: set pieces in the blocks, and barricades that shut a street. A chicane (walls on alternate lanes) can be weaved through but not seen past.'],
   ['ID', 'Enemies come in 9 variants. Tap a contact to see what your sensors have picked up about it, open the CARD to compare, then tap ID to call it. A turret or emplacement call freezes its track; a right call before eyes adds +10% to hit.'],
   ['ECM', 'ECM masks you each turn it is on. GHOST places a fake contact for enemies.'],
   ['Camera', 'Drag to pan. Z+ / Z− zoom. CTR recentres.'],
-  ['Look', 'Hover the mouse over anything on the map, or hold a finger on it, to see what it is and what it does.'],
+  ['Tips', 'Hover the mouse over anything on the map, or hold a finger on it, to see what it is and what it does.'],
   ['Debug', 'DEBUG: REROLL JOBS (job screen) rolls two new jobs for the same hunt, e.g. to get the job type you want to test. The log line notes it.'],
 ];
 

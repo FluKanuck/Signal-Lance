@@ -10,6 +10,7 @@ import { inCover } from '../src/sim/combat.ts';
 import { legsFrom, legPath } from '../src/sim/escort.ts';
 import { scenarioByName, startScenario, leaveScenario } from '../src/sim/scenarios.ts';
 import { startHunt, playHunt } from './helpers.ts';
+import { runAct } from '../src/sim/autoplay.ts';
 
 afterEach(() => { leaveScenario(); loadMap(HIVE); });
 const roll = (seed: number, grid?: string) => { setSeed(seed); return rollDistrict(seed, grid); };
@@ -206,7 +207,8 @@ describe('clutter', () => {
     const m = G.lance[0]; m.x = ctr(1, 0).x; m.y = ctr(1, 0).y; m.ap = 8; m.en = 100; m.sound = 0;
     const pl = planMove(m, ctr(8, 0).x, ctr(8, 0).y, 'NORMAL');
     expect(pl.snd).toBe(TUNE.SOUND_RANGE.NORMAL + TUNE.CLUTTER_SOUND);
-    doMove(m, pl); expect(m.sound).toBe(TUNE.SOUND_RANGE.NORMAL + TUNE.CLUTTER_SOUND);
+    doMove(m, pl); expect(m.sound).toBe(TUNE.SOUND_RANGE.NORMAL); // R17: the crunch is made on the step into clutter...
+    G.kills = -1; runAct(); expect(m.sound).toBe(TUNE.SOUND_RANGE.NORMAL + TUNE.CLUTTER_SOUND); // ...once (kills -1: an empty field would count as cleared)
     const c = TUNE.CLUTTER_SOUND; TUNE.CLUTTER_SOUND = 0;
     try { m.sound = 0; m.x = ctr(1, 0).x; G.act = null; const p2 = planMove(m, ctr(8, 0).x, ctr(8, 0).y, 'NORMAL'); expect(p2.snd).toBe(TUNE.SOUND_RANGE.NORMAL); } finally { TUNE.CLUTTER_SOUND = c; }
   });

@@ -1,25 +1,28 @@
 import { TUNE } from '../tune.ts';
-import { W, T, isSolid, isClutter, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter } from './world.ts';
+import { W, T, isSolid, isClutter, canReach, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter } from './world.ts';
 import { G, hooks, finishHunt, unitById, livingMechs, activeMechs, isMech, isFriend, friends, setActive } from './state.ts';
 import { allyStep, pickLeg, giveOrder } from './escort.ts';
 import { rand } from './rng.ts';
-import { updateSensors, cx, cy, killContact, muzzleFlash } from './sensors.ts';
+import { updateSensors, cx, cy, killContact, muzzleFlash, canSee } from './sensors.ts';
 import { bestContact, enemyDecide } from './bot.ts';
 import { effEmit, zoneType } from './zones.ts';
-import { hitChance, rollPart, damagePart, partGone, partHurt } from './combat.ts';
+import { hitChance, rollPart, damagePart, partGone, partHurt, eyesRange } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
 import { onKill, onAllOut, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
 // ============================ UPDATE ==================================
-export function moveAlong(m, speed, dt) {
+// R17: arrive(i) runs as the mover reaches path point i (a drawn move's facing waypoints); true = stop this frame's step there
+// (so the sensors look from exactly that tile, and an interrupt stops it on it). m.holdFace = a waypoint set the
+// facing: it holds until the next waypoint or the end of the move (otherwise facing follows the direction of travel).
+export function moveAlong(m, speed, dt, arrive?: (i: number) => boolean) {
   m.moving = false;
   if (!m.path) return;
   let step = speed * T * dt / (isClutter(Math.floor(m.x / T), Math.floor(m.y / T)) ? TUNE.CLUTTER_TILE_COST : 1); // R16: wading through clutter is slow to watch too
   while (step > 0 && m.path) {
     const wp = m.path[m.pi], dx = wp.x - m.x, dy = wp.y - m.y, d = Math.hypot(dx, dy);
-    if (d <= step) { m.x = wp.x; m.y = wp.y; step -= d; m.movedT = (m.movedT || 0) + d / T; if (++m.pi >= m.path.length) m.path = null; }
-    else { m.x += dx / d * step; m.y += dy / d * step; m.fx = dx / d; m.fy = dy / d; m.movedT = (m.movedT || 0) + step / T; step = 0; } // R12: tiles moved this activation
+    if (d <= step) { m.x = wp.x; m.y = wp.y; step -= d; m.movedT = (m.movedT || 0) + d / T; const i = m.pi; if (++m.pi >= m.path.length) m.path = null; if (arrive && arrive(i)) break; }
+    else { m.x += dx / d * step; m.y += dy / d * step; if (!m.holdFace) { m.fx = dx / d; m.fy = dy / d; } m.movedT = (m.movedT || 0) + step / T; step = 0; } // R12: tiles moved this activation
     m.moving = true; m.spd = speed;
   }
 }
@@ -86,6 +89,7 @@ export function step(dt) {
   if (G.mode !== 'hunt') return;
   if (G.splash && (G.splash.t -= dt) <= 0) G.splash = null; // R9: the splash marker fades in real time
   if (G.pop && (G.pop.t -= dt) <= 0) G.pop = null; // R15: so does the bounty pop
+  if (G.intr && (G.intr.t -= dt) <= 0) G.intr = null; // R17: and the interrupt cue
   if (G.act) stepAction(dt);
   else if (G.phase === 'ENEMY' && (G.ewait -= dt) <= 0) enemyStep();
 }
@@ -141,7 +145,7 @@ export function nextActivation() {
     G.phase = 'PLAYER'; setActive(m);
     G.up.used = false; // one UPLINK per mech activation
     if (G.ghost.on && G.ghost.owner === m && --G.ghost.turns <= 0) G.ghost.on = false;
-    G.planT = null; replan();
+    G.planT = null; G.planD = null; replan(); // R17: a drawn path is this turn only
     hooks.activate();
   } else {
     G.phase = 'ENEMY'; G.ei = G.units.indexOf(m);
@@ -180,8 +184,9 @@ export function shellsFlying() { for (const s of G.shells) if (s.on) return true
 export function stepAction(dt) {
   const a = G.act, p = G.p;
   G.time += dt; a.t -= dt; a.age += dt;
-  if (a.k === 'MOVE') moveAlong(a.m, a.speed, dt);
+  if (a.k === 'MOVE') moveAlong(a.m, a.speed, dt, a.arrive);
   updateSensors(dt);
+  if (a.k === 'MOVE') moveTick(a);
   updateShells(dt);
   if (!livingMechs().length) { G.act = null; finishHunt('LOSS'); return; } // R7 s2: both mechs destroyed
   if (cargoLost()) { G.act = null; onCargoLost(); return; } // R15 Retrieve: the carrier is destroyed, the cargo with it
@@ -191,11 +196,11 @@ export function stepAction(dt) {
   if (allOut()) { G.act = null; onAllOut(); return; } // R16: every friendly is extracted (or destroyed)
   const done = a.k === 'MOVE' ? !a.m.path || a.age > 30 : a.t <= 0 && !shellsFlying();
   if (!done) return;
-  a.m.moving = false; a.m.path = null; if (a.k === 'PULSE') a.m.radarOn = false;
+  a.m.moving = false; a.m.path = null; a.m.holdFace = false; if (a.k === 'PULSE') a.m.radarOn = false;
   G.act = null;
   if (G.phase === 'ENEMY') G.ewait = TUNE.ENEMY_ACT_PAUSE;
   else if (G.phase === 'ALLY') nextActivation(); // R15 s3: the transport's one move is its whole turn
-  else { if (a.m === p && G.planT && !G.planT.cut) G.planT = null; replan(); hooks.sync(); }
+  else { if (a.m === p && G.planT && !G.planT.cut && !a.intr) G.planT = null; if (a.m === p) G.planD = null; replan(); hooks.sync(); } // R17: a drawn path is used up
 }
 // R16 (Jamie: "ExoS should extract individually using a new extract button that pops up when zone is entered, only when all
 // friendlies are extracted does the mission end"). Walking into extraction ends nothing: a mech standing in it may EXTRACT
@@ -260,16 +265,130 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
   r.ap = Math.ceil(len / tpa - 1e-6); r.en = Math.ceil(len * ept - 1e-6);
   r.crunch = pathHitsClutter(r.path); // R16: entering any clutter tile adds CLUTTER_SOUND to this move's Sound (once)
   r.snd = (m.snd || TUNE.SOUND_RANGE)[mode] + (r.crunch ? TUNE.CLUTTER_SOUND : 0); r.lame = lame; // R13: the sound radius this move will make (Emissions no longer rise with moves)
+  r.tpa = tpa; r.ept = ept; r.wps = []; r.wpAP = 0; r.drawn = false; // R17: what the interrupt refund needs
   return r;
 }
+// ---- R17: drawn paths ("Eyes on the street"). The view snaps the finger's stroke to tiles; the rules here keep only the
+// tiles you can walk, join any gap with A*, and cost the result exactly like a tap move (same MOVE_TILES_PER_AP,
+// MOVE_ENERGY_PER_TILE, CLUTTER_TILE_COST, CLUTTER_SOUND). Clutter you draw through is taken on purpose (no rerouting).
+const tc = (x: number, y: number) => ({ x: (x + 0.5) * T, y: (y + 0.5) * T });
+// The walkable tile list for a stroke, starting on the mover's own tile: walls / set pieces / unreachable tiles dropped,
+// gaps (and diagonal steps that would cut a wall corner) joined with A*, and an L-step (two straight steps that a legal
+// diagonal would do, the corner tile not clutter) folded into the diagonal, so a hand-drawn slope costs what A* would.
+export function drawnTiles(m, tiles: number[][]) {
+  const out = [[Math.floor(m.x / T), Math.floor(m.y / T)]];
+  const okDiag = (a, dx, dy) => !isSolid(a[0] + dx, a[1]) && !isSolid(a[0], a[1] + dy);
+  const push = (t) => {
+    const l = out[out.length - 1];
+    if (l[0] === t[0] && l[1] === t[1]) return;
+    if (out.length >= 2) { // fold an L into a diagonal
+      const a = out[out.length - 2], dx = t[0] - a[0], dy = t[1] - a[1];
+      if (Math.abs(dx) === 1 && Math.abs(dy) === 1 && okDiag(a, dx, dy) && !isClutter(l[0], l[1])) { out[out.length - 1] = t; return; }
+    }
+    out.push(t);
+  };
+  for (const t of tiles) {
+    if (!canReach(t[0], t[1])) continue;
+    const l = out[out.length - 1], dx = t[0] - l[0], dy = t[1] - l[1];
+    if (!dx && !dy) continue;
+    if (Math.max(Math.abs(dx), Math.abs(dy)) === 1 && (!dx || !dy || okDiag(l, dx, dy))) { push(t); continue; }
+    const seg = findPath(tc(l[0], l[1]).x, tc(l[0], l[1]).y, tc(t[0], t[1]).x, tc(t[0], t[1]).y, true); // the gap: A* tile centres
+    if (!seg) continue;
+    for (let k = 1; k < seg.length; k++) push([Math.floor(seg[k].x / T), Math.floor(seg[k].y / T)]);
+  }
+  return out;
+}
+// Plan a drawn move. wps = facing waypoints [{ tx, ty, fx, fy }] on the path's tiles. Each costs one change of facing:
+// m.freeTurns first, then AP_TURN, all in the move's AP. Capped at FACE_WAYPOINTS_MAX. Too long = cut where the AP (or EN)
+// runs out; a waypoint past the cut is dropped (and costs nothing). Same return shape as planMove, plus tiles / wps / wpAP.
+export function planDrawn(m, tiles: number[][], mode, wps: any[] = []) {
+  const T2 = drawnTiles(m, tiles);
+  if (T2.length < 2) return null;
+  const full = [{ x: m.x, y: m.y }, ...T2.slice(1).map(t => tc(t[0], t[1]))];
+  const base: any = { full, path: null, len: 0, ap: 0, en: 0, cut: true, mode, drawn: true, tiles: T2, wps: [], wpAP: 0 };
+  if (mode !== 'CREEP' && partHurt(m, 'LEGS')) return { ...base, why: 'LEGS' };
+  if (mode === 'SPRINT' && TUNE.RETRIEVE_NO_SPRINT && isCarrier(m)) return { ...base, why: 'CARGO' };
+  const lame = partGone(m, 'LEGS') ? TUNE.LEGS_GONE_MULT : 1;
+  const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
+  const cum = [0]; for (let i = 1; i < full.length; i++) cum.push(cum[i - 1] + pathCost([full[i - 1], full[i]]));
+  const fullLen = cum[cum.length - 1];
+  const seen = new Set<number>(), W8 = [];
+  for (const w of wps) { // each waypoint sits on the first visit to its tile (the start tile never: turn there with a tap)
+    const i = T2.findIndex((t, k) => k > 0 && t[0] === w.tx && t[1] === w.ty);
+    if (i > 0 && !seen.has(i)) { seen.add(i); W8.push({ ...w, i }); }
+  }
+  W8.sort((a, b) => a.i - b.i); W8.length = Math.min(W8.length, TUNE.FACE_WAYPOINTS_MAX);
+  const free = m.freeTurns || 0;
+  for (let k = W8.length; k >= 0; k--) {
+    const wpAP = Math.max(0, k - free) * TUNE.AP_TURN;
+    const apLen = (m.ap - wpAP) * tpa, enLen = ept > 0 ? m.en / ept : 1e9, len = Math.min(fullLen, apLen, enLen);
+    if (k > 0 && cum[W8[k - 1].i] > len + 1e-6) continue; // the k-th waypoint is past where this move would stop
+    const r: any = { ...base, cut: len < fullLen - 1e-3, why: apLen <= enLen ? 'AP' : 'EN', wps: W8.slice(0, k), wpAP, tpa, ept, lame, cum };
+    if (len < 0.25) return r;
+    r.path = r.cut ? clipPathCost(full, len) : full; r.len = len;
+    r.ap = Math.ceil(len / tpa - 1e-6) + wpAP; r.en = Math.ceil(len * ept - 1e-6);
+    r.crunch = pathHitsClutter(r.path);
+    r.snd = (m.snd || TUNE.SOUND_RANGE)[mode] + (r.crunch ? TUNE.CLUTTER_SOUND : 0);
+    return r;
+  }
+  return { ...base, why: 'AP' };
+}
 export function doMove(m, pl) {
-  pay(m, pl.ap, pl.en); makeSound(m, pl.mode, pl.crunch ? TUNE.CLUTTER_SOUND : 0);
-  if (isMech(m)) { G.moveStat.n++; if (pl.crunch) G.moveStat.c++; } // R16 runner: how often the lance crosses clutter
-  m.path = pl.path; m.pi = 1; m.creep = pl.mode === 'CREEP';
-  startAct({ k: 'MOVE', m, speed: MODE_SPEED[pl.mode] * (pl.lame || 1) });
+  pay(m, pl.ap, pl.en); makeSound(m, pl.mode); // R17: the clutter part of the sound waits until the mover actually steps into clutter
+  const nw = (pl.wps || []).length, free0 = m.freeTurns || 0;
+  if (nw) m.freeTurns = Math.max(0, free0 - nw);
+  if (isMech(m)) { G.moveStat.n++; if (pl.crunch) G.moveStat.c++; if (pl.drawn) { G.moveStat.drawn++; G.moveStat.wp += nw; } else G.moveStat.tap++; } // R16 runner: how often the lance crosses clutter; R17: drawn / tap, waypoints
+  m.path = pl.path; m.pi = 1; m.creep = pl.mode === 'CREEP'; m.holdFace = false;
+  const a: any = { k: 'MOVE', m, speed: MODE_SPEED[pl.mode] * (pl.lame || 1), pl, drawn: !!pl.drawn, crunch: !!pl.crunch, free0, wpDone: 0,
+    tile: Math.floor(m.y / T) * W + Math.floor(m.x / T) };
+  if (nw) a.arrive = (i: number) => { // R17: a facing waypoint: turn as it reaches the tile, hold until the next one / the end
+    const w = pl.wps.find(w => w.i === i); if (!w) return false;
+    const d = Math.hypot(w.fx, w.fy) || 1; m.fx = w.fx / d; m.fy = w.fy / d; m.holdFace = true; a.wpDone++;
+    updateSensors(0); return true;
+  };
+  if (isMech(m) && TUNE.MOVE_INTERRUPT) { // R17: what the suit already had at the start of the move (anything else is new)
+    a.known = new Set(G.pc.filter(c => c.on).map(c => c.id));
+    a.seen = new Set(G.units.filter(u => !u.dead && canSee(m, u, eyesRange(m))).map(u => u.id));
+  }
+  startAct(a);
+}
+// R17: every frame of a move. On each new tile: the clutter sound (once, the first time it steps into clutter) and a
+// zero-time sensor look with the current facing (eyes on every tile of the path). Then, for a player suit, the interrupt.
+function moveTick(a) {
+  const m = a.m;
+  const t = Math.floor(m.y / T) * W + Math.floor(m.x / T);
+  if (t !== a.tile) {
+    a.tile = t; a.steps = (a.steps || 0) + 1;
+    if (a.crunch && isClutter(t % W, (t / W) | 0)) { makeSound(m, a.pl.mode, TUNE.CLUTTER_SOUND); a.crunch = false; }
+    updateSensors(0);
+  }
+  if (!a.known || !m.path || G.mode !== 'hunt') return;
+  for (const c of G.pc) {
+    if (!c.on) continue;
+    const u = unitById(c.id);
+    if (!u || u.dead || isFriend(u)) continue;
+    const eyes = !a.seen.has(u.id) && canSee(m, u, eyesRange(m));
+    if (eyes || !a.known.has(c.id)) { interruptMove(a, u, eyes ? 'eyes' : c.snd ? 'sound' : c.shr ? 'alarm' : 'sensors'); return; }
+  }
+}
+// R17: stop the move here. AP / EN are charged only for what was walked (and the waypoints reached); the rest goes back.
+export function interruptMove(a, u, why = 'eyes') { // why: what showed it (eyes, sound, sensors, alarm)
+  const m = a.m, pl = a.pl;
+  const walked = pathCost([...m.path.slice(0, m.pi), { x: m.x, y: m.y }]);
+  const usedWp = Math.min(a.wpDone, (pl.wps || []).length), wpAP = Math.max(0, usedWp - a.free0) * TUNE.AP_TURN;
+  const ap = Math.min(pl.ap, Math.ceil(walked / pl.tpa - 1e-6) + wpAP), en = Math.min(pl.en, Math.ceil(walked * pl.ept - 1e-6));
+  m.ap += pl.ap - ap; m.en += pl.en - en; m.freeTurns = Math.max(0, a.free0 - usedWp);
+  m.path = null; m.moving = false; a.intr = true;
+  G.intr = { id: m.id, uid: u.id, why, t: TUNE.INTERRUPT_CUE_TIME, ap: pl.ap - ap }; // the view's "CONTACT — move stopped" cue
+  G.moveStat.intr.push(m.id + ' ' + u.type + ' ' + why);
+}
+// " · moves tap 9 drawn 4 wp 3 [INTERRUPT A PATROL eyes]" for this hunt's log line
+export function moveText() {
+  const s = G.moveStat;
+  return ' · moves tap ' + s.tap + ' drawn ' + s.drawn + ' wp ' + s.wp + s.intr.map(t => ' [INTERRUPT ' + t + ']').join('');
 }
 export function replan() {
-  G.plan = G.planT ? planMove(G.p, G.planT.x, G.planT.y, G.pmode) : null;
+  G.plan = G.planD ? planDrawn(G.p, G.planD.tiles, G.pmode, G.planD.wps) : G.planT ? planMove(G.p, G.planT.x, G.planT.y, G.pmode) : null;
   if (G.planT) G.planT.cut = !!(G.plan && G.plan.cut);
 }
 // ---- radar pulse ----
@@ -387,7 +506,26 @@ export function doUplink() {
 // The view's only way to change rule state. Bodies are the old button / tap handlers.
 export function playerFree() { return G.mode === 'hunt' && G.phase === 'PLAYER' && !G.act; }
 export function cmdMoveMode(m) { G.pmode = m; }
-export function cmdTarget(x, y) { G.planT = { x, y, cut: false }; replan(); } // tapped move destination; MOVE executes it
+export function cmdTarget(x, y) { G.planD = null; G.planT = { x, y, cut: false }; replan(); } // tapped move destination; MOVE executes it
+// R17: a drawn path (tiles from the view's stroke). Waypoints already on the new path's tiles are kept.
+export function cmdDraw(tiles: number[][]) {
+  if (!TUNE.DRAW_PATH_ENABLED || !playerFree()) return;
+  const wps = G.planD ? G.planD.wps : [];
+  G.planT = null; G.planD = { tiles, wps }; replan();
+  if (G.plan && G.plan.tiles) G.planD.wps = wps.filter(w => G.plan.tiles.some((t, k) => k > 0 && t[0] === w.tx && t[1] === w.ty));
+}
+// R17: set (or re-aim) the facing waypoint on path tile (tx, ty). false = not on the path, or FACE_WAYPOINTS_MAX already set.
+export function cmdWaypoint(tx: number, ty: number, fx: number, fy: number) {
+  if (!G.planD || !G.plan || !G.plan.tiles || !playerFree()) return false;
+  if (!G.plan.tiles.some((t, k) => k > 0 && t[0] === tx && t[1] === ty)) return false;
+  const w = G.planD.wps.find(w => w.tx === tx && w.ty === ty);
+  if (w) { w.fx = fx; w.fy = fy; }
+  else if (G.planD.wps.length >= TUNE.FACE_WAYPOINTS_MAX) return false;
+  else G.planD.wps.push({ tx, ty, fx, fy });
+  replan(); return true;
+}
+export function cmdClearWaypoint(tx: number, ty: number) { if (G.planD) { G.planD.wps = G.planD.wps.filter(w => w.tx !== tx || w.ty !== ty); replan(); } }
+export function cmdClearDraw() { G.planD = null; replan(); }
 export function cmdMove() { if (G.plan && G.plan.path) doMove(G.p, G.plan); }
 export function cmdUplink() { if (uplinkBlock() === '') doUplink(); }
 // R15 s3: pick the route leg at the junction the transport holds at (no AP: it's an order, on your turn)

@@ -4,6 +4,7 @@
 import { TUNE } from '../tune.ts';
 import { T, loadMap, HIVE } from './world.ts';
 import { buildDistrict, type DistrictSpec } from './blocks.ts';
+import { rollPacked } from './packed.ts';
 import { setSeed } from './rng.ts';
 import { G, newHunt, makeUnit, setActive, DEFAULT_LOAD } from './state.ts';
 import { setZones, zoneAtTile } from './zones.ts';
@@ -25,13 +26,45 @@ export type Scenario = {
   ally?: string;                         // R15 Escort: the route node the transport starts on (default the start; a fork = holding)
   earned?: number | 'quota';             // R15 Bounty: credits already banked at the start ('quota' = exactly BOUNTY_QUOTA)
   map?: DistrictSpec;                    // R16: a fixed block district (no roll); none = the hive map
+  packed?: { seed: number; grid: string }; // R17 (parked #65): a packed district rolled from this seed and grid (the same map every time)
 };
 
 // R16 test-bed districts (fixed: no roll, no rotation). cells are row-major block names.
 const district = (cols: number, rows: number, cells: string[], mods: [number, number][], forks: number[], paint?: any[]) =>
   ({ cols, rows, cells: cells.map(b => ({ b, rot: 0, mir: false })), mods, forks, paint });
 
+// R17: all three on one packed 4×2 district (seed 1701). Its long east-west street is row 13; alleys leave it north at
+// column 24 and south at columns 18 and 36.
+const D1701 = { seed: 1701, grid: '4x2' };
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 17 (eyes on the street). Pack off. ----
+  {
+    name: 'Side street', round: 17, seed: 1701, mission: 'UPLINK', packed: D1701,
+    tryThis: 'Walk the long street east to the uplink. You pass two alley mouths: one to the south, one to the north. A turret waits down one of them, out of your eyes while you face along the street. Drag from your ExoS to draw the move, then tap the path and drag to aim your eyes down an alley as you pass it.',
+    uplink: [41, 13],
+    lance: [{ tile: [13, 13], face: [41, 13] }, { tile: [12, 12], face: [41, 13] }],
+    field: [{ type: 'TURRET', variant: 'sentry', tile: [24, 4], face: [24, 13] }],
+    question: { q: 'Did you aim down the alley before you passed it?', a: ['Yes, and it found the turret', 'Yes, but the other alley', 'No, walked straight past', 'It shot me first'] },
+  },
+  {
+    name: 'Trip wire', round: 17, seed: 1702, mission: 'UPLINK', packed: D1701,
+    tryThis: 'Go north up the alley, then east along the street to the uplink. A patrol stands in the street round the corner. When it comes into view your move stops on that tile and you keep the AP you didn’t spend. Shoot, back off or draw again.',
+    uplink: [41, 13],
+    lance: [{ tile: [18, 17], face: [18, 13] }, { tile: [18, 18], face: [18, 13] }],
+    field: [{ type: 'PATROL', variant: 'line', tile: [29, 13], face: [18, 13], state: 'PATROL' }],
+    question: { q: 'When the move stopped, did you have what you needed to react?', a: ['Yes, enough AP to act', 'Yes, but no good option', 'No, it stopped too late', 'It never stopped'] },
+  },
+  {
+    name: 'Scrap line', round: 17, seed: 1703, mission: 'UPLINK', packed: D1701,
+    tryThis: 'Two turrets have eyes on you: one up the alley to the north behind a wall corner, one to the south behind scrap. Scrap is low cover (−' + TUNE.HIT_COVER_LOW + '%), a wall is full cover (−' + TUNE.HIT_COVER + '%). Select each one and read the odds line before you pick who to shoot first.',
+    uplink: [41, 13],
+    lance: [{ tile: [25, 15], face: [24, 9] }, { tile: [25, 16], face: [24, 22] }],
+    field: [
+      { type: 'TURRET', variant: 'gun', tile: [24, 9], face: [25, 15] },
+      { type: 'TURRET', variant: 'gun', tile: [24, 22], face: [25, 16] },
+    ],
+    question: { q: 'Did low cover change who you shot first?', a: ['Yes, shot the scrap one first', 'No, shot the wall one first', 'No, shot the closer one', 'Didn’t notice the cover'] },
+  },
   // ---- Round 16 (rolled ground). Pack off. ----
   {
     name: 'Long way round', round: 16, seed: 1601, mission: 'RETRIEVE',
@@ -213,7 +246,8 @@ export function startScenario(s: Scenario) {
   applyTune(s.tune);
   G.ct = null; // never inside a contract
   setSeed(s.seed); G.seed = s.seed;
-  if (s.map) { if (!buildDistrict(s.map)) throw new Error('scenario ' + s.name + ': district not reachable'); } else loadMap(HIVE); // R16
+  if (s.packed) { setSeed(s.packed.seed); rollPacked(s.packed.seed, s.packed.grid, s.mission === 'ESCORT'); setSeed(s.seed); } // R17: same seed, same district
+  else if (s.map) { if (!buildDistrict(s.map)) throw new Error('scenario ' + s.name + ': district not reachable'); } else loadMap(HIVE); // R16
   const U = G.up, up = ctr(s.uplink); U.x = up.x; U.y = up.y; U.name = 'test point';
   G.comp = { NAME: 'Test bed', staticPlacement: 'uplink' }; // no type counts: newHunt builds no field, prep below places it
   setZones(s.zones || []);

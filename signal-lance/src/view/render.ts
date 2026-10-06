@@ -1,10 +1,10 @@
 import { TUNE } from '../tune.ts';
-import { partsRead } from '../sim/combat.ts';
+import { partsRead, coverInfo } from '../sim/combat.ts';
 import { W, H, T, solid, clutter } from '../sim/world.ts';
 import { G, unitById } from '../sim/state.ts';
 import { bestContact } from '../sim/bot.ts';
 import { heardRange, canSee, cx, cy } from '../sim/sensors.ts';
-import { upDist, playerTarget, mortarBlock, mortarScatter } from '../sim/turns.ts';
+import { upDist, playerTarget, mortarBlock, mortarScatter, shootBlock, shotOdds } from '../sim/turns.ts';
 import { V } from './state.ts';
 import { zoneAtTile, effEmit, zoneType } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
@@ -12,6 +12,38 @@ import { traitLines, frozen, matchVariants, hasReading } from '../sim/ids.ts';
 import { isType, carrier } from '../sim/mission.ts';
 import { legButton, legPath, forksAhead, allyNextStop } from '../sim/escort.ts';
 import { anchors } from '../sim/world.ts';
+import { pathLen } from '../sim/turns.ts';
+
+// R17 (parked #59): where a route button sits: along its leg, at the first spot (6 tiles in, then every 2) that isn't under
+// the HUD text or the turn strip on screen. Input and tooltips read the same spot.
+export function routeBtn(i: number) {
+  const P = legPath(i), z = TUNE.ZOOMS[V.zoomI], r = 30, L = pathLen(P) * T;
+  const rects = ['hud', 'init'].map(id => document.getElementById(id)).filter(Boolean).map(el => el.getBoundingClientRect()).filter(b => b.width > 0);
+  const clear = (q) => { const sx = vw / 2 + (q.x - V.camX) * z, sy = vh / 2 + (q.y - V.camY) * z; return rects.every(b => sx < b.left - r || sx > b.right + r || sy < b.top - r || sy > b.bottom + r); };
+  for (let want = Math.min(6 * T, L / 2); want <= L; want += 2 * T) { const q = alongPath(P, want); if (clear(q)) return q; }
+  return legButton(i);
+}
+function alongPath(P, want) {
+  for (let k = 1; k < P.length; k++) {
+    const d = Math.hypot(P[k].x - P[k - 1].x, P[k].y - P[k - 1].y);
+    if (d >= want) return { x: P[k - 1].x + (P[k].x - P[k - 1].x) * want / d, y: P[k - 1].y + (P[k].y - P[k - 1].y) * want / d };
+    want -= d;
+  }
+  return P[P.length - 1];
+}
+// R17: the gold dashed end ring (the Escort's next-move marker's style), with a label beside it
+function goldRing(x, y, z, label) {
+  ctx.strokeStyle = '#fc3'; ctx.lineWidth = 3 / z; ctx.setLineDash([6 / z, 4 / z]); ctx.beginPath(); ctx.arc(x, y, 14 / z + 6, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
+  ctx.font = 'bold ' + (12 / z) + 'px monospace'; const w = ctx.measureText(label).width; // above the ring, clear of the path
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'; ctx.fillRect(x - w / 2 - 4 / z, y - 14 / z - 26 / z, w + 8 / z, 16 / z);
+  ctx.fillStyle = '#fc3'; ctx.textAlign = 'center'; ctx.fillText(label, x, y - 14 / z - 14 / z); ctx.textAlign = 'left';
+}
+// R17: a faint eyes cone (EYES_HALF_ANG, EYES_RANGE) from (x, y) along (fx, fy)
+function eyesCone(x, y, fx, fy, alpha) {
+  const a0 = Math.atan2(fy, fx), h = TUNE.EYES_HALF_ANG * Math.PI / 180;
+  ctx.fillStyle = 'rgba(150,220,255,' + alpha + ')'; ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, TUNE.EYES_RANGE * T, a0 - h, a0 + h); ctx.closePath(); ctx.fill();
+  ctx.strokeStyle = 'rgba(150,220,255,' + Math.min(1, alpha * 3) + ')'; ctx.lineWidth = 1.5; ctx.stroke();
+}
 
 // R13: a sound ring (pale, solid, with short ticks so it reads as "waves", not the dashed orange EMIT ring)
 function soundRing(x, y, r, z, alpha, label?) {
@@ -134,7 +166,7 @@ export function render() {
     }
     // R16 (Jamie: railway levers): a route button on every fork ahead. Lit = the lever is set (it will carry on that way)
     for (const f of forksAhead()) for (const l of f.legs) {
-      const b = legButton(l.i), r = 30 / z, set = f.set === l.i, waiting = a.leg < 0 && a.node === f.node;
+      const b = routeBtn(l.i), r = 30 / z, set = f.set === l.i, waiting = a.leg < 0 && a.node === f.node; // R17: clear of the HUD
       ctx.fillStyle = set ? 'rgba(120,230,160,0.9)' : 'rgba(30,60,40,0.85)'; ctx.strokeStyle = waiting && f.set < 0 ? '#fc3' : '#7e9'; ctx.lineWidth = 3 / z;
       ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.2832); ctx.fill(); ctx.stroke();
       ctx.fillStyle = set ? '#062' : '#bfe'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.textAlign = 'center'; ctx.fillText((set ? '✓ ' : '') + (l.name || 'ROUTE'), b.x, b.y + 4 / z); ctx.textAlign = 'left';
@@ -145,8 +177,36 @@ export function render() {
     ctx.globalAlpha = Math.min(1, G.pop.t); ctx.fillStyle = '#fc3'; ctx.font = 'bold ' + (15 / z) + 'px monospace';
     ctx.fillText('+' + G.pop.b + ' cr ' + G.pop.v, G.pop.x - 30 / z, G.pop.y - 18 / z - (2.5 - G.pop.t) * 12 / z); ctx.globalAlpha = 1;
   }
+  // R17: a drawn path: cyan up to where this turn's AP runs out, then red dashed past it; the gold ring = where it stops.
+  // Each facing waypoint: a diamond, a tick along its facing, and a faint eyes cone (where it will look as it walks).
+  if (G.plan && G.plan.drawn && !G.act && G.phase === 'PLAYER') {
+    const pl = G.plan, F = pl.full, P = pl.path;
+    if (pl.cut || !P) {
+      ctx.strokeStyle = 'rgba(255,110,80,0.75)'; ctx.lineWidth = 3 / z; ctx.setLineDash([7 / z, 6 / z]); ctx.beginPath(); ctx.moveTo(F[0].x, F[0].y);
+      for (let i = 1; i < F.length; i++) ctx.lineTo(F[i].x, F[i].y);
+      ctx.stroke(); ctx.setLineDash([]);
+    }
+    for (const w of pl.wps) { const q = F[w.i]; eyesCone(q.x, q.y, w.fx, w.fy, 0.1); }
+    if (P) {
+      ctx.strokeStyle = '#8fe3ff'; ctx.lineWidth = 3.5 / z; ctx.beginPath(); ctx.moveTo(P[0].x, P[0].y);
+      for (let i = 1; i < P.length; i++) ctx.lineTo(P[i].x, P[i].y);
+      ctx.stroke();
+      const q = P[P.length - 1];
+      const sr = pl.snd * (zoneAtTile(Math.floor(q.x / T), Math.floor(q.y / T))?.type === 'QUIET' ? TUNE.ZONE_TYPES.QUIET.SIG_MULT : 1);
+      soundRing(q.x, q.y, sr * T, z, 0.22);
+      goldRing(q.x, q.y, z, (pl.cut ? 'STOP · ' : '') + pl.ap + 'AP ' + pl.en + 'EN snd ' + Math.round(sr * 10) / 10 + (pl.wps.length ? ' · ' + pl.wps.length + ' look' + (pl.wps.length > 1 ? 's' : '') : ''));
+    } else goldRing(F[0].x, F[0].y, z, 'NO MOVE · ' + pl.why);
+    const kept = new Set(pl.wps.map(w => w.tx + ',' + w.ty));
+    for (const w of (G.planD ? G.planD.wps : [])) {
+      const x = (w.tx + 0.5) * T, y = (w.ty + 0.5) * T, on = kept.has(w.tx + ',' + w.ty), d = Math.hypot(w.fx, w.fy) || 1;
+      ctx.strokeStyle = ctx.fillStyle = on ? '#8fe3ff' : '#888'; ctx.lineWidth = 3 / z;
+      ctx.beginPath(); ctx.moveTo(x, y - 9); ctx.lineTo(x + 9, y); ctx.lineTo(x, y + 9); ctx.lineTo(x - 9, y); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + w.fx / d * 26, y + w.fy / d * 26); ctx.stroke();
+      if (!on) { ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText('past stop', x + 12, y - 8); }
+    }
+  }
   // Round 4: move preview (faint = full route, bright = what you can afford, X = where you'll stop)
-  if (G.plan && !G.act && G.phase === 'PLAYER') {
+  if (G.plan && !G.plan.drawn && !G.act && G.phase === 'PLAYER') {
     const pl = G.plan;
     ctx.lineWidth = 2 / z;
     if (pl.cut) {
@@ -316,6 +376,32 @@ export function render() {
     ctx.fillStyle = ctx.strokeStyle; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText('SPLASH ' + (s.hit ? 'hit' : 'miss'), s.x + s.sp + 4 / z, s.y + 4);
     ctx.globalAlpha = 1;
   }
+  // R17 (parked #18): aiming at a target in cover: outline the piece of cover that counts (yellow = wall −HIT_COVER, tan =
+  // scrap, low cover −HIT_COVER_LOW) and, green, your own cover where the shared-cover rule cancels it (you lean round it)
+  if (G.mode === 'hunt' && G.phase === 'PLAYER' && !G.act && G.load.ammo) {
+    const c = playerTarget(), u = c && c.on ? unitById(c.id) : null;
+    if (u && !u.dead && shootBlock(p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '' && shotOdds(p, c)) {
+      const ci = coverInfo(p.x, p.y, u.x, u.y);
+      const box = (L, col, lab) => {
+        if (!L.length) return;
+        ctx.strokeStyle = col; ctx.lineWidth = 3 / z; ctx.beginPath(); for (const [x, y] of L) ctx.rect(x * T + 2, y * T + 2, T - 4, T - 4); ctx.stroke();
+        const [x, y] = L[0]; ctx.fillStyle = col; ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText(lab, x * T, y * T - 4 / z);
+      };
+      box(ci.give, ci.kind === 'LOW' ? '#d9b27a' : '#ff6', ci.kind === 'LOW' ? 'LOW COVER −' + TUNE.HIT_COVER_LOW + '%' : 'COVER −' + TUNE.HIT_COVER + '%');
+      box(ci.cancelled, '#6f6', 'SHARED: no cover');
+    }
+  }
+  // R17: the interrupt cue over the suit that stopped
+  if (G.intr) {
+    const m = G.lance.find(x => x.id === G.intr.id);
+    if (m && !m.dead && !m.out) {
+      ctx.globalAlpha = Math.min(1, G.intr.t); ctx.strokeStyle = '#f63'; ctx.lineWidth = 3 / z;
+      ctx.beginPath(); ctx.arc(m.x, m.y, 22 + (TUNE.INTERRUPT_CUE_TIME - G.intr.t) * 8, 0, 6.2832); ctx.stroke();
+      ctx.fillStyle = '#ff8a5c'; ctx.font = 'bold ' + (14 / z) + 'px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('CONTACT — move stopped', m.x, m.y - 26 / z - 10);
+      ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText(G.intr.ap + 'AP kept · ' + G.intr.why, m.x, m.y - 12 / z - 10); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    }
+  }
   // your mechs (R7 s2): active one highlighted when it's acting; destroyed = grey X; A / B labels
   for (const m of G.lance) {
     ctx.font = 'bold ' + (12 / z) + 'px monospace';
@@ -334,6 +420,14 @@ export function render() {
   if (V.hitFlash > 0) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.strokeStyle = 'rgba(255,40,40,' + (V.hitFlash / 0.4) + ')';
     ctx.lineWidth = 16; ctx.strokeRect(0, 0, vw, vh);
+  }
+  // R17: while drawing, the cost beside the finger (STOP = this turn's AP runs out before the end of the stroke)
+  if (V.drawPt && G.plan && G.plan.drawn) {
+    const pl = G.plan, t = pl.path ? pl.ap + 'AP ' + pl.en + 'EN' + (pl.cut ? ' · STOP' : '') : 'NO MOVE · ' + pl.why;
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.font = 'bold 15px monospace';
+    const tw = ctx.measureText(t).width, x = Math.min(vw - tw - 8, V.drawPt.sx + 28), y = Math.max(76, V.drawPt.sy - 34);
+    ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(x - 6, y - 16, tw + 12, 22);
+    ctx.fillStyle = pl.cut || !pl.path ? '#ff8a5c' : '#8fe3ff'; ctx.fillText(t, x, y);
   }
   // Round 5: uplink off-screen → gold arrow at the screen edge pointing at it, with distance (R15: uplink, and Retrieve's cargo until picked up)
   if (isType('UPLINK') || (isType('RETRIEVE') && !G.mission.carrier) || (isType('ESCORT') && G.ally && !G.ally.dead)) {

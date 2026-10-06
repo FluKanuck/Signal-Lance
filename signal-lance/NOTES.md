@@ -770,6 +770,42 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Judgement: Escort with every mech out but the transport still in = BAIL (else it would walk on alone and could wait
      at an unset fork for ever).
    - Scripted lance: extracts when it stands in the zone and its goal is to leave; follows the transport / cargo out.
+   R17 (Eyes on the street) ASSUMPTIONS
+   - Drawn path (sim/turns.ts drawnTiles / planDrawn): the view samples the stroke in quarter-tile steps and sends tiles;
+     the rules start from the mover's own tile, drop tiles that aren't reachable street (walls, set pieces, pockets), join
+     any gap (or a diagonal that would cut a wall corner) with A* tile centres, and fold an L-step into a diagonal when the
+     diagonal is legal and the corner tile isn't clutter (so a hand-drawn slope costs what A* would, and drawn clutter is
+     never skipped). The walk runs tile centre to tile centre (no smoothing): clutter on the path is taken on purpose.
+   - Cost is planMove's: pathCost (clutter-weighted), MOVE_TILES_PER_AP / MOVE_ENERGY_PER_TILE for the mode, cut where AP
+     or EN runs out (clipPathCost). The preview keeps the whole stroke (red dashed past the cut). Legs / cargo blocks as tap.
+   - A drawn path lives only for this activation (G.planD; cleared on activation and after the move). No multi-turn paths.
+     A tap on the map replaces it with a tap move; tapping a waypoint (no drag) removes it.
+   - Waypoints: on the first visit to a path tile (never the start tile: turn there with a tap). Each is one change of
+     facing, even if it happens to match the walking direction. Cost: m.freeTurns first, then AP_TURN each, added to the
+     move's AP. If the AP can't reach a waypoint it is dropped (shown grey "past stop") and costs nothing. The suit stops
+     that frame's step on the waypoint tile, turns, looks (zero-time sensor update), and holds the facing (m.holdFace)
+     until the next waypoint or the end of the move. Without waypoints facing follows travel as before.
+   - Eyes on every step: the real-time sensors already ran every frame of a move with the current facing; R17 adds an
+     explicit zero-time look on each new tile entered (and at each waypoint). The passive suite and hearing already run on
+     the shared real-time clock during a move, so nothing else needed adding.
+   - Interrupt (player suits only, tap and drawn moves alike; MOVE_INTERRUPT): checked every frame of the move. "New" =
+     a contact id the lance had no contact on at the start of the move (any sense: eyes, sound, passive, alarm), or this
+     suit's eyes on a unit it couldn't see at the start. The move stops where the suit is (on that tile). AP charged =
+     ceil(tiles walked / tiles per AP) + the reached waypoints' turn cost; EN = ceil(tiles walked × EN per tile); the rest
+     is refunded, and unused free turns come back. The log tag says what showed it: eyes / sound / sensors / alarm.
+   - Clutter sound now lands when the mover first steps into a clutter tile (it used to be added at the start of the move),
+     so an interrupted move that never reached the scrap makes only its mode's sound. Same for everyone.
+   - The scripted lance: after an interrupt it may move again in the same activation (it shoots first if it can).
+   - Scrap = low cover: coverInfo returns WALL if any grazed (non-shared) tile is a building / set piece, else LOW if only
+     clutter grazes. HIT_COVER (25) vs HIT_COVER_LOW (15); the odds line reads "low cover −15". Unit sizes don't exist
+     yet; when they do, larger units are meant to get only −5% from low cover (Jamie, R16). Sizes not built.
+   - Cover source (parked #18): drawn while FIRE is allowed on the selected / best contact, from the true target position
+     (the same one the odds use): the cover piece (coverPiece: the grazed tile + joined wall / clutter within
+     COVER_ITEM_RADIUS) in yellow (wall) or tan (scrap), and the shooter's shared piece in green.
+   - Escort button (parked #59): placed along its leg at the first spot (6 tiles in, then every 2) whose screen position
+     is clear of the HUD text box and the turn strip (view only: render.ts routeBtn); it can shift as the camera pans.
+   - Test bed: Scenario.packed = { seed, grid } rolls a packed district (seed 1701, 4×2 for all three). Lance and field
+     tiles were picked from that map by hand (checked in test/route.test.ts).
 ```
 
 ## TWEAK LOG
@@ -1136,4 +1172,12 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round16 debrief (r16-s9) | last changes (packed districts, start zones, HOLD / HURRY, levers + next-move ring, shared
            cover, EXTRACT per mech): "Helped". Weakest: "It felt fine". Read-and-connect check: "the map changed my plan". Log
            answers (r16-s6 Escort): map "Changed my plan", clutter "Went round it", tap-to-move "Did what I wanted" | no change | -
+   round17 | build as briefed | NEW drawn paths (DRAW_PATH_ENABLED true, DRAW_GRAB_PX 26), facing waypoints
+           (FACE_WAYPOINTS_MAX 3, WAYPOINT_GRAB_PX 22), eyes on every step + move interrupt (MOVE_INTERRUPT true,
+           INTERRUPT_CUE_TIME 2.5), scrap = low cover (HIT_COVER_LOW 15; walls stay HIT_COVER 25), cover source outline, Escort
+           button clear of the HUD. Scenarios Side street, Trip wire, Scrap line (packed district 1701). Runner 60 contracts
+           (scripted lance taps only): wins 49% (R16 37%); with MOVE_INTERRUPT off 40%, and with HIT_COVER_LOW 25 as well 39%,
+           so low cover is worth ~1 point and the interrupt ~9 (the bot stops on new contacts and shoots). Interrupts on 23%
+           of lance moves, in 94% of hunts (eyes 520, sensors 138, sound 44). Hit into clutter cover 37% (avg shown 41%),
+           into wall cover 36% (avg shown 34%). BUILD r17-s1 | -
 ```

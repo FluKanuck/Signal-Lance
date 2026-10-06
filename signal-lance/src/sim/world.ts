@@ -184,7 +184,8 @@ export function nearestFree(tx, ty) {
   return -1;
 }
 // Returns array of world points from (wx0,wy0) to tile target, or null.
-export function findPath(wx0, wy0, wx1, wy1) {
+// R17: raw = the A* tile centres only (no smoothing, first / last not moved to the exact points): joins a drawn path's gaps.
+export function findPath(wx0, wy0, wx1, wy1, raw = false) {
   const s = nearestFree(Math.floor(wx0 / T), Math.floor(wy0 / T));
   const t = nearestFree(Math.floor(wx1 / T), Math.floor(wy1 / T));
   if (s < 0 || t < 0) return null;
@@ -210,6 +211,7 @@ export function findPath(wx0, wy0, wx1, wy1) {
   const pts = [];
   for (let c = t; c !== -1; c = from[c]) pts.push({ x: (c % W + 0.5) * T, y: (((c / W) | 0) + 0.5) * T });
   pts.reverse();
+  if (raw) return pts;
   pts[0] = { x: wx0, y: wy0 };
   if (t === ty * W + tx && !isSolid(Math.floor(wx1 / T), Math.floor(wy1 / T))) pts[pts.length - 1] = { x: wx1, y: wy1 };
   return smooth(pts);

@@ -39,7 +39,7 @@ export const G: any = {
   pc: makeContacts(8), // player's contact list (fixed pool; one per field unit)
   sel: null,         // selected contact
   phase: 'PLAYER', turn: 1, act: null, ewait: 0, // Round 4: whose turn, the running action, enemy pacing
-  pmode: 'NORMAL', planT: null, plan: null,        // Round 4: move mode, tapped destination, its costed preview
+  pmode: 'NORMAL', planT: null, planD: null, plan: null, intr: null, // Round 4: move mode, tapped destination, its costed preview. R17: planD = this turn's drawn path { tiles, wps }; intr = the interrupt cue
   up: { x: 0, y: 0, name: '', prog: 0, used: false }, winBy: '',   // Round 5: this run's uplink point (world coords), progress, used this turn; WIN reason
   zones: [],        // R10: this run's rolled signal terrain (see zones.ts)
   ct: null,         // R11: the running contract (see contract.ts)
@@ -51,7 +51,7 @@ export const G: any = {
   obs: {}, ids: {}, idStat: {}, eyesAny: false, // R14: per field unit id: what the lance observed, its committed ID, runner stats
   tb: null, // R14: the test-bed scenario being played (null = a normal hunt)
   mtype: 'UPLINK', mission: null, pop: null, ally: null, // R15 s3: ally = the Escort transport (null otherwise)
-  moveStat: { n: 0, c: 0 }, // R16: lance moves this hunt, and how many entered clutter (runner)
+  moveStat: { n: 0, c: 0, tap: 0, drawn: 0, wp: 0, intr: [] }, // R16: lance moves this hunt, and how many entered clutter (runner). R17: tap / drawn moves, waypoints, interrupts
   // R15: the rolled mission type, this hunt's mission (see mission.ts), the last bounty pop (view)
 };
 for (let i = 0; i < 8; i++) G.fx.push({ on: false, x: 0, y: 0, t: 0, hit: false });
@@ -213,10 +213,10 @@ export function newHunt(loads?, prep?: () => void) {
   for (const s of G.shells) s.on = false;
   for (const f of G.fx) f.on = false;
   G.sel = null; G.splash = null; // R9: last mortar splash (view shows it briefly)
-  G.act = null; G.turn = 1; G.planT = null; G.plan = null;
+  G.act = null; G.turn = 1; G.planT = null; G.planD = null; G.plan = null; G.intr = null;
   G.time = 0;
   G.obs = {}; G.ids = {}; G.idStat = {}; G.eyesAny = false; // R14: observed traits, committed IDs, runner stats (see ids.ts)
-  G.moveStat = { n: 0, c: 0 }; // R16
+  G.moveStat = { n: 0, c: 0, tap: 0, drawn: 0, wp: 0, intr: [] }; // R16; R17
   G.shotLog = []; G.partLog = []; G.firstLog = []; G.alarmLog = []; G.emitStat = { P: { n: 0, sum: 0 }, E: { n: 0, sum: 0 } }; G.lastShot = { P: null, E: null };
   G.mode = 'hunt';
   if (prep) prep();

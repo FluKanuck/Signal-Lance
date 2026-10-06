@@ -71,7 +71,7 @@ export function playerTurn() {
       cmdMoveMode(AUTO.loud ? 'SPRINT' : AUTO.quiet ? 'CREEP' : 'NORMAL'); cmdTarget(g.x, g.y); moved = true;
       if (AUTO.loud && G.plan && !G.plan.path && G.plan.why !== 'LEGS') { cmdMoveMode('NORMAL'); cmdTarget(g.x, g.y); } // can't afford any sprint
       if (G.plan && !G.plan.path && G.plan.why === 'LEGS') { cmdMoveMode('CREEP'); cmdTarget(g.x, g.y); } // R12: legs gone = creep
-      if (G.plan && G.plan.path) { cmdMove(); runAct(); continue; }
+      if (G.plan && G.plan.path) { const n = G.moveStat.intr.length; cmdMove(); runAct(); if (G.moveStat.intr.length > n) moved = false; continue; } // R17: stopped by something new: react, then it may walk on
     }
     break;
   }

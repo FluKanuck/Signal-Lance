@@ -205,6 +205,13 @@ export const TUNE = {
   MOD_SPAWN_CHANCE: 0.5,   // each block's modifier slot (sound zone, set piece, ground clutter) spawns with this chance per hunt
   CLUTTER_TILE_COST: 2,    // tiles of movement each clutter tile costs to cross (1 = off). Same for everyone; pathing goes round it if it can
   CLUTTER_SOUND: 3,        // tiles added to a move's Sound if it enters any clutter tile (once per move; 0 = off)
+  // --- R17: drawn routes ("Eyes on the street") ---
+  DRAW_PATH_ENABLED: true, // drag from your selected ExoS to draw this turn's path (false = tap-to-move only)
+  FACE_WAYPOINTS_MAX: 3,   // facing waypoints per drawn move (tap the path, drag to aim). Each is one change of facing: FREE_TURNS first, then AP_TURN
+  MOVE_INTERRUPT: true,    // a player move stops on the tile where it reveals something new (new contact, or eyes on a known one); unspent AP / EN kept
+  DRAW_GRAB_PX: 26,        // screen radius around your ExoS that starts a drawn path (a tap there still arms a face change)
+  WAYPOINT_GRAB_PX: 22,    // screen radius for grabbing a tile on the drawn path to add (or drag) a facing waypoint
+  INTERRUPT_CUE_TIME: 2.5, // seconds the "CONTACT — move stopped" cue stays on the suit
   ESCORT_FORKS: 2,         // forks on a block map's escort route (each with 2-3 onward legs: NORTH / AHEAD / SOUTH, open streets only)
   // R16 debrief 2 (Jamie: "still feels too much like a grid"): packed districts of irregular shapes (sim/packed.ts)
   MAP_LAYOUT: 'packed',    // 'packed' = shapes packed on half-block cells, cropped at the map edge; 'grid' = the r16-s3 block grid
@@ -348,6 +355,7 @@ export const TUNE = {
   HIT_MOVED_PER_TILE: 4,  // − this % per tile the target moved in its LAST activation (statics always 0)...
   HIT_MOVED_MAX: 24,      // ...up to this much
   HIT_COVER: 25,          // − this % if the target is in cover:
+  HIT_COVER_LOW: 15,      // R17 (Jamie, parked #62): − this % instead when only ground clutter (scrap / rubble) covers it ("low cover"); walls and set pieces stay HIT_COVER
   COVER_GRAZE: 0.3,       // ...the shot line passes closer than this (tiles) to a wall tile (last 0.5 tile ignored). R12 run: 0.5 → 0.3
   COVER_ADJ: 0.75,        // R16 (Jamie): tiles; a shooter this close to the same piece of cover as its target ignores that cover (lean out and shoot)...
   COVER_ITEM_RADIUS: 3,   // ...a 'piece' = the grazed wall / clutter tile and everything joined to it within this many tiles

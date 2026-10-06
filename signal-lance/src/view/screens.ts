@@ -4,6 +4,7 @@ import { newContract, previewJob, takeJob, rollJobs, rerollJobs, dmgWord, lanceT
 import { V } from './state.ts';
 import { $, fmtTime } from './hud.ts';
 import { partsRead, shotsText } from '../sim/combat.ts';
+import { moveText } from '../sim/turns.ts';
 import { soundText } from '../sim/sound.ts';
 import { idText } from '../sim/ids.ts';
 import { setPack } from '../sim/pack.ts';
@@ -14,7 +15,7 @@ import { mapText } from '../sim/blocks.ts';
 import { fieldCount } from '../sim/state.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r16-s9';  // R16: each mech EXTRACTs on its own; the hunt ends when every friendly is out (s8: Escort extraction wait)
+export const BUILD = 'r17-s1';  // R17: drawn paths, facing waypoints, eyes on every step + move interrupt, scrap = low cover, cover source shown
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
@@ -102,7 +103,7 @@ export function zoneText() {
 }
 export function enemySummary() { return 'field ' + G.units.map(u => u.type[0] + (u.dead ? 'x' : '')).join(''); }
 function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
-export function killText() { return 'kills ' + G.kills + '/' + G.units.length + (missionText() ? ' · ' + missionText() : '') + zoneText() + mortarText() + shotsText() + soundText() + idText(); } // R14: IDs n (right, wrong, before eyes) // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
+export function killText() { return 'kills ' + G.kills + '/' + G.units.length + (missionText() ? ' · ' + missionText() : '') + zoneText() + mortarText() + shotsText() + soundText() + moveText() + idText(); } // R14: IDs n (right, wrong, before eyes) // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
 // R9: "· mortar 3/5 hits, 2 kills (A)" — shells that hit the field / shells fired, kills, who carried it
 export function mortarText() {
   const ms = G.lance.filter(m => m.load.mortar);
