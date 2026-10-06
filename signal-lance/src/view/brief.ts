@@ -29,6 +29,13 @@ export const TEST = {
 };
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
+  { round: 16, title: 'Round 16: Rolled ground', lines: [
+    'Every hunt is a new district packed from irregular city pieces (half blocks, strips, L shapes, hand-drawn blocks), cut off at the map edge; the job card gives its size. Bigger districts have a bigger field.',
+    'Brown speckled scrap and rubble: slow (2 tiles of movement a tile), loud (+3 sound), low cover. Rusty walls are set pieces and street barricades; chicanes can be weaved through but not seen past.',
+    'You start in a cleared staging area. Hover or hold a finger on anything on the map to see what it is. Cover you share with your target (both up against it) does not count.',
+    'Escort: up to three routes per fork (NORTH / AHEAD / SOUTH), levers to set forks ahead, a ring for where the next move ends, HOLD and HURRY orders, and the transport in the turn strip.',
+    'Every mech leaves on its own: walk into the green zone and tap EXTRACT. The hunt ends once all your living mechs are out.',
+  ] },
   { round: 15, title: 'Round 15: Pick your fights', lines: [
     'Jobs come in four types, shown on top of each job card: UPLINK (stand in the ring and uplink), BOUNTY, RETRIEVE and ESCORT.',
     'BOUNTY: every kill pays that enemy’s bounty (prices on the CARD). Reach the quota for a win, then extract when you choose. The field has extra enemies.',
@@ -112,7 +119,7 @@ const LAYOUT = `<svg viewBox="0 0 300 150" width="300" height="150" style="max-w
 function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }
 // The splash pages through rounds: this one first, then HISTORY. The last round a tester opened is remembered (this
 // device), so a returning tester is told how many rounds they missed and pages back through them with ‹ / › or a swipe.
-const PAGES = () => [{ round: TEST.round, title: 'New in this build', lines: TEST.newThings }, ...HISTORY];
+const PAGES = () => [{ round: TEST.round, title: 'New in this build', lines: TEST.newThings }, ...HISTORY.filter(h => h.round !== TEST.round)]; // the current round's own page isn't repeated
 let page = 0;
 function seenGet() { try { return Number(localStorage.getItem('signalLance.seenRound')) || 0; } catch (_) { return 0; } }
 function seenSet(n: number) { try { localStorage.setItem('signalLance.seenRound', String(n)); } catch (_) {} }
@@ -123,7 +130,7 @@ function showPage() {
   ($('spPrev') as any).disabled = page >= P.length - 1; ($('spNext') as any).disabled = page <= 0;
 }
 export function buildBrief(build: string) {
-  const seen = seenGet(), missed = HISTORY.filter(h => seen && h.round > seen).length;
+  const seen = seenGet(), missed = HISTORY.filter(h => seen && h.round > seen && h.round !== TEST.round).length;
   $('spTitle').textContent = TEST.title + ' · ' + build;
   $('spBody').innerHTML = '<p><b>The game:</b> you run two mechs, A and B. Find hidden enemies with your sensors, then win the hunt.</p>' +
     '<p><b>This test:</b> ' + esc(TEST.question) + '</p>' +
