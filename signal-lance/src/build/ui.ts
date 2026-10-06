@@ -20,7 +20,7 @@ const toCode = (x: Build) => btoa(encodeURIComponent(JSON.stringify(x)));
 function fromCode(code: string): Build | null {
   let got: Build;
   try { got = JSON.parse(decodeURIComponent(atob(code.trim()))) as Build; } catch { return null; }
-  if (!got || !byId(FRAMES, got.frame)) return null;
+  if (!got || !byId(FRAMES, got.frame) || byId(FRAMES, got.frame).field) return null;
   const fresh = emptyBuild(got.frame, got.chassis);
   // Keep only what still matches the frame's hardpoints (rows may have changed since the code was made).
   for (const l of LOCS) {
@@ -64,7 +64,7 @@ function render() {
     `<button class="chip" data-tpl="${t.id}">${esc(t.role)}</button>`).join('') +
     (undo ? '<button class="chip" id="undo">undo</button>' : '');
   $('tip').textContent = tip;
-  $('frames').innerHTML = FRAMES.map(x =>
+  $('frames').innerHTML = FRAMES.filter(x => !x.field).map(x => // R18: field frames never show in a hangar
     `<button class="chip${x.id === f.id ? ' on' : ''}" data-frame="${x.id}">${x.name}</button>`).join('');
   $('chassis').innerHTML = (['steel', 'alloy', 'composite'] as const).map(c =>
     `<button class="chip${c === b.chassis ? ' on' : ''}" data-chassis="${c}" ${f.chassis.includes(c) ? '' : 'disabled'}>${c}</button>`).join('');

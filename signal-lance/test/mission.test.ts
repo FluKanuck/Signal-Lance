@@ -1,6 +1,9 @@
 // Round 15 step 1: mission types and BOUNTY. Each test reads like a line from the brief.
 import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
+import { has, gunOf, radarOf, mortarOf } from '../src/sim/kit.ts';
+import { ITEMS, byId } from '../src/sim/items.ts';
+import { fireRange } from '../src/sim/turns.ts';
 import { G, rollEnemy, newHunt, fieldCount } from '../src/sim/state.ts';
 import { T, W, anchors, canReach as canReachTile } from '../src/sim/world.ts';
 import { newContract, takeJob } from '../src/sim/contract.ts';
@@ -120,7 +123,7 @@ describe('R15 scenarios', () => {
     expect(W - TUNE.EXTRACT_COLS - A.x / T).toBeLessThan(6);
     expect(e.type).toBe('EMPLACEMENT'); expect(TUNE.BOUNTY[e.variant]).toBeGreaterThanOrEqual(50);
     const d = Math.hypot(e.x - A.x, e.y - A.y) / T;
-    expect(d).toBeGreaterThan(TUNE.MORTAR_MIN_RANGE); expect(d).toBeLessThan(TUNE.MORTAR_MAX_RANGE);
+    expect(d).toBeGreaterThan(mortarOf(A).min); expect(d).toBeLessThan(mortarOf(A).max);
   });
 });
 

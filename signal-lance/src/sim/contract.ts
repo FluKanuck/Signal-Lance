@@ -6,6 +6,7 @@ import { T } from './world.ts';
 import { G, rollEnemy, newHunt, setActive } from './state.ts';
 import { splitHits, syncHits, partsRead } from './combat.ts';
 import { huntPay } from './mission.ts';
+import { fitHits, fitRounds, fitShells, kitOf, toFit } from './kit.ts';
 
 // Contract-level RNG (mulberry32 on its own state), so job rolls never disturb a hunt's seeded RNG.
 function crand(): number {
@@ -21,10 +22,10 @@ function pickWeighted(list) {
   for (const c of list) { r -= c.weight ?? 1; if (r < 0) return c; }
   return list[list.length - 1];
 }
-// A fresh mech's numbers from its loadout (same as makeMech in state.ts).
-function fresh(load) {
-  const hits = TUNE.PLAYER_HITS + load.armour * TUNE.ARMOUR_HITS, parts = splitHits('MECH', hits); // R12: per part
-  return { hits, maxHits: hits, parts, pmax: { ...parts }, ammo: load.ammo * TUNE.AMMO_PER_SLOT, shells: load.mortar ? TUNE.MORTAR_SHELLS : 0, dead: false };
+// A fresh mech's numbers from its fit (same as makeMech in state.ts). R18: loads are fits.
+function fresh(fit) {
+  const hits = fitHits(fit), parts = splitHits('MECH', hits); // R12: per part
+  return { hits, maxHits: hits, parts, pmax: { ...parts }, ammo: fitRounds(fit), shells: fitShells(fit), dead: false };
 }
 // Damage read for a lance mech, using the same thresholds as the enemy read.
 export function dmgWord(c) {
@@ -37,8 +38,9 @@ export function contractActive() { return !!G.ct && G.ct.status === 'ACTIVE'; }
 // Start a contract: lock the loadouts ([A, B]), set fresh carry, roll hunt 1's jobs.
 // hunts (optional): a shorter contract for quick testing (the loadout screen's 1-hunt toggle). Wins needed scale down with it.
 export function newContract(seed: number, loads, hunts = TUNE.CONTRACT_HUNTS) {
+  loads = loads.map(toFit); // R18: fits (old load numbers still work)
   G.ct = {
-    seed: seed >>> 0, rs: seed >>> 0, loads: loads.map(l => ({ ...l })),
+    seed: seed >>> 0, rs: seed >>> 0, loads: loads.map(l => structuredClone(l)),
     hunt: 0, wins: 0, results: [], jobs: [], status: 'ACTIVE', huntSeed: 0,
     hunts, need: Math.min(TUNE.CONTRACT_WINS_NEEDED, hunts), // this contract's length and wins needed
     carry: { A: fresh(loads[0]), B: fresh(loads[1]) },
@@ -118,8 +120,9 @@ export function refitBlock(id, what) {
   if (what === 'rebuild') { if (!c.dead) return 'NONE'; }
   else if (c.dead) return 'LOST';
   if (what === 'repair' && c.hits >= cap.hits) return 'CAP';
-  if (what === 'rounds' && (!C.loads[id === 'A' ? 0 : 1].ammo || c.ammo >= cap.ammo)) return C.loads[id === 'A' ? 0 : 1].ammo ? 'CAP' : 'NONE';
-  if (what === 'shell' && (!C.loads[id === 'A' ? 0 : 1].mortar || c.shells >= cap.shells)) return C.loads[id === 'A' ? 0 : 1].mortar ? 'CAP' : 'NONE';
+  const L = C.loads[id === 'A' ? 0 : 1], gun = fitHasGun(L), mortar = fitHasMortar(L); // R18: the fit's gun / mortar rows
+  if (what === 'rounds' && (!gun || c.ammo >= cap.ammo)) return gun ? 'CAP' : 'NONE';
+  if (what === 'shell' && (!mortar || c.shells >= cap.shells)) return mortar ? 'CAP' : 'NONE';
   if (what === 'rebuild' && cap.hits <= 0) return 'CAP';
   if (C.credits < cost) return 'CR';
   return '';
@@ -143,6 +146,8 @@ export function buysText(list) {
   return Object.entries(n).map(([k, v]) => k + (v > 1 ? '×' + v : '')).join(', ');
 }
 
+export function fitHasGun(fit) { return kitOf(fit).some(k => k.item.gun); }
+export function fitHasMortar(fit) { return kitOf(fit).some(k => k.item.mortar); }
 // R12 step 1: "repair one hit" goes to the part missing the most hits (destroyed parts count; ties: CORE, LEGS, WEAPON, SENSORS).
 function repairWorst(c) {
   let best = '', miss = 0;

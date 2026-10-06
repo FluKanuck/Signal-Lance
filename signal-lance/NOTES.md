@@ -824,6 +824,34 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      (the facing = from the point to the marker). A tap on the same spot (under 0.4 tiles away) cancels. A look marker can
      be dragged (live re-aim) or tapped (picks its point again; a "✕ LOOK" button then removes it). The marker is view
      data on the waypoint (lx, ly); the rules use only the facing.
+   R18 (Fit for the job) ASSUMPTIONS, checkpoint 1 (parity)
+   - Step 0: build-toy merged as is. Its rows (data.ts) and rules (rules.ts) moved to src/sim/items.ts and src/sim/fit.ts;
+     src/build/data.ts and rules.ts re-export them, so the toy and `npm run build:toy` are unchanged.
+   - A2: unit.fit is the toy's Build (frame, chassis, mounts by location, plate, skin) + `rounds` (gun rounds loaded).
+     unit.items = the fitted rows with their location, worked out once at build time. has(u, tag), active(u, id),
+     itemsAt(u, loc), radarOf / gunOf / mortarOf(u) ask it. New tags so a check reads one tag: PASSIVE (EM array),
+     MASK, GHOST, GUN (autocannon), MORTAR, BATTERY. `online(u, loc)` is always true at checkpoint 1 (parts come at 2).
+   - The R17 DEFAULT_LOAD is a steel Warden on a Cold-burn: MAST EM array + mask, ARMS autocannon (20 rds), CORE
+     Cold-burn + ghost (in the OPEN hardpoint), steel plate on CORE. Warden has only 2 MAST hardpoints, so a third sensor
+     spills to the CORE's OPEN one. The reactor does nothing yet (power is checkpoint 2).
+   - The old loadout picker stays for checkpoint 1 and its numbers become a fit (kit.ts fitFromLoad): sensors on the
+     MAST then the CORE's OPEN hardpoint, mortar and batteries in BACK / CORE, plates CORE → ARMS → LEGS → MAST → BACK,
+     rounds = ammo × 10. A picker load that doesn't fit a Warden (radar + passive + ECM all at once, or many cells with
+     a mortar) drops what has no room. The hangar replaces the picker at checkpoint 2. newHunt / newContract still take
+     old load numbers (the runner's and tests' shorthand) and turn them into fits.
+   - FIELD_TYPES rows get FRAME (f_patrol, f_turret, f_empl: roomy field-only frames, never in a hangar; the turret and
+     emplacement have no LEGS hardpoints). The unit's fit is built from FRAME + RADAR / PASSIVE / ARMOUR / AMMO / CELLS
+     (+ the variant's STATS), as before. The field's ECM was never fitted (hasEcm 0): no MASK row.
+   - A3: radar range / cone / AP / EN / EMIT / signature, gun rounds / range / base to-hit / shot sound, and mortar shells
+     / AP / launch sound / min / max range / scatter now read from the row (TUNE keys removed, each with a comment where
+     it was). They keep R17's values, so the Lamp says range 18 (the catalogue's 8 was a guess), and the steel plate is
+     3 hits (the toy's guess was 2; ARMOUR_HITS 3 stays for the mortar's damage). A variant's own SOUND.SHOT (hush 5)
+     still overrides its gun's. The shared rules stay in TUNE (lock rule FIRE_UNC, shots per turn, radar walls / unc,
+     mortar splash / damage / blind lob).
+   - Small fix found on the way (equipment plan): cmdEcm and canGhost now check the fit has a mask / ghost (before, only
+     the HUD hid the buttons).
+   - Parity: `npm run sim` (50 games), `--contracts 60`, `--contracts 30 --loud`, `--contracts 20 --pack` and
+     `--scenario earshot` give byte-identical output to R17 (bd91ae8).
 ```
 
 ## TWEAK LOG
@@ -1214,4 +1242,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            kept. Runner 60 contracts: wins 49% (s3 49%). BUILD r17-s4 | -
    round17 debrief 1 (r17-s4) | last changes (look markers, free facing): "Helped". Weakest: "It felt fine". Move
            stops: "Saved me" | no change | -
+   round18 s0 | brief: bring the hangar toy in | merged build-toy into main; rows + rules moved into src/sim (the toy
+           re-exports them) | -
+   round18 s1 | brief checkpoint 1 (parity): A1 item table, A2 one fit for both sides, A3 stats from the row | load.* /
+           hasRadar / passive / hasEcm → unit.fit + has(); RADAR_RANGE, RADAR_HALF_ANG, AP_RADAR, RADAR_EN, SIGNAL_RADAR,
+           SIG_RADAR, PLAYER_FIRE_RANGE, ENEMY_FIRE_RANGE, HIT_BASE, SOUND_RANGE.SHOT / MORTAR, MORTAR_SHELLS, AP_MORTAR,
+           MORTAR_MIN / MAX_RANGE, MORTAR_SCATTER_BASE / PER_UNC, AMMO_PER_SLOT, ENERGY_CELL → item rows (same values).
+           Runner 60 contracts: wins 49% (R17 49%), output byte-identical to R17 on every runner mode tried. BUILD r18-s1 | -
 ```

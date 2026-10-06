@@ -11,7 +11,7 @@ export const TUNE = {
   CAM_LERP: 6,          // camera follow stiffness (higher = snappier)
   DPR_MAX: 2,           // cap on devicePixelRatio (performance)
   SMOOTH_PAD: 0.3,      // path smoothing clearance, in tiles
-  SLOTS: 10,            // loadout slots on the mech
+  SLOTS: 10,            // loadout slots on the mech (R18: the old picker only, until the hangar replaces it)
   // --- signature (arbitrary units) ---
   SIG_STILL: 0.5,       // standing still
   SIG_MOVE: 2.0,        // UNUSED from R13 (movement is Sound now, not a passive emission). Was: added while moving
@@ -19,7 +19,7 @@ export const TUNE = {
   CREEP_SIG_MULT: 0.5,  // UNUSED from R13. Was: whole signature × this while creeping (R4 run6: creep = quieter, not silent)
   SIG_FIRE: 6.0,        // UNUSED from R13 (the gun's firing spike is Sound now). Was: added briefly after each shot
   SIG_FIRE_TIME: 1.0,   // seconds the firing spike lasts
-  SIG_RADAR: 12.0,      // added while radar is on
+  // SIG_RADAR (12, added while radar is on): R18 moved to the radar's row (src/sim/items.ts, radar.sig)
   SIG_ARMOUR: 1.0,      // added per armour plate
   // --- detection ---
   DET_FALLOFF: 6,       // tiles; strength = sig / (1 + (dist/FALLOFF)^2)
@@ -44,8 +44,7 @@ export const TUNE = {
   SELF_TAP_PX: 16,      // screen radius for tapping your own mech (arms / cancels a face change)
   TRACK_GAP: 1.6,       // seconds without a new fix before a triangulated contact counts as lost
   // --- radar ---
-  RADAR_RANGE: 18,      // tiles
-  RADAR_HALF_ANG: 50,   // degrees, half-width of the forward cone
+  // RADAR_RANGE (18 tiles), RADAR_HALF_ANG (50°): R18 moved to the radar's row (src/sim/items.ts, radar.range / halfAng)
   RADAR_UNC: 0.3,       // tiles, uncertainty of a clear-LOS radar fix
   RADAR_MAX_WALLS: 4,   // building tiles radar can see through
   RADAR_WALL_UNC: 0.6,  // tiles of extra uncertainty per building tile in the way
@@ -64,7 +63,7 @@ export const TUNE = {
   GHOST_COST: 25,       // Energy to place a ghost (plus AP_ECM)
   GHOST_TURNS: 3,       // your turns a ghost lasts (was GHOST_TIME 25 s)
   // --- weapons (both sides) ---
-  AMMO_PER_SLOT: 10,    // rounds per autocannon slot
+  // AMMO_PER_SLOT (10): R18 gone with the slot picker; the gun's row sets rounds loaded (src/sim/items.ts, gun.rounds)
   SHOT_SPEED: 25,       // tiles/sec shell speed
   HIT_RADIUS: 0.6,      // tiles; target must be this close to the aim point when the shell lands
   SHOT_DAMAGE: 1,       // hits removed per shell
@@ -72,7 +71,7 @@ export const TUNE = {
   GHOST_UNC: 2.5,       // tiles; how certain a ghost looks to the enemy
   // --- enemy ---
   ENEMY_SPAWN_MIN: 35,  // tiles; min spawn distance from the player
-  ENEMY_FIRE_RANGE: 12, // tiles
+  // ENEMY_FIRE_RANGE (12 tiles): R18 moved to the gun's row (gun.range)
   ENEMY_BLIND_PULSE: 8, // seconds (÷ SEC_PER_TURN = turns) between radar pulses for an enemy with no passive suite
   ENEMY_INVEST_DIST: 10,// tiles along a bare bearing that it goes to check
   ENEMY_ACT_PAUSE: 0.4, // real seconds between the enemy's actions on its turn (readability)
@@ -80,17 +79,17 @@ export const TUNE = {
   // --- shots (both sides) ---
   SHOTS_PER_TURN: 2,    // max shots per turn, each mech
   PLAYER_FIRE_UNC: 2,   // tiles; the player can only shoot contacts at least this certain
-  PLAYER_FIRE_RANGE: 12,// tiles; player max shot range (= ENEMY_FIRE_RANGE)
+  // PLAYER_FIRE_RANGE (12 tiles): R18 moved to the gun's row (gun.range, both sides)
   // --- Round 4: I-go-you-go, action points + Energy (both mechs, same rules) ---
   AP_PER_TURN: 4,       // AP gained at the start of your own turn
   AP_BANK_MAX: 8,       // unspent AP carries over, up to this
   AP_SHOT: 1,           // AP per shot
-  AP_RADAR: 2,          // AP per radar pulse
+  // AP_RADAR (2): R18 moved to the radar's row (radar.ap)
   AP_ECM: 1,            // AP to switch ECM on, and again at the start of each of your turns while on (also the ghost)
   ENERGY_BASE: 100,     // base Energy pool (was POWER_BASE)
-  ENERGY_CELL: 50,      // extra Energy per energy cell (was POWER_CELL)
+  // ENERGY_CELL (50): R18 a battery row's pool (src/sim/items.ts)
   ENERGY_REGEN: 10,     // Energy regained at the start of your own turn
-  RADAR_EN: 25,         // Energy per radar pulse (≈4 pulses from full)
+  // RADAR_EN (25): R18 moved to the radar's row (radar.en)
   ECM_EN: 20,           // Energy per turn while ECM is on (paid with AP_ECM at turn start)
   MOVE_TILES_PER_AP: { CREEP: 1, NORMAL: 2, SPRINT: 3 },   // tiles bought by 1 AP
   MOVE_ENERGY_PER_TILE: { CREEP: 0, NORMAL: 1, SPRINT: 4 },  // Energy per tile (sprint was 10; 4-AP sprint = 12 tiles, 48 EN)
@@ -101,7 +100,7 @@ export const TUNE = {
   // R13: this pool is now EMISSIONS ("EMIT" on screen; unit.emit in code), electronic sources only (radar, ECM,
   // uplink). The SIGNAL_* names are kept so the TWEAK LOG history still matches.
   SIGNAL_MAX: 100,      // Signal range 0..MAX
-  SIGNAL_RADAR: 30,     // Signal added per radar pulse
+  // SIGNAL_RADAR (30, EMIT added per pulse): R18 moved to the radar's row (radar.emit)
   SIGNAL_ECM: 15,       // Signal added per turn while ECM is on (incl. the turn you switch it on)
   SIGNAL_MOVE_PER_TILE: { CREEP: 0, NORMAL: 0, SPRINT: 0 }, // UNUSED from R13 (all 0: movement is Sound now). Was CREEP 0, NORMAL 2, SPRINT 5 per tile
   SIGNAL_DECAY: 25,     // Signal lost at the start of the owner's turn
@@ -114,8 +113,7 @@ export const TUNE = {
     CREEP: 2,           // a creeping move
     NORMAL: 4,          // a normal move (R13 runner: 6 → 4, sound was 70% of the field's first contacts)
     SPRINT: 7,          // a sprint: louder than walking, but doesn't carry as far as a gunshot (R13 runner: 9 → 7)
-    SHOT: 12,           // a gun shot
-    MORTAR: 14,         // a mortar launch
+    // SHOT (12) and MORTAR (14): R18 moved to the gun's / mortar's row (gun.snd, mortar.snd). A variant's SOUND.SHOT still overrides
   },
   SOUND_UNC: 5,         // tiles; uncertainty of a sound contact (never enough for a gun lock or an aimed lob on its own)
   // --- Round 13 step 2: the pack (alarm, converge, press the wound). Off unless the tester splash / runner --pack turns it on ---
@@ -233,15 +231,16 @@ export const TUNE = {
   SEAM_BLOCK_CHANCE: 0.35, // R16 debrief: each stretch of street between two crossings gets a blocker with this chance (0 = the open grid)
   SEAM_BLOCK_KINDS: { RUBBLE: 0.4, BARRICADE: 0.3, CHOKE: 0.3 }, // weights: scrap across the street / a wall that shuts it / a wall over one lane
   FIELD_SHUFFLE: 1,   // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
+  // R18: FRAME = its frame in src/sim/items.ts; the unit's fit is built from FRAME + the numbers below (kit.ts fieldFit).
   // Per type. ARMOUR plates (signature as SIG_ARMOUR; hits = BASE_HITS + ARMOUR × ARMOUR_HITS), AMMO rounds,
   // CELLS energy cells (+ENERGY_CELL each), MOBILE 0 = never moves, RADAR/PASSIVE 0|1,
   // FIRE_UNC tiles (fires only at contacts at least this certain), NAME / PLURAL for INTEL and the result screen.
   // PATROL also takes the brain values the old bot used (copied from CAUTIOUS; see ROUND 7 ASSUMPTIONS):
   // PATIENCE_MIN/MAX s, CONFIDENT tiles, HOLD_DIST tiles, LEASH tiles (= GUARD_RADIUS × 1.5).
   FIELD_TYPES: {
-    TURRET:      { NAME: 'turret',      PLURAL: 'turrets',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 0, RADAR: 0, PASSIVE: 1, FIRE_UNC: 1.2 }, // hidden: silent until it fires; firm lock only (= PATIENT)
-    EMPLACEMENT: { NAME: 'emplacement', PLURAL: 'emplacements', ARMOUR: 2, BASE_HITS: 0, AMMO: 20, CELLS: 1, MOBILE: 0, RADAR: 1, PASSIVE: 0, FIRE_UNC: 2 },   // pulses radar on a timer, so it's findable
-    PATROL:      { NAME: 'patrol',      PLURAL: 'patrols',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 1, RADAR: 0, PASSIVE: 1, FIRE_UNC: 2,
+    TURRET:      { FRAME: 'f_turret', NAME: 'turret',      PLURAL: 'turrets',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 0, RADAR: 0, PASSIVE: 1, FIRE_UNC: 1.2 }, // hidden: silent until it fires; firm lock only (= PATIENT)
+    EMPLACEMENT: { FRAME: 'f_empl', NAME: 'emplacement', PLURAL: 'emplacements', ARMOUR: 2, BASE_HITS: 0, AMMO: 20, CELLS: 1, MOBILE: 0, RADAR: 1, PASSIVE: 0, FIRE_UNC: 2 },   // pulses radar on a timer, so it's findable
+    PATROL:      { FRAME: 'f_patrol', NAME: 'patrol',      PLURAL: 'patrols',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 1, RADAR: 0, PASSIVE: 1, FIRE_UNC: 2,
                    PATIENCE_MIN: 3, PATIENCE_MAX: 6, CONFIDENT: 2, HOLD_DIST: 8, LEASH: 9 },
   },
   // R13 test 2 (Jamie): field units carry comms, a steady electronic emission, so passive can find them. Emissions never
@@ -305,14 +304,12 @@ export const TUNE = {
   INIT_BASE: { MECH: 5, TURRET: 6, PATROL: 4, EMPLACEMENT: 3 }, // initiative = base + a seeded 0..INIT_ROLL each round; higher acts first, ties to the player
   INIT_ROLL: 3,        // top of the random part of the initiative roll (whole numbers 0..this)         // tiles; muzzle flash: a unit that's shot at gets a contact on the shooter this uncertain
   // --- Round 9: MORTAR loadout module (player mechs only): indirect fire on a fix, no LoS needed ---
-  MORTAR_SHELLS: 6,         // shells carried by a mech with the module (separate from gun rounds)
-  AP_MORTAR: 2,             // AP per mortar shot (no Energy cost)
+  // MORTAR_SHELLS (6), AP_MORTAR (2): R18 moved to the mortar's row (mortar.shells / ap)
   MORTAR_PER_ACTIVATION: 1, // max mortar shots per activation
   MORTAR_MAX_UNC: 4,        // tiles; the target contact must be at least this certain ("FUZZY" otherwise)
-  MORTAR_MIN_RANGE: 4,      // tiles; closer than this to the fix centre = "CLOSE"
-  MORTAR_MAX_RANGE: 18,     // tiles; further than this = "RANGE"
-  MORTAR_SCATTER_BASE: 0.5, // tiles; scatter radius = BASE + contact uncertainty (tiles) × PER_UNC...
-  MORTAR_SCATTER_PER_UNC: 0.6, // ...impact lands at a seeded random point inside that circle around the fix centre
+  // MORTAR_MIN_RANGE (4), MORTAR_MAX_RANGE (18), MORTAR_SCATTER_BASE (0.5), MORTAR_SCATTER_PER_UNC (0.6): R18 moved to the mortar's
+  // row (mortar.min / max / scatter / perUnc). Scatter radius = scatter + contact uncertainty (tiles) × perUnc; the impact lands at a
+  // seeded random point inside that circle around the fix centre
   MORTAR_SPLASH: 1,         // tiles; every unit (yours too) within this of the impact is damaged
   MORTAR_DMG: 1,            // armour plates of damage per splash (× ARMOUR_HITS = hits)
   SIG_MORTAR: 30,           // UNUSED from R13 (a mortar launch is Sound now: SOUND_RANGE.MORTAR). Was: Signal added to the firing mech per shot
@@ -349,7 +346,7 @@ export const TUNE = {
   // --- Round 12 step 1: to-hit roll + hit locations (both sides, same rules) ---
   // The lock rule (PLAYER_FIRE_UNC / FIELD_TYPES.FIRE_UNC, range, LOS, AP, cap, ammo) still gates FIRE; an allowed shot
   // then rolls to hit (seeded). Chance in %: HIT_BASE + Signal bonus − range − target moved − cover, clamped HIT_MIN..HIT_MAX.
-  HIT_BASE: 75,           // % before modifiers
+  // HIT_BASE (75 %, before modifiers): R18 moved to the gun's row (gun.hit)
   HIT_MIN: 10,            // % floor
   HIT_MAX: 95,            // % ceiling
   HIT_SIG_MAX: 15,        // + this × target's EFFECTIVE Signal / SIGNAL_MAX (after QUIET): loud targets are easier to hit

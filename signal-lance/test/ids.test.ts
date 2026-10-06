@@ -1,6 +1,9 @@
 // Round 14 part 1: read the signature. Variants, observed traits, the matcher, and what an ID does.
 import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
+import { has, gunOf, radarOf, mortarOf } from '../src/sim/kit.ts';
+import { ITEMS, byId } from '../src/sim/items.ts';
+import { fireRange } from '../src/sim/turns.ts';
 import { G, makeUnit, rollEnemy, newHunt } from '../src/sim/state.ts';
 import { T } from '../src/sim/world.ts';
 import { step, endPlayerTurn } from '../src/sim/turns.ts';
@@ -127,6 +130,6 @@ describe('R14 scenarios', () => {
     startScenario(scenarioByName('Twin pulse'));
     wait(7);
     for (const u of G.units) expect(matchVariants(obsOf(u.id))).toEqual([u.variant]);
-    expect(G.lance[0].load.mortar).toBe(1);
+    expect(has(G.lance[0], 'MORTAR')).toBe(true);
   });
 });

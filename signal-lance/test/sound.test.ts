@@ -1,6 +1,9 @@
 // Round 13 step 1: Sound vs Emissions. Each test reads like a line from the brief.
 import { describe, it, expect, beforeEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
+import { has, gunOf, radarOf, mortarOf } from '../src/sim/kit.ts';
+import { ITEMS, byId } from '../src/sim/items.ts';
+import { fireRange } from '../src/sim/turns.ts';
 import { G } from '../src/sim/state.ts';
 import { T, W, H, canReach, tilesCrossed } from '../src/sim/world.ts';
 import { beginUnit, planMove, doMove, shootBlock, mortarBlock, doPulse } from '../src/sim/turns.ts';
@@ -32,7 +35,7 @@ describe('Sound is one radius, not a pool', () => {
     makeSound(A, 'NORMAL'); makeSound(A, 'CREEP');
     expect(A.sound).toBe(TUNE.SOUND_RANGE.NORMAL);
     makeSound(A, 'SHOT');
-    expect(A.sound).toBe(TUNE.SOUND_RANGE.SHOT);
+    expect(A.sound).toBe(gunOf(A).snd);
   });
   it('clears at the start of the unit\'s next activation', () => {
     makeSound(A, 'SPRINT'); beginUnit(A);
@@ -82,7 +85,7 @@ describe('hearing', () => {
     const z = G.zones.find(z => z.type === 'QUIET');
     place(A, z.tiles[0].x, z.tiles[0].y);
     makeSound(A, 'SHOT');
-    expect(soundRadius(A)).toBeCloseTo(TUNE.SOUND_RANGE.SHOT * TUNE.ZONE_TYPES.QUIET.SIG_MULT);
+    expect(soundRadius(A)).toBeCloseTo(gunOf(A).snd * TUNE.ZONE_TYPES.QUIET.SIG_MULT);
   });
 });
 
@@ -93,8 +96,8 @@ describe('a sound contact is never enough to shoot', () => {
     makeSound(U, 'SHOT'); hearSounds();
     const c = contactOn(G.pc, U.id);
     c.unc = 0.5 * T; // pretend the circle shrank: the source still rules it out
-    A.ap = 8; A.turnShots = 0; A.mUsed = 0; A.load.mortar = 1; A.shells = 4;
-    expect(shootBlock(A, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE)).toBe('SOUND'); // the button says why
+    A.ap = 8; A.turnShots = 0; A.mUsed = 0; if (!mortarOf(A)) A.items.push({ item: byId(ITEMS, 'mortar'), loc: 'BACK' }); A.shells = 4;
+    expect(shootBlock(A, c, TUNE.PLAYER_FIRE_UNC, fireRange(A))).toBe('SOUND'); // the button says why
     expect(mortarBlock(A, c)).toBe('SOUND');
   });
 });
@@ -110,8 +113,9 @@ describe('Emissions are electronic only', () => {
   });
   it('a radar pulse still adds Emissions', () => {
     A.ap = 4; A.en = 100; A.emit = 0;
+    if (!radarOf(A)) A.items.push({ item: byId(ITEMS, 'lamp'), loc: 'MAST' }); // R18: pulsing needs a radar row
     doPulse(A, null, null);
-    expect(A.emit).toBe(TUNE.SIGNAL_RADAR);
+    expect(A.emit).toBe(radarOf(A).emit);
     expect(emitting(A)).toBe(true);
   });
 });

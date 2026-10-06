@@ -5,6 +5,7 @@ import { rand } from './rng.ts';
 import { G } from './state.ts';
 import { effEmit } from './zones.ts';
 import { idBonus } from './ids.ts';
+import { gunOf } from './kit.ts';
 
 // ============================ PARTS ===================================
 // u.kind: 'MECH' or a FIELD_TYPES key. u.parts / u.pmax: hits left / at full, per part. u.hits stays the
@@ -140,9 +141,10 @@ export function hitChance(sh, tgt, c) {
   const moved = -Math.min(TUNE.HIT_MOVED_MAX, TUNE.HIT_MOVED_PER_TILE * (tgt.movedT || 0));
   const ck = coverKind(sh.x, sh.y, tgt.x, tgt.y), cover = ck === 'WALL' ? -TUNE.HIT_COVER : ck === 'LOW' ? -TUNE.HIT_COVER_LOW : 0; // R17: scrap is low cover
   const id = G.lance.includes(sh) ? idBonus(tgt) : 0; // R14: a right call before eyes (the lance only)
-  const raw = TUNE.HIT_BASE + sig + range + moved + cover + id;
+  const base = gunOf(sh)?.hit ?? 0; // R18: the shooter's gun row
+  const raw = base + sig + range + moved + cover + id;
   const pct = Math.round(Math.max(TUNE.HIT_MIN, Math.min(TUNE.HIT_MAX, raw)));
-  return { pct, base: TUNE.HIT_BASE, sig: Math.round(sig), range: Math.round(range), moved: Math.round(moved), cover, coverKind: ck, id, rangeT, movedT: tgt.movedT || 0 };
+  return { pct, base, sig: Math.round(sig), range: Math.round(range), moved: Math.round(moved), cover, coverKind: ck, id, rangeT, movedT: tgt.movedT || 0 };
 }
 // "base 75 · sig +6 · range −12 · moved −8 · cover −25" (only the terms that apply, base always; R17: "low cover −15" for scrap)
 export function hitText(h) {

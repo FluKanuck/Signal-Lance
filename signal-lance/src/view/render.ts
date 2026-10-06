@@ -1,4 +1,6 @@
 import { TUNE } from '../tune.ts';
+import { has, radarOf, mortarOf } from '../sim/kit.ts';
+import { fireRange } from '../sim/turns.ts';
 import { partsRead, coverInfo } from '../sim/combat.ts';
 import { W, H, T, solid, clutter } from '../sim/world.ts';
 import { G, unitById } from '../sim/state.ts';
@@ -275,10 +277,10 @@ export function render() {
       ctx.strokeRect(e.goalX - 6, e.goalY - 6, 12, 12);
       ctx.fillText(e.goalK + ' goal ' + (Math.hypot(e.goalX - G.up.x, e.goalY - G.up.y) / T).toFixed(0) + 't from uplink', e.goalX + 10, e.goalY - 8);
     }
-    if (e.radarOn) {
-      const a0 = Math.atan2(e.fy, e.fx), h = TUNE.RADAR_HALF_ANG * Math.PI / 180;
+    if (e.radarOn && radarOf(e)) { // R18: cone from its radar row
+      const R = radarOf(e), a0 = Math.atan2(e.fy, e.fx), h = R.halfAng * Math.PI / 180;
       ctx.fillStyle = 'rgba(220,0,255,0.08)'; ctx.beginPath(); ctx.moveTo(e.x, e.y);
-      ctx.arc(e.x, e.y, TUNE.RADAR_RANGE * T, a0 - h, a0 + h); ctx.closePath(); ctx.fill();
+      ctx.arc(e.x, e.y, R.range * T, a0 - h, a0 + h); ctx.closePath(); ctx.fill();
     }
     const er = heardRange(e) * T;
     if (er > 0) { ctx.strokeStyle = 'rgba(220,0,255,0.35)'; ctx.lineWidth = 2 / z; ctx.beginPath(); ctx.arc(e.x, e.y, er, 0, 6.2832); ctx.stroke(); }
@@ -316,10 +318,10 @@ export function render() {
     ctx.setLineDash([]);
   }
   // radar cone (blue)
-  for (const m of G.lance) if (m.radarOn) {
-    const a0 = Math.atan2(m.fy, m.fx), h = TUNE.RADAR_HALF_ANG * Math.PI / 180;
+  for (const m of G.lance) if (m.radarOn && radarOf(m)) {
+    const R = radarOf(m), a0 = Math.atan2(m.fy, m.fx), h = R.halfAng * Math.PI / 180;
     ctx.fillStyle = 'rgba(80,160,255,0.13)'; ctx.beginPath(); ctx.moveTo(m.x, m.y);
-    ctx.arc(m.x, m.y, TUNE.RADAR_RANGE * T, a0 - h, a0 + h); ctx.closePath(); ctx.fill();
+    ctx.arc(m.x, m.y, R.range * T, a0 - h, a0 + h); ctx.closePath(); ctx.fill();
   }
   // bearing lines (cyan)
   ctx.lineWidth = 2 / z; ctx.strokeStyle = '#3dd';
@@ -366,19 +368,19 @@ export function render() {
   }
   // R9 mortar: scatter preview on the target (orange dashed = where the shell can land, solid when you can fire),
   // and the last splash (splash circle, red = hit something, grey = miss)
-  if (G.mode === 'hunt' && G.phase === 'PLAYER' && !G.act && G.load.mortar && p.shells > 0) {
+  if (G.mode === 'hunt' && G.phase === 'PLAYER' && !G.act && has(p, 'MORTAR') && p.shells > 0) {
     const c = playerTarget();
     if (c && c.on) {
-      const ok = mortarBlock(p, c) === '', r = mortarScatter(c);
+      const ok = mortarBlock(p, c) === '', r = mortarScatter(c, p);
       ctx.strokeStyle = '#e85'; ctx.lineWidth = 2 / z; ctx.globalAlpha = ok ? 0.9 : 0.35;
       ctx.setLineDash(ok ? [] : [6 / z, 6 / z]); ctx.beginPath(); ctx.arc(cx(c), cy(c), r, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = '#e85'; ctx.font = 'bold ' + (11 / z) + 'px monospace';
       ctx.fillText('±' + (r / T).toFixed(1) + 't', cx(c) + r + 4 / z, cy(c) - 4 / z); ctx.globalAlpha = 1;
     }
   }
-  if (V.mortarArm && !p.dead) { // R9 run1: mortar range band while armed (min and max range rings)
+  if (V.mortarArm && !p.dead && mortarOf(p)) { // R9 run1: mortar range band while armed (min and max range rings)
     ctx.strokeStyle = '#e85'; ctx.lineWidth = 2 / z; ctx.globalAlpha = 0.5; ctx.setLineDash([10 / z, 8 / z]);
-    for (const R of [TUNE.MORTAR_MIN_RANGE, TUNE.MORTAR_MAX_RANGE]) { ctx.beginPath(); ctx.arc(p.x, p.y, R * T, 0, 6.2832); ctx.stroke(); }
+    for (const R of [mortarOf(p).min, mortarOf(p).max]) { ctx.beginPath(); ctx.arc(p.x, p.y, R * T, 0, 6.2832); ctx.stroke(); }
     ctx.setLineDash([]); ctx.globalAlpha = 1;
   }
   if (G.splash) {
@@ -390,9 +392,9 @@ export function render() {
   }
   // R17 (parked #18): aiming at a target in cover: outline the piece of cover that counts (yellow = wall −HIT_COVER, tan =
   // scrap, low cover −HIT_COVER_LOW) and, green, your own cover where the shared-cover rule cancels it (you lean round it)
-  if (G.mode === 'hunt' && G.phase === 'PLAYER' && !G.act && G.load.ammo) {
+  if (G.mode === 'hunt' && G.phase === 'PLAYER' && !G.act && has(p, 'GUN')) {
     const c = playerTarget(), u = c && c.on ? unitById(c.id) : null;
-    if (u && !u.dead && shootBlock(p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '' && shotOdds(p, c)) {
+    if (u && !u.dead && shootBlock(p, c, TUNE.PLAYER_FIRE_UNC, fireRange(p)) === '' && shotOdds(p, c)) {
       const ci = coverInfo(p.x, p.y, u.x, u.y);
       const box = (L, col, lab) => {
         if (!L.length) return;

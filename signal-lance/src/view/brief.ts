@@ -5,19 +5,22 @@ import { $ } from './hud.ts';
 import { TUNE } from '../tune.ts';
 
 export const TEST = {
-  title: 'Round 17 test: Eyes on the street',
-  question: 'When you can shape each ExoS’s move and aim its eyes as it walks, does moving through a district become part of the hunt rather than just getting from A to B?',
+  title: 'Round 18 test: Fit for the job',
+  question: 'When you build each ExoS against the job and the INTEL, does it force a sacrifice you think about, and does that sacrifice show up in the hunt?',
   newThings: [
+    'NEW (r18-s1): same game, new insides. Every suit and enemy is now built from an item list (the hangar toy’s), so suit building can plug in next. Nothing should play differently from Round 17: if anything does, say so in the note.',
+  ],
+  round: 18,
+  howTo: 'Play a hunt or two as usual. If anything feels different from Round 17, tap the answer and add a note. When you finish, tap SEND LOG and send it to Jamie.',
+};
+const R17_NEW = [
     'NEW (r17-s2): draw your move freehand: drag from your ExoS and the line follows your finger (it goes round walls by itself; scrap you draw through is crossed on purpose). Cyan is as far as this turn’s AP goes; red dashed is past it. Drag the round handle at the end to carry the line on, or drag from the middle of the line to redraw from there. Then tap MOVE. Tap-to-move still works.',
     'NEW (r17-s2): aim your eyes as you walk. Tap a point on your line, then tap where it should look: an eye marker drops there (drag it to move it; tap it, then ✕ LOOK to remove it). The suit turns at that point and keeps looking that way until the next one or the end of the move; a faint cone shows where. Up to ' + TUNE.FACE_WAYPOINTS_MAX + ' per move. NEW (r17-s4): turning never costs AP any more, here or anywhere.',
     'NEW: your eyes work on every step of a move. If something new shows up (a contact you didn’t have, or your eyes landing on one you were tracking), the move stops on that tile: "CONTACT — move stopped". You keep the AP and energy you didn’t spend, so shoot, back off or draw again.',
     'NEW: scrap and rubble are now low cover: −' + TUNE.HIT_COVER_LOW + '% to hit, not −' + TUNE.HIT_COVER + '%. Walls and set pieces are still full cover. When you aim at a target in cover, the piece giving the cover is outlined (yellow = wall, tan = scrap), and green shows cover you share with it (no penalty).',
     'Escort route buttons no longer sit under the HUD text.',
     'TEST BED: "Side street", "Trip wire" and "Scrap line".',
-  ],
-  round: 17,
-  howTo: 'Play the three new scenarios first, then about 10 hunts in contracts. Try drawing your moves and aiming down alleys. After each hunt, tap the answers (the first one matters most) and add a note, especially if a move stopped when you didn’t want it to. When you finish, tap SEND LOG and send it to Jamie.',
-};
+]; void R17_NEW; // R18: Round 17's build notes (its HISTORY page is the condensed version)
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
   { round: 17, title: 'Round 17: Eyes on the street', lines: [
@@ -59,9 +62,7 @@ export const HISTORY = [
 ];
 // End-of-hunt questions (tap one answer each; optional). Answers go into the log line, next to the hunt's job type.
 export const QUESTIONS = [
-  { k: 'look', q: 'Aiming your eyes on the path…', a: ['Found something', 'Ruled a street out', 'Didn’t use it', 'Too fiddly'] },
-  { k: 'stop', q: 'When a move stopped…', a: ['It saved me', 'Gave me time to plan', 'It nagged', 'Never stopped'] },
-  { k: 'draw', q: 'Drawing the move…', a: ['Changed how I crossed', 'Same as tapping', 'Fought me', 'Didn’t draw'] },
+  { k: 'same', q: 'Compared with Round 17…', a: ['Same game', 'Something felt different', 'Didn’t play R17'] }, // R18 checkpoint 1 (parity)
 ];
 
 const BASICS = [

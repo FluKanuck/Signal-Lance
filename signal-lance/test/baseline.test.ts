@@ -1,6 +1,9 @@
 // Rules that held before Round 13 and should keep holding. If one of these breaks, a change leaked.
 import { describe, it, expect } from 'vitest';
 import { TUNE } from '../src/tune.ts';
+import { has, gunOf, radarOf, mortarOf } from '../src/sim/kit.ts';
+import { ITEMS, byId } from '../src/sim/items.ts';
+import { fireRange } from '../src/sim/turns.ts';
 import { G } from '../src/sim/state.ts';
 import { rand, setSeed } from '../src/sim/rng.ts';
 import { planMove, shootBlock, beginUnit } from '../src/sim/turns.ts';
@@ -68,12 +71,12 @@ describe('moves', () => {
 describe('shots', () => {
   it('the lock rule gives a one-word reason', () => {
     startHunt(1); const m = G.lance[0], e = G.units[0];
-    expect(shootBlock(m, null, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE)).toBe('NONE');
+    expect(shootBlock(m, null, TUNE.PLAYER_FIRE_UNC, fireRange(m))).toBe('NONE');
     m.ap = 4; m.turnShots = 0;
     const c = observe(G.pc, e.id, m.x + 3 * T, m.y, 5 * T, 0, 0, true, true);
-    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE)).toBe('FUZZY');
+    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, fireRange(m))).toBe('FUZZY');
     damagePart(m, 'WEAPON', m.parts.WEAPON);
-    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE)).toBe('WPN');
+    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, fireRange(m))).toBe('WPN');
   });
   it('hit chance stays inside HIT_MIN..HIT_MAX', () => {
     startHunt(1); const m = G.lance[0], e = G.units[0];

@@ -1,4 +1,6 @@
 import { TUNE } from '../tune.ts';
+import { has, radarOf, mortarOf } from '../sim/kit.ts';
+import { fireRange } from '../sim/turns.ts';
 import { G } from '../sim/state.ts';
 import { heardRange, sig, detStrength } from '../sim/sensors.ts';
 import { uplinkBlock, upDist, shootBlock, playerTarget, mortarBlock, mortarBlindBlock, shotOdds, sensorsUp } from '../sim/turns.ts';
@@ -52,8 +54,8 @@ export function updateHud(dt) {
       '  <b style="color:' + (p.sound ? '#e8f4ff' : '#778') + '">SOUND ' + (p.sound ? Math.round(soundRadius(p) * 10) / 10 : '–') + '</b>' + // R13: this activation's sound radius
 
     '<br><b>' + p.id + '</b> ' + partsRead(p) + (other ? '  <span style="color:#aab">' + other.id + ' ' + (other.dead ? 'destroyed' : other.out ? 'EXTRACTED' : partsRead(other)) + '</span>' : '') + // R12: per-part read
-    '<br>' + (G.load.ammo ? '  AMMO ' + p.ammo : '') + (G.load.mortar ? '  SHELLS ' + p.shells : '') + '  KILLS ' + G.kills + '/' + G.units.length + '  T ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  EMIT heard ~' + Math.round(heardRange(p)) + 't' : '  EMIT silent') + zoneHud(p) +
-    (G.load.ecm ? '  ECM ' + (p.mask ? 'ON' : 'off') + (G.ghost.on ? '  GHOST ' + G.ghost.turns + 't' : '') : '') +
+    '<br>' + (has(p, 'GUN') ? '  AMMO ' + p.ammo : '') + (has(p, 'MORTAR') ? '  SHELLS ' + p.shells : '') + '  KILLS ' + G.kills + '/' + G.units.length + '  T ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  EMIT heard ~' + Math.round(heardRange(p)) + 't' : '  EMIT silent') + zoneHud(p) +
+    (has(p, 'MASK') ? '  ECM ' + (p.mask ? 'ON' : 'off') : '') + (has(p, 'GHOST') && G.ghost.on ? '  GHOST ' + G.ghost.turns + 't' : '') +
     oddsLine(p) + shotLine('P') + shotLine('E') +
     (G.splash ? '<br><b style="color:' + (G.splash.hit ? '#f63' : '#aaa') + '">SPLASH: ' + (G.splash.hit ? 'hit' : 'miss') + '</b>' : '') +
     goalLine(p) +
@@ -89,8 +91,8 @@ function goalLine(p) {
 }
 // R12: the odds breakdown for the shot FIRE would take now (shown whenever FIRE is allowed)
 function oddsLine(p) {
-  if (G.mode !== 'hunt' || G.phase !== 'PLAYER' || !G.load.ammo) return '';
-  const c = playerTarget(); if (shootBlock(p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) !== '') return '';
+  if (G.mode !== 'hunt' || G.phase !== 'PLAYER' || !has(p, 'GUN')) return '';
+  const c = playerTarget(); if (shootBlock(p, c, TUNE.PLAYER_FIRE_UNC, fireRange(p)) !== '') return '';
   const h = shotOdds(p, c); return h ? '<br><b style="color:#ff6">ODDS ' + h.pct + '%</b>: ' + hitText(h) : '';
 }
 // R12: last shot by the lance ('P') / the field ('E'): "A → patrol: HIT LEG (62%)" / "turret → B: MISS (40%)"
@@ -120,12 +122,13 @@ export function syncButtons() {
   if (V.faceArm) setBtn('bMove', 'CANCEL', 'face', free, true);
   else setBtn('bMove', 'MOVE', !pl ? (TUNE.DRAW_PATH_ENABLED ? 'TAP OR DRAW' : 'TAP MAP') : pl.path ? pl.ap + 'AP ' + pl.en + 'EN' : pl.why, free && pl && pl.path); // R17: or draw from your ExoS
   // radar pulse
-  $('bRadar').hidden = !G.load.radar;
+  const R = radarOf(p); // R18: the radar row's costs
+  $('bRadar').hidden = !R;
   const sns = sensorsUp(p) ? '' : 'SNS'; // R13 test 2: sensors gone = no radar, ECM or ghost (the buttons said nothing before)
-  let w = sns || costWhy(TUNE.AP_RADAR, TUNE.RADAR_EN);
-  setBtn('bRadar', 'RADAR', w || TUNE.AP_RADAR + 'AP ' + TUNE.RADAR_EN + 'EN +' + TUNE.SIGNAL_RADAR + 'EMIT', free && !w);
+  let w = R ? sns || costWhy(R.ap, R.en) : 'NONE';
+  setBtn('bRadar', 'RADAR', w || R.ap + 'AP ' + R.en + 'EN +' + R.emit + 'EMIT', free && !w);
   // ECM + ghost
-  $('bEcm').hidden = $('bGhost').hidden = !G.load.ecm;
+  $('bEcm').hidden = !has(p, 'MASK'); $('bGhost').hidden = !has(p, 'GHOST'); // R18: two rows now
   w = sns || costWhy(TUNE.AP_ECM, TUNE.ECM_EN);
   if (p.mask) setBtn('bEcm', 'ECM ON', TUNE.AP_ECM + 'AP ' + TUNE.ECM_EN + 'EN/turn', free, true);
   else setBtn('bEcm', 'ECM', w || TUNE.AP_ECM + 'AP ' + TUNE.ECM_EN + 'EN', free && !w);
@@ -134,15 +137,16 @@ export function syncButtons() {
   else if (V.ghostArm) setBtn('bGhost', 'TAP MAP', 'to place', free, true);
   else setBtn('bGhost', 'GHOST', w || TUNE.AP_ECM + 'AP ' + TUNE.GHOST_COST + 'EN', free && !w);
   // fire
-  $('bFire').hidden = !G.load.ammo;
-  w = shootBlock(p, playerTarget(), TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE);
+  $('bFire').hidden = !has(p, 'GUN');
+  w = shootBlock(p, playerTarget(), TUNE.PLAYER_FIRE_UNC, fireRange(p));
   const odds = w ? null : shotOdds(p, playerTarget()); // R12: the hit chance on the button
   setBtn('bFire', odds ? 'FIRE ' + odds.pct + '%' : 'FIRE', w || TUNE.AP_SHOT + 'AP', free && !w);
   // R9: mortar (only on a mech carrying it)
-  $('bMortar').hidden = !G.load.mortar;
+  const M = mortarOf(p);
+  $('bMortar').hidden = !M;
   const wb = mortarBlindBlock(p); w = mortarBlock(p, playerTarget());
   if (V.mortarArm) setBtn('bMortar', 'TAP TARGET', V.mortarWhy || (w ? 'map = blind' : 'contact or map'), free, true);
-  else setBtn('bMortar', 'MORTAR', wb || TUNE.AP_MORTAR + 'AP · ' + p.shells + ' left' + (w ? ' · blind' : ''), free && !wb);
+  else setBtn('bMortar', 'MORTAR', wb || (M ? M.ap : 0) + 'AP · ' + p.shells + ' left' + (w ? ' · blind' : ''), free && !wb);
   setBtn('bEnd', 'END TURN', '', free);
   // R14: ID the selected contact (not once eyes have shown what it is)
   const sc = G.sel && G.sel.on ? G.sel : null, idv = sc && G.ids[sc.id] ? G.ids[sc.id].v : '';

@@ -9,6 +9,7 @@ import { effEmit, zoneType } from './zones.ts';
 import { hitChance, rollPart, damagePart, partGone, partHurt, eyesRange } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
+import { has, gunOf, radarOf, mortarOf } from './kit.ts';
 import { onKill, onAllOut, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
 // ============================ UPDATE ==================================
@@ -421,8 +422,9 @@ export function replan() {
   if (G.planT) G.planT.cut = !!(G.plan && G.plan.cut);
 }
 // ---- radar pulse ----
-export function doPulse(m, x, y) {
-  pay(m, TUNE.AP_RADAR, TUNE.RADAR_EN); addEmit(m, TUNE.SIGNAL_RADAR);
+export function doPulse(m, x, y) { // R18: costs and EMIT from its radar row
+  const R = radarOf(m);
+  pay(m, R.ap, R.en); addEmit(m, R.emit);
   if (x !== null && x !== undefined) faceTo(m, x, y);
   m.radarOn = true;
   startAct({ k: 'PULSE', m, t: TUNE.RADAR_PULSE_TIME });
@@ -430,7 +432,7 @@ export function doPulse(m, x, y) {
 // ---- shots (same lock rule shape for both mechs) ----
 // '' = can shoot; otherwise the one-word reason shown on the FIRE button.
 export function shootBlock(m, c, uncMax, range) {
-  if (!c || !c.on) return 'NONE';
+  if (!c || !c.on || !gunOf(m)) return 'NONE'; // R18: no gun row fitted
   if (partGone(m, 'WEAPON')) return 'WPN'; // R12
   if (m.ammo <= 0) return 'AMMO';
   if (m.turnShots >= TUNE.SHOTS_PER_TURN) return 'CAP';
@@ -461,41 +463,43 @@ export function doShot(m, c) {
 // ---- Round 9: mortar (player mechs with the module). Fires on the target contact's fix centre, no LoS. ----
 // '' = can fire; otherwise the one-word reason shown on the MORTAR button.
 export function mortarBlock(m, c) {
-  if (!m.load.mortar || !c || !c.on) return 'NONE';
+  const M = mortarOf(m); // R18: the mortar row's AP and ranges
+  if (!M || !c || !c.on) return 'NONE';
   if (m.shells <= 0) return 'SHELLS';
   if (m.mUsed >= TUNE.MORTAR_PER_ACTIVATION) return 'CAP';
-  if (m.ap < TUNE.AP_MORTAR) return 'AP';
+  if (m.ap < M.ap) return 'AP';
   if (c.snd) return 'SOUND'; // R13: no aimed lob on a sound-only contact (blind lobs still work)
   if (c.unc > TUNE.MORTAR_MAX_UNC * T) return 'FUZZY';
   const d = Math.hypot(cx(c) - m.x, cy(c) - m.y);
-  if (d < TUNE.MORTAR_MIN_RANGE * T) return 'CLOSE';
-  if (d > TUNE.MORTAR_MAX_RANGE * T) return 'RANGE';
+  if (d < M.min * T) return 'CLOSE';
+  if (d > M.max * T) return 'RANGE';
   return '';
 }
-// scatter radius (world units) for a shot on contact c: tighter fix = tighter circle
-export function mortarScatter(c) { return (TUNE.MORTAR_SCATTER_BASE + c.unc / T * TUNE.MORTAR_SCATTER_PER_UNC) * T; }
+// scatter radius (world units) for m's shot on contact c: tighter fix = tighter circle
+export function mortarScatter(c, m = G.p) { const M = mortarOf(m); return (M.scatter + c.unc / T * M.perUnc) * T; }
 // R9 run1: blind lob at a tapped map point. '' = can fire; else the one-word reason.
 export function mortarBlindBlock(m, x?, y?) {
-  if (!m.load.mortar) return 'NONE';
+  const M = mortarOf(m);
+  if (!M) return 'NONE';
   if (m.shells <= 0) return 'SHELLS';
   if (m.mUsed >= TUNE.MORTAR_PER_ACTIVATION) return 'CAP';
-  if (m.ap < TUNE.AP_MORTAR) return 'AP';
+  if (m.ap < M.ap) return 'AP';
   if (x === undefined) return '';
   const d = Math.hypot(x - m.x, y - m.y);
-  if (d < TUNE.MORTAR_MIN_RANGE * T) return 'CLOSE';
-  if (d > TUNE.MORTAR_MAX_RANGE * T) return 'RANGE';
+  if (d < M.min * T) return 'CLOSE';
+  if (d > M.max * T) return 'RANGE';
   return '';
 }
 export function doMortar(m, c) { // R10: aimed-lob stats split by whether the target unit stands in NOISE (runner)
   const u = unitById(c.id), noisy = zoneType(u) === 'NOISE', h0 = m.mHits;
-  lob(m, cx(c), cy(c), mortarScatter(c), u);
+  lob(m, cx(c), cy(c), mortarScatter(c, m), u);
   const k = noisy ? 'mN' : 'mO'; m[k + 'S'] = (m[k + 'S'] || 0) + 1; m[k + 'U'] = (m[k + 'U'] || 0) + c.unc / T; m[k + 'H'] = (m[k + 'H'] || 0) + (m.mHits > h0 ? 1 : 0);
 }
-export function doMortarBlind(m, x, y) { m.mBlind++; lob(m, x, y, (TUNE.MORTAR_SCATTER_BASE + TUNE.MORTAR_BLIND_UNC * TUNE.MORTAR_SCATTER_PER_UNC) * T, null); }
+export function doMortarBlind(m, x, y) { const M = mortarOf(m); m.mBlind++; lob(m, x, y, (M.scatter + TUNE.MORTAR_BLIND_UNC * M.perUnc) * T, null); }
 // one shell: aim point (ax, ay), scatter radius r. target = the unit whose contact was aimed at (gets the flash);
 // a blind lob has none, so every field unit the splash hits gets the flash instead.
 function lob(m, ax, ay, r, target) {
-  pay(m, TUNE.AP_MORTAR, 0); m.mUsed++; m.shells--; m.mShots++;
+  pay(m, mortarOf(m).ap, 0); m.mUsed++; m.shells--; m.mShots++;
   makeSound(m, 'MORTAR'); m.fireT = TUNE.SIG_FIRE_TIME; // R13: loud as Sound (no Emissions); fireT is display only now
   const a = rand() * 6.2832, k = Math.sqrt(rand()) * r;
   const ix = ax + Math.cos(a) * k, iy = ay + Math.sin(a) * k, sp = TUNE.MORTAR_SPLASH * T, dmg = TUNE.MORTAR_DMG * TUNE.ARMOUR_HITS;
@@ -514,6 +518,8 @@ function lob(m, ax, ay, r, target) {
   else for (const u of struck) if (u.hits > 0) muzzleFlash(m, u, TUNE.MORTAR_FLASH_UNC);
   startAct({ k: 'MORTAR', m, t: 0.4 });
 }
+// R18: m's shot range (tiles), from its gun row (0 = no gun)
+export function fireRange(m) { return gunOf(m)?.range || 0; }
 export function playerTarget() { return G.sel && G.sel.on ? G.sel : bestContact(G.pc); }
 // ---- Round 5: uplink ----
 export function upDist(m) { return Math.hypot(G.up.x - m.x, G.up.y - m.y) / T; } // tiles from the point's centre
@@ -574,23 +580,24 @@ export function cmdObjective() {
 }
 export function sensorsUp(m) { return !partGone(m, 'SENSORS'); } // R12: radar / ECM / ghost need sensors
 export function cmdRadar() {
-  if (!G.p.load.radar || !sensorsUp(G.p)) return; // R13: the module is needed (the view only hid the button)
-  if (!canPay(G.p, TUNE.AP_RADAR, TUNE.RADAR_EN)) return;
+  const R = radarOf(G.p);
+  if (!R || !sensorsUp(G.p)) return; // R13: the module is needed (the view only hid the button). R18: a radar row
+  if (!canPay(G.p, R.ap, R.en)) return;
   const c = G.sel && G.sel.on ? G.sel : null; // selected contact: turn to face it first
   doPulse(G.p, c ? cx(c) : null, c ? cy(c) : null);
 }
 export function cmdEcm() {
   if (G.p.mask) G.p.mask = false;
-  else if (sensorsUp(G.p) && canPay(G.p, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(G.p, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(G.p, TUNE.SIGNAL_ECM); G.p.mask = true; }
+  else if (has(G.p, 'MASK') && sensorsUp(G.p) && canPay(G.p, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(G.p, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(G.p, TUNE.SIGNAL_ECM); G.p.mask = true; }
 }
-export function canGhost() { return !G.ghost.on && sensorsUp(G.p) && canPay(G.p, TUNE.AP_ECM, TUNE.GHOST_COST); }
+export function canGhost() { return !G.ghost.on && has(G.p, 'GHOST') && sensorsUp(G.p) && canPay(G.p, TUNE.AP_ECM, TUNE.GHOST_COST); }
 export function cmdGhost(x, y) {
   if (canGhost()) { pay(G.p, TUNE.AP_ECM, TUNE.GHOST_COST); G.ghost.on = true; G.ghost.owner = G.p; G.ghost.x = x; G.ghost.y = y; G.ghost.turns = TUNE.GHOST_TURNS; }
   replan();
 }
 export function cmdFire() {
   const c = playerTarget();
-  if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') { G.sel = c; doShot(G.p, c); }
+  if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, fireRange(G.p)) === '') { G.sel = c; doShot(G.p, c); }
 }
 export function cmdMortar() { // R9
   const c = playerTarget();

@@ -10,7 +10,8 @@ import { cx, cy } from './sensors.ts';
 import { isType, quotaMet, carrier, isCarrier, pickupBlock, handoffTo, handoffBlock } from './mission.ts';
 import { legChoices, legPath } from './escort.ts';
 import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist, extractBlock, cmdExtract,
-         cmdSelect, cmdFire, cmdUplink, cmdObjective, cmdLeg, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp } from './turns.ts';
+         cmdSelect, cmdFire, cmdUplink, cmdObjective, cmdLeg, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp, fireRange } from './turns.ts';
+import { radarOf } from './kit.ts';
 
 export const AUTO_DT = 0.05;
 export const AUTO = { loud: false, quiet: false }; // R13: --loud = SPRINT every move, pulse radar whenever it can. R14: --quiet = CREEP every move
@@ -56,12 +57,12 @@ let extracted = false; // R16: the last playerTurn extracted its mech (the turn 
 export function playerTurn() {
   let moved = false; extracted = false;
   idTick(); // R14: commit an ID once a contact's traits narrow it to one variant
-  if (AUTO.loud && sensorsUp(G.p) && canPay(G.p, TUNE.AP_RADAR, TUNE.RADAR_EN)) { cmdRadar(); runAct(); } // R13 --loud: pulse every activation it can
+  if (AUTO.loud && sensorsUp(G.p) && radarOf(G.p) && canPay(G.p, radarOf(G.p).ap, radarOf(G.p).en)) { cmdRadar(); runAct(); } // R13 --loud: pulse every activation it can
   for (let k = 0; k < 12 && G.mode === 'hunt'; k++) {
     const c = playerTarget();
     if (c && G.sel !== c) cmdSelect(c); // select + turn to face it (free once a turn)
     if (mortarBlock(G.p, c) === '') { cmdMortar(); runAct(); continue; } // R9: lob at any contact that qualifies
-    if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') { cmdFire(); runAct(); continue; }
+    if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, fireRange(G.p)) === '') { cmdFire(); runAct(); continue; }
     if (uplinkBlock() === '') { cmdUplink(); continue; }
     if (extractBlock() === '' && goal().x >= (W - TUNE.EXTRACT_COLS - 1) * T) { cmdExtract(); extracted = true; return; } // R16: in the zone and leaving: EXTRACT (its turn is over)
     if (legChoices().length) { cmdLeg(pickQuietLeg()); }

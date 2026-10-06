@@ -6,7 +6,8 @@ import { T, loadMap, HIVE } from './world.ts';
 import { buildDistrict, type DistrictSpec } from './blocks.ts';
 import { rollPacked } from './packed.ts';
 import { setSeed } from './rng.ts';
-import { G, newHunt, makeUnit, setActive, DEFAULT_LOAD } from './state.ts';
+import { G, newHunt, makeUnit, setActive } from './state.ts';
+import { LOAD_DEFAULTS, fitFromLoad, has } from './kit.ts';
 import { setZones, zoneAtTile } from './zones.ts';
 import { syncHits } from './combat.ts';
 import { makeAlly } from './escort.ts';
@@ -252,7 +253,7 @@ export function startScenario(s: Scenario) {
   G.comp = { NAME: 'Test bed', staticPlacement: 'uplink' }; // no type counts: newHunt builds no field, prep below places it
   setZones(s.zones || []);
   G.mtype = s.mission || 'UPLINK'; // R15
-  const loads = s.lance.map(l => ({ ...DEFAULT_LOAD, ...(l.load || {}) }));
+  const loads = s.lance.map(l => fitFromLoad({ ...LOAD_DEFAULTS, ...(l.load || {}) })); // R18: the old load numbers, as a fit
   newHunt(loads, () => {
     G.lance.forEach((m, i) => {
       const L = s.lance[i], p = ctr(L.tile); m.x = p.x; m.y = p.y; face(m, L.face, up);
@@ -266,7 +267,7 @@ export function startScenario(s: Scenario) {
       u.x = u.gx = p.x; u.y = u.gy = p.y; face(u, f.face, up);
       if (f.state) u.state = f.state;
       u.zoned = zoneAtTile(f.tile[0], f.tile[1])?.type || '';
-      if (u.hasRadar) u.pulseCD = u.pulseN;
+      if (has(u, 'RADAR')) u.pulseCD = u.pulseN;
       return u;
     });
     if (s.ally) G.ally = makeAlly(s.ally); // R15 Escort

@@ -8,6 +8,7 @@ import { recordHunt } from './contract.ts';
 import { initParts } from './combat.ts';
 import { newMission } from './mission.ts';
 import { makeAlly, nearLegTiles } from './escort.ts';
+import { DEFAULT_FIT, toFit, fieldFit, fitHits, fitPool, fitRounds, fitShells, has, kitOf, plateCount, soundsOf } from './kit.ts';
 
 // Hooks the view sets so the sim can tell it things. Headless (runner) they stay no-ops.
 export const hooks = {
@@ -19,7 +20,6 @@ export const hooks = {
 // Bearing pool. R7: each bearing is tagged with the emitter it points at (id), so bearings on
 // different units never cross into a false fix.
 export function makeBearingPool(n) { const a: any = []; for (let i = 0; i < n; i++) a.push({ on: false, x: 0, y: 0, ang: 0, age: 0, tri: true, id: '' }); a.bi = 0; return a; }
-export const DEFAULT_LOAD = { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 }; // R9: mortar 0|1
 export function makeContacts(n) { const a = []; for (let i = 0; i < n; i++) a.push({ on: false, id: '', type: '', tx: 0, ty: 0, vx: 0, vy: 0, unc: 0, minU: 0, lost: 0, gap: 0 }); return a; }
 // ============================ STATE ===================================
 export const G: any = {
@@ -31,7 +31,6 @@ export const G: any = {
   comp: null,        // R8: this run's rolled composition (an entry of TUNE.FIELD_COMPOSITIONS)
   ei: 0,             // R7: index of the field unit acting in the enemy phase
   kills: 0,          // R7: field units destroyed this hunt
-  load: null,       // the active mech's loadout (= G.p.load)
   outcome: '',
   shells: [], fx: [],
   pb: makeBearingPool(32), bearT: 0, // player's bearing lines (tagged per unit)
@@ -63,21 +62,22 @@ export function makeUnit(type: string, i: number, variant?: string) {
   const vk = variant || TUNE.FIELD_VARIANT_DEFAULT[type], V = TUNE.FIELD_VARIANTS[vk];
   if (!V || V.TYPE !== type) throw new Error('variant ' + vk + ' is not a ' + type);
   const F = { ...TUNE.FIELD_TYPES[type], ...V.STATS, RADAR: V.PULSE > 0 ? 1 : 0 };
+  const fit = fieldFit(F); // R18: its kit as a fit, like a suit's
   const u: any = {
     id: 'U' + i, type, ft: F, x: 0, y: 0, fx: 1, fy: 0, path: null, pi: 0, moving: false, spd: 0, creep: false,
-    armour: F.ARMOUR, hits: 0, maxHits: 0, ammo: F.AMMO, en: 0, enMax: 0, ap: 0, turnShots: 0, freeTurns: 0, emit: 0,
+    fit, items: kitOf(fit), armour: plateCount(fit), hits: 0, maxHits: 0, ammo: fitRounds(fit), en: 0, enMax: 0, ap: 0, turnShots: 0, freeTurns: 0, emit: 0,
     radarOn: false, mask: false, jamming: false, fireT: 0, dead: false, shots: 0, landed: 0,
     sound: 0, heardBy: [], sndOff: { x: 0, y: 0 }, // R13: this activation's sound radius (see sound.ts)
-    hasRadar: F.RADAR, passive: F.PASSIVE, hasEcm: 0, mobile: F.MOBILE,
+    mobile: F.MOBILE, // R18: radar / passive / ECM are has(u, 'RADAR' | 'PASSIVE' | 'MASK') now
     state: F.MOBILE ? 'PATROL' : 'WATCH', pulseCD: 0, tgtX: 0, tgtY: 0, ptx: -1, pty: -1, gx: 0, gy: 0,
     moved: false, pulsed: false, holding: false, holdTurns: 0, patienceTurns: 0, goalX: -1, goalY: -1, goalK: '',
     ec: makeContacts(4), eb: makeBearingPool(16), ejit: { x: 0, y: 0, t: 0 }, pjit: { x: 0, y: 0, t: 0 }, bearT: 0, heardRadar: false,
     found: false, acted: false, // runner stats: the player ever had a contact on it / it ever fired, moved or pulsed
   };
-  initParts(u, type, F.BASE_HITS + F.ARMOUR * TUNE.ARMOUR_HITS); // R12: hit pool split across parts
-  u.enMax = u.en = TUNE.ENERGY_BASE + F.CELLS * TUNE.ENERGY_CELL;
+  initParts(u, type, F.BASE_HITS + fitHits(fit)); // R12: hit pool split across parts. R18: frame + plates from the fit
+  u.enMax = u.en = fitPool(fit); // R18: base + batteries
   u.variant = vk; u.comms = V.COMMS; u.pulseN = V.PULSE || TUNE.EMPL_PULSE_TURNS; // R14: its variant's EMIT floor and pulse rhythm
-  u.snd = { ...TUNE.SOUND_RANGE, ...V.SOUND };    // R14: its own move / shot sound radii
+  u.snd = soundsOf(u, V.SOUND);    // R14: its own move / shot sound radii. R18: the shot's from its gun row
   u.emit = u.comms; // R13 test 2: comms (passive can hear it from the start)
   return u;
 }
@@ -89,16 +89,17 @@ export function livingMechs() { return G.lance.filter(m => !m.dead); }
 // R16: mechs still in the district (alive and not extracted): they take turns
 export function activeMechs() { return G.lance.filter(m => !m.dead && !m.out); }
 export function isMech(m) { return G.lance.includes(m); }
-export function setActive(m) { G.p = m; G.load = m.load; }
-function makeMech(id: string, load) {
-  const m: any = { id, load: { ...load }, x: 0, y: 0, fx: 1, fy: 0, path: null, pi: 0, moving: false, spd: 0, creep: false,
+export function setActive(m) { G.p = m; }
+// R18: fit = the mech's fit (kit.ts). Hits, rounds, shells and Energy come from its rows.
+function makeMech(id: string, fit) {
+  const m: any = { id, fit: structuredClone(fit), x: 0, y: 0, fx: 1, fy: 0, path: null, pi: 0, moving: false, spd: 0, creep: false,
     radarOn: false, mask: false, jamming: false, fireT: 0, dead: false, shots: 0, landed: 0, ap: 0, turnShots: 0, freeTurns: 0, emit: 0, bearT: 0,
     sound: 0, heardBy: [], sndOff: { x: 0, y: 0 } }; // R13: this activation's sound radius (see sound.ts)
-  m.armour = load.armour; initParts(m, 'MECH', TUNE.PLAYER_HITS + load.armour * TUNE.ARMOUR_HITS); // R12: parts
-  m.ammo = load.ammo * TUNE.AMMO_PER_SLOT;
+  m.items = kitOf(m.fit); m.armour = plateCount(m.fit); initParts(m, 'MECH', fitHits(m.fit)); // R12: parts. R18: frame hits + plates
+  m.ammo = fitRounds(m.fit); m.snd = soundsOf(m);
   // R9 mortar: shells left, shots this activation, and stats (shots, hits on the field, kills, friendly hits)
-  m.shells = load.mortar ? TUNE.MORTAR_SHELLS : 0; m.mUsed = 0; m.mShots = 0; m.mHits = 0; m.mKills = 0; m.mFriendly = 0; m.mBlind = 0;
-  m.enMax = m.en = TUNE.ENERGY_BASE + load.cells * TUNE.ENERGY_CELL;
+  m.shells = fitShells(m.fit); m.mUsed = 0; m.mShots = 0; m.mHits = 0; m.mKills = 0; m.mFriendly = 0; m.mBlind = 0;
+  m.enMax = m.en = fitPool(m.fit);
   return m;
 }
 export function livingUnits() { return G.units.filter(u => !u.dead); }
@@ -163,11 +164,12 @@ export function rollVariant(type: string) {
   const keys = Object.keys(TUNE.FIELD_VARIANTS).filter(k => TUNE.FIELD_VARIANTS[k].TYPE === type), r = rand();
   return TUNE.VARIANTS_ENABLED ? keys[Math.floor(r * keys.length)] : TUNE.FIELD_VARIANT_DEFAULT[type];
 }
-// R7 s2: loads = [A's loadout, B's loadout] (one loadout = both mechs the same).
+// R7 s2: loads = [A's loadout, B's loadout] (one loadout = both mechs the same). R18: each is a fit (kit.ts).
 // R11: prep (optional) runs after the lance and field are built, before round 1 (the contract's carry-over).
 export function newHunt(loads?, prep?: () => void) {
   if (loads && !Array.isArray(loads)) loads = [loads, loads];
-  if (!loads) loads = G.lance.length ? G.lance.map(m => m.load) : [DEFAULT_LOAD, DEFAULT_LOAD];
+  if (!loads) loads = G.lance.length ? G.lance.map(m => m.fit) : [DEFAULT_FIT, DEFAULT_FIT];
+  loads = loads.map(toFit); // R18: old load numbers still work (runner, tests)
   const A = makeMech('A', loads[0]), B = makeMech('B', loads[1]), b = nextTo(spawnX, spawnY);
   A.x = (spawnX + 0.5) * T; A.y = (spawnY + 0.5) * T;
   B.x = (b.x + 0.5) * T; B.y = (b.y + 0.5) * T;
@@ -193,7 +195,7 @@ export function newHunt(loads?, prep?: () => void) {
       const fx = ambush ? (spawnX + 0.5) * T : U.x, fy = ambush ? (spawnY + 0.5) * T : U.y;
       const dx = fx - u.x, dy = fy - u.y, d = Math.hypot(dx, dy) || 1; u.fx = dx / d; u.fy = dy / d;
     }
-    if (u.hasRadar) u.pulseCD = u.pulseN;
+    if (has(u, 'RADAR')) u.pulseCD = u.pulseN;
     G.units.push(u);
   }
   // R15 Bounty: the field outnumbers the quota. Extra units, variant rolled from all 9 (seeded, evenly), placed 'anywhere'.
@@ -204,7 +206,7 @@ export function newHunt(loads?, prep?: () => void) {
     u.x = u.gx = (t.x + 0.5) * T; u.y = u.gy = (t.y + 0.5) * T;
     u.zoned = zoneAtTile(t.x, t.y)?.type || ''; u.extra = true;
     if (!u.mobile) { const dx = U.x - u.x, dy = U.y - u.y, d = Math.hypot(dx, dy) || 1; u.fx = dx / d; u.fy = dy / d; }
-    if (u.hasRadar) u.pulseCD = u.pulseN;
+    if (has(u, 'RADAR')) u.pulseCD = u.pulseN;
     G.units.push(u);
   }
   newMission(G.mtype); G.pop = null; // R15

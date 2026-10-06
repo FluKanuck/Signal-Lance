@@ -4,6 +4,7 @@
 import { TUNE } from '../tune.ts';
 import { G, unitById } from './state.ts';
 import { effEmit } from './zones.ts';
+import { ITEMS, byId } from './items.ts';
 
 // ============================ OBSERVED TRAITS ==========================
 // emit: bands seen ('none' | 'low' | 'high'), pulses: rounds a radar pulse was heard, moved: a move was seen or heard,
@@ -54,7 +55,7 @@ export function variantBands(v) {
     emit: V.PULSE ? ['low', 'high'] : [V.COMMS > 0 ? 'low' : 'none'], // a pulser's afterglow fades (and QUIET pulls it down) to low
     mobile: V.TYPE === 'PATROL',
     step: stepBand({ ...TUNE.SOUND_RANGE, ...V.SOUND }.NORMAL),
-    shot: shotBand({ ...TUNE.SOUND_RANGE, ...V.SOUND }.SHOT),
+    shot: shotBand({ SHOT: byId(ITEMS, 'autocannon').gun.snd, ...V.SOUND }.SHOT), // R18: every field gun is an autocannon row
   };
 }
 export function consistent(o, v: string) {

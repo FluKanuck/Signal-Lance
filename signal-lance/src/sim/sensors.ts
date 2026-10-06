@@ -6,13 +6,14 @@ import { emitUnc } from './turns.ts';
 import { effEmit, noiseUnc, zoneType } from './zones.ts';
 import { eyesRange } from './combat.ts';
 import { hearSounds } from './sound.ts';
+import { has, radarOf } from './kit.ts';
 import { raiseAlarm } from './pack.ts';
 import { noteEmit, notePulse, noteMoved, noteFired, reveal, emitBand, frozen } from './ids.ts';
 
 // ============================ SIGNATURE / DETECTION ===================
 // R13: electronic only. Moving and firing no longer reach passive sensors (they make Sound instead, see sound.ts).
 export function sig(m) {
-  return (TUNE.SIG_STILL + (m.radarOn ? TUNE.SIG_RADAR : 0) + m.armour * TUNE.SIG_ARMOUR + effEmit(m) * TUNE.SIGNAL_EMIT) * (m.mask ? TUNE.ECM_MASK_MULT : 1);
+  return (TUNE.SIG_STILL + (m.radarOn ? radarOf(m)?.sig || 0 : 0) + m.armour * TUNE.SIG_ARMOUR + effEmit(m) * TUNE.SIGNAL_EMIT) * (m.mask ? TUNE.ECM_MASK_MULT : 1);
 }
 // Passive sensors hear a unit pulsing radar or still carrying Emissions (R13: not moving or firing any more).
 export function emitting(m) { return m.radarOn || effEmit(m) > 0; } // R10: QUIET reads Emissions × SIG_MULT
@@ -33,12 +34,12 @@ export function canSee(o, m, rangeTiles) {
   if (d2 > rc * rc && (dx * o.fx + dy * o.fy) / Math.sqrt(d2) < EYES_COS) return false;
   return tilesCrossed(o.x, o.y, m.x, m.y, 1) === 0;
 }
-export const RADAR_COS = Math.cos(TUNE.RADAR_HALF_ANG * Math.PI / 180);
 // Returns building tiles between o and m if m is in o's radar cone and within
-// RADAR_MAX_WALLS, else -1.
+// RADAR_MAX_WALLS, else -1. R18: range and cone from o's radar row.
 export function inRadar(o, m) {
+  const R = radarOf(o); if (!R) return -1;
   const dx = m.x - o.x, dy = m.y - o.y, d = Math.hypot(dx, dy);
-  if (d > TUNE.RADAR_RANGE * T || (d >= 1 && (dx * o.fx + dy * o.fy) / d < RADAR_COS)) return -1;
+  if (d > R.range * T || (d >= 1 && (dx * o.fx + dy * o.fy) / d < Math.cos(R.halfAng * Math.PI / 180))) return -1;
   const w = tilesCrossed(o.x, o.y, m.x, m.y, TUNE.RADAR_MAX_WALLS + 1);
   return w <= TUNE.RADAR_MAX_WALLS ? w : -1;
 }
@@ -149,7 +150,7 @@ export function updateSensors(dt) {
   for (const m of G.lance) {
     m.fireT = Math.max(0, m.fireT - dt);
     m.jamming = m.mask || (g.on && g.owner === m);
-    m.tick = !m.dead && !m.out && m.load.passive && (m.bearT -= dt) <= 0; // R7 s2: each mech's passive suite samples on its own clock
+    m.tick = !m.dead && !m.out && has(m, 'PASSIVE') && (m.bearT -= dt) <= 0; // R7 s2: each mech's passive suite samples on its own clock
     if (m.tick) m.bearT = TUNE.BEARING_EVERY;
   }
   for (const e of G.units) {
@@ -169,14 +170,14 @@ export function updateSensors(dt) {
     }
     // R14: a radar pulse is heard by the lance's passive at once (the field's rule, radarNew below, now both ways)
     if (e.radarOn && !e.pulseHeard) {
-      const ears = mechs.filter(p => p.load.passive);
+      const ears = mechs.filter(p => has(p, 'PASSIVE'));
       for (const p of ears) addBearing(G.pb, p, e, G.pc, e.id, true);
       if (ears.length) { e.pulseHeard = true; notePulse(e); }
     } else if (!e.radarOn) e.pulseHeard = false;
     // R14: a move seen while you hold a live, real fix on it (eyes, radar or crossed bearings)
     if (e.moving && G.pc.some(c => c.on && c.id === e.id && !c.snd && !c.shr && c.lost <= c.gap)) noteMoved(e);
     // ---- this unit senses each mech (same rules) + ghost ----
-    const tick = e.passive && (e.bearT -= dt) <= 0;
+    const passive = has(e, 'PASSIVE'), tick = passive && (e.bearT -= dt) <= 0;
     if (tick) e.bearT = TUNE.BEARING_EVERY;
     for (const p of them) {
       const pv = p.moving ? p.spd * T : 0;
@@ -184,7 +185,7 @@ export function updateSensors(dt) {
       else if (e.radarOn) radarFix(e, p, e.ec, p.id, e.ejit, p.fx * pv, p.fy * pv, dt);
       const radarNew = p.radarOn && !(e.heard && e.heard[p.id]);
       (e.heard || (e.heard = {}))[p.id] = p.radarOn;
-      if (e.passive && (tick || radarNew)) {
+      if (passive && (tick || radarNew)) {
         const s = emitting(p) ? sig(p) : 0;
         if (p.radarOn || (s > 0 && emitStrength(e, p, s) >= TUNE.DET_THRESH)) addBearing(e.eb, e, p, e.ec, p.id, true);
         else if (p.jamming && emitStrength(e, p, TUNE.SIG_JAM) >= TUNE.DET_THRESH) addBearing(e.eb, e, p, e.ec, p.id, false);

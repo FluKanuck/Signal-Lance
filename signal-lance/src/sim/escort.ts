@@ -53,7 +53,7 @@ export function makeAlly(at = 'S') {
     order: '', holdsLeft: TUNE.ESCORT_HOLDS, hurriesLeft: TUNE.ESCORT_HURRIES, hurrying: false, // R16: the pending order (HOLD / HURRY) and what's left
     levers: {}, passed: [] }; // R16 (Jamie): levers = fork node → the leg set ahead of time; passed = forks it has already left
   initParts(a, 'ALLY', TUNE.ESCORT_HITS);
-  a.load = { passive: 0, radar: 0, ecm: 0, ammo: 0, mortar: 0 };
+  a.fit = null; a.items = []; // R18: no kit (no sensors, no gun)
   const L = legsFrom(at); if (L.length === 1) startLeg(a, L[0].i); // a single onward leg: just go
   return a;
 }

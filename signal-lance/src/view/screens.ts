@@ -13,21 +13,25 @@ import { MISSION_INFO, missionText, isType, escortBonus } from '../sim/mission.t
 import { anchors, MAP, W, H } from '../sim/world.ts';
 import { mapText } from '../sim/blocks.ts';
 import { fieldCount } from '../sim/state.ts';
+import { fitFromLoad, fitText, has } from '../sim/kit.ts';
+import { fitHasGun, fitHasMortar } from '../sim/contract.ts';
+import { ITEMS, byId } from '../sim/items.ts';
+const ROW = (id: string) => byId(ITEMS, id); // R18: the picker's numbers come from the item rows
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r17-s5';  // R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
+export const BUILD = 'r18-s1';  // R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
 // ============================ LOADOUT / RESULT / RUN LOG ==============
 export const MODS = [
   { k: 'armour',  name: 'Armour plate',  slots: 2, max: 5,  desc: '+3 hits · +1 signature' },
-  { k: 'radar',   name: 'Active radar',  slots: 2, max: 1,  desc: 'pulse ' + TUNE.AP_RADAR + ' AP + ' + TUNE.RADAR_EN + ' EN · cone, sees through 4 walls · +' + TUNE.SIGNAL_RADAR + ' EMIT' },
+  { k: 'radar',   name: 'Active radar',  slots: 2, max: 1,  desc: 'pulse ' + ROW('lamp').radar.ap + ' AP + ' + ROW('lamp').radar.en + ' EN · cone, sees through 4 walls · +' + ROW('lamp').radar.emit + ' EMIT' },
   { k: 'passive', name: 'Passive suite', slots: 2, max: 1,  desc: 'bearing lines · cross two for a fix' },
   { k: 'ecm',     name: 'ECM pod',       slots: 2, max: 1,  desc: 'mask (' + TUNE.AP_ECM + ' AP + ' + TUNE.ECM_EN + ' EN a turn) or ghost · jams' },
-  { k: 'ammo',    name: 'Autocannon',    slots: 1, max: 10, desc: '10 rounds per slot · a shot is heard ' + TUNE.SOUND_RANGE.SHOT + ' tiles away' },
-  { k: 'cells',   name: 'Energy cell',   slots: 1, max: 10, desc: '+' + TUNE.ENERGY_CELL + ' Energy' },
-  { k: 'mortar',  name: 'Mortar',        slots: 1, max: 1,  desc: TUNE.MORTAR_SHELLS + ' shells · ' + TUNE.AP_MORTAR + ' AP · fires on a fix, no LoS · heard ' + TUNE.SOUND_RANGE.MORTAR + ' tiles away' }, // R9
+  { k: 'ammo',    name: 'Autocannon',    slots: 1, max: 10, desc: '10 rounds per slot · a shot is heard ' + ROW('autocannon').gun.snd + ' tiles away' },
+  { k: 'cells',   name: 'Energy cell',   slots: 1, max: 10, desc: '+' + ROW('battery').pool + ' Energy' },
+  { k: 'mortar',  name: 'Mortar',        slots: 1, max: 1,  desc: ROW('mortar').mortar.shells + ' shells · ' + ROW('mortar').mortar.ap + ' AP · fires on a fix, no LoS · heard ' + ROW('mortar').mortar.snd + ' tiles away' }, // R9
 ];
 // localStorage wrapped: falls back to memory if unavailable
 export const store = {
@@ -49,7 +53,7 @@ const loads = [readLoad('signalLance.load') || { ...DEF }, null];
 loads[1] = readLoad('signalLance.loadB') || { ...loads[0] };
 let cur = 0, load = loads[0]; // the mech being edited (0 = A, 1 = B)
 const LOAD_KEYS = ['signalLance.load', 'signalLance.loadB'];
-export function currentLoads() { return [{ ...loads[0] }, { ...loads[1] }]; }
+export function currentLoads() { return [fitFromLoad(loads[0]), fitFromLoad(loads[1])]; } // R18: the picker's numbers as fits (kit.ts)
 function pickMech(i) { cur = i; load = loads[i]; renderLoadout(); }
 // R7 briefing: accurate, rough composition of the field. The turret is only "reported".
 // R8 shuffled set (Jamie): every composition once per cycle, random order. Bag kept in localStorage so a
@@ -106,18 +110,14 @@ function cap(t) { return t.charAt(0).toUpperCase() + t.slice(1); }
 export function killText() { return 'kills ' + G.kills + '/' + G.units.length + (missionText() ? ' · ' + missionText() : '') + zoneText() + mortarText() + shotsText() + soundText() + moveText() + idText(); } // R14: IDs n (right, wrong, before eyes) // R13: loudest, sprints, heard (+ alarms) // R12: shots/hits, parts lost
 // R9: "· mortar 3/5 hits, 2 kills (A)" — shells that hit the field / shells fired, kills, who carried it
 export function mortarText() {
-  const ms = G.lance.filter(m => m.load.mortar);
+  const ms = G.lance.filter(m => has(m, 'MORTAR'));
   if (!ms.length) return ' · mortar none';
   let s = 0, h = 0, k = 0, f = 0, b = 0; for (const m of ms) { s += m.mShots; h += m.mHits; k += m.mKills; f += m.mFriendly; b += m.mBlind; }
   return ' · mortar ' + h + '/' + s + ' hits, ' + k + ' kills' + (b ? ', ' + b + ' blind' : '') + (f ? ', ' + f + ' on own' : '') + ' (' + (ms.length > 1 ? 'both' : ms[0].id) + ')';
 }
 export function slotsUsed(L = load) { let s = 0; for (const m of MODS) s += L[m.k] * m.slots; return s; }
-function oneLoad(L) {
-  return 'Arm' + L.armour + (L.radar ? ' Rdr' : '') + (L.passive ? ' Pas' : '') + (L.ecm ? ' ECM' : '') +
-    ' Ammo' + L.ammo * TUNE.AMMO_PER_SLOT + ' Cell' + L.cells + (L.mortar ? ' Mtr' : '') + ' (' + slotsUsed(L) + '/' + TUNE.SLOTS + ')';
-}
-// both mechs' loadouts, as launched
-export function loadSummary() { return G.lance.map(m => m.id + ': ' + oneLoad(m.load)).join(' / '); }
+// both mechs' fits, as launched (R18: the fit, item by item)
+export function loadSummary() { return G.lance.map(m => m.id + ': ' + fitText(m.fit)).join(' / '); }
 export function buildLoadout() {
   const box = $('mods');
   for (const m of MODS) {
@@ -137,7 +137,7 @@ export function buildLoadout() {
   $('bLB').addEventListener('click', () => pickMech(1));
 }
 export function renderLoadout() {
-  for (const m of MODS) $('n_' + m.k).textContent = m.k === 'ammo' ? '×' + load.ammo + ' (' + load.ammo * TUNE.AMMO_PER_SLOT + ' rds)' : '×' + load[m.k];
+  for (const m of MODS) $('n_' + m.k).textContent = m.k === 'ammo' ? '×' + load.ammo + ' (' + load.ammo * 10 + ' rds)' : '×' + load[m.k];
   const u = slotsUsed();
   $('bLA').classList.toggle('on', cur === 0); $('bLB').classList.toggle('on', cur === 1);
   $('slots').textContent = 'MECH ' + 'AB'[cur] + '  SLOTS ' + u + ' / ' + TUNE.SLOTS + '  (' + (TUNE.SLOTS - u) + ' free)';
@@ -205,7 +205,7 @@ function startContract() {
 function mechLine(id) {
   const c = G.ct.carry[id], L = G.ct.loads[id === 'A' ? 0 : 1];
   if (c.dead) return '<b class="lost">' + id + '  LOST</b>';
-  return '<b>' + id + '  ' + dmgWord(c) + '</b> · ' + partsRead(c) + (L.ammo ? ' · ' + c.ammo + ' rds' : '') + (L.mortar ? ' · ' + c.shells + ' shells' : '');
+  return '<b>' + id + '  ' + dmgWord(c) + '</b> · ' + partsRead(c) + (fitHasGun(L) ? ' · ' + c.ammo + ' rds' : '') + (fitHasMortar(L) ? ' · ' + c.shells + ' shells' : '');
 }
 // R11 s2: refit buttons for one mech (hidden before hunt 1: nothing to cap from, no credits)
 const RF = [['repair', 'REPAIR WORST', TUNE.COST_REPAIR], ['rounds', '+10 RDS', TUNE.COST_ROUNDS], ['shell', '+1 SHELL', TUNE.COST_SHELL], ['rebuild', 'REBUILD', TUNE.COST_REBUILD]];
@@ -217,7 +217,7 @@ function refitRow(id) {
     const b = refitBlock(id, k); if (b === 'NONE' || b === 'LOST') continue;
     h += '<button class="rf' + (b ? ' lockd' : '') + '" data-id="' + id + '" data-k="' + k + '">' + name + '<br><small>' + cost + ' cr' + (b ? ' · ' + why[b] : '') + '</small></button>';
   }
-  const capTxt = G.ct.carry[id].dead ? 'rebuilds to ' + cap.hits + ' hits' : 'max ' + cap.hits + ' hits' + (G.ct.loads[id === 'A' ? 0 : 1].ammo ? ' · ' + cap.ammo + ' rds' : '') + (G.ct.loads[id === 'A' ? 0 : 1].mortar ? ' · ' + cap.shells + ' shells' : '');
+  const capTxt = G.ct.carry[id].dead ? 'rebuilds to ' + cap.hits + ' hits' : 'max ' + cap.hits + ' hits' + (fitHasGun(G.ct.loads[id === 'A' ? 0 : 1]) ? ' · ' + cap.ammo + ' rds' : '') + (fitHasMortar(G.ct.loads[id === 'A' ? 0 : 1]) ? ' · ' + cap.shells + ' shells' : '');
   return '<div class="rfrow">' + h + '<small class="cap">' + capTxt + '</small></div>';
 }
 function renderLance() {

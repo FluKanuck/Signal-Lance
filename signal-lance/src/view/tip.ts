@@ -1,6 +1,7 @@
 // R16 debrief (Jamie): every map item says what it is and what it does. Mouse: hover. Touch: hold a finger still for
 // TIP_HOLD_MS (a hold never moves, selects or pans). View only: reads sim state, changes nothing.
 import { TUNE } from '../tune.ts';
+import { fireRange } from '../sim/turns.ts';
 import { G } from '../sim/state.ts';
 import { T, W, H, MAP, isSolid, isClutter, canReach, solid } from '../sim/world.ts';
 import { cx, cy } from '../sim/sensors.ts';
@@ -32,7 +33,7 @@ export function tipAt(wx: number, wy: number): [string, string[]] | null {
     return ['Contact: ' + contactLabel(c), [
       c.snd ? 'Heard only (a sound): something is roughly here. Never enough to shoot at.' : c.shr ? 'Shared alarm contact. Never a lock.' : 'A fix from your sensors.',
       'Circle = how unsure you are: ±' + tiles(c.unc) + ' tiles' + (lost ? ' (lost track: it grows while that unit acts)' : '') + '.',
-      'FIRE needs ±' + TUNE.PLAYER_FIRE_UNC + ' or better, range ' + TUNE.PLAYER_FIRE_RANGE + ' and line of sight. Tap it to select.']];
+      'FIRE needs ±' + TUNE.PLAYER_FIRE_UNC + ' or better, range ' + (fireRange(G.p) || '—') + ' and line of sight. Tap it to select.']];
   }
   for (const u of G.units) if (u.dead && near(wx, wy, u.x, u.y, R)) return ['Wreck: ' + u.type.toLowerCase() + ' ' + u.variant, ['Destroyed.']];
   if (G.ghost.on && near(wx, wy, G.ghost.x, G.ghost.y, R)) return ['Ghost (your decoy)', ['Enemies see a fake contact here for ' + G.ghost.turns + ' more of its owner\'s turns.']];
