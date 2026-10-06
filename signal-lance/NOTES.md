@@ -837,4 +837,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            opening the sub menu UIs to make the ID … more a refinement/scale/presentation issue" | NEW ID_SHOW_FITS
            false → true: contact label "N fit", picker greys out ruled-out variants (still tappable). Jamie: patrol step
            tells stay close-range for a baseline ExoS (acoustic sensors will extend them later); not changed. BUILD r14-s2 | -
+   round14 debrief 1 rating | ID_SHOW_FITS: "Helped to a degree. But still felt I could have just as easily not bothered
+           with it and got on fine." | - | helped (partly)
+   round14 debrief 2 | weakest: "An ID changed nothing". Jamie: "irregardless of the enemy type, if around an uplink, I'm
+           going to have to fight it … the information just doesn't give us anything other than position for a ranged
+           lob." Confirmed: "Yes… AND.. but I just can't quite figure out what the and is." | no change: structural
+           (objective forces the fight), not a TUNE knob. Round wrapped | -
 ```
