@@ -14,7 +14,7 @@ import { mapText } from '../sim/blocks.ts';
 import { fieldCount } from '../sim/state.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r16-s1';  // R16: rolled ground (block districts, clutter)
+export const BUILD = 'r16-s2';  // R16: rolled ground (block districts, clutter); s2: HUD crash when the Escort transport is shot fixed
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');

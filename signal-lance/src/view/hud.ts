@@ -89,7 +89,7 @@ function oddsLine(p) {
   const h = shotOdds(p, c); return h ? '<br><b style="color:#ff6">ODDS ' + h.pct + '%</b>: ' + hitText(h) : '';
 }
 // R12: last shot by the lance ('P') / the field ('E'): "A → patrol: HIT LEG (62%)" / "turret → B: MISS (40%)"
-function who(id) { const u = unitById(id); return !u ? '?' : G.lance.includes(u) ? u.id : u.ft.NAME; }
+function who(id) { const u = unitById(id); return !u ? '?' : G.lance.includes(u) ? u.id : u === G.ally ? 'transport' : u.ft.NAME; } // R16 fix: the Escort transport has no field type (crashed the HUD the first time it was shot at)
 function shotLine(k) {
   const r = G.lastShot[k]; if (!r || G.turn - r.turn > 1) return '';
   const res = r.hit ? 'HIT ' + (PART_ABBR[r.part] || r.part) : 'MISS';

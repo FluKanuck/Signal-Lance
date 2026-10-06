@@ -1004,4 +1004,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            that span the seam street (clutter on 4–5% of lance moves → 7–9%). Runner, 60 contracts: blocks win 50% of hunts
            (hive 58%): Escort 71% (85), Uplink 54% (77), Retrieve 30% (42), Bounty 33% (24); grids 26–67%, no grid flag;
            0 rerolls. --check: sound-share flag gone on blocks (46%); Bounty "sentry killed 0%" fires (hive 3/9). BUILD r16-s1 | -
+   round16 bug | "enemy turn, nothing happening" (Escort, transport holding at a fork) | the HUD's last-shot line read the
+           transport's field type (it has none) the first time the field shot it, which killed the frame loop. An R15 bug,
+           hit more often now that the transport is shot more on block maps. Fixed (who() names it "transport"). Checked
+           with 160 random-input hunts in the browser (blocks + hive) running the real HUD and renderer: no errors. BUILD r16-s2 | -
 ```
