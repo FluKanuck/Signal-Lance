@@ -1,6 +1,6 @@
 import { TUNE } from '../tune.ts';
 import { G, newHunt, enterLoadout } from '../sim/state.ts';
-import { newContract, previewJob, takeJob, rollJobs, dmgWord, lanceText, contractActive, refit, refitBlock, refitCap, buysText } from '../sim/contract.ts';
+import { newContract, previewJob, takeJob, rollJobs, rerollJobs, dmgWord, lanceText, contractActive, refit, refitBlock, refitCap, buysText } from '../sim/contract.ts';
 import { V } from './state.ts';
 import { $, fmtTime } from './hud.ts';
 import { partsRead, shotsText } from '../sim/combat.ts';
@@ -14,7 +14,7 @@ import { mapText } from '../sim/blocks.ts';
 import { fieldCount } from '../sim/state.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r16-s3';  // R16 debrief: street blockers + AHEAD legs, map tooltips, round history on the splash
+export const BUILD = 'r16-s4';  // R16: debug REROLL JOBS on the job screen (s3: street blockers, AHEAD legs, tooltips, round history)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
@@ -190,7 +190,7 @@ let ctN = store.get('signalLance.ctN', 0) | 0; // contract number for the log (C
 // " · +140 cr (bought A repair×2)" for this hunt's log line
 function huntCr() { const r = G.ct.results[G.ct.results.length - 1]; return r ? ' · +' + r.pay + ' cr' + (r.buys.length ? ' (bought ' + buysText(r.buys) + ')' : '') : ''; }
 function testerTag() { const t = store.get('signalLance.tester', ''); return (t ? '[' + t + '] ' : '') + (TUNE.PACK_ENABLED ? '[PACK] ' : '') + (TUNE.MAP_MODE === 'hive' ? '[HIVE] ' : ''); } // R13: pack runs are tagged (R16: so are old-map runs)
-function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + G.ct.hunts + ' · ' : ''; }
+function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + G.ct.hunts + (G.ct.rerolls ? ' [DBG jobs rerolled ×' + G.ct.rerolls + ']' : '') + ' · ' : ''; }
 // "C3 COMPLETE 2/3 · lost B in H2"
 function contractLine() {
   const C = G.ct, lost = C.results.flatMap(r => r.lost.map(id => id + ' in H' + r.n));
@@ -275,6 +275,7 @@ $('bLaunch').addEventListener('click', () => { $('load').hidden = true; store.se
 $('bJ0').addEventListener('click', () => pickJob(0));
 $('jlance').addEventListener('click', ev => { const b = (ev.target as any).closest('.rf'); if (!b) return; if (refit(b.dataset.id, b.dataset.k)) renderLance(); }); // R11 s2
 $('bJ1').addEventListener('click', () => pickJob(1));
+$('bReroll').addEventListener('click', () => { rerollJobs(); showJobs(); }); // R16 debug: fish for a mission type
 $('bNewC').addEventListener('click', () => { G.ct = null; showLoadout(); });
 $('bSave').addEventListener('click', saveAndNext);
 $('note').addEventListener('keydown', e => { if (e.key === 'Enter') saveAndNext(); });

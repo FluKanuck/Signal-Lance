@@ -65,6 +65,7 @@ const BASICS = [
   ['ECM', 'ECM masks you each turn it is on. GHOST places a fake contact for enemies.'],
   ['Camera', 'Drag to pan. Z+ / Z− zoom. CTR recentres.'],
   ['Look', 'Hover the mouse over anything on the map, or hold a finger on it, to see what it is and what it does.'],
+  ['Debug', 'DEBUG: REROLL JOBS (job screen) rolls two new jobs for the same hunt, e.g. to get the job type you want to test. The log line notes it.'],
 ];
 
 // Simple legend, drawn with the same colours as the game.

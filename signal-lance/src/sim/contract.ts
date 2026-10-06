@@ -55,7 +55,11 @@ export function rollJobs() {
   if (pool.length >= 2) P = pool;
   const a = pickWeighted(P), b = pickWeighted(P.filter(c => c !== a)), M = TUNE.MISSION_TYPES;
   C.jobs = [a, b].map(c => ({ comp: c.NAME, seed: (crand() * 4294967296) >>> 0, mission: M[Math.floor(crand() * M.length)] })); // R15: each job rolls its type (the two may differ)
+  C.rerolls = 0;
 }
+// R16 debug (Jamie): roll this hunt's 2 jobs again (same hunt number, contract RNG moves on), to fish for a mission type.
+// The count goes in the log line so tester runs that used it can be told apart.
+export function rerollJobs() { const C = G.ct; const n = (C.rerolls || 0) + 1; C.hunt--; rollJobs(); C.rerolls = n; }
 // Set the world up as job i (uplink, field roll, zones) without starting it: the view reads INTEL from it.
 export function previewJob(i: number) { const j = G.ct.jobs[i]; rollEnemy(j.seed, j.comp, j.mission); }
 // Take job i: roll its setup, start the hunt with the locked loadouts, apply the carried state before round 1.

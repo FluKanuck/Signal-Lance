@@ -92,6 +92,16 @@ describe('contract length (quick test)', () => {
     takeJob(0); G.outcome = 'WIN UPLINK'; recordHunt();
     expect(G.ct.status).toBe('COMPLETE');
   });
+  it('R16 debug: REROLL JOBS rolls new jobs for the same hunt and counts the rerolls (reset by the next hunt)', async () => {
+    const { newContract, rerollJobs, rollJobs } = await import('../src/sim/contract.ts');
+    newContract(5, [LOAD_A, LOAD]);
+    const seen = new Set<string>(), first = JSON.stringify(G.ct.jobs);
+    for (let k = 0; k < 12; k++) { rerollJobs(); seen.add(G.ct.jobs.map(j => j.mission).join()); }
+    expect(G.ct.hunt).toBe(1); expect(G.ct.rerolls).toBe(12);
+    expect(JSON.stringify(G.ct.jobs)).not.toBe(first);
+    expect(seen.size).toBeGreaterThan(1); // the mission types change
+    rollJobs(); expect(G.ct.hunt).toBe(2); expect(G.ct.rerolls).toBe(0);
+  });
   it('the default is still CONTRACT_HUNTS, needing CONTRACT_WINS_NEEDED', async () => {
     const { newContract } = await import('../src/sim/contract.ts');
     newContract(5, [LOAD_A, LOAD]);

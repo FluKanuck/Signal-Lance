@@ -1040,4 +1040,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            BARRICADE 0.3 / CHOKE (chicane) 0.3; Escort forks offer NORTH / AHEAD / SOUTH where the streets are open (2-3 legs).
            Also (Jamie): map tooltips (hover / hold) and round history on the splash. Runner 60 contracts: wins 48% (was 50%),
            Escort 53%, Uplink 51%, Retrieve 45%, Bounty 41%; clutter on 17% of lance moves (was 7-9%); 0 rerolls. BUILD r16-s3 | -
+   round16 debug | Jamie: "add a debug contract reroll button so we can make sure we get the mission type we want" | job
+           screen DEBUG: REROLL JOBS: rolls the hunt's 2 jobs again (same hunt number; the contract RNG moves on). The hunt's log
+           line carries "[DBG jobs rerolled ×N]". BUILD r16-s4 | -
 ```
