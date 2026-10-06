@@ -167,9 +167,9 @@ svg.dial.f .bg{fill:currentColor;stroke:none} svg.dial.f circle,svg.dial.f path{
 .title .sub{display:flex;gap:16px;align-items:center;flex-wrap:wrap}
 .emblem{position:absolute;right:-30px;top:-60px;width:min(46vw,420px);aspect-ratio:1;opacity:.85;pointer-events:none;z-index:-1}
 .emblem svg{width:100%;height:100%;overflow:visible}
-.emblem .r1{animation:spin 40s linear infinite;transform-origin:50% 50%;transform-box:view-box}
-.emblem .r2{animation:spin 26s linear infinite reverse;transform-origin:50% 50%;transform-box:view-box}
-.emblem .sw{animation:spin 4s linear infinite;transform-origin:50% 50%;transform-box:view-box}
+.emblem .r1{animation:spin 40s linear infinite;transform-origin:0 0;transform-box:view-box}
+.emblem .r2{animation:spin 26s linear infinite reverse;transform-origin:0 0;transform-box:view-box}
+.emblem .sw{animation:spin 4s linear infinite;transform-origin:0 0;transform-box:view-box}
 .emblem circle,.emblem path{fill:none;stroke:var(--ink);vector-effect:non-scaling-stroke}
 .menu{display:grid;gap:8px}
 .mi{display:grid;grid-template-columns:34px 1fr auto;align-items:center;gap:12px;padding:0 16px;height:52px;cursor:pointer;color:var(--ink);background:none;border:0;text-align:left;font:inherit;text-transform:uppercase}
