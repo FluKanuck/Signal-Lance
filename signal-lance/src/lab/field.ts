@@ -19,12 +19,13 @@ import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { TUNE } from '../tune.ts';
 import { W, H, T, solid } from '../sim/world.ts';
 import { look, FX } from './looks.ts';
-import { tex as fogData } from './fog.ts';
+import { tex as fogData, scan as scanData } from './fog.ts';
 
 const FOV = 40;
 let renderer: THREE.WebGLRenderer, scene: THREE.Scene, cam: THREE.PerspectiveCamera, composer: EffectComposer;
 let mat: THREE.ShaderMaterial, blockMat: THREE.ShaderMaterial, gridMat: THREE.ShaderMaterial, fogTex: THREE.DataTexture, marksTex: THREE.CanvasTexture;
-let bloom: UnrealBloomPass, film: ShaderPass, spinPts: THREE.Points;
+let bloom: UnrealBloomPass, film: ShaderPass, spinPts: THREE.Points, scanTex: THREE.DataTexture;
+const WALL_ROW = 2.5, WALL_COLS = 12, WALL_COL = T / WALL_COLS; // wall dot grid: the finest a wall can resolve to
 const rings: THREE.Points[] = [];
 let spin: { geo: THREE.BufferGeometry; cars: { x: number; y: number; z: number; vx: number; vy: number; paint: number[] }[] };
 
@@ -59,9 +60,9 @@ function blocks() {
 
 function buildScene() {
   seed = 7;
-  const P: number[] = [], C: number[] = [], A: number[] = [];
-  const add = (x: number, y: number, z: number, col: number[], kind: number, ti: number, j = 0.08) => {
-    const v = 1 - j + rnd() * j * 2; P.push(x, -y, z); C.push(col[0] * v, col[1] * v, col[2] * v); A.push(kind, ti, rnd());
+  const P: number[] = [], C: number[] = [], A: number[] = [], LID: number[] = [];
+  const add = (x: number, y: number, z: number, col: number[], kind: number, ti: number, j = 0.08, lid = 0) => {
+    const v = 1 - j + rnd() * j * 2; P.push(x, -y, z); C.push(col[0] * v, col[1] * v, col[2] * v); A.push(kind, ti, rnd()); LID.push(lid);
   };
   const tileOf = (x: number, y: number) => Math.max(0, Math.min(H - 1, Math.floor(y / T))) * W + Math.max(0, Math.min(W - 1, Math.floor(x / T)));
   const box = (x: number, y: number, z0: number, w: number, d: number, h: number, col: number[], ti: number, kind = 3, step = 3) => { // dot shell of a box
@@ -90,12 +91,12 @@ function buildScene() {
     ];
     for (const [o, ax, ay, bx, by, nx, ny] of faces) if (o) {
       const nti = tileOf(ax + (bx - ax) / 2 + nx * 4, ay + (by - ay) / 2 + ny * 4); // the street tile this face looks onto
-      for (let z = 4; z < b.h; z += 8) {                                         // floors: a scan row every 8 units
-        const lit = rnd() < 0.18;
-        for (let k = 0; k < 8; k++) if (rnd() < 0.85) {
-          const f = (k + 0.5 + (rnd() - 0.5) * 0.3) / 8, w = lit && k > 2 && k < 6;
-          add(ax + (bx - ax) * f, ay + (by - ay) * f, z, w ? windowC : b.col, w ? 4 : 1, ti);
-        }
+      // the face as a dense dot grid (WALL_ROW × WALL_COL); the shader keeps only dots on a lidar beam line from this
+      // tile's closest scan, so a face sharpens as you walk up to it (lid = 1). Lit windows: some 8-unit floors.
+      const floorsLit: boolean[] = []; for (let fl = 0; fl * 8 < b.h; fl++) floorsLit.push(rnd() < 0.18);
+      for (let z = WALL_ROW / 2; z < b.h; z += WALL_ROW) for (let k = 0; k < WALL_COLS; k++) {
+        const f = (k + 0.5) / WALL_COLS, zf = z % 8, w = floorsLit[(z / 8) | 0] && f > 0.3 && f < 0.7 && zf > 2 && zf < 6.5;
+        add(ax + (bx - ax) * f, ay + (by - ay) * f, z, w ? windowC : b.col, w ? 4 : 1, ti, 0.08, 1);
       }
       if (b.neon) for (let k = 0; k < 16; k++) { const f = (k + 0.5) / 16; add(ax + (bx - ax) * f, ay + (by - ay) * f, b.neonZ, b.neon, 5, ti, 0.02); }
       for (let k = 0; k < 12; k++) { const f = k / 12; add(ax + (bx - ax) * f, ay + (by - ay) * f, b.h, edgeC, 1, ti); } // roof edge
@@ -176,6 +177,8 @@ function buildScene() {
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
   g.setAttribute('meta', new THREE.Float32BufferAttribute(A, 3));
+  g.setAttribute('lid', new THREE.Float32BufferAttribute(LID, 1));
+  console.info('[lab] scene dots:', P.length / 3, '(wall grid:', LID.filter(v => v).length + ')');
   return { geo: g, heights };
 }
 
@@ -187,6 +190,7 @@ function makeSpinners() {
   geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
   geo.setAttribute('color', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
   geo.setAttribute('meta', new THREE.BufferAttribute(new Float32Array(n * 3), 3));
+  geo.setAttribute('lid', new THREE.BufferAttribute(new Float32Array(n), 1));
   return { geo, cars };
 }
 const SP_HEAD = hex('#e8f4ff'), SP_TAIL = hex('#ff2030'), SP_UNDER = hex('#3ff0ff');
@@ -214,10 +218,10 @@ function updateSpinners(dt: number) {
 // `dead` tiles), rings tight at the centre and opening up with range (gap + k * grow), out to max visual range
 // (EYES_RANGE); ~3 units between dots along a ring. Each dot carries a random id so every pass of the spinning head
 // can drop / jitter it differently (fresh returns). Rebuilt when the dead / gap / grow knobs change.
-function ringGeo(dead: number, gap: number, grow: number) {
+function ringGeo(dead: number, gap: number, grow: number, az: number) {
   const P: number[] = [], R: number[] = [], I: number[] = [], rmax = TUNE.EYES_RANGE * T;
   for (let k = 0, r = Math.max(2, dead * T); r < rmax; k++, r += Math.max(1, gap + k * grow)) {
-    const n = Math.ceil(6.2832 * r / 3);
+    const n = Math.ceil(Math.min(6.2832 * r / 2.2, 360 / az)); // fixed azimuth step: dots spread out with range
     for (let i = 0; i < n; i++) { const a = (i + (k % 2) * 0.5) / n * 6.2832; P.push(Math.cos(a) * r, Math.sin(a) * r, 0.6); R.push(r / rmax); I.push(Math.random() * 1000); }
   }
   const g = new THREE.BufferGeometry();
@@ -238,7 +242,27 @@ const VERT = /* glsl */`
   ${FOG_GLSL}
   attribute vec3 meta;            // kind, tile index, random seed
   attribute vec3 color;
+  attribute float lid;            // 1 = wall grid dot: only shows on a lidar beam line (see lidarOK)
   uniform float size, depth, time, sweep, trueMix, greyDim, heightTint, neon, clutter;
+  uniform sampler2D scanTex;      // per tile: closest scan x, y, distance, scanned
+  uniform float sH, r0, gap, grow, rmax, dPhi;
+  // Wall dots resolve along the same beams that draw the ground rings. Trace the beam from the sensor (height sH, at
+  // the tile's closest scan position) through this dot down to the ground (or mirrored up, above sensor height):
+  // if it lands on a ring, the dot is on a scan line. Rings sit at r_k = r0 + gap*k + grow*k(k+1)/2 (ringGeo), so
+  // k(r) is the quadratic's root. Columns: a fixed azimuth step dPhi, so dots spread out with distance.
+  float lidarOK(vec2 wp, float z, float ti) {
+    vec4 sc = texture2D(scanTex, (vec2(mod(ti, grid.x), floor(ti / grid.x)) + 0.5) / grid);
+    if (sc.w < 0.5) return 0.0;
+    vec2 dv = wp - sc.xy; float d = max(length(dv), 1.0), dz = max(abs(z - sH), 0.01);
+    float r = d * sH / dz;                                       // where this beam meets the ground
+    if (r < r0 || r > rmax * 2.5) return 0.0;                    // steeper than the dead zone / past the far beams
+    float a = grow * 0.5, b = gap + grow * 0.5, k = a < 1e-4 ? (r - r0) / gap : (-b + sqrt(b * b + 4.0 * a * (r - r0))) / (2.0 * a);
+    float sp = d * sH / (r * r) * max(1.0, gap + grow * (k + 1.0)); // spacing between beam lines on this wall
+    float rowOK = sp < ${WALL_ROW.toFixed(2)} * 1.1 ? 1.0 : step(abs(fract(k + 0.5) - 0.5) * sp, ${WALL_ROW.toFixed(2)} * 0.55);
+    float sp2 = d * dPhi;                                       // spacing between azimuth columns
+    float colOK = sp2 < ${WALL_COL.toFixed(2)} * 1.1 ? 1.0 : step(abs(fract(atan(dv.y, dv.x) / dPhi + 0.5) - 0.5) * sp2, ${WALL_COL.toFixed(2)} * 0.55);
+    return rowOK * colOK;
+  }
   uniform vec3 cInk, cFog, rampLo, rampMid, rampHi;
   uniform vec4 eyes[4];           // ExoS x, y (world), alive, active (the sweep pulse runs from the active ExoS only)
   varying vec3 vCol; varying float vA;
@@ -249,6 +273,7 @@ const VERT = /* glsl */`
     vec2 f = fogAt(meta.y); float live = f.x, rev = f.y;
     // resolve: this dot exists once the tile's reveal passes its own threshold; flash white just after it lands
     float th = meta.z * 0.9 + 0.02, on = step(th, rev);
+    if (lid > 0.5 && useFog > 0.5 && on > 0.0) on *= lidarOK(vec2(position.x, -position.y), position.z, meta.y);
     float flash = on * (1.0 - smoothstep(0.0, 0.18, rev - th)) * step(rev, 0.999);
     // true colour, nudged by the look's ink and by the lidar height ramp (street → rooftops)
     float lum = dot(color, vec3(0.299, 0.587, 0.114));
@@ -381,6 +406,8 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
   cam = new THREE.PerspectiveCamera(FOV, 1, 1, 20000);
   fogTex = new THREE.DataTexture(fogData, W, H, THREE.RGBAFormat, THREE.UnsignedByteType);
   fogTex.magFilter = fogTex.minFilter = THREE.NearestFilter; fogTex.needsUpdate = true;
+  scanTex = new THREE.DataTexture(scanData, W, H, THREE.RGBAFormat, THREE.FloatType);
+  scanTex.magFilter = scanTex.minFilter = THREE.NearestFilter; scanTex.needsUpdate = true;
   const useFog = { value: 1 }, fogU = () => ({ fogTex: { value: fogTex }, grid: { value: new THREE.Vector2(W, H) }, useFog });
   const C = () => ({ value: new THREE.Color() });
   const { geo, heights } = buildScene();
@@ -388,6 +415,7 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
     vertexShader: VERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
     uniforms: { ...fogU(), size: { value: 2 }, depth: { value: 0.5 }, time: { value: 0 }, sweep: { value: 0 }, trueMix: { value: 0.85 }, greyDim: { value: 0.6 },
       heightTint: { value: 0 }, neon: { value: 1.6 }, clutter: { value: 1 },
+      scanTex: { value: scanTex }, sH: { value: 24 }, r0: { value: 16 }, gap: { value: 3 }, grow: { value: 0.2 }, rmax: { value: TUNE.EYES_RANGE * T }, dPhi: { value: 0.026 },
       cInk: C(), cFog: C(), rampLo: C(), rampMid: C(), rampHi: C(), eyes: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) } },
   });
   // grid
@@ -404,7 +432,7 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
   im.frustumCulled = false; im.renderOrder = 1; scene.add(im);
   const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = 2; scene.add(pts);
   // rings, one per possible ExoS (1–4)
-  const rg = ringGeo(look.scanDead, look.scanGap, look.scanGrow); ringKey = [look.scanDead, look.scanGap, look.scanGrow].join();
+  const rg = ringGeo(look.scanDead, look.scanGap, look.scanGrow, look.scanAz); ringKey = [look.scanDead, look.scanGap, look.scanGrow, look.scanAz].join();
   for (let i = 0; i < 4; i++) {
     const rm = new THREE.ShaderMaterial({ vertexShader: RVERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
       uniforms: { ...fogU(), centre: { value: new THREE.Vector2() }, size: { value: 1.5 }, amt: { value: 1 }, spinAmt: { value: 0.5 }, time: mat.uniforms.time, phase: { value: i * 2.1 },
@@ -440,11 +468,13 @@ export function renderField(t: number, dt: number, camX: number, camY: number, z
   u.time.value = t; u.size.value = size; u.depth.value = Math.max(0.02, L.depth);
   u.useFog.value = FX.fog ? 1 : 0; u.sweep.value = FX.sweep ? L.sweep : 0; u.trueMix.value = L.trueMix; u.greyDim.value = L.greyDim;
   u.heightTint.value = L.heightTint; u.neon.value = L.neon; u.clutter.value = L.clutter;
+  u.sH.value = L.scanHeight; u.r0.value = Math.max(2, L.scanDead * T); u.gap.value = L.scanGap; u.grow.value = L.scanGrow; u.dPhi.value = L.scanAz * Math.PI / 180;
+  scanTex.needsUpdate = true;
   u.cInk.value.set(L.ink); u.cFog.value.set(L.fog); u.rampLo.value.set(L.rampLo); u.rampMid.value.set(L.rampMid); u.rampHi.value.set(L.rampHi);
   blockMat.uniforms.cBlock.value.set(L.block); blockMat.uniforms.cEdge.value.set(L.blockEdge);
   gridMat.uniforms.cInk.value.set(L.ink); gridMat.uniforms.amt.value = FX.grid ? L.grid : 0;
-  const key = [L.scanDead, L.scanGap, L.scanGrow].join();
-  if (key !== ringKey) { ringKey = key; const g = ringGeo(L.scanDead, L.scanGap, L.scanGrow), old = rings[0].geometry; for (const r of rings) r.geometry = g; old.dispose(); }
+  const key = [L.scanDead, L.scanGap, L.scanGrow, L.scanAz].join();
+  if (key !== ringKey) { ringKey = key; const g = ringGeo(L.scanDead, L.scanGap, L.scanGrow, L.scanAz), old = rings[0].geometry; for (const r of rings) r.geometry = g; old.dispose(); }
   for (let i = 0; i < 4; i++) {
     const m = lance[i], r = rings[i], ru = (r.material as THREE.ShaderMaterial).uniforms;
     u.eyes.value[i].set(m ? m.x : 0, m ? m.y : 0, m && !m.dead ? 1 : 0, m && m === active ? 1 : 0);

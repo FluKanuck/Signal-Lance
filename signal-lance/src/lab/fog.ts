@@ -4,6 +4,8 @@
 //   revealed   → out of sight again: keeps its detail but drains to grey (it stays revealed)
 // Per tile we keep `live` (0..1, how coloured: rises fast when seen, falls slowly when lost) and `reveal` (0..1, how
 // resolved: only ever rises). Both run on real time so colour drains while you think, even though sim time is frozen.
+// Per tile we also keep the CLOSEST scan: where the scanning ExoS stood and how far away it was. Wall dots resolve
+// along the lidar beam lines from that position, so walking up to a building sharpens it, and the best scan stays.
 // View-only: the sim's rules for who sees what are untouched; we only borrow its LoS (tilesCrossed) and eye ranges.
 import { TUNE } from '../tune.ts';
 import { W, H, T, tilesCrossed, isSolid } from '../sim/world.ts';
@@ -20,6 +22,7 @@ export const seen = new Uint8Array(N);           // 1 = an ExoS has eyes on this
 export const live = new Float32Array(N);          // 0..1 colour
 export const reveal = new Float32Array(N);        // 0..1 resolved (never falls)
 export const tex = new Uint8Array(N * 4);         // RGBA for GL: R = live, G = reveal, B = solid (building) tile
+export const scan = new Float32Array(N * 4);      // RGBA float for GL: closest scan of this tile: x, y (world), distance, 1 = scanned
 
 // Same eye rule as sensors.canSee (range, facing cone beyond EYES_CLOSE, LoS), applied to a tile centre.
 function eyesOn(m: any, tx: number, ty: number) {
@@ -35,8 +38,15 @@ let acc = 0;
 // dt = real seconds. Sight is recomputed 10×/s; the fades run every frame.
 export function updateFog(dt: number, force = false) {
   if ((acc += dt) >= 0.1 || force) {
-    acc = 0; const eyes = G.lance.filter(m => !m.dead);
-    for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) seen[ty * W + tx] = eyes.some(m => eyesOn(m, tx, ty)) ? 1 : 0;
+    acc = 0; const eyes = G.lance.filter((m: any) => !m.dead);
+    for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
+      const i = ty * W + tx; seen[i] = 0;
+      for (const m of eyes) if (eyesOn(m, tx, ty)) {
+        seen[i] = 1;
+        const d = Math.hypot((tx + 0.5) * T - m.x, (ty + 0.5) * T - m.y);
+        if (!scan[i * 4 + 3] || d < scan[i * 4 + 2]) { scan[i * 4] = m.x; scan[i * 4 + 1] = m.y; scan[i * 4 + 2] = d; scan[i * 4 + 3] = 1; }
+      }
+    }
   }
   const up = dt / FOG.COLOUR_IN_S, down = dt / FOG.COLOUR_OUT_S, res = dt / FOG.RESOLVE_S;
   for (let i = 0; i < N; i++) {
@@ -46,4 +56,4 @@ export function updateFog(dt: number, force = false) {
     tex[i * 4] = live[i] * 255; tex[i * 4 + 1] = reveal[i] * 255; tex[i * 4 + 2] = isSolid(i % W, (i / W) | 0) ? 255 : 0;
   }
 }
-export function resetFog() { seen.fill(0); live.fill(0); reveal.fill(0); }
+export function resetFog() { seen.fill(0); live.fill(0); reveal.fill(0); scan.fill(0); }
