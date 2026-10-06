@@ -17,7 +17,7 @@ import { ShaderPass } from 'three/examples/jsm/postprocessing/ShaderPass.js';
 import { UnrealBloomPass } from 'three/examples/jsm/postprocessing/UnrealBloomPass.js';
 import { OutputPass } from 'three/examples/jsm/postprocessing/OutputPass.js';
 import { TUNE } from '../tune.ts';
-import { W, H, T, solid } from '../sim/world.ts';
+import { W, H, T, solid, isSolid, tilesCrossed } from '../sim/world.ts';
 import { look, FX } from './looks.ts';
 import { tex as fogData, scan as scanData, first as firstData } from './fog.ts';
 
@@ -28,7 +28,7 @@ let mat: THREE.ShaderMaterial, blockMat: THREE.ShaderMaterial, gridMat: THREE.Sh
 let bloom: UnrealBloomPass, film: ShaderPass, spinPts: THREE.Points, scanTex: THREE.DataTexture, firstTex: THREE.DataTexture;
 const WALL_ROW = 2.5, WALL_COLS = 12, WALL_COL = T / WALL_COLS; // wall dot grid: the finest a wall can resolve to
 const GROUND_STEP = T / 12;                                      // ground dot grid spacing
-const rings: THREE.Points[] = [];
+let scanPts: THREE.Points, scanMat: THREE.ShaderMaterial;
 let spin: { geo: THREE.BufferGeometry; cars: { x: number; y: number; z: number; vx: number; vy: number; paint: number[] }[] };
 
 // ---- the city: deterministic per map ----------------------------------------------------------------------
@@ -172,20 +172,20 @@ function buildScene() {
       const lc = pick([red, amber, green]); for (let k = 0; k < 6; k++) add(x0 + 3 + (rnd() - 0.5) * 2, y0 + 3 + (rnd() - 0.5) * 2, 39 + rnd() * 3, lc, 4, ti, 0.02);
     }
   }
-  // the ground as a fine grid (GROUND_STEP), coloured by what's painted / lying there; the scan picks out its rings
-  for (const [ti, F] of feat) {
-    const tx = ti % W, ty = (ti / W) | 0, x0 = tx * T, y0 = ty * T, lamp = lamps.get(ti) || lamps.get(ti - 1) || lamps.get(ti - W);
-    for (let gy = GROUND_STEP / 2; gy < T; gy += GROUND_STEP) for (let gx = GROUND_STEP / 2; gx < T; gx += GROUND_STEP) {
-      const x = x0 + gx, y = y0 + gy;
-      let col = asphalt, kind = 0, j = 0.25;
-      if (F.horiz && Math.abs(gy - T / 2) < 1.3 && (x % 16) < 9) { col = paintY; j = 0.05; }
-      if (F.vert && Math.abs(gx - T / 2) < 1.3 && (y % 16) < 9) { col = paintW; j = 0.05; }
-      if (F.manhole) { const d = Math.hypot(gx - 16, gy - 16); if (d > 3.5 && d < 6) col = manholeC; }
-      if (F.puddle) { const [px, py, rx, ry] = F.puddle, q = ((x - px) / rx) ** 2 + ((y - py) / ry) ** 2; if (q < 1) { col = F.tint ? F.tint.map((v: number) => v * 0.55) : puddleC; kind = F.tint ? 5 : 0; } }
-      if (lamp) { const d = Math.hypot(x - lamp[0], y - lamp[1]); if (d < 16) { const k = (1 - d / 16) * 0.5; col = col.map((v, i) => v * (1 - k) + lampHead[i] * k * 0.6); } }
-      add(x, y, 0.2, col, kind, ti, j);
-    }
-  }
+  // the ground's true colour at a point (asphalt, lane paint, manholes, puddles tinted by neon, lamp light pools):
+  // the emitted ground scan dots (emitScan) take their colour from it
+  groundCol = (x: number, y: number) => {
+    const tx = Math.floor(x / T), ty = Math.floor(y / T), ti = ty * W + tx, F = feat.get(ti);
+    if (!F) return asphalt;
+    const gx = x - tx * T, gy = y - ty * T, lamp = lamps.get(ti) || lamps.get(ti - 1) || lamps.get(ti - W);
+    let col = asphalt;
+    if (F.horiz && Math.abs(gy - T / 2) < 1.3 && (x % 16) < 9) col = paintY;
+    if (F.vert && Math.abs(gx - T / 2) < 1.3 && (y % 16) < 9) col = paintW;
+    if (F.manhole) { const d = Math.hypot(gx - 16, gy - 16); if (d > 3.5 && d < 6) col = manholeC; }
+    if (F.puddle) { const [px, py, rx, ry] = F.puddle, q = ((x - px) / rx) ** 2 + ((y - py) / ry) ** 2; if (q < 1) col = F.tint ? F.tint.map((v: number) => v * 0.8) : puddleC; }
+    if (lamp) { const d = Math.hypot(x - lamp[0], y - lamp[1]); if (d < 16) { const k = (1 - d / 16) * 0.5; col = col.map((v, i) => v * (1 - k) + lampHead[i] * k * 0.6); } }
+    return col;
+  };
   const g = new THREE.BufferGeometry();
   g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3));
   g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
@@ -227,22 +227,70 @@ function updateSpinners(dt: number) {
   spin.geo.attributes.position.needsUpdate = spin.geo.attributes.color.needsUpdate = spin.geo.attributes.meta.needsUpdate = true;
 }
 
-// ---- ring geometry: one polar pattern, drawn once per ExoS (uniform centre). Dead zone under the sensor (radius
-// `dead` tiles), rings tight at the centre and opening up with range (gap + k * grow), out to max visual range
-// (EYES_RANGE); ~3 units between dots along a ring. Each dot carries a random id so every pass of the spinning head
-// can drop / jitter it differently (fresh returns). Rebuilt when the dead / gap / grow knobs change.
-function ringGeo(dead: number, gap: number, grow: number, az: number) {
-  const P: number[] = [], R: number[] = [], I: number[] = [], rmax = TUNE.EYES_RANGE * T;
-  for (let k = 0, r = Math.max(2, dead * T); r < rmax; k++, r += Math.max(1, gap + k * grow)) {
-    const n = Math.ceil(Math.min(6.2832 * r / 2.2, 360 / az)); // fixed azimuth step: dots spread out with range
-    for (let i = 0; i < n; i++) { const a = (i + (k % 2) * 0.5) / n * 6.2832; P.push(Math.cos(a) * r, Math.sin(a) * r, 0.6); R.push(r / rmax); I.push(Math.random() * 1000); }
-  }
-  const g = new THREE.BufferGeometry();
-  g.setAttribute('position', new THREE.Float32BufferAttribute(P, 3)); g.setAttribute('rr', new THREE.Float32BufferAttribute(R, 1));
-  g.setAttribute('rid', new THREE.Float32BufferAttribute(I, 1));
-  return g;
+// ---- ground scan: dots are EMITTED into the world as each ExoS's spinning head sweeps, and stay where they landed
+// while they fade (scanLife); new ones are always laid from where the ExoS is now. Each frame the head turns through a
+// thin slice of angle; for every ring (r_k = r0 + gap*k + grow*k(k+1)/2, out to EYES_RANGE, a fixed azimuth step),
+// the ring points inside that slice are tested once here on the CPU (dropout, radial jitter, inside the map, not in a
+// wall, the eyes cone, line of sight) and written into a ring buffer with their birth time and true ground colour.
+// The GPU only ages them. Head angle = time * rate * 2π + index * 2.1, the same head the walls use (headGate).
+const SCAN_CAP = 200000;
+let groundCol: (x: number, y: number) => number[] = () => [0.06, 0.06, 0.07];
+let scanGeo: THREE.BufferGeometry, scanWr = 0, layoutKey = '', layout: { r: number; n: number; off: number }[] = [];
+const lastHead = [NaN, NaN, NaN, NaN];
+function makeScanBuffer() {
+  scanGeo = new THREE.BufferGeometry();
+  const at = (n: number, k: string) => { const a = new THREE.BufferAttribute(new Float32Array(SCAN_CAP * n), n); a.setUsage(THREE.DynamicDrawUsage); scanGeo.setAttribute(k, a); return a; };
+  at(3, 'position'); at(1, 'rr'); at(3, 'gcol'); (at(1, 'birth').array as Float32Array).fill(-1e9);
+  return scanGeo;
 }
-let ringKey = '';
+export function resetScanDots() {
+  if (!scanGeo) return;
+  (scanGeo.attributes.birth.array as Float32Array).fill(-1e9); scanGeo.attributes.birth.needsUpdate = true;
+  scanWr = 0; lastHead.fill(NaN);
+}
+function scanLayout(L: any) {
+  const key = [L.scanDead, L.scanGap, L.scanGrow, L.scanAz].join(); if (key === layoutKey) return;
+  layoutKey = key; layout = [];
+  const rmax = TUNE.EYES_RANGE * T;
+  for (let k = 0, r = Math.max(2, L.scanDead * T); r < rmax; k++, r += Math.max(1, L.scanGap + k * L.scanGrow))
+    layout.push({ r, n: Math.ceil(Math.min(6.2832 * r / 2.2, 360 / L.scanAz)), off: (k % 2) * 0.5 });
+}
+function emitScan(t: number, lance: any[], L: any) {
+  scanLayout(L);
+  const rmax = TUNE.EYES_RANGE * T, coneCos = Math.cos(TUNE.EYES_HALF_ANG * Math.PI / 180), closeR = TUNE.EYES_CLOSE * T, TAU = 6.2832;
+  const P = scanGeo.attributes.position.array as Float32Array, B = scanGeo.attributes.birth.array as Float32Array;
+  const RR = scanGeo.attributes.rr.array as Float32Array, GC = scanGeo.attributes.gcol.array as Float32Array;
+  const from = scanWr; let count = 0;
+  for (let i = 0; i < 4; i++) {
+    const m = lance[i];
+    if (!m || m.dead) { lastHead[i] = NaN; continue; }
+    const h1 = t * L.scanRate * TAU + i * 2.1; let h0 = lastHead[i]; lastHead[i] = h1;
+    if (!(h1 > h0)) continue;                      // first frame, paused, or rate dropped: nothing swept
+    if (h1 - h0 > TAU) h0 = h1 - TAU;              // never more than one full turn per frame
+    for (const ring of layout) {
+      const j0 = Math.floor(h0 / TAU * ring.n - ring.off) + 1, j1 = Math.floor(h1 / TAU * ring.n - ring.off);
+      for (let j = j0; j <= j1; j++) {
+        if (Math.random() < L.scanDrop) continue;
+        const a = (j + ring.off) / ring.n * TAU, r = ring.r + (Math.random() - 0.5) * L.scanGap * 0.4;
+        const c = Math.cos(a), s = Math.sin(a), x = m.x + c * r, y = m.y + s * r;
+        if (x < 0 || y < 0 || x >= W * T || y >= H * T || isSolid(Math.floor(x / T), Math.floor(y / T))) continue;
+        if (L.scanCone > 0.5 && r > closeR && c * m.fx + s * m.fy < coneCos) continue;
+        if (tilesCrossed(m.x, m.y, x, y, 1) !== 0) continue;   // shadows: buildings block the beam
+        const w = scanWr, gc = groundCol(x, y);
+        P[w * 3] = x; P[w * 3 + 1] = -y; P[w * 3 + 2] = 0.6; B[w] = t; RR[w] = ring.r / rmax;
+        GC[w * 3] = gc[0]; GC[w * 3 + 1] = gc[1]; GC[w * 3 + 2] = gc[2];
+        scanWr = (scanWr + 1) % SCAN_CAP; count++;
+      }
+    }
+  }
+  if (!count) return;
+  for (const k of ['position', 'birth', 'rr', 'gcol']) {
+    const at = scanGeo.attributes[k] as THREE.BufferAttribute, n = at.itemSize;
+    if (from + count <= SCAN_CAP) at.addUpdateRange(from * n, count * n);
+    else { at.addUpdateRange(from * n, (SCAN_CAP - from) * n); at.addUpdateRange(0, (from + count - SCAN_CAP) * n); }
+    at.needsUpdate = true;
+  }
+}
 
 const FOG_GLSL = /* glsl */`
   uniform sampler2D fogTex; uniform vec2 grid; uniform float useFog;
@@ -290,7 +338,7 @@ const VERT = /* glsl */`
   uniform float sH, r0, gap, grow, rmax, dPhi, thM, dTh, ringsOn;
   // Wall dots resolve along the same beams that draw the ground rings. Trace the beam from the sensor (height sH, at
   // the tile's closest scan position) through this dot down to the ground (or mirrored up, above sensor height):
-  // if it lands on a ring, the dot is on a scan line. Rings sit at r_k = r0 + gap*k + grow*k(k+1)/2 (ringGeo), so
+  // if it lands on a ring, the dot is on a scan line. Rings sit at r_k = r0 + gap*k + grow*k(k+1)/2 (scanLayout), so
   // k(r) is the quadratic's root. Columns: a fixed azimuth step dPhi, so dots spread out with distance.
   float lidarOK(vec2 wp, float z, float ti) {
     vec4 sc = texture2D(scanTex, (vec2(mod(ti, grid.x), floor(ti / grid.x)) + 0.5) / grid);
@@ -365,51 +413,23 @@ const FRAG = /* glsl */`
   varying vec3 vCol; varying float vA;
   void main() { if (vA <= 0.0) discard; vec2 c = gl_PointCoord - 0.5; float d = length(c); if (d > 0.5) discard; gl_FragColor = vec4(vCol, vA * smoothstep(0.5, 0.2, d)); }`;
 
-// Rings follow the spinning head: `behind` = how far round the head has gone since it last swept this dot (0 = just
-// now, 1 = about to sweep again). A dot flashes as the head crosses it, then fades to `persist`; each revolution
-// re-rolls its dropout and a small radial jitter (hashed on dot id + revolution), so every pass lays down fresh dots.
-const RVERT = /* glsl */`
-  ${FOG_GLSL}
-  attribute float rr;             // ring radius / max range
-  attribute float rid;            // random id per dot
-  uniform vec2 centre, facing; uniform float size, amt, spinAmt, time, phase, rate, persist, drop, fadePow, gap, cone, coneCos, closeR;
+// Emitted ground scan dots: flash as they land, settle to `persist` over one head turn, then fade out over `life`
+// seconds where they are; brightness also falls off toward max range. Colour = the ring colour, blended toward the
+// ground's true colour (paint, puddles, lamp light) by trueAmt.
+const EVERT = /* glsl */`
+  attribute float birth, rr; attribute vec3 gcol;
+  uniform float time, life, persist, fadePow, spinAmt, amt, rate, trueAmt, size;
   uniform vec3 cNear, cFar;
   varying vec3 vCol; varying float vA;
-  float hh(float n) { return fract(sin(n) * 43758.5453); }
-  // Exact line of sight from this ExoS to one dot: the same grid DDA as sim/world.ts tilesCrossed, stopping at the
-  // first building tile (fog texture B channel = solid). 12-tile range needs at most ~17 steps; 28 is the safe cap.
-  float los(vec2 a, vec2 b) {
-    float TT = ${T.toFixed(1)};
-    vec2 t = floor(a / TT), e = floor(b / TT), d = b - a, s = sign(d), ad = abs(d);
-    vec2 tDelta = vec2(ad.x > 0.0 ? TT / ad.x : 1e9, ad.y > 0.0 ? TT / ad.y : 1e9);
-    vec2 tMax = vec2(ad.x > 0.0 ? (s.x > 0.0 ? (t.x + 1.0) * TT - a.x : a.x - t.x * TT) / ad.x : 1e9,
-                     ad.y > 0.0 ? (s.y > 0.0 ? (t.y + 1.0) * TT - a.y : a.y - t.y * TT) / ad.y : 1e9);
-    float n = abs(e.x - t.x) + abs(e.y - t.y);
-    for (int i = 0; i < 28; i++) {
-      if (float(i) >= n) break;
-      if (tMax.x < tMax.y) { tMax.x += tDelta.x; t.x += s.x; } else { tMax.y += tDelta.y; t.y += s.y; }
-      if (fogTile(t).b > 0.5) return 0.0;
-    }
-    return 1.0;
-  }
   void main() {
-    float a = atan(position.y, position.x);
-    float turn = time * rate * 6.2832 + phase - a;                  // head angle relative to this dot
-    float rev = floor(turn / 6.2832), behind = fract(turn / 6.2832);
-    float keep = step(drop, hh(rid + rev * 17.13));                  // this pass's dropout
-    float jit = (hh(rid * 1.37 + rev * 3.1) - 0.5) * gap * 0.4;      // this pass's radial jitter
-    vec2 w = centre + normalize(position.xy) * (length(position.xy) + jit); // world (sim coords, y down)
-    float inMap = step(0.0, w.x) * step(0.0, w.y) * step(w.x, grid.x * ${T.toFixed(1)}) * step(w.y, grid.y * ${T.toFixed(1)});
-    vec2 dv = w - centre; float dl = length(dv);
-    float inCone = cone < 0.5 || dl < closeR ? 1.0 : step(coneCos, dot(dv / max(dl, 0.001), facing)); // the ExoS's eyes cone (sim rule)
-    float ok = inMap * keep * inCone;
-    if (ok > 0.0) ok *= los(centre, w);                              // shadows: exact LoS per dot, per ExoS (also kills dots inside walls)
-    float hot = 1.0 - smoothstep(0.0, 0.04, behind);                 // just swept: flash
-    float life = mix(1.0, persist, smoothstep(0.0, 1.0, behind));     // then settle to persist until the next pass
-    vCol = mix(cNear, cFar, rr) * life * amt + vec3(hot * spinAmt);
-    vA = ok * pow(1.0 - rr, fadePow) * life;                         // slow fade out to max visual range
-    gl_PointSize = ok * size * (1.0 + hot * 0.8);
-    gl_Position = projectionMatrix * modelViewMatrix * vec4(w.x, -w.y, position.z, 1.0);
+    float age = time - birth, alive = step(0.0, age) * step(age, life);
+    float settle = mix(1.0, persist, smoothstep(0.0, 1.0 / max(rate, 0.01), age));
+    float fade = 1.0 - age / max(life, 0.01), hot = 1.0 - smoothstep(0.0, 0.12, age);
+    vec3 base = mix(mix(cNear, cFar, rr), gcol * 1.6, trueAmt);
+    vCol = base * settle * fade * amt + vec3(hot * spinAmt);
+    vA = alive * pow(max(1.0 - rr, 0.0), fadePow) * settle * fade;
+    gl_PointSize = alive * size * (1.0 + hot * 0.8);
+    gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
   }`;
 
 // Grey massing blocks: one instanced box per solid tile; dissolve (3-unit noise cells) as the tile resolves
@@ -498,15 +518,11 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
   tiles.forEach((ti, k) => { M.makeScale(T, T, heights[ti]).setPosition((ti % W) * T, -((ti / W) | 0) * T, 0); im.setMatrixAt(k, M); });
   im.frustumCulled = false; im.renderOrder = 1; scene.add(im);
   const pts = new THREE.Points(geo, mat); pts.frustumCulled = false; pts.renderOrder = 2; scene.add(pts);
-  // rings, one per possible ExoS (1–4)
-  const rg = ringGeo(look.scanDead, look.scanGap, look.scanGrow, look.scanAz); ringKey = [look.scanDead, look.scanGap, look.scanGrow, look.scanAz].join();
-  for (let i = 0; i < 4; i++) {
-    const rm = new THREE.ShaderMaterial({ vertexShader: RVERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
-      uniforms: { ...fogU(), centre: { value: new THREE.Vector2() }, size: { value: 1.5 }, amt: { value: 1 }, spinAmt: { value: 0.5 }, time: mat.uniforms.time, phase: { value: i * 2.1 },
-        rate: { value: 0.5 }, persist: { value: 0.3 }, drop: { value: 0.2 }, fadePow: { value: 1.5 }, gap: { value: 3 }, cNear: C(), cFar: C(),
-        facing: { value: new THREE.Vector2(1, 0) }, cone: { value: 1 }, coneCos: { value: Math.cos(TUNE.EYES_HALF_ANG * Math.PI / 180) }, closeR: { value: TUNE.EYES_CLOSE * T } } });
-    const r = new THREE.Points(rg, rm); r.frustumCulled = false; r.renderOrder = 2; rings.push(r); scene.add(r);
-  }
+  // ground scan: one ring buffer of emitted dots for every ExoS
+  scanMat = new THREE.ShaderMaterial({ vertexShader: EVERT, fragmentShader: FRAG, transparent: true, depthWrite: false,
+    uniforms: { time: mat.uniforms.time, life: { value: 8 }, persist: { value: 0.3 }, fadePow: { value: 1.5 }, spinAmt: { value: 0.5 }, amt: { value: 1 },
+      rate: { value: 0.5 }, trueAmt: { value: 0.5 }, size: { value: 1.5 }, cNear: C(), cFar: C() } });
+  scanPts = new THREE.Points(makeScanBuffer(), scanMat); scanPts.frustumCulled = false; scanPts.renderOrder = 2; scene.add(scanPts);
   // spinners
   spin = makeSpinners();
   spinPts = new THREE.Points(spin.geo, mat); spinPts.frustumCulled = false; spinPts.renderOrder = 3; scene.add(spinPts);
@@ -548,16 +564,12 @@ export function renderField(t: number, dt: number, camX: number, camY: number, z
   u.cInk.value.set(L.ink); u.cFog.value.set(L.fog); u.rampLo.value.set(L.rampLo); u.rampMid.value.set(L.rampMid); u.rampHi.value.set(L.rampHi);
   blockMat.uniforms.cBlock.value.set(L.block); blockMat.uniforms.cEdge.value.set(L.blockEdge);
   gridMat.uniforms.cInk.value.set(L.ink); gridMat.uniforms.amt.value = FX.grid ? L.grid : 0;
-  const key = [L.scanDead, L.scanGap, L.scanGrow, L.scanAz].join();
-  if (key !== ringKey) { ringKey = key; const g = ringGeo(L.scanDead, L.scanGap, L.scanGrow, L.scanAz), old = rings[0].geometry; for (const r of rings) r.geometry = g; old.dispose(); }
-  for (let i = 0; i < 4; i++) {
-    const m = lance[i], r = rings[i], ru = (r.material as THREE.ShaderMaterial).uniforms;
-    u.eyes.value[i].set(m ? m.x : 0, m ? m.y : 0, m && !m.dead ? 1 : 0, m && m === active ? 1 : 0);
-    r.visible = !!m && !m.dead && FX.rings && L.scanAmt > 0;
-    if (r.visible) { ru.centre.value.set(m.x, m.y); ru.size.value = size * 0.85; ru.amt.value = L.scanAmt; ru.spinAmt.value = L.scanSpin; ru.cNear.value.set(L.scanNear); ru.cFar.value.set(L.scanFar);
-      ru.rate.value = L.scanRate; ru.persist.value = L.scanPersist; ru.drop.value = L.scanDrop; ru.fadePow.value = L.scanFade; ru.gap.value = L.scanGap;
-      ru.facing.value.set(m.fx, m.fy); ru.cone.value = L.scanCone; ru.coneCos.value = Math.cos(TUNE.EYES_HALF_ANG * Math.PI / 180); ru.closeR.value = TUNE.EYES_CLOSE * T; }
-  }
+  for (let i = 0; i < 4; i++) { const m = lance[i]; u.eyes.value[i].set(m ? m.x : 0, m ? m.y : 0, m && !m.dead ? 1 : 0, m && m === active ? 1 : 0); }
+  scanPts.visible = FX.rings && L.scanAmt > 0;
+  if (scanPts.visible) emitScan(t, lance, L); else lastHead.fill(NaN);
+  { const su = scanMat.uniforms;
+    su.size.value = size * 0.85; su.amt.value = L.scanAmt; su.spinAmt.value = L.scanSpin; su.persist.value = L.scanPersist; su.fadePow.value = L.scanFade;
+    su.rate.value = L.scanRate; su.life.value = L.scanLife; su.trueAmt.value = L.scanTrue; su.cNear.value.set(L.scanNear); su.cFar.value.set(L.scanFar); }
   spinPts.visible = FX.spinners; if (FX.spinners) updateSpinners(dt);
   fogTex.needsUpdate = true; marksTex.needsUpdate = true;
   bloom.enabled = FX.bloom && L.bloom > 0; bloom.strength = L.bloom;

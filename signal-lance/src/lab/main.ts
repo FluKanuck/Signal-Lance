@@ -9,7 +9,7 @@ import { isType, carrier, isCarrier, pickupBlock } from '../sim/mission.ts';
 import { idTick } from '../sim/ids.ts';
 import { LOOKS, FX, KNOBS, FONTS, TIPS, look, setLook } from './looks.ts';
 import { updateFog, resetFog, FOG } from './fog.ts';
-import { initField, resizeField, renderField } from './field.ts';
+import { initField, resizeField, renderField, resetScanDots } from './field.ts';
 import { drawMarks } from './marks.ts';
 import { initHud, applyLookCss, updateHud, buildTape } from './hud.ts';
 
@@ -47,7 +47,7 @@ function botAct() {
 function start(i: number) {
   if (G.tb) leaveScenario();
   S.scen = i; const s = scenarioList()[i]; startScenario(s);
-  resetFog(); updateFog(0, true); S.follow = true; S.camX = G.p.x; S.camY = G.p.y; S.endT = 0;
+  resetFog(); resetScanDots(); updateFog(0, true); S.follow = true; S.camX = G.p.x; S.camY = G.p.y; S.endT = 0;
   $('lScen').textContent = s.name + ' · R' + s.round;
   $('lTry').textContent = s.tryThis;
 }
