@@ -75,6 +75,7 @@ A frame sets locations, hardpoints, rated/max load, and base Visibility in VIS /
 | **Mule** | Heavy | 17 / 22 | 5 / 4 / 5 | S | W | I I O | U U U | M | Fire support: mortar and launcher platform |
 | **Bastion** | Assault | 22 / 26 | 6 / 6 / 7 | S S | W W W | I I I | U U | M M | Walking fortress. Slow; magnetometers find it from a district away |
 | **Wraith** | Light (prototype) | 10 / 12 | 1 / 1 / 1 | S S O | W | I I | — | M M | Stealth frame: built-in cloak mounts (§7); fragile, pricey, rare |
+| **Shepherd** *(placeholder)* | Medium | 14 / 18 | 3 / 4 / 3 | S S | W | I I | U U U O | M | Drone carrier (§9b). Sees through its drones; weak alone; control links raise its EM |
 
 Frames carry **base hits per part** (R12 `PART_SHARE`) and a **reactor size cap** (what reactor fits in CORE).
 
@@ -276,6 +277,24 @@ The rule we keep from the research: **stealth costs your EW.** A suit running an
 | **Laser designator** | Marks a contact: mortar and seekers on the lance ignore its uncertainty | VIS e1 beam; laser-warning receivers see it |
 | **Salvage rig** | Hold cap +1 for this suit's kills | wt +2 |
 | **Extended life support** | No fatigue in hazard districts | wt +1 |
+
+---
+
+## 9b. Drones and drone carriers (PLACEHOLDER)
+Added 2026-10-05 from the hangar toy. **Shape only:** drones aren't units in the sim yet, and nothing here is decided. Drones mount on BACK (U). The suit pays the **control link** (EM emit on launch, or while the drone is up); the drone's own SND and VIS happen **where the drone is**, so a drone can give itself away without giving you away, until someone traces the link.
+
+| Item | HP | wt / draw | Use | Effect | Sig (on the suit) | Trade |
+|---|---|---|---|---|---|---|
+| **Spotter drone bay** | U | 1 / 1 | 1 AP launch | One turn of eyes elsewhere (folds in the §4 spotter drone) | EM e2 on launch | The drone is SND e2, VIS e1 where it flies |
+| **Tether drone** | U | 1 / 1 | — | Hovers above you: eyes over buildings | VIS v +1 | The drone marks where you are |
+| **Relay drone** | U | 1 / 1 | 1 AP launch | Datalink range +6, around corners | EM e3 | Jammable; traced back to you |
+| **Decoy drone** | U | 1 / 0 | 1 AP, 2 uses | A moving EM + SND ghost for 2 turns | — | A thermal look shows it is small |
+| **Sensor pod dispenser** | U | 1 / 0 | 1 AP, 3 pods | Static pods (SND / IR / MAG) that report until found (§4) | — | Pods can be traced back |
+| **Strike drone** | U | 2 / 0 | 2 AP, 1 use | Flies to a fix and detonates (EXP) | EM e2, SND e3 | Needs a fix; one use |
+| **Drone hive** | U ×2 | 3 / 2 | 1 AP, 2 drones per launch | The carrier module: 4 small drones (spotter or decoy) | EM e4, SND e2 | Big EM spike on launch |
+| **Drone uplink** (mod) | U | 0 / +1 | — | DRONE modules here: range +50%, control EM −30% | — | Draw +1 |
+
+**Open questions (drones):** see `claude/signal-lance-hangar-toy.md`.
 
 ---
 
