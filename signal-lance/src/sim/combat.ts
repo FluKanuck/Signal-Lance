@@ -79,9 +79,31 @@ export function inCover(sx, sy, tx, ty) {
     if ((isSolid(ix, iy) || isClutter(ix, iy)) && dRect(bx, by, ix, iy) <= R) walls.push([ix, iy]); // R16: clutter is low cover
   if (!walls.length) return false;
   const t0 = Math.max(0, 1 - (R + TUNE.COVER_GRAZE + 1) / len), t1 = 1 - 0.5 / len, st = 0.05 / len;
+  const shared = new Map<number, boolean>(); // per grazed tile: is the shooter up against the same piece of cover?
   for (let t = t0; t <= t1; t += st) {
     const px = ax + (bx - ax) * t, py = ay + (by - ay) * t;
-    for (const [ix, iy] of walls) if (dRect(px, py, ix, iy) < TUNE.COVER_GRAZE - 1e-6) return true;
+    for (const [ix, iy] of walls) {
+      if (dRect(px, py, ix, iy) >= TUNE.COVER_GRAZE - 1e-6) continue;
+      const k = iy * 100000 + ix;
+      if (!shared.has(k)) shared.set(k, sameCover(ax, ay, ix, iy));
+      if (!shared.get(k)) return true;
+    }
+  }
+  return false;
+}
+// R16 (Jamie: "if the target is sharing the same cover item as the ExoS the cover doesnt apply … two people on either side
+// of the same fence … I couldn't just lean out to shoot"): the cover piece = the grazed tile and every wall / clutter tile
+// joined to it within COVER_ITEM_RADIUS; if the shooter (tile coords ax, ay) is within COVER_ADJ of any of it, it gives no cover.
+function sameCover(ax: number, ay: number, ix: number, iy: number) {
+  const R = TUNE.COVER_ITEM_RADIUS, cov = (x, y) => isSolid(x, y) || isClutter(x, y), seen = new Set<number>([iy * 100000 + ix]), q = [[ix, iy]];
+  while (q.length) {
+    const [x, y] = q.pop();
+    if (dRect(ax, ay, x, y) <= TUNE.COVER_ADJ) return true;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+      const nx = x + dx, ny = y + dy, k = ny * 100000 + nx;
+      if (seen.has(k) || Math.max(Math.abs(nx - ix), Math.abs(ny - iy)) > R || !cov(nx, ny)) continue;
+      seen.add(k); q.push([nx, ny]);
+    }
   }
   return false;
 }

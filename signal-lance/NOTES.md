@@ -742,6 +742,18 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      legs aim at three stretches of the right edge (its own row, 20% and 80% of the height). Forks get 12 tries (later
      ones also slide sideways) before walls are softened. Only Escort jobs need a route: other jobs never reroll for it,
      so a seed's district depends on the job type (job card and hunt roll the same type). Escort districts reroll ~5%.
+   R16 debrief 4 (r16-s7) ASSUMPTIONS
+   - Railway levers (Jamie): every fork the transport hasn't left shows its route buttons. Tap = set that fork's lever
+     (lit ✓), tap again = clear. At the fork it waits at, a tap sends it (as before). A move now runs through: at a leg's
+     end, a single onward leg or a set lever carries it on with the movement it has left; an unset fork or the route's end
+     stops it. One shared planner (planAllyMove) drives both the move and the preview. Legs are logged as they are taken.
+   - Next-move marker: a dashed gold ring where the next move ends ("waits at fork" / "out" / HOLD on the spot), worked out
+     with the same planner (clutter cost, HURRY, levers). Not shown while it waits at an unset fork.
+   - Initiative strip: the transport shows as a green T in its slot (always: you never need a contact on it).
+   - Shared cover (Jamie: "if the target is sharing the same cover item as the ExoS the cover doesnt apply"): for each
+     grazed cover tile, the piece = it plus every wall / clutter tile joined to it (4-way) within COVER_ITEM_RADIUS (3).
+     If the shooter is within COVER_ADJ (0.75 tiles: next to it, diagonals included) of any tile of that piece, that tile
+     gives no cover. Both sides. This replaced the point-blank idea (not built).
 ```
 
 ## TWEAK LOG
@@ -1093,4 +1105,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            4, ESCORT_DETOUR 1.8. No leg now travels more than 4 tiles west (300 seeds). Runner 60 contracts: wins 41% (was 47%);
            big grids hardest (4x4 forced, 40 contracts: 36%); rerolls 1%. Flags: hush 0% (Bounty), 4x4 10% (20 hunts; 36% when
            forced), sound share (inherited). BUILD r16-s6 | -
+   round16 debrief 4 | Jamie: "1. icon along route to show how far transport will move in its next move. 2. transport to show
+           in initiative, 3. railway style direction lever"; 51% / 55% on an emplacement next to a barricade "felt really low and
+           annoying" … "if the target is sharing the same cover item as the ExoS the cover doesnt apply" | NEW forks-ahead levers,
+           next-move marker, T in the strip; COVER_ADJ 0.75, COVER_ITEM_RADIUS 3. Runner 60 contracts: hit 57% (cover 29%, open
+           62%), wins ~40%; Escort forced (30): 60%. BUILD r16-s7 | -
 ```

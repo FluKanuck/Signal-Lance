@@ -50,20 +50,36 @@ export function makeAlly(at = 'S') {
     radarOn: false, mask: false, jamming: false, fireT: 0, dead: false, shots: 0, landed: 0, ap: 0, en: 100, enMax: 100, turnShots: 0, freeTurns: 0,
     emit: TUNE.ESCORT_EMIT, comms: TUNE.ESCORT_EMIT, armour: TUNE.ESCORT_ARMOUR, bearT: 0, sound: 0, heardBy: [], sndOff: { x: 0, y: 0 }, movedT: 0,
     node: at, leg: -1, walk: null, done: 0, // node it stands on (or last left), leg index it walks, that leg's points, tiles walked on it
-    order: '', holdsLeft: TUNE.ESCORT_HOLDS, hurriesLeft: TUNE.ESCORT_HURRIES, hurrying: false }; // R16: the pending order (HOLD / HURRY) and what's left
+    order: '', holdsLeft: TUNE.ESCORT_HOLDS, hurriesLeft: TUNE.ESCORT_HURRIES, hurrying: false, // R16: the pending order (HOLD / HURRY) and what's left
+    levers: {}, passed: [] }; // R16 (Jamie): levers = fork node → the leg set ahead of time; passed = forks it has already left
   initParts(a, 'ALLY', TUNE.ESCORT_HITS);
   a.load = { passive: 0, radar: 0, ecm: 0, ammo: 0, mortar: 0 };
   const L = legsFrom(at); if (L.length === 1) startLeg(a, L[0].i); // a single onward leg: just go
   return a;
 }
-function startLeg(a, i: number) { a.leg = i; a.walk = legPath(i); a.done = 0; }
+function startLeg(a, i: number) {
+  const L = anchors().legs[i];
+  if (legsFrom(L.from).length > 1) { G.mission.legs.push(L.name + '@' + L.from); if (!a.passed.includes(L.from)) a.passed.push(L.from); } // logged as it is taken
+  a.leg = i; a.walk = legPath(i); a.done = 0;
+}
 // Holding at a junction, waiting for the player's pick?
 export function allyHolding() { const a = G.ally; return !!a && !a.dead && a.leg < 0 && legsFrom(a.node).length > 1; }
-// The legs the player can pick right now ([] unless the ally holds at a junction)
+// The legs the player can pick right now ([] unless the ally holds at a junction). The scripted player uses this.
 export function legChoices() { return allyHolding() ? legsFrom(G.ally.node) : []; }
+// R16 (Jamie: "railway style direction lever"): every fork the transport hasn't left yet, with its legs. Set a lever at
+// any of them ahead of time; reaching a set fork it carries straight on (in the same move); an unset fork = it stops and waits.
+export function forksAhead() {
+  const a = G.ally; if (!a || a.dead) return [];
+  return anchors().junctions.filter(j => !a.passed.includes(j)).map(j => ({ node: j, legs: legsFrom(j), set: a.levers[j] ?? -1 }));
+}
+// Pick leg i: at the fork it waits at, it sets off on it (on its next activation); at a fork ahead, it sets (or, tapped
+// again, clears) the lever.
 export function pickLeg(i: number) {
-  if (!legChoices().some(l => l.i === i)) return false;
-  startLeg(G.ally, i); G.mission.legs.push(anchors().legs[i].name + '@' + G.ally.node); return true;
+  const a = G.ally; if (!a || a.dead) return false;
+  if (legChoices().some(l => l.i === i)) { a.levers[a.node] = i; startLeg(a, i); return true; }
+  const f = forksAhead().find(f => f.legs.some(l => l.i === i)); if (!f) return false;
+  if (a.levers[f.node] === i) delete a.levers[f.node]; else a.levers[f.node] = i;
+  return true;
 }
 // Where a leg's route button sits on the map (world point): 6 tiles along it, or halfway on a short leg
 export function legButton(i: number) {
@@ -93,22 +109,46 @@ export function giveOrder(kind: string) {
   a.order = kind; if (kind === 'HOLD') a.holdsLeft--; else a.hurriesLeft--;
   return true;
 }
+// One move of the transport, worked out without changing anything: up to `budget` tiles of movement (clutter-weighted)
+// along its walk; at the end of a leg, a single onward leg or a set lever carries it on with what's left; an unset fork
+// (or the end of the route) stops it. Returns the path walked and where it ends up (the view's next-move marker uses it too).
+export function planAllyMove(a, budget: number) {
+  let pts = [{ x: a.x, y: a.y }, ...(a.walk || []).slice(1)], leg = a.leg, node = a.node, path = [{ x: a.x, y: a.y }], walk = null, stop = '';
+  const taken: number[] = [];
+  while (leg >= 0) {
+    const left = pathCost(pts);
+    if (budget < left - 1e-3) { // stops partway along this leg: keep the unwalked remainder
+      const clip = clipPathCost(pts, budget), end = clip[clip.length - 1], k = clip.length - 1, full = pts[k] && pts[k].x === end.x && pts[k].y === end.y;
+      path = path.concat(clip.slice(1)); walk = full ? pts.slice(k) : [end, ...pts.slice(k)]; break;
+    }
+    path = path.concat(pts.slice(1)); budget -= left;
+    node = anchors().legs[leg].to; leg = -1;
+    const L = legsFrom(node), next = L.length === 1 ? L[0].i : L.length > 1 && a.levers[node] !== undefined ? a.levers[node] : -1;
+    if (next < 0) { stop = L.length > 1 ? 'FORK' : 'END'; break; }
+    leg = next; taken.push(next); pts = legPath(next);
+    if (budget < 0.05) { walk = pts; break; }
+  }
+  return { path, leg, node, walk, taken, stop };
+}
+// The transport's next move as the view previews it: where it will stop (and why), or null (no move).
+export function allyNextStop() {
+  const a = G.ally; if (!a || a.dead || a.leg < 0 && !(legsFrom(a.node).length > 1 && a.levers[a.node] !== undefined)) return null;
+  if (a.order === 'HOLD') return { x: a.x, y: a.y, why: 'HOLD' };
+  const p = planAllyMove(a, a.order === 'HURRY' ? TUNE.ESCORT_SPRINT : TUNE.ESCORT_MOVE), e = p.path[p.path.length - 1];
+  return { x: e.x, y: e.y, why: p.stop };
+}
 export function allyStep() {
   const a = G.ally; if (a) a.hurrying = false;
-  if (!a || a.dead || a.leg < 0) return null;
+  if (!a || a.dead) return null;
+  if (a.leg < 0 && legsFrom(a.node).length > 1 && a.levers[a.node] !== undefined) startLeg(a, a.levers[a.node]); // a lever set while it waited
+  if (a.leg < 0) return null;
   if (a.order === 'HOLD') { a.order = ''; G.mission.holds = (G.mission.holds || 0) + 1; return null; } // R16: it waits this round
   const hurry = a.order === 'HURRY'; if (hurry) { a.order = ''; a.hurrying = true; G.mission.hurries = (G.mission.hurries || 0) + 1; }
-  // walk from where it stands along what's left of the leg (R16: clutter costs it CLUTTER_TILE_COST a tile, like everyone)
-  const pts = [{ x: a.x, y: a.y }, ...a.walk.slice(1)], left = pathCost(pts);
-  const n = Math.min(hurry ? TUNE.ESCORT_SPRINT : TUNE.ESCORT_MOVE, left), path = clipPathCost(pts, n);
-  if (n >= left - 1e-3) { // reaches the leg's end node this activation
-    const to = anchors().legs[a.leg].to; a.node = to; a.leg = -1; a.walk = null;
-    const L = legsFrom(to); if (L.length === 1) { startLeg(a, L[0].i); a.walk = legPath(L[0].i); }
-  } else {
-    // keep the unwalked remainder: the clip's end point + every later point
-    const end = path[path.length - 1], k = path.length - 1, full = pts[k] && pts[k].x === end.x && pts[k].y === end.y;
-    a.walk = full ? pts.slice(k) : [end, ...pts.slice(k)];
-  }
-  makeSound(a, hurry ? 'SPRINT' : 'NORMAL', pathHitsClutter(path) ? TUNE.CLUTTER_SOUND : 0);
-  return path.length > 1 ? path : null;
+  // walk from where it stands (R16: clutter costs it CLUTTER_TILE_COST a tile, like everyone; set levers carry it through forks)
+  const p = planAllyMove(a, hurry ? TUNE.ESCORT_SPRINT : TUNE.ESCORT_MOVE);
+  for (const i of p.taken) startLeg(a, i); // logs each fork taken
+  a.leg = p.leg; a.node = p.node; a.walk = p.walk;
+  if (a.leg >= 0 && !a.walk) a.walk = legPath(a.leg);
+  makeSound(a, hurry ? 'SPRINT' : 'NORMAL', pathHitsClutter(p.path) ? TUNE.CLUTTER_SOUND : 0);
+  return p.path.length > 1 ? p.path : null;
 }

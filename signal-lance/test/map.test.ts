@@ -149,6 +149,37 @@ describe('R16 debrief 3: routes, start zones, convoy orders', () => {
   });
 });
 
+describe('R16: railway levers and the next-move marker', () => {
+  it('a lever set ahead carries the transport straight through that fork in the same move; an unset fork stops it', async () => {
+    const { makeAlly, pickLeg, forksAhead, allyStep: plan, legsFrom, allyNextStop } = await import('../src/sim/escort.ts');
+    const allyStep = () => { const P = plan(); if (P) { const e = P[P.length - 1]; G.ally.x = e.x; G.ally.y = e.y; } return P; }; // the walk itself runs in the game loop
+    let through = 0, stopped = 0;
+    for (const seed of [1, 2, 3, 4, 5, 6]) {
+      startHunt(seed, undefined, 'blocks', 'ESCORT');
+      // unset: it stops at J1 and waits
+      G.ally = makeAlly('S'); let a = G.ally;
+      for (let k = 0; k < 40 && a.leg >= 0; k++) allyStep();
+      expect(a.node).toBe('J1'); expect(a.leg).toBe(-1); stopped++;
+      // set ahead: it never waits at J1
+      G.ally = makeAlly('S'); a = G.ally;
+      const lv = legsFrom('J1')[0].i; expect(pickLeg(lv)).toBe(true); expect(forksAhead().find(f => f.node === 'J1').set).toBe(lv);
+      for (let k = 0; k < 40 && !(a.node === 'J1' && a.leg < 0) && a.node !== 'J2'; k++) { const n = allyNextStop(), J = anchors().waypoints.J1; if (n && n.why === 'FORK') expect(Math.hypot(n.x - (J.x + 0.5) * T, n.y - (J.y + 0.5) * T)).toBeGreaterThan(T); allyStep(); } // never waits at J1
+      expect(a.node === 'J1' && a.leg < 0).toBe(false); expect(G.mission.legs[0]).toBe(anchors().legs[lv].name + '@J1'); through++;
+    }
+    expect(through).toBe(6); expect(stopped).toBe(6);
+  });
+  it('tapping a set lever again clears it; the marker shows where the next move ends (HOLD = on the spot)', async () => {
+    const { makeAlly, pickLeg, legsFrom, allyNextStop, giveOrder, allyStep } = await import('../src/sim/escort.ts');
+    startHunt(2, undefined, 'blocks', 'ESCORT');
+    G.ally = makeAlly('S'); const a = G.ally, i = legsFrom('J1')[0].i;
+    pickLeg(i); pickLeg(i); expect(a.levers.J1).toBeUndefined();
+    const n = allyNextStop(); giveOrder('HOLD'); const h = allyNextStop();
+    expect(h.why).toBe('HOLD'); expect([h.x, h.y]).toEqual([a.x, a.y]);
+    giveOrder('HOLD'); // cancel
+    const P = allyStep(); const e = P[P.length - 1]; expect([e.x, e.y]).toEqual([n.x, n.y]); // the marker was right
+  });
+});
+
 describe('clutter', () => {
   const ROWS = [
     '..........',
@@ -178,6 +209,13 @@ describe('clutter', () => {
     doMove(m, pl); expect(m.sound).toBe(TUNE.SOUND_RANGE.NORMAL + TUNE.CLUTTER_SOUND);
     const c = TUNE.CLUTTER_SOUND; TUNE.CLUTTER_SOUND = 0;
     try { m.sound = 0; m.x = ctr(1, 0).x; G.act = null; const p2 = planMove(m, ctr(8, 0).x, ctr(8, 0).y, 'NORMAL'); expect(p2.snd).toBe(TUNE.SOUND_RANGE.NORMAL); } finally { TUNE.CLUTTER_SOUND = c; }
+  });
+  it('shared cover (Jamie): a shooter up against the same piece of cover as its target ignores it; from elsewhere it counts', () => {
+    tiny(['..........', '....%.....', '....%.....', '..........']); startHuntOn();
+    const tgt = ctr(5, 2); // right beside the barricade
+    expect(inCover(ctr(0, 2).x, ctr(0, 2).y, tgt.x, tgt.y)).toBe(true);   // from across the street: covered
+    expect(inCover(ctr(3, 1).x, ctr(3, 1).y, tgt.x, tgt.y)).toBe(false);  // the shooter leans round the same barricade
+    expect(inCover(ctr(3, 3).x, ctr(3, 3).y, tgt.x, tgt.y)).toBe(false);  // diagonal to its end: same piece
   });
   it('clutter is low cover (the cover rule) but never blocks line of sight', () => {
     tiny(['..........', '.....,....', '..........']); startHuntOn();

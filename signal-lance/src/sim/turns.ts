@@ -371,7 +371,7 @@ export function cmdTarget(x, y) { G.planT = { x, y, cut: false }; replan(); } //
 export function cmdMove() { if (G.plan && G.plan.path) doMove(G.p, G.plan); }
 export function cmdUplink() { if (uplinkBlock() === '') doUplink(); }
 // R15 s3: pick the route leg at the junction the transport holds at (no AP: it's an order, on your turn)
-export function cmdLeg(i: number) { if (playerFree()) { pickLeg(i); hooks.sync(); } }
+export function cmdLeg(i: number) { if (playerFree()) { pickLeg(i); hooks.sync(); } } // R16: at the fork it waits at = go; at a fork ahead = set / clear the lever
 // R16 (Jamie): order the Escort transport to HOLD (skip its next move) or HURRY (sprint its next move). No AP; limited uses.
 export function cmdEscortOrder(kind: string) { if (playerFree() && giveOrder(kind)) hooks.sync(); }
 // R15: the objective button. Uplink: UPLINK. Retrieve: PICK UP the cargo, or HAND OFF if the active mech carries it.

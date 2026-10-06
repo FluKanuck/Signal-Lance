@@ -28,6 +28,7 @@ function initStrip() {
   G.order.forEach((m, i) => {
     if (m.dead) return;
     const mech = G.lance.includes(m);
+    if (m === G.ally) { h += '<span class="ally' + (i === G.oi ? ' now' : i < G.oi ? ' done' : '') + '">T</span>'; return; } // R16 (Jamie): the transport's turn
     if (!mech && !G.pc.some(c => c.on && c.id === m.id)) return;
     h += '<span class="' + (mech ? 'me' : '') + (i === G.oi ? ' now' : i < G.oi ? ' done' : '') + '">' + (mech ? m.id : '?') + '</span>';
   });
@@ -66,7 +67,8 @@ function goalLine(p) {
   if (isType('ESCORT') && G.ally) { // R15 s3
     const a = G.ally, N = anchors().waypoints, L = anchors().legs;
     const where = allyHolding() ? '<b style="color:#7e9">HOLDING at ' + N[a.node].name + ': tap a route on the map</b>' : a.leg >= 0 ? 'heading for ' + N[L[a.leg].to].name : 'moving';
-    const ord = a.order ? '  <b style="color:#fc3">' + (a.order === 'HOLD' ? 'HOLDING next round' : 'SPRINTING next move') + '</b>' : '';
+    const lev = anchors().junctions.filter(j => !a.passed.includes(j)).map(j => N[j].name.replace('fork at ', '') + ' ' + (a.levers[j] !== undefined ? L[a.levers[j]].name : '—')).join(', ');
+    const ord = (lev ? '  levers: ' + lev : '') + (a.order ? '  <b style="color:#fc3">' + (a.order === 'HOLD' ? 'HOLDING next round' : 'SPRINTING next move') + '</b>' : '');
     return '<br>TRANSPORT <b style="color:#7e9">' + Math.max(0, a.hits) + '/' + a.maxHits + ' hits</b>  ' + where + ord + '  <span style="color:#aab">(a mech at the right edge first = the lance pulls out without it)</span>';
   }
   if (isType('RETRIEVE')) { // R15 s2

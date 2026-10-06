@@ -349,6 +349,8 @@ export const TUNE = {
   HIT_MOVED_MAX: 24,      // ...up to this much
   HIT_COVER: 25,          // − this % if the target is in cover:
   COVER_GRAZE: 0.3,       // ...the shot line passes closer than this (tiles) to a wall tile (last 0.5 tile ignored). R12 run: 0.5 → 0.3
+  COVER_ADJ: 0.75,        // R16 (Jamie): tiles; a shooter this close to the same piece of cover as its target ignores that cover (lean out and shoot)...
+  COVER_ITEM_RADIUS: 3,   // ...a 'piece' = the grazed wall / clutter tile and everything joined to it within this many tiles
   COVER_RANGE: 1.0,       // ...that is within this many tiles of the target. R12 run: 1.5 → 1.0 (walls beside a turret counted)
   // Hit locations. Parts per unit kind; a hit picks one by PART_WEIGHTS (renormalised over the unit's parts).
   // Each unit's hit pool (base hits + armour plates × ARMOUR_HITS) is split across its parts by PART_SHARE

@@ -10,7 +10,7 @@ import { zoneAtTile, effEmit, zoneType } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
 import { traitLines, frozen, matchVariants, hasReading } from '../sim/ids.ts';
 import { isType, carrier } from '../sim/mission.ts';
-import { legChoices, legButton, legPath } from '../sim/escort.ts';
+import { legButton, legPath, forksAhead, allyNextStop } from '../sim/escort.ts';
 import { anchors } from '../sim/world.ts';
 
 // R13: a sound ring (pale, solid, with short ticks so it reads as "waves", not the dashed orange EMIT ring)
@@ -125,11 +125,19 @@ export function render() {
       ctx.fillStyle = '#7e9'; ctx.beginPath(); ctx.moveTo(a.x, a.y - 12); ctx.lineTo(a.x + 12, a.y); ctx.lineTo(a.x, a.y + 12); ctx.lineTo(a.x - 12, a.y); ctx.closePath(); ctx.fill();
       ctx.fillText('TRANSPORT ' + a.hits + '/' + a.maxHits, a.x + 14, a.y - 12);
     }
-    for (const l of legChoices()) {
-      const b = legButton(l.i), r = 30 / z;
-      ctx.fillStyle = 'rgba(30,60,40,0.85)'; ctx.strokeStyle = '#7e9'; ctx.lineWidth = 3 / z;
+    // R16 (Jamie): the next move's end: a ring where it will stop (HOLD = on the spot)
+    const nx = allyNextStop();
+    if (nx) {
+      ctx.strokeStyle = '#fc3'; ctx.lineWidth = 3 / z; ctx.setLineDash([6 / z, 4 / z]); ctx.beginPath(); ctx.arc(nx.x, nx.y, 14 / z + 6, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#fc3'; ctx.font = 'bold ' + (11 / z) + 'px monospace';
+      ctx.fillText(nx.why === 'HOLD' ? 'HOLDS' : nx.why === 'FORK' ? 'NEXT · waits at fork' : nx.why === 'END' ? 'NEXT · out' : 'NEXT', nx.x + 16 / z + 6, nx.y + 4 / z);
+    }
+    // R16 (Jamie: railway levers): a route button on every fork ahead. Lit = the lever is set (it will carry on that way)
+    for (const f of forksAhead()) for (const l of f.legs) {
+      const b = legButton(l.i), r = 30 / z, set = f.set === l.i, waiting = a.leg < 0 && a.node === f.node;
+      ctx.fillStyle = set ? 'rgba(120,230,160,0.9)' : 'rgba(30,60,40,0.85)'; ctx.strokeStyle = waiting && f.set < 0 ? '#fc3' : '#7e9'; ctx.lineWidth = 3 / z;
       ctx.beginPath(); ctx.arc(b.x, b.y, r, 0, 6.2832); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = '#bfe'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.textAlign = 'center'; ctx.fillText(l.name || 'ROUTE', b.x, b.y + 4 / z); ctx.textAlign = 'left';
+      ctx.fillStyle = set ? '#062' : '#bfe'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.textAlign = 'center'; ctx.fillText((set ? '✓ ' : '') + (l.name || 'ROUTE'), b.x, b.y + 4 / z); ctx.textAlign = 'left';
     }
   }
   // R15 Bounty: the price of a kill pops over the wreck for a moment

@@ -2,7 +2,7 @@ import { TUNE } from '../tune.ts';
 import { W, H, T } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
 import { cx, cy } from '../sim/sensors.ts';
-import { legChoices, legButton } from '../sim/escort.ts';
+import { legButton, forksAhead } from '../sim/escort.ts';
 import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect } from '../sim/turns.ts';
 import { V } from './state.ts';
 import { cv, vw, vh, resize } from './render.ts';
@@ -91,7 +91,7 @@ export function onTap(sx, sy) {
     syncButtons(); return;
   }
   // R15 Escort: a route button (shown while the transport holds at a fork) picks that leg
-  for (const l of legChoices()) { const b = legButton(l.i); if (Math.hypot(wx - b.x, wy - b.y) <= ROUTE_BTN_PX / z) { cmdLeg(l.i); syncButtons(); return; } }
+  for (const f of forksAhead()) for (const l of f.legs) { const b = legButton(l.i); if (Math.hypot(wx - b.x, wy - b.y) <= ROUTE_BTN_PX / z) { cmdLeg(l.i); syncButtons(); return; } } // R16: levers at every fork ahead
   // tap on a contact = select it
   for (const c of G.pc) {
     if (!c.on) continue;
