@@ -227,6 +227,7 @@ export const TUNE = {
   TRAIT_SOFT_MAX: 3,     // a heard step radius up to this = "soft"...
   TRAIT_STEP_MAX: 5,     // ...up to this = "steps", above = "loud". A heard shot up to SHOT_MUFFLED_MAX = "muffled", else "loud"
   SHOT_MUFFLED_MAX: 6,
+  ID_SHOW_FITS: true,    // R14 debrief 1 (Jamie: "didn't feel intuitive enough to bother opening the ID menus"): label shows "N fit", picker greys out ruled-out variants. Was false
   HIT_ID_BONUS: 10,      // % to hit for a gun shot at a contact you ID'd correctly BEFORE eyes (a wrong ID adds nothing)
   ID_STATIC_HOLD: true,  // an ID'd TURRET / EMPLACEMENT contact never grows or fades (the track "freezes"); a wrong call freezes it too
   EMPL_SWEEP_DEG: 100,  // degrees the emplacement's radar turns between pulses when it has no contact (sweeps all round)

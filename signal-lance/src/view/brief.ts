@@ -10,6 +10,7 @@ export const TEST = {
     'Every enemy is now one of 9 variants (3 patrols, 3 turrets, 3 emplacements). They fight differently: tougher core, more rounds, looser or firmer lock.',
     'Contacts read UNKNOWN until you ID them (SOUND if you have only heard them). Tap a contact: under it you see what your sensors have actually picked up: EMIT level, pulsing or steady, moved or still, steps or a shot heard.',
     'CARD (left, above zoom) lists all 9 with their traits and one bold TELL. ID (next to it) lets you call the selected contact. Re-ID any time, for free.',
+    'NEW (r14-s2): a contact you have read shows how many variants still fit ("3 fit"), and the ID picker greys out the ones your reads rule out. You can still pick a greyed one.',
     'A call shows as "name?" until eyes confirm it. Eyes show the truth; a wrong call flips and counts as a miscall.',
     'Why bother: ID a turret or emplacement and its track freezes (it stops growing and never fades), so a mortar lob gets easier to line up. A right call made before eyes also adds +10% to hit. Call a patrol a turret and your track freezes on a spot it has already left.',
     'TEST BED (loadout screen): short scenarios. Look-alikes, Quiet gun and Twin pulse test reading the signature; Earshot and Wounded are from Round 13.',

@@ -832,4 +832,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            (HIT_ID_BONUS 10, ID_STATIC_HOLD true); lance hears field radar pulses at once. Scenarios Look-alikes,
            Quiet gun, Twin pulse. Runner (20 contracts): ID'd before eyes 27%, right 100%, narrowed 46%, from first
            reading 4%, 2.0 rounds to one variant; check OK. BUILD r14-s1 | -
+   round14 debrief 1 | quick contract, Mixed, WIN CLEAR, IDs 1 (right, before eyes). Weakest: "reading contacts felt
+           pointless": "killed them before I knew", "they walked into eyes"; and "didn't feel intuitive enough to bother
+           opening the sub menu UIs to make the ID … more a refinement/scale/presentation issue" | NEW ID_SHOW_FITS
+           false → true: contact label "N fit", picker greys out ruled-out variants (still tappable). Jamie: patrol step
+           tells stay close-range for a baseline ExoS (acoustic sensors will extend them later); not changed. BUILD r14-s2 | -
 ```

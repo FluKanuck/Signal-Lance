@@ -8,7 +8,7 @@ import { upDist, playerTarget, mortarBlock, mortarScatter } from '../sim/turns.t
 import { V } from './state.ts';
 import { zoneAtTile, effEmit, zoneType } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
-import { traitLines, frozen } from '../sim/ids.ts';
+import { traitLines, frozen, matchVariants, hasReading } from '../sim/ids.ts';
 
 // R13: a sound ring (pale, solid, with short ticks so it reads as "waves", not the dashed orange EMIT ring)
 function soundRing(x, y, r, z, alpha, label?) {
@@ -22,7 +22,8 @@ function soundRing(x, y, r, z, alpha, label?) {
 export function contactLabel(c) {
   const o = G.obs[c.id], d = G.ids[c.id], u = unitById(c.id);
   const name = o && o.var && u ? u.type + ' ' + o.var : d ? d.v + '?' : c.snd ? '' : 'UNKNOWN';
-  return c.snd ? (name ? name + ' · SOUND' : 'SOUND') : name;
+  const fits = TUNE.ID_SHOW_FITS && !(o && o.var) && hasReading(o) ? ' · ' + matchVariants(o).length + ' fit' : ''; // R14 debrief 1
+  return (c.snd ? (name ? name + ' · SOUND' : 'SOUND') : name) + fits;
 }
 // ============================ RENDER ==================================
 export const cv: any = document.getElementById('cv'), ctx = cv.getContext('2d');

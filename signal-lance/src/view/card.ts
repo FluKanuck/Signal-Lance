@@ -2,7 +2,7 @@
 // selected contact. View only: the picker sends cmdId; the sim does the rest.
 import { TUNE } from '../tune.ts';
 import { G } from '../sim/state.ts';
-import { cmdId, traitLines, revealed } from '../sim/ids.ts';
+import { cmdId, traitLines, revealed, matchVariants } from '../sim/ids.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
 
 const TYPES = ['PATROL', 'TURRET', 'EMPLACEMENT'];
@@ -29,7 +29,9 @@ export function showPicker() {
   const c = idTarget(); if (!c) return;
   const L = traitLines(G.obs[c.id]), cur = G.ids[c.id] ? G.ids[c.id].v : '';
   $('idHead').innerHTML = '<b>ID this contact</b>' + (cur ? ' (now: ' + esc(cur) + '?)' : ' (now: UNKNOWN)') + ' · seen so far: ' + (L.length ? esc(L.join(' · ')) : 'nothing yet');
-  $('idGrid').innerHTML = grid(k => '<button class="idv' + (k === cur ? ' on' : '') + '" data-v="' + k + '"><b>' + esc(k) + '</b><small>' + esc(TUNE.FIELD_VARIANTS[k].TELL) + '</small></button>');
+  const fit = TUNE.ID_SHOW_FITS && G.obs[c.id] ? matchVariants(G.obs[c.id]) : null; // R14 debrief 1: grey out what your reads rule out (still tappable)
+  if (fit) $('idHead').innerHTML += ' · <b>' + fit.length + ' fit</b>';
+  $('idGrid').innerHTML = grid(k => '<button class="idv' + (k === cur ? ' on' : '') + (fit && !fit.includes(k) ? ' out' : '') + '" data-v="' + k + '"><b>' + esc(k) + '</b><small>' + esc(TUNE.FIELD_VARIANTS[k].TELL) + '</small></button>');
   $('idp').hidden = false; $('idp').scrollTop = 0;
 }
 function pick(v: string) { const c = idTarget(); if (c) cmdId(c.id, v); $('idp').hidden = true; syncButtons(); refreshHud(); }

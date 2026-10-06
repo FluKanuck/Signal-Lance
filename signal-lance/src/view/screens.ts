@@ -10,7 +10,7 @@ import { setPack } from '../sim/pack.ts';
 import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r14-s1';  // R14 part 1: variants, CARD, IDs (+ the test bed)
+export const BUILD = 'r14-s2';  // R14 debrief 1: ID_SHOW_FITS ("N fit" + greyed picker)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
