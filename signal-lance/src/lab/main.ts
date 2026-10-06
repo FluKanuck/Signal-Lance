@@ -67,7 +67,7 @@ function frame(now: number) {
   updateFog(dt);
   if (S.follow && G.p) { const k = Math.min(1, dt * 3); S.camX += (G.p.x - S.camX) * k; S.camY += (G.p.y - S.camY) * k; }
   drawMarks(marks, vw, vh, dpr, S.camX, S.camY, S.zoom);
-  renderField(clock, dt, S.camX, S.camY, S.zoom, vh, G.lance, dpr);
+  renderField(clock, dt, S.camX, S.camY, S.zoom, vh, G.lance, G.p, dpr);
   updateHud(dt);
   requestAnimationFrame(frame);
 }

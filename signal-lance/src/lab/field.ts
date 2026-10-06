@@ -240,7 +240,7 @@ const VERT = /* glsl */`
   attribute vec3 color;
   uniform float size, depth, time, sweep, trueMix, greyDim, heightTint, neon, clutter;
   uniform vec3 cInk, cFog, rampLo, rampMid, rampHi;
-  uniform vec4 eyes[4];           // ExoS x, y (world), alive
+  uniform vec4 eyes[4];           // ExoS x, y (world), alive, active (the sweep pulse runs from the active ExoS only)
   varying vec3 vCol; varying float vA;
   float h1(float n) { return fract(sin(n) * 43758.5453); }
   void main() {
@@ -263,7 +263,7 @@ const VERT = /* glsl */`
     if (kind > 5.5 && kind < 6.5) col *= 0.15 + 0.85 * step(fract(time * 0.8 + meta.y * 0.137), 0.18);                                   // blinker
     if (emissive) col *= 1.0 + neon * live;                   // glows (bloom picks them up) only while seen
     float s = 0.0;                                            // lidar sweep pulse from each ExoS
-    for (int i = 0; i < 4; i++) if (eyes[i].z > 0.5) {
+    for (int i = 0; i < 4; i++) if (eyes[i].z > 0.5 && eyes[i].w > 0.5) {
       float d = distance(position.xy, vec2(eyes[i].x, -eyes[i].y)), r = mod(time * 260.0 + float(i) * 190.0, 420.0);
       s = max(s, smoothstep(26.0, 0.0, abs(d - r)) * (1.0 - r / 420.0));
     }
@@ -431,7 +431,7 @@ export function resizeField(w: number, h: number, dpr: number) {
 }
 
 // camX/camY = world point at screen centre, zoom = screen px per world unit (same meaning as the 2D game)
-export function renderField(t: number, dt: number, camX: number, camY: number, zoom: number, vh: number, lance: any[], dpr: number) {
+export function renderField(t: number, dt: number, camX: number, camY: number, zoom: number, vh: number, lance: any[], active: any, dpr: number) {
   const L = look, u = mat.uniforms;
   const dist = (vh / 2) / (zoom * Math.tan(FOV * Math.PI / 360)); // ground plane at exactly `zoom` px per unit
   cam.position.set(camX, -camY, dist); cam.lookAt(camX, -camY, 0);
@@ -447,7 +447,7 @@ export function renderField(t: number, dt: number, camX: number, camY: number, z
   if (key !== ringKey) { ringKey = key; const g = ringGeo(L.scanDead, L.scanGap, L.scanGrow), old = rings[0].geometry; for (const r of rings) r.geometry = g; old.dispose(); }
   for (let i = 0; i < 4; i++) {
     const m = lance[i], r = rings[i], ru = (r.material as THREE.ShaderMaterial).uniforms;
-    u.eyes.value[i].set(m ? m.x : 0, m ? m.y : 0, m && !m.dead ? 1 : 0, 0);
+    u.eyes.value[i].set(m ? m.x : 0, m ? m.y : 0, m && !m.dead ? 1 : 0, m && m === active ? 1 : 0);
     r.visible = !!m && !m.dead && FX.rings && L.scanAmt > 0;
     if (r.visible) { ru.centre.value.set(m.x, m.y); ru.size.value = size * 0.85; ru.amt.value = L.scanAmt; ru.spinAmt.value = L.scanSpin; ru.cNear.value.set(L.scanNear); ru.cFar.value.set(L.scanFar);
       ru.rate.value = L.scanRate; ru.persist.value = L.scanPersist; ru.drop.value = L.scanDrop; ru.fadePow.value = L.scanFade; ru.gap.value = L.scanGap;

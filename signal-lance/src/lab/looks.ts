@@ -145,7 +145,7 @@ export const TIPS: Record<string, string> = {
   // battlefield
   dotSize: 'Size of every scan dot.',
   depth: 'How tall buildings are drawn (0 = flat top-down map; higher = taller, more lean).',
-  sweep: 'The pulse ring that expands out from each ExoS and brightens the dots it passes.',
+  sweep: 'The pulse ring that expands out from the active ExoS and brightens the dots it passes.',
   trueMix: 'Live scans: 1 = real-world colours, 0 = everything tinted in the look\'s ink colour.',
   greyDim: 'Brightness of revealed areas once out of sight (the drained grey).',
   heightTint: 'Colours scanned objects by height (street → rooftops) like survey lidar, over their true colour. 0 = off.',
