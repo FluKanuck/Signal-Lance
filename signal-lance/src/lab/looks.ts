@@ -72,8 +72,8 @@ export const LOOKS: Look[] = [
     font: FONTS[3].font, display: FONTS[3].display, // Chakra Petch
     bg: '#0b0a10', ink: '#b9b2ff', dim: '#5d5880',
     fog: '#1d1b2a', dotSize: 0.8, depth: 1.1, sweep: 0.3, trueMix: 0.95, greyDim: 0.2, block: '#24222c', blockEdge: '#383547', blockFade: 0,
-    heightTint: 0.3, rampLo: '#2a6cff', rampMid: '#2fe0b0', rampHi: '#ffd23f', scanAmt: 1.3, scanNear: '#b9b2ff', scanFar: '#4a6cff', scanSpin: 0.3,
-    scanDead: 0.55, scanGap: 2.7, scanGrow: 0.22, scanFade: 0.5, scanRate: 1.9, scanPersist: 0.95, scanDrop: 0.45, scanCone: 1, scanLife: 18.5, scanTrue: 0.75, scanHeight: 20, scanAz: 0.2,
+    heightTint: 0.3, rampLo: '#2a6cff', rampMid: '#2fe0b0', rampHi: '#ffd23f', scanAmt: 1.3, scanNear: '#b9b2ff', scanFar: '#4a6cff', scanSpin: 0.1,
+    scanDead: 0.55, scanGap: 2.7, scanGrow: 0.22, scanFade: 1.45, scanRate: 0.9, scanPersist: 0.25, scanDrop: 0.45, scanCone: 1, scanLife: 18.5, scanTrue: 0.75, scanHeight: 20, scanAz: 0.2,
     grid: 0, neon: 1.6, clutter: 1,
     hostile: '#ff5d73', lost: '#ff9f6b', sound: '#e8e4ff', bearing: '#7fe0ff', objective: '#ffd27a', friend: '#4bdd68', quiet: '#7aa2ff', noise: '#ffc861',
     bloom: 0.35, grain: 0.055, scan: 0.2, vignette: 0.3, aberr: 1.3, haze: '#1a1530', hazeAmt: 0.15,
