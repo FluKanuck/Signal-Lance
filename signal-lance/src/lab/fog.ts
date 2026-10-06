@@ -11,10 +11,10 @@ import { TUNE } from '../tune.ts';
 import { W, H, T, tilesCrossed, isSolid } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
 
-export const FOG = {
-  RESOLVE_S: 0.9,     // seconds for a newly scanned tile to fully resolve from block to dots
-  COLOUR_IN_S: 0.35,  // seconds to reach full colour once seen
-  COLOUR_OUT_S: 2.5,  // seconds to drain to grey once lost
+export const FOG = { // timings tuned by Jamie (2026-10-06)
+  RESOLVE_S: 2.25,    // seconds for a newly scanned tile to fully resolve from block to dots
+  COLOUR_IN_S: 0.8,   // seconds to reach full colour once seen
+  COLOUR_OUT_S: 4.9,  // seconds to drain to grey once lost
 };
 
 const N = W * H;

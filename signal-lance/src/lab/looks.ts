@@ -67,15 +67,16 @@ export const FONTS: { name: string; font: string; display: string; why: string }
 
 export const LOOKS: Look[] = [
   {
+    // Jamie's tuned values (2026-10-06, pasted from the lab's COPY SETTINGS)
     name: 'MICRO', note: 'Micrographics lavender: hairlines, grain, low bloom',
-    font: FONTS[1].font, display: FONTS[1].display,
+    font: FONTS[3].font, display: FONTS[3].display, // Chakra Petch
     bg: '#0b0a10', ink: '#b9b2ff', dim: '#5d5880',
-    fog: '#1d1b2a', dotSize: 1.6, depth: 0.55, sweep: 0.5, trueMix: 0.8, greyDim: 0.55, block: '#24222c', blockEdge: '#383547', blockFade: 0,
-    heightTint: 0.15, rampLo: '#2a6cff', rampMid: '#2fe0b0', rampHi: '#ffd23f', scanAmt: 0.7, scanNear: '#b9b2ff', scanFar: '#4a6cff', scanSpin: 0.6,
-    scanDead: 0.5, scanGap: 3, scanGrow: 0.22, scanFade: 1.4, scanRate: 0.45, scanPersist: 0.3, scanDrop: 0.25, scanCone: 1, scanLife: 8, scanTrue: 0.5, scanHeight: 24, scanAz: 1.5,
-    grid: 0.12, neon: 1.6, clutter: 0.8,
-    hostile: '#ff5d73', lost: '#ff9f6b', sound: '#e8e4ff', bearing: '#7fe0ff', objective: '#ffd27a', friend: '#ffffff', quiet: '#7aa2ff', noise: '#ffc861',
-    bloom: 0.45, grain: 0.035, scan: 0, vignette: 0.45, aberr: 0.6, haze: '#1a1530', hazeAmt: 0.25,
+    fog: '#1d1b2a', dotSize: 0.8, depth: 1.1, sweep: 0.3, trueMix: 0.95, greyDim: 0.2, block: '#24222c', blockEdge: '#383547', blockFade: 0,
+    heightTint: 0.3, rampLo: '#2a6cff', rampMid: '#2fe0b0', rampHi: '#ffd23f', scanAmt: 1.3, scanNear: '#b9b2ff', scanFar: '#4a6cff', scanSpin: 0.6,
+    scanDead: 0.55, scanGap: 2.7, scanGrow: 0.22, scanFade: 0.5, scanRate: 1.9, scanPersist: 0.95, scanDrop: 0.45, scanCone: 1, scanLife: 18.5, scanTrue: 0.75, scanHeight: 20, scanAz: 0.2,
+    grid: 0.06, neon: 1.6, clutter: 1,
+    hostile: '#ff5d73', lost: '#ff9f6b', sound: '#e8e4ff', bearing: '#7fe0ff', objective: '#ffd27a', friend: '#4bdd68', quiet: '#7aa2ff', noise: '#ffc861',
+    bloom: 0.35, grain: 0.055, scan: 0.2, vignette: 0.3, aberr: 1.3, haze: '#1a1530', hazeAmt: 0.15,
   },
   {
     name: 'PHOSPHOR', note: 'HUD Vectors green: CRT scanlines, stronger glow',
