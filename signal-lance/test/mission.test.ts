@@ -123,3 +123,101 @@ describe('R15 scenarios', () => {
     expect(d).toBeGreaterThan(TUNE.MORTAR_MIN_RANGE); expect(d).toBeLessThan(TUNE.MORTAR_MAX_RANGE);
   });
 });
+
+// ---- R15 step 2: RETRIEVE ----
+import { planMove, cmdObjective, objectiveBlock } from '../src/sim/turns.ts';
+import { pickupBlock, doPickup, handoffBlock, doHandoff, carrier, cargoLost, onCargoLost, huntPay } from '../src/sim/mission.ts';
+import { packOn } from '../src/sim/pack.ts';
+import { enemyDecide } from '../src/sim/bot.ts';
+import { setActive } from '../src/sim/state.ts';
+
+const onCargo = (m) => { m.x = G.up.x; m.y = G.up.y; m.ap = 8; };
+describe('RETRIEVE', () => {
+  it('the cargo sits on the rolled site; a suit on its tile spends RETRIEVE_PICKUP_AP to take it', () => {
+    hunt('RETRIEVE', 3, 'Mixed');
+    const A = G.lance[0];
+    expect(pickupBlock(A)).toBe('RANGE');
+    onCargo(A); A.ap = TUNE.RETRIEVE_PICKUP_AP - 1; expect(pickupBlock(A)).toBe('AP');
+    A.ap = 8; expect(pickupBlock(A)).toBe('');
+    doPickup(A);
+    expect(carrier()).toBe(A); expect(A.ap).toBe(8 - TUNE.RETRIEVE_PICKUP_AP);
+    expect(pickupBlock(G.lance[1])).toBe('HELD');
+  });
+  it('the flip: every living field unit gets a contact on the carrier and the pack logic turns on (PACK_ENABLED off)', () => {
+    hunt('RETRIEVE', 3, 'Mixed'); expect(TUNE.PACK_ENABLED).toBe(false);
+    const A = G.lance[0]; onCargo(A);
+    for (const u of G.units) for (const c of u.ec) c.on = false;
+    expect(packOn()).toBe(false);
+    doPickup(A);
+    expect(packOn()).toBe(true);
+    for (const u of G.units) expect(u.ec.some(c => c.on && c.id === A.id)).toBe(true);
+  });
+  it('a patrol hunting after the flip goes after the carrier, not the more wounded mech', () => {
+    hunt('RETRIEVE', 3, 'Sweep');
+    const [A, B] = G.lance; onCargo(A);
+    damagePart(B, 'LEGS', 99); damagePart(B, 'WEAPON', 99); // B is the juicier target by the R13 rule
+    doPickup(A);
+    const p = G.units[0]; p.ap = 8;
+    for (const c of p.ec) c.on = false;
+    p.ec[0].on = true; Object.assign(p.ec[0], { id: B.id, tx: B.x, ty: B.y, unc: 2 * T, lost: 0, gap: 1 });
+    p.ec[1].on = true; Object.assign(p.ec[1], { id: A.id, tx: A.x, ty: A.y, unc: 2 * T, lost: 0, gap: 1 });
+    enemyDecide(p);
+    expect(p.packTgt).toBe(A.id);
+  });
+  it('the carrier can\'t SPRINT', () => {
+    hunt('RETRIEVE', 3, 'Mixed');
+    const A = G.lance[0]; onCargo(A); doPickup(A);
+    const pl = planMove(A, A.x + 4 * T, A.y, 'SPRINT');
+    expect(pl.path).toBeNull(); expect(pl.why).toBe('CARGO');
+    expect(planMove(G.lance[1], G.lance[1].x + 4 * T, G.lance[1].y, 'SPRINT')?.why).not.toBe('CARGO');
+  });
+  it('HAND OFF to an adjacent suit costs RETRIEVE_HANDOFF_AP', () => {
+    hunt('RETRIEVE', 3, 'Mixed');
+    const [A, B] = G.lance; onCargo(A); doPickup(A);
+    B.x = A.x + 5 * T; B.y = A.y; expect(handoffBlock(A)).toBe('RANGE');
+    B.x = A.x + T; const ap = A.ap; expect(handoffBlock(A)).toBe('');
+    doHandoff(A);
+    expect(carrier()).toBe(B); expect(A.ap).toBe(ap - TUNE.RETRIEVE_HANDOFF_AP); expect(G.mission.handoffs).toBe(1);
+  });
+  it('the objective button picks up, then hands off', () => {
+    hunt('RETRIEVE', 3, 'Mixed');
+    G.phase = 'PLAYER'; G.act = null; G.mode = 'hunt';
+    const [A, B] = G.lance; setActive(A); onCargo(A); B.x = A.x + T; B.y = A.y;
+    expect(objectiveBlock()).toBe(''); cmdObjective(); expect(carrier()).toBe(A);
+    cmdObjective(); expect(carrier()).toBe(B);
+  });
+  it('carrier destroyed = cargo lost, the hunt fails (not a contract LOSS); it pays nothing', () => {
+    contractHunt('RETRIEVE');
+    const A = G.lance[0]; onCargo(A); doPickup(A);
+    damagePart(A, 'CORE', 99); updateShells(0);
+    expect(cargoLost()).toBe(true);
+    onCargoLost();
+    expect(G.outcome).toBe('FAIL'); expect(G.ct.status).toBe('ACTIVE'); expect(G.ct.wins).toBe(0);
+    expect(G.ct.results[0].pay).toBe(0);
+  });
+  it('win: the carrier reaches extraction; pay PAY_WIN + kills. Another mech extracting first = BAIL', () => {
+    contractHunt('RETRIEVE');
+    const [A, B] = G.lance; onCargo(A); doPickup(A); G.kills = 1;
+    onExtract(A);
+    expect(G.outcome).toBe('WIN RETRIEVE'); expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + TUNE.PAY_KILL);
+    contractHunt('RETRIEVE');
+    onCargo(G.lance[0]); doPickup(G.lance[0]); onExtract(G.lance[1]);
+    expect(G.outcome).toBe('BAIL');
+    expect(huntPay('BAIL')).toBe(0);
+  });
+});
+
+describe('R15 step 2 scenarios', () => {
+  it('Grab and go: a light guard (one turret) at the cargo, the lance a few tiles off', () => {
+    startScenario(scenarioByName('Grab and go'));
+    expect(G.mission.type).toBe('RETRIEVE');
+    const statics = G.units.filter(u => !u.mobile);
+    expect(statics.length).toBe(1); expect(statics[0].variant).toBe('sentry');
+    expect(pickupBlock(G.lance[0])).toBe('RANGE');
+  });
+  it('Hot potato: the lance starts on the cargo inside heavy guards (gun turret, heavy patrol, emplacement)', () => {
+    startScenario(scenarioByName('Hot potato'));
+    expect(pickupBlock(G.lance[0])).not.toBe('RANGE');
+    expect(G.units.map(u => u.variant).sort()).toEqual(['gun', 'heavy', 'search']);
+  });
+});

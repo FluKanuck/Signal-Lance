@@ -582,6 +582,26 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      in >90% / <5% of the Bounty hunts it appears in, min 5 appearances). The R13 sound-share flag now counts UPLINK hunts
      only (it was calibrated on them); Bounty hunts get an info line.
    - BUILD r15-s1. A new build clears the run log, as before.
+   R15 step 2 (RETRIEVE) ASSUMPTIONS
+   - The cargo sits on the rolled site (G.up), taken from anchors().cargo, or the uplink tiles while that list is empty.
+     Statics guard it with the composition's placement, as for the uplink. PICK UP works within UPLINK_RADIUS + 0.5 of it
+     (the same ring as UPLINK); it shares the UPLINK button's slot (PICK UP / HAND OFF), one objective button per job type.
+   - The flip (doPickup): every living field unit gets an ALARM contact on the carrier (UNC_ACQUIRE + ALARM_UNC_ADD tiles,
+     never a lock on its own) and packOn() becomes true for the rest of the hunt: patrols drop the leash, alarms spread
+     (R13 raiseAlarm), and pickPackTarget picks the carrier first whenever they know where it is. Statics only turn and
+     fire, as always. After the first alarm there is no beacon: contacts fade and get re-found like any other.
+     PACK_ENABLED itself is untouched (the splash toggle and the [PACK] log tag still mean the R13 switch).
+   - Carrying: planMove refuses SPRINT for the carrier (why 'CARGO'; the SPRINT button shows CARGO). HAND OFF: the carrier
+     passes it to the other living mech within RETRIEVE_HANDOFF_RANGE (1.5 tiles) for RETRIEVE_HANDOFF_AP. No re-pickup:
+     the cargo is never dropped on the ground.
+   - Carrier destroyed: checked every sim step after the LOSS check. Outcome FAIL (hunt failed, pays 0, not a win; the
+     contract goes on unless both mechs are gone, which is a LOSS first).
+   - Win: the carrier reaches extraction (WIN RETRIEVE, PAY_WIN + kills × PAY_KILL, as uplink). Any other mech reaching
+     extraction still pulls the lance out (BAIL), as before. Clearing the whole field is still WIN CLEAR (as uplink).
+   - Scripted player: to the cargo (fighting what it meets), PICK UP, carrier walks out, the other mech follows the carrier;
+     hands off when the carrier is at half hits or worse and the mech beside it is healthier. Runner: a RETRIEVE info line
+     (picked up, carried out, cargo lost, hand-offs, rounds from pickup to the end). The brief sets no Retrieve flags.
+   - BUILD r15-s2.
 ```
 
 ## TWEAK LOG
@@ -884,4 +904,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            of Bounty hunts; 120 → ~30–40%). Scenarios Price list, One more?. Runner (20 contracts): Bounty win 18%,
            Uplink 64%; flags: sound share 58% (uplink hunts; 50% uplink-only, inherited R13 knife-edge), gun killed 0/12.
            BUILD r15-s1 | -
+   round15 step 1 debrief | "It felt fine". Bounty prices "changed when I left"; leaving at quota "just felt like a good time
+           to do so" (calm, not a gamble). Test bed: "useful". | no change | -
+   round15 step 2 | check-in: build Retrieve as briefed | NEW RETRIEVE (MISSION_TYPES + 'RETRIEVE', RETRIEVE_PICKUP_AP 2,
+           RETRIEVE_NO_SPRINT true, RETRIEVE_HANDOFF_AP 1, RETRIEVE_HANDOFF_RANGE 1.5), packOn() after the flip, carrier
+           first in pickPackTarget. Scenarios Grab and go, Hot potato. Runner (20 contracts, forced Retrieve): win 41%,
+           picked up 38/46, cargo lost 10, pickup → end 3.7 rounds. Mixed check: same 2 known flags (sound share, gun 0%).
+           BUILD r15-s2 | -
 ```

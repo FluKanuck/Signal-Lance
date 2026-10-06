@@ -9,7 +9,8 @@ import { V } from './state.ts';
 import { zoneOf, effEmit } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
 import { revealed } from '../sim/ids.ts';
-import { isType, quotaMet } from '../sim/mission.ts';
+import { isType, quotaMet, isCarrier, pickupBlock, handoffBlock } from '../sim/mission.ts';
+import { objectiveBlock } from '../sim/turns.ts';
 
 // ============================ HUD =====================================
 export const $ = (id): any => document.getElementById(id);
@@ -59,6 +60,11 @@ export function updateHud(dt) {
 }
 // R15: the mission line. Uplink: progress pips and range. Bounty: earned / quota, the last kill's pop, and the call at quota.
 function goalLine(p) {
+  if (isType('RETRIEVE')) { // R15 s2
+    const M = G.mission;
+    if (!M.carrier) return '<br>CARGO <b style="color:#fc3">at ' + G.up.name + '</b>' + (pickupBlock(p) !== 'RANGE' ? '  <b>IN RANGE: PICK UP</b>' : '  ' + Math.round(upDist(p)) + 't away') + '  (grabbing it alerts the whole field)';
+    return '<br>CARGO <b style="color:#fc3">carried by ' + M.carrier + '</b>  get it out the right edge · no sprint while carrying' + (M.handoffs ? ' · hand-offs ' + M.handoffs : '') + '  <b style="color:#f66">FIELD HUNTING THE CARRIER</b>';
+  }
   if (isType('BOUNTY')) {
     const M = G.mission, met = quotaMet();
     return '<br>BOUNTY <b style="color:' + (met ? '#6f6' : '#fc3') + '">' + M.earned + ' / ' + M.quota + ' cr</b>' +
@@ -94,7 +100,8 @@ export function syncButtons() {
   for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) {
     const lab = { CREEP: 'CREEP', NORMAL: 'NORM', SPRINT: 'SPRINT' }[m];
     const lame = m !== 'CREEP' && partHurt(p, 'LEGS'); // R13: a leg gone locks NORM and SPRINT
-    setBtn(id, lab, lame ? 'LEGS' : TUNE.MOVE_TILES_PER_AP[m] + 't/AP ' + TUNE.MOVE_ENERGY_PER_TILE[m] + 'EN · snd ' + TUNE.SOUND_RANGE[m], free && !lame, G.pmode === m); // R13: the sound it makes
+    const cargo = m === 'SPRINT' && TUNE.RETRIEVE_NO_SPRINT && isCarrier(p); // R15: the carrier can't sprint
+    setBtn(id, lab, lame ? 'LEGS' : cargo ? 'CARGO' : TUNE.MOVE_TILES_PER_AP[m] + 't/AP ' + TUNE.MOVE_ENERGY_PER_TILE[m] + 'EN · snd ' + TUNE.SOUND_RANGE[m], free && !lame && !cargo, G.pmode === m); // R13: the sound it makes
   }
   const pl = G.plan;
   if (V.faceArm) setBtn('bMove', 'CANCEL', 'face', free, true);
@@ -128,8 +135,10 @@ export function syncButtons() {
   const sc = G.sel && G.sel.on ? G.sel : null, idv = sc && G.ids[sc.id] ? G.ids[sc.id].v : '';
   setBtn('bId', 'ID', !sc ? 'TAP ONE' : revealed(sc.id) ? 'SEEN' : idv ? idv + '?' : 'UNKNOWN', G.mode === 'hunt' && !!sc && !revealed(sc.id));
   // Round 5: uplink
-  $('bUp').hidden = !isType('UPLINK'); // R15: only an uplink job has one
-  w = G.mode === 'hunt' ? uplinkBlock() : 'RANGE';
-  setBtn('bUp', 'UPLINK', w || TUNE.AP_UPLINK + 'AP +' + TUNE.SIG_UPLINK + 'EMIT', free && !w);
+  $('bUp').hidden = isType('BOUNTY'); // R15: Bounty has no objective button; Retrieve uses it for PICK UP / HAND OFF
+  w = G.mode === 'hunt' ? objectiveBlock() : 'RANGE';
+  if (isType('RETRIEVE') && isCarrier(p)) setBtn('bUp', 'HAND OFF', w || TUNE.RETRIEVE_HANDOFF_AP + 'AP', free && !w);
+  else if (isType('RETRIEVE')) setBtn('bUp', 'PICK UP', w === 'HELD' ? G.mission.carrier + ' HAS IT' : w || TUNE.RETRIEVE_PICKUP_AP + 'AP · LOUD', free && !w);
+  else setBtn('bUp', 'UPLINK', w || TUNE.AP_UPLINK + 'AP +' + TUNE.SIG_UPLINK + 'EMIT', free && !w);
   hudT = 0;
 }

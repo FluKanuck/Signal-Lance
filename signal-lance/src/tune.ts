@@ -158,7 +158,7 @@ export const TUNE = {
   COST_REBUILD: 200,     // credits to rebuild a lost mech (comes back at the refit cap, not full)
   REFIT_CAP: 0.8,        // Jamie: repairs / rearm / rebuild never go above this × what the mech started its previous hunt with (rounded down), so the lance never fully recovers
   // --- Round 15: mission types. Each briefed job rolls one (seeded, evenly). The INTEL names it before you take the job ---
-  MISSION_TYPES: ['UPLINK', 'BOUNTY'], // types a job can roll; each R15 step adds its type (Step 2 RETRIEVE, Step 3 ESCORT)
+  MISSION_TYPES: ['UPLINK', 'BOUNTY', 'RETRIEVE'], // types a job can roll; each R15 step adds its type (Step 3 ESCORT)
   // Step 1, BOUNTY: every kill pays its TRUE variant's bounty (credits), however it died (blind lob, gun, eyes on; no ID needed).
   // Set from each variant's FIGHT line: tougher, better armed or harder to find = more.
   BOUNTY: {
@@ -174,6 +174,12 @@ export const TUNE = {
   },
   BOUNTY_QUOTA: 120,      // credits; reaching it makes the hunt a WIN (≈2–3 mid kills). Anything above it is kept as a bonus. Build: brief's 150 → 120 (runner: the scripted lance met 150 in only 13–25% of Bounty hunts)
   BOUNTY_FIELD_EXTRA: 2,  // extra field units in a Bounty hunt (variant rolled from all 9, placed 'anywhere'), so you can't take everything
+  // Step 2, RETRIEVE: cargo on a guarded tile. PICK UP is loud: the whole field is alarmed and hunts the carrier (pack logic, on
+  // for this job once the cargo moves, whatever PACK_ENABLED says). Carrier destroyed = cargo lost = the hunt fails.
+  RETRIEVE_PICKUP_AP: 2,     // AP to PICK UP the cargo (standing within UPLINK_RADIUS + 0.5 of it, like UPLINK)
+  RETRIEVE_NO_SPRINT: true,  // the carrier can't SPRINT
+  RETRIEVE_HANDOFF_AP: 1,    // AP for the carrier to HAND OFF the cargo to the other mech...
+  RETRIEVE_HANDOFF_RANGE: 1.5, // ...standing within this many tiles
   FIELD_SHUFFLE: 1,    // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
   // Per type. ARMOUR plates (signature as SIG_ARMOUR; hits = BASE_HITS + ARMOUR × ARMOUR_HITS), AMMO rounds,
   // CELLS energy cells (+ENERGY_CELL each), MOBILE 0 = never moves, RADAR/PASSIVE 0|1,

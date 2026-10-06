@@ -7,9 +7,9 @@ import { idTick } from './ids.ts';
 import { G } from './state.ts';
 import { T, W } from './world.ts';
 import { cx, cy } from './sensors.ts';
-import { isType, quotaMet } from './mission.ts';
+import { isType, quotaMet, carrier, isCarrier, pickupBlock, handoffTo, handoffBlock } from './mission.ts';
 import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist,
-         cmdSelect, cmdFire, cmdUplink, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp } from './turns.ts';
+         cmdSelect, cmdFire, cmdUplink, cmdObjective, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp } from './turns.ts';
 
 export const AUTO_DT = 0.05;
 export const AUTO = { loud: false, quiet: false }; // R13: --loud = SPRINT every move, pulse radar whenever it can. R14: --quiet = CREEP every move
@@ -22,6 +22,10 @@ const siteAt = new WeakMap<object, number>(), BOT_HUNT_ROUNDS = 10;
 // Where this activation walks to (world coords)
 function goal() {
   const p = G.p, out = { x: (W - 1.5) * T, y: p.y };
+  if (isType('RETRIEVE')) { // R15 s2: to the cargo; then the carrier heads out and the other mech shadows it
+    const c = carrier();
+    return !c ? G.up : isCarrier(p) ? out : { x: c.x, y: c.y };
+  }
   if (!isType('BOUNTY')) return G.up;
   if (quotaMet() || G.lance.some(m => m.dead)) return out; // at quota, or cutting its losses
   if (!siteAt.has(G.mission)) {                            // the guarded site first, fighting what it meets (as the uplink bot)
@@ -31,7 +35,10 @@ function goal() {
   const c = playerTarget();                                // then whatever it can still hear, for BOT_HUNT_ROUNDS; nothing left = leave
   return c && G.turn - siteAt.get(G.mission) < BOT_HUNT_ROUNDS ? { x: cx(c), y: cy(c) } : out;
 }
-const far = g => Math.hypot(g.x - G.p.x, g.y - G.p.y) / T > (isType('BOUNTY') ? 1 : TUNE.UPLINK_RADIUS + 0.5);
+const far = g => Math.hypot(g.x - G.p.x, g.y - G.p.y) / T > (g === G.up ? TUNE.UPLINK_RADIUS + 0.5 : 1);
+// R15 s2: hand the cargo over when the carrier is at half hits or worse and the other mech next to it is healthier
+const frail = m => m.hits / m.maxHits;
+function wantHandoff() { const o = handoffTo(G.p); return !!o && handoffBlock(G.p) === '' && frail(G.p) <= 0.5 && frail(o) > frail(G.p); }
 
 export function playerTurn() {
   let moved = false;
@@ -43,6 +50,7 @@ export function playerTurn() {
     if (mortarBlock(G.p, c) === '') { cmdMortar(); runAct(); continue; } // R9: lob at any contact that qualifies
     if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') { cmdFire(); runAct(); continue; }
     if (uplinkBlock() === '') { cmdUplink(); continue; }
+    if (pickupBlock(G.p) === '' || (isCarrier(G.p) && wantHandoff())) { cmdObjective(); continue; } // R15 s2
     const g = goal();
     if (!moved && far(g)) {
       cmdMoveMode(AUTO.loud ? 'SPRINT' : AUTO.quiet ? 'CREEP' : 'NORMAL'); cmdTarget(g.x, g.y); moved = true;

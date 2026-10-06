@@ -5,7 +5,7 @@ import { G, unitById, isMech } from './state.ts';
 import { killContact, cx, cy } from './sensors.ts';
 import { partGone } from './combat.ts';
 import { canPay, doMove, doPulse, doShot, freeTurn, planMove, shootBlock } from './turns.ts';
-import { pickPackTarget, wounded } from './pack.ts';
+import { pickPackTarget, wounded, packOn } from './pack.ts';
 
 // ============================ FIELD AI ================================
 // Same sensors as the player. Each field unit decides on its own sensors only (no shared info, R7).
@@ -53,14 +53,14 @@ export function enemyDecide(e) {
   const c = bestContact(e.ec), tracked = c && c.lost <= c.gap;
   const cd = c ? Math.hypot(cx(c) - e.x, cy(c) - e.y) : 1e9;
   // R13 s2: with the pack on, a patrol picks its target among the lance mechs it knows about (own or shared contacts)
-  const pk = TUNE.PACK_ENABLED && e.mobile ? packTarget(e) : null;
+  const pk = packOn() && e.mobile ? packTarget(e) : null; // R15: packOn() = PACK_ENABLED, or a Retrieve after the flip
   // 1. shoot whenever its lock rule allows (2-shot cap and AP included); the pack's target first, if it can
   if (pk && shootBlock(e, pk.c, F.FIRE_UNC, TUNE.ENEMY_FIRE_RANGE) === '') { e.state = 'FIRE'; e.acted = true; return () => doShot(e, pk.c); }
   if (c && shootBlock(e, c, F.FIRE_UNC, TUNE.ENEMY_FIRE_RANGE) === '') { e.state = 'FIRE'; e.acted = true; return () => doShot(e, c); }
   const b = c ? null : freshBearing(e.eb, 5);
   if (!e.mobile) return staticDecide(e, c, b);
   if (e.moved) return null;
-  if (TUNE.PACK_ENABLED) { const a = packDecide(e, pk); if (a !== undefined) return a; } // undefined = LEASH: the old brain below
+  if (packOn()) { const a = packDecide(e, pk); if (a !== undefined) return a; } // undefined = LEASH: the old brain below
   // ---- PATROL (mobile): the old bot brain with CAUTIOUS-style values from FIELD_TYPES ----
   let tx, ty;
   if ((c || b) && offLeash(e, c)) {

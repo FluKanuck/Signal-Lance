@@ -2,7 +2,7 @@ import { TUNE } from '../tune.ts';
 import { W, H, T } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
 import { cx, cy } from '../sim/sensors.ts';
-import { endPlayerTurn, replan, playerFree, cmdMoveMode, cmdTarget, cmdMove, cmdUplink, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect } from '../sim/turns.ts';
+import { endPlayerTurn, replan, playerFree, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect } from '../sim/turns.ts';
 import { V } from './state.ts';
 import { cv, vw, vh, resize } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
@@ -12,7 +12,7 @@ export function btn(id, fn) { $(id).addEventListener('pointerdown', e => { e.pre
 // action buttons: only on your turn, between actions
 export function order(id, fn) { btn(id, () => { if (playerFree()) { fn(); if (!G.act) { replan(); syncButtons(); } } }); }
 order('bEnd', () => { V.ghostArm = V.faceArm = V.mortarArm = false; endPlayerTurn(); });
-order('bUp', cmdUplink);
+order('bUp', cmdObjective); // R15: UPLINK, or PICK UP / HAND OFF
 order('bMove', () => { if (V.faceArm) { V.faceArm = false; return; } cmdMove(); }); // doubles as CANCEL while face mode is armed
 for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) order(id, () => cmdMoveMode(m));
 order('bRadar', cmdRadar);

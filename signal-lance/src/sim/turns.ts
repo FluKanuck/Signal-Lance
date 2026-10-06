@@ -8,7 +8,7 @@ import { effEmit, zoneType } from './zones.ts';
 import { hitChance, rollPart, damagePart, partGone, partHurt } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
-import { onKill, onExtract, onClear, isType } from './mission.ts';
+import { onKill, onExtract, onClear, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
 // ============================ UPDATE ==================================
 export function moveAlong(m, speed, dt) {
@@ -175,8 +175,9 @@ export function stepAction(dt) {
   updateSensors(dt);
   updateShells(dt);
   if (!livingMechs().length) { G.act = null; finishHunt('LOSS'); return; } // R7 s2: both mechs destroyed
+  if (cargoLost()) { G.act = null; onCargoLost(); return; } // R15 Retrieve: the carrier is destroyed, the cargo with it
   if (G.kills >= G.units.length) { G.act = null; onClear(); return; } // R7: whole field destroyed (R15: the mission decides what that means)
-  if (!p.dead && Math.floor(p.x / T) >= W - TUNE.EXTRACT_COLS) { G.act = null; onExtract(); return; } // a mech reaching extraction pulls the lance out (R15: Bounty at quota = WIN)
+  if (!p.dead && Math.floor(p.x / T) >= W - TUNE.EXTRACT_COLS) { G.act = null; onExtract(p); return; } // a mech reaching extraction pulls the lance out (R15: Bounty at quota = WIN)
   const done = a.k === 'MOVE' ? !a.m.path || a.age > 30 : a.t <= 0 && !shellsFlying();
   if (!done) return;
   a.m.moving = false; a.m.path = null; if (a.k === 'PULSE') a.m.radarOn = false;
@@ -215,6 +216,7 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
   const full = findPath(m.x, m.y, x, y);
   if (!full || full.length < 2) return null;
   if (mode !== 'CREEP' && partHurt(m, 'LEGS')) return { full, path: null, len: 0, ap: 0, en: 0, cut: true, why: 'LEGS', mode }; // R13: a leg gone = CREEP only
+  if (mode === 'SPRINT' && TUNE.RETRIEVE_NO_SPRINT && isCarrier(m)) return { full, path: null, len: 0, ap: 0, en: 0, cut: true, why: 'CARGO', mode }; // R15: the carrier can't sprint
   const lame = partGone(m, 'LEGS') ? TUNE.LEGS_GONE_MULT : 1; // R13: both legs gone = half a creep
   const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
   apMax = Math.min(m.ap, apMax === undefined ? m.ap : apMax); enMax = Math.min(m.en, enMax === undefined ? m.en : enMax);
@@ -354,6 +356,16 @@ export function cmdMoveMode(m) { G.pmode = m; }
 export function cmdTarget(x, y) { G.planT = { x, y, cut: false }; replan(); } // tapped move destination; MOVE executes it
 export function cmdMove() { if (G.plan && G.plan.path) doMove(G.p, G.plan); }
 export function cmdUplink() { if (uplinkBlock() === '') doUplink(); }
+// R15: the objective button. Uplink: UPLINK. Retrieve: PICK UP the cargo, or HAND OFF if the active mech carries it.
+export function objectiveBlock() {
+  if (isType('RETRIEVE')) return isCarrier(G.p) ? handoffBlock(G.p) : pickupBlock(G.p);
+  return uplinkBlock();
+}
+export function cmdObjective() {
+  if (!playerFree() || objectiveBlock() !== '') return;
+  if (isType('RETRIEVE')) { if (isCarrier(G.p)) doHandoff(G.p); else doPickup(G.p); hooks.sync(); return; }
+  doUplink();
+}
 export function sensorsUp(m) { return !partGone(m, 'SENSORS'); } // R12: radar / ECM / ghost need sensors
 export function cmdRadar() {
   if (!G.p.load.radar || !sensorsUp(G.p)) return; // R13: the module is needed (the view only hid the button)

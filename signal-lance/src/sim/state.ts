@@ -206,7 +206,7 @@ export function newHunt(loads?, prep?: () => void) {
 // R15: mtype = the job's mission type (newHunt builds G.mission from it). It draws no random numbers.
 export function rollEnemy(seed: number, force?: string, mtype = 'UPLINK') {
   setSeed(seed); G.seed = seed; G.mtype = mtype;
-  const A = anchors().uplinks; // R15: from the per-map anchors table
+  const A = mtype === 'RETRIEVE' && anchors().cargo.length ? anchors().cargo : anchors().uplinks; // R15: from the per-map anchors table (cargo reuses the uplink tiles while its list is empty)
   let c = A.filter(u => canReach(u.x, u.y) && Math.hypot(u.x - spawnX, u.y - spawnY) >= TUNE.UPLINK_MIN_DIST);
   if (!c.length) c = A;
   const u = c[Math.floor(rand() * c.length)];

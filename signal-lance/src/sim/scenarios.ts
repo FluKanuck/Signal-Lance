@@ -24,6 +24,30 @@ export type Scenario = {
 };
 
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 15 step 2 (Retrieve). Pack off until the cargo moves (then it's on for the hunt). ----
+  {
+    name: 'Grab and go', round: 15, seed: 1511, mission: 'RETRIEVE',
+    tryThis: 'Cargo in the west plaza, guarded by one turret. A patrol walks the blocks to the east. Scout the guard, then PICK UP and watch what the field does. Carry it out the right edge.',
+    uplink: [27, 13], // the cargo tile
+    lance: [{ tile: [20, 16], load: { mortar: 1 } }, { tile: [19, 16] }],
+    field: [
+      { type: 'TURRET', variant: 'sentry', tile: [31, 13], face: [27, 13] },
+      { type: 'PATROL', variant: 'line', tile: [36, 11], state: 'PATROL' },
+    ],
+    question: { q: 'When you grabbed it, the field…', a: ['Turned on me, felt fair', 'Turned on me, felt unfair', 'Barely reacted', 'Never grabbed it'] },
+  },
+  {
+    name: 'Hot potato', round: 15, seed: 1512, mission: 'RETRIEVE',
+    tryThis: 'You start on the cargo at the centre crossing, inside a heavy guard: a gun turret, a heavy patrol and an emplacement. Grab it and run. When the carrier gets hurt, HAND OFF to the other mech.',
+    uplink: [45, 14],
+    lance: [{ tile: [44, 14], load: { mortar: 1 } }, { tile: [45, 15] }],
+    field: [
+      { type: 'TURRET', variant: 'gun', tile: [50, 11], face: [45, 14] },
+      { type: 'PATROL', variant: 'heavy', tile: [41, 16], state: 'PATROL' },
+      { type: 'EMPLACEMENT', variant: 'search', tile: [50, 16], face: [45, 14] },
+    ],
+    question: { q: 'Did you hand off?', a: ['Yes, it saved the cargo', 'Yes, didn’t help', 'No, didn’t need to', 'No, never thought to'] },
+  },
   // ---- Round 15 step 1 (Bounty). Pack off. ----
   {
     name: 'Price list', round: 15, seed: 1501, mission: 'BOUNTY',

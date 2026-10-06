@@ -10,13 +10,16 @@ import { partGone } from './combat.ts';
 // A field unit's OWN senses (a shared ALARM contact never raises a further alarm: no relay).
 const OWN = ['EYES', 'RADAR', 'PASSIVE', 'SOUND', 'FLASH'];
 
+// R15 Retrieve: once the cargo is picked up, the pack logic is on for this hunt whatever PACK_ENABLED says.
+export function packOn() { return TUNE.PACK_ENABLED || (!!G.mission && G.mission.type === 'RETRIEVE' && G.mission.flipped); }
+
 export function alarmRadius(mech) { return TUNE.ALARM_RADIUS_BASE + TUNE.ALARM_RADIUS_EMIT * effEmit(mech) / TUNE.SIGNAL_MAX; }
 
 // Called by observe() after a field unit gains or refreshes contact c on something. If it's a lance mech and the
 // fix came from the unit's own senses, every other living field unit within alarmRadius gets a shared contact:
 // the same estimate, ALARM_UNC_ADD tiles fuzzier. A better live fix of their own is never loosened.
 export function raiseAlarm(list, c, src: string) {
-  if (!TUNE.PACK_ENABLED || list === G.pc || !OWN.includes(src)) return;
+  if (!packOn() || list === G.pc || !OWN.includes(src)) return;
   const mech = unitById(c.id), from = G.units.find(u => u.ec === list);
   if (!mech || !isMech(mech) || !from || from.dead) return;
   const r = alarmRadius(mech) * T, u = c.unc + TUNE.ALARM_UNC_ADD * T, to = [];
@@ -44,6 +47,9 @@ export function hurt(m) { return { lost: (m.partsLost || []).filter(p => p !== '
 // Which lance mech patrol e goes after. `cands` = its live contacts on lance mechs (own or shared), each
 // { c (the contact), m (the mech behind it), d (tiles from e to the contact's estimate) }. Return one of them.
 export function pickPackTarget(e, cands) {
+  const carry = G.mission && G.mission.type === 'RETRIEVE' && G.mission.carrier; // R15 Retrieve: the carrier first, always
+  const onCarrier = carry ? cands.find(k => k.m.id === carry) : null;
+  if (onCarrier) return onCarrier;
   // press the wound: most parts destroyed, then fewest CORE hits left, ties to the nearest (Jamie, R13)
   return cands.slice().sort((a, b) => {
     const A = hurt(a.m), B = hurt(b.m);

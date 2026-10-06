@@ -188,7 +188,7 @@ function huntStats() {
     heardLance: G.lance.reduce((a: number, m: any) => a + (m.heardN || 0), 0), heardField: G.units.reduce((a: number, u: any) => a + (u.heardN || 0), 0),
     loudest: Math.max(0, ...G.lance.map((m: any) => m.loudest || 0)), sprints: G.lance.reduce((a: number, m: any) => a + (m.sprints || 0), 0),
     ids: (idTick(false), idSummary()), // R14: per field unit: read? narrowed? ID'd, right, before eyes
-    mission: G.mission.type, units: G.units.map((u: any) => ({ v: u.variant, dead: u.dead })), // R15
+    mission: G.mission.type, mres: G.mission.result, pickTurn: G.mission.pickTurn || 0, handoffs: G.mission.handoffs, endTurn: G.turn, units: G.units.map((u: any) => ({ v: u.variant, dead: u.dead })), // R15
     alarms: G.alarmLog.length, allOn3, lost: G.lance.filter((m: any) => m.dead).length,
     pack: G.units.reduce((a: any, u: any) => { for (const k of ['HUNT', 'SEARCH', 'LEASH']) a[k] += (u.packN && u.packN[k]) || 0; return a; }, { HUNT: 0, SEARCH: 0, LEASH: 0 }) };
 }
@@ -226,6 +226,11 @@ function missionReport(R: any[], H: any[]) {
     const L = R.filter(r => r.mission === t), w = L.filter(r => r.outcome.startsWith('WIN')).length;
     const by: Record<string, number> = {}; for (const r of L) by[r.outcome] = (by[r.outcome] || 0) + 1;
     console.log(`  MISSION ${t.padEnd(7)} hunts ${L.length} | win ${w} (${pc(w, L.length)}) | avg pay ${(L.reduce((a, r) => a + r.pay, 0) / L.length).toFixed(0)} cr | avg rounds ${(L.reduce((a, r) => a + r.turns, 0) / L.length).toFixed(1)} | ` + Object.entries(by).sort().map(([k, v]) => `${k} ${v}`).join(', '));
+  }
+  const RH = H.filter(h => h.mission === 'RETRIEVE'); // R15 s2: info only (the brief sets no Retrieve flags)
+  if (RH.length) {
+    const P = RH.filter(h => h.pickTurn), out = RH.filter(h => h.mres === 'cargo out').length, lost = RH.filter(h => h.mres === 'cargo lost').length;
+    console.log(`  RETRIEVE picked up ${P.length}/${RH.length} | carried out ${out}, cargo lost ${lost} | hand-offs ${RH.reduce((a, h) => a + h.handoffs, 0)} | avg rounds pickup → end ${P.length ? (P.reduce((a, h) => a + h.endTurn - h.pickTurn, 0) / P.length).toFixed(1) : '-'}`);
   }
   const B = R.filter(r => r.mission === 'BOUNTY');
   if (!B.length) return;
