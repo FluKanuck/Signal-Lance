@@ -2,13 +2,13 @@
 // shots and sound rings animate), and draws it with the lab renderer. Nothing here changes game rules.
 import { TUNE } from '../tune.ts';
 import { G } from '../sim/state.ts';
-import { solid, W, T } from '../sim/world.ts';
+import { W, T } from '../sim/world.ts';
 import { scenarioList, startScenario, leaveScenario } from '../sim/scenarios.ts';
 import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, mortarBlock, cmdSelect, cmdFire, cmdMortar, cmdUplink, cmdObjective, cmdMoveMode, cmdTarget, cmdMove } from '../sim/turns.ts';
 import { isType, carrier, isCarrier, pickupBlock } from '../sim/mission.ts';
 import { idTick } from '../sim/ids.ts';
-import { LOOKS, FX, look, setLook } from './looks.ts';
-import { updateFog, resetFog } from './fog.ts';
+import { LOOKS, FX, KNOBS, FONTS, look, setLook } from './looks.ts';
+import { updateFog, resetFog, FOG } from './fog.ts';
 import { initField, resizeField, renderField } from './field.ts';
 import { drawMarks } from './marks.ts';
 import { initHud, applyLookCss, updateHud, buildTape } from './hud.ts';
@@ -46,7 +46,7 @@ function botAct() {
 function start(i: number) {
   if (G.tb) leaveScenario();
   S.scen = i; const s = scenarioList()[i]; startScenario(s);
-  resetFog(); updateFog(0, solid, true); S.follow = true; S.camX = G.p.x; S.camY = G.p.y; S.endT = 0;
+  resetFog(); updateFog(0, true); S.follow = true; S.camX = G.p.x; S.camY = G.p.y; S.endT = 0;
   $('lScen').textContent = s.name + ' · R' + s.round;
   $('lTry').textContent = s.tryThis;
 }
@@ -62,10 +62,10 @@ function frame(now: number) {
   if (S.run && G.mode === 'hunt') {
     for (let k = 0; k < S.speed; k++) { if (G.phase === 'PLAYER' && !G.act) botAct(); step(dt); }
   } else if (S.run && (S.endT += dt) > 3) start(S.scen); // hunt over: replay it
-  updateFog(dt, solid);
+  updateFog(dt);
   if (S.follow && G.p) { const k = Math.min(1, dt * 3); S.camX += (G.p.x - S.camX) * k; S.camY += (G.p.y - S.camY) * k; }
   drawMarks(marks, vw, vh, dpr, S.camX, S.camY, S.zoom);
-  renderField(clock, S.camX, S.camY, S.zoom, vh, G.lance, dpr);
+  renderField(clock, dt, S.camX, S.camY, S.zoom, vh, G.lance, dpr);
   updateHud(dt);
   requestAnimationFrame(frame);
 }
@@ -89,7 +89,54 @@ function lookTo(i: number) {
   S.lookI = (i + LOOKS.length) % LOOKS.length; setLook(S.lookI); applyLookCss();
   $('lLook').textContent = look.name; $('lNote').textContent = look.note;
   for (const b of document.querySelectorAll<HTMLElement>('#lLooks button')) b.classList.toggle('on', +b.dataset.i! === S.lookI);
+  buildTune();
 }
+
+// ---- TUNE: a live knob for every number, colour and font in the look (+ the fog timings). COPY gives JSON to paste
+// back to Claude (or into looks.ts); PASTE applies JSON copied earlier. RESET puts the look back to its shipped values.
+const SHIPPED = LOOKS.map(L => ({ ...L })), FOG0 = { ...FOG };
+const FOGK: Record<string, [number, number, number]> = { RESOLVE_S: [0.1, 4, 0.05], COLOUR_IN_S: [0.05, 3, 0.05], COLOUR_OUT_S: [0.1, 10, 0.1] };
+function slider(obj: any, k: string, [mn, mx, st]: [number, number, number], group: string) {
+  return `<label class="kn"><span>${k}</span><input type="range" min="${mn}" max="${mx}" step="${st}" value="${obj[k]}" data-g="${group}" data-k="${k}"><b>${obj[k]}</b></label>`;
+}
+function buildTune() {
+  const L: any = look, fi = FONTS.findIndex(f => f.font === L.font && f.display === L.display);
+  let h = `<label class="kn"><span>font</span><select id="tFont">${FONTS.map((f, i) => `<option value="${i}"${i === fi ? ' selected' : ''}>${f.name}</option>`).join('')}${fi < 0 ? '<option selected>(custom)</option>' : ''}</select></label>`;
+  h += `<div class="why" id="tWhy">${fi >= 0 ? FONTS[fi].why : ''}</div>`;
+  h += Object.keys(L).filter(k => KNOBS[k]).map(k => slider(L, k, KNOBS[k], 'look')).join('');
+  h += '<div class="cols">' + Object.keys(L).filter(k => typeof L[k] === 'string' && L[k][0] === '#').map(k => `<label class="kc"><input type="color" value="${L[k]}" data-g="look" data-k="${k}"><span>${k}</span></label>`).join('') + '</div>';
+  h += '<div class="sub">fog timings (seconds)</div>' + Object.keys(FOGK).map(k => slider(FOG, k, FOGK[k], 'fog')).join('');
+  $('lTune').innerHTML = h;
+  ($('tFont') as HTMLSelectElement).addEventListener('change', e => {
+    const f = FONTS[+(e.target as HTMLSelectElement).value]; if (!f) return;
+    L.font = f.font; L.display = f.display; applyLookCss(); $('tWhy').textContent = f.why;
+  });
+}
+$('lTune').addEventListener('input', e => {
+  const i = e.target as HTMLInputElement; if (!i.dataset.k) return;
+  const obj: any = i.dataset.g === 'fog' ? FOG : look;
+  obj[i.dataset.k] = i.type === 'range' ? +i.value : i.value;
+  if (i.type === 'range') (i.nextElementSibling as HTMLElement).textContent = i.value;
+  applyLookCss();
+});
+function settingsJson() { return JSON.stringify({ look: { ...look }, fog: { ...FOG } }, null, 1); }
+$('lCopy').addEventListener('click', async () => {
+  const j = settingsJson(), ta = $('lJson') as HTMLTextAreaElement; ta.value = j; ta.hidden = false; ta.select();
+  try { await navigator.clipboard.writeText(j); $('lCopy').textContent = 'COPIED ✓'; } catch { $('lCopy').textContent = 'SELECT + COPY ↓'; }
+  setTimeout(() => { $('lCopy').textContent = 'COPY SETTINGS'; }, 2000);
+});
+$('lPaste').addEventListener('click', () => {
+  const ta = $('lJson') as HTMLTextAreaElement;
+  if (ta.hidden || !ta.value.trim()) { ta.hidden = false; ta.value = ''; ta.placeholder = 'paste settings JSON here, then PASTE / APPLY again'; ta.focus(); return; }
+  try {
+    const j = JSON.parse(ta.value), lk = j.look || j, idx = LOOKS.findIndex(L => L.name === lk.name);
+    if (idx >= 0) { Object.assign(LOOKS[idx], lk); lookTo(idx); } else { Object.assign(look, lk); lookTo(S.lookI); }
+    if (j.fog) Object.assign(FOG, j.fog);
+    buildTune(); $('lPaste').textContent = 'APPLIED ✓';
+  } catch { $('lPaste').textContent = 'BAD JSON ✗'; }
+  setTimeout(() => { $('lPaste').textContent = 'PASTE / APPLY'; }, 2000);
+});
+$('lReset').addEventListener('click', () => { Object.assign(LOOKS[S.lookI], SHIPPED[S.lookI]); Object.assign(FOG, FOG0); lookTo(S.lookI); });
 $('lLooks').innerHTML = LOOKS.map((L, i) => `<button data-i="${i}">${L.name}</button>`).join('');
 $('lLooks').addEventListener('click', e => { const b = (e.target as HTMLElement).closest('button'); if (b) lookTo(+b.dataset.i!); });
 $('lFx').innerHTML = Object.keys(FX).map(k => `<label><input type="checkbox" data-k="${k}" checked> ${k}</label>`).join('');
@@ -106,6 +153,7 @@ $('lHud').addEventListener('click', () => document.body.classList.toggle('hud-of
 addEventListener('keydown', e => { if (e.key === 'ArrowRight') lookTo(S.lookI + 1); if (e.key === 'ArrowLeft') lookTo(S.lookI - 1); if (e.key === ' ') $('lRun').click(); if (e.key === 'h') $('lHide').click(); });
 
 initField(gl, marks);
+(window as any).__lab = { LOOKS, FX, S };
 initHud(); buildTape();
 addEventListener('resize', resize); resize();
 lookTo(0);

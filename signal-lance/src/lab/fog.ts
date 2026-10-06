@@ -1,13 +1,25 @@
-// Visual lab: fog of war for the lidar world. Per tile: is it seen right now (any living ExoS has eyes on it), and
-// how long since it was last seen. fogLevel() turns that into how lit the tile's dots are (0 = fog colour, 1 = full).
+// Visual lab: fog of war for the lidar world, three states per tile (Jamie, 2026-10-06):
+//   unscanned  → grey massing blocks, no detail
+//   live       → lidar on it: the block resolves into a detailed dot scan in true colour
+//   revealed   → out of sight again: keeps its detail but drains to grey (it stays revealed)
+// Per tile we keep `live` (0..1, how coloured: rises fast when seen, falls slowly when lost) and `reveal` (0..1, how
+// resolved: only ever rises). Both run on real time so colour drains while you think, even though sim time is frozen.
 // View-only: the sim's rules for who sees what are untouched; we only borrow its LoS (tilesCrossed) and eye ranges.
 import { TUNE } from '../tune.ts';
 import { W, H, T, tilesCrossed, isSolid } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
 
-export const live = new Uint8Array(W * H);        // 1 = an ExoS sees this tile now
-export const lastSeen = new Float32Array(W * H).fill(-1); // G.time it was last seen (-1 = never)
-export const level = new Uint8Array(W * H);       // 0..255, uploaded to the GL fog texture
+export const FOG = {
+  RESOLVE_S: 0.9,     // seconds for a newly scanned tile to fully resolve from block to dots
+  COLOUR_IN_S: 0.35,  // seconds to reach full colour once seen
+  COLOUR_OUT_S: 2.5,  // seconds to drain to grey once lost
+};
+
+const N = W * H;
+export const seen = new Uint8Array(N);           // 1 = an ExoS has eyes on this tile now
+export const live = new Float32Array(N);          // 0..1 colour
+export const reveal = new Float32Array(N);        // 0..1 resolved (never falls)
+export const tex = new Uint8Array(N * 4);         // RGBA for GL: R = live, G = reveal, B = solid (building) tile
 
 // Same eye rule as sensors.canSee (range, facing cone beyond EYES_CLOSE, LoS), applied to a tile centre.
 function eyesOn(m: any, tx: number, ty: number) {
@@ -19,28 +31,19 @@ function eyesOn(m: any, tx: number, ty: number) {
   return tilesCrossed(m.x, m.y, x, y, own + 1) <= own;
 }
 
-/**
- * How lit a tile's dots are, 0..1. This is a design call, not a technical one:
- *  - seenNow: an ExoS has eyes on it this instant.
- *  - age:     seconds since it was last seen (Infinity = never seen this hunt).
- *  - isWall:  building tile (walls are what give the city its shape in the dark).
- * The map itself is always known in the sim (terrain isn't intel), so "never seen" doesn't have to mean invisible.
- */
-export function fogLevel(seenNow: boolean, age: number, isWall: boolean): number {
-  // TODO(Jamie): decide what "unseen" and "remembered" look like. Placeholder: seen = full, everything else = dim.
-  return seenNow ? 1 : isWall ? 0.25 : 0.15;
-}
-
 let acc = 0;
-export function updateFog(dt: number, solid: Uint8Array, force = false) {
-  acc += dt; if (!force && acc < 0.1) return; acc = 0;
-  const eyes = G.lance.filter(m => !m.dead);
-  for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
-    const i = ty * W + tx;
-    live[i] = eyes.some(m => eyesOn(m, tx, ty)) ? 1 : 0;
-    if (live[i]) lastSeen[i] = G.time;
-    const age = lastSeen[i] < 0 ? Infinity : G.time - lastSeen[i];
-    level[i] = Math.round(255 * Math.max(0, Math.min(1, fogLevel(!!live[i], age, solid[i] === 1))));
+// dt = real seconds. Sight is recomputed 10×/s; the fades run every frame.
+export function updateFog(dt: number, force = false) {
+  if ((acc += dt) >= 0.1 || force) {
+    acc = 0; const eyes = G.lance.filter(m => !m.dead);
+    for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) seen[ty * W + tx] = eyes.some(m => eyesOn(m, tx, ty)) ? 1 : 0;
+  }
+  const up = dt / FOG.COLOUR_IN_S, down = dt / FOG.COLOUR_OUT_S, res = dt / FOG.RESOLVE_S;
+  for (let i = 0; i < N; i++) {
+    if (seen[i]) { live[i] = Math.min(1, live[i] + up); reveal[i] = Math.min(1, reveal[i] + res); }
+    else live[i] = Math.max(0, live[i] - down);
+    if (force) { live[i] = seen[i]; reveal[i] = Math.max(reveal[i], seen[i]); }
+    tex[i * 4] = live[i] * 255; tex[i * 4 + 1] = reveal[i] * 255; tex[i * 4 + 2] = isSolid(i % W, (i / W) | 0) ? 255 : 0;
   }
 }
-export function resetFog() { lastSeen.fill(-1); live.fill(0); }
+export function resetFog() { seen.fill(0); live.fill(0); reveal.fill(0); }

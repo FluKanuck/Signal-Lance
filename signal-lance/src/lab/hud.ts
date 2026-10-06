@@ -49,7 +49,7 @@ export function initHud() {
 
 export function applyLookCss() {
   const r = document.documentElement.style, L = look;
-  r.setProperty('--bg', L.bg); r.setProperty('--ink', L.ink); r.setProperty('--dim', L.dim); r.setProperty('--font', L.font);
+  r.setProperty('--bg', L.bg); r.setProperty('--ink', L.ink); r.setProperty('--dim', L.dim); r.setProperty('--font', L.font); r.setProperty('--display', L.display);
   r.setProperty('--hostile', L.hostile); r.setProperty('--objective', L.objective); r.setProperty('--friend', L.friend);
   document.body.dataset.look = L.name;
 }
