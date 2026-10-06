@@ -1212,4 +1212,6 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            smaller man sized unit, facings shouldnt cost AP at all" | SPEC CHANGE (his call): AP_TURN 1 → 0, both sides
            (turn on the spot, select-to-face, look points). FREE_TURNS kept (harmless at 0 cost). FACE_WAYPOINTS_MAX 3
            kept. Runner 60 contracts: wins 49% (s3 49%). BUILD r17-s4 | -
+   round17 debrief 1 (r17-s4) | last changes (look markers, free facing): "Helped". Weakest: "It felt fine". Move
+           stops: "Saved me" | no change | -
 ```
