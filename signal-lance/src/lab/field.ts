@@ -22,10 +22,12 @@ import { look, FX } from './looks.ts';
 import { tex as fogData, scan as scanData } from './fog.ts';
 
 const FOV = 40;
+const clearCol = new THREE.Color();
 let renderer: THREE.WebGLRenderer, scene: THREE.Scene, cam: THREE.PerspectiveCamera, composer: EffectComposer;
 let mat: THREE.ShaderMaterial, blockMat: THREE.ShaderMaterial, gridMat: THREE.ShaderMaterial, fogTex: THREE.DataTexture, marksTex: THREE.CanvasTexture;
 let bloom: UnrealBloomPass, film: ShaderPass, spinPts: THREE.Points, scanTex: THREE.DataTexture;
 const WALL_ROW = 2.5, WALL_COLS = 12, WALL_COL = T / WALL_COLS; // wall dot grid: the finest a wall can resolve to
+const GROUND_STEP = T / 12;                                      // ground dot grid spacing
 const rings: THREE.Points[] = [];
 let spin: { geo: THREE.BufferGeometry; cars: { x: number; y: number; z: number; vx: number; vy: number; paint: number[] }[] };
 
@@ -58,56 +60,59 @@ function blocks() {
   return { id, list };
 }
 
+// Every static dot here is a possible lidar return (lid = 1): the shader only shows it if a beam from its tile's
+// closest scan would hit it (lidarOK). Nothing "resolves" wholesale: the grey blocks stay, the scan lands on them.
+// Roof tops are left out (a street-level lidar can't see them); things standing above a roof (billboards, antennas,
+// tanks) are kept, since upward beams can reach them.
 function buildScene() {
   seed = 7;
   const P: number[] = [], C: number[] = [], A: number[] = [], LID: number[] = [];
-  const add = (x: number, y: number, z: number, col: number[], kind: number, ti: number, j = 0.08, lid = 0) => {
+  const add = (x: number, y: number, z: number, col: number[], kind: number, ti: number, j = 0.08, lid = 1) => {
     const v = 1 - j + rnd() * j * 2; P.push(x, -y, z); C.push(col[0] * v, col[1] * v, col[2] * v); A.push(kind, ti, rnd()); LID.push(lid);
   };
   const tileOf = (x: number, y: number) => Math.max(0, Math.min(H - 1, Math.floor(y / T))) * W + Math.max(0, Math.min(W - 1, Math.floor(x / T)));
-  const box = (x: number, y: number, z0: number, w: number, d: number, h: number, col: number[], ti: number, kind = 3, step = 3) => { // dot shell of a box
+  const box = (x: number, y: number, z0: number, w: number, d: number, h: number, col: number[], ti: number, kind = 3, step = 2.5) => { // dot shell of a box
     for (let z = 0; z <= h; z += step) for (let u = 0; u <= w; u += step) { add(x + u, y, z0 + z, col, kind, ti); add(x + u, y + d, z0 + z, col, kind, ti); }
     for (let z = 0; z <= h; z += step) for (let v = step; v < d; v += step) { add(x, y + v, z0 + z, col, kind, ti); add(x + w, y + v, z0 + z, col, kind, ti); }
     for (let u = step; u < w; u += step) for (let v = step; v < d; v += step) add(x + u, y + v, z0 + h, col, kind, ti, 0.15);
   };
-  const pole = (x: number, y: number, z0: number, h: number, col: number[], ti: number) => { for (let z = 0; z < h; z += 3) add(x, y, z0 + z, col, 1, ti, 0.05); };
+  const pole = (x: number, y: number, z0: number, h: number, col: number[], ti: number) => { for (let z = 0; z < h; z += 2.5) add(x, y, z0 + z, col, 1, ti, 0.05); };
   const { id, list } = blocks(), heights = new Float32Array(W * H);
   const open = (nx: number, ny: number) => nx < 0 || ny < 0 || nx >= W || ny >= H || !solid[ny * W + nx];
-  const asphalt = hex('#4a4d52'), kerb = hex('#7a7a76'), paintY = hex('#d8b400'), paintW = hex('#d0d0d0'), crateC = [hex('#b5651d'), hex('#6b7a3a'), hex('#3c5a7a')];
+  const asphalt = hex('#4a4d52'), paintY = hex('#d8b400'), paintW = hex('#d0d0d0'), crateC = [hex('#b5651d'), hex('#6b7a3a'), hex('#3c5a7a')];
   const steel = hex('#55585e'), lampHead = hex('#ffcf8a'), barrier = [hex('#f2c200'), hex('#202020')], windowC = hex('#ffe3a8'), cableC = hex('#2c2e33');
   const debris = [hex('#6b5a48'), hex('#8a8a84'), hex('#3a3c40'), hex('#d8d4c8'), hex('#7a3a22')], red = hex('#ff2020'), amber = hex('#ffb000'), green = hex('#20ff70');
-  const tankC = hex('#6a5444'), puddle = hex('#1c2a3a'), manhole = hex('#5a5c60'), hvac = hex('#7c8288');
+  const tankC = hex('#6a5444'), puddleC = hex('#1c2a3a'), manholeC = hex('#5a5c60'), hvac = hex('#7c8288');
   const glow = new Map<number, number[]>(); // street tile → colour of a neon sign over it (puddles pick it up)
+  const lamps = new Map<number, [number, number]>(); // street tile → lamp position (its light pool tints the ground grid)
+  const OUT = 0.6; // wall dots sit this far in front of the face, so the grey block never hides them
 
   // ---- buildings first (so puddles can pick up sign colours)
   for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
     const ti = ty * W + tx, x0 = tx * T, y0 = ty * T;
     if (!solid[ti]) continue;
     const b = list[id[ti]]; heights[ti] = b.h;
-    const roofC = b.col.map(v => v * 0.7), edgeC = b.col.map(v => Math.min(1, v * 1.25));
     const faces: [boolean, number, number, number, number, number, number][] = [ // open?, a, b, outward normal
       [open(tx, ty - 1), x0, y0, x0 + T, y0, 0, -1], [open(tx, ty + 1), x0, y0 + T, x0 + T, y0 + T, 0, 1],
       [open(tx - 1, ty), x0, y0, x0, y0 + T, -1, 0], [open(tx + 1, ty), x0 + T, y0, x0 + T, y0 + T, 1, 0],
     ];
     for (const [o, ax, ay, bx, by, nx, ny] of faces) if (o) {
       const nti = tileOf(ax + (bx - ax) / 2 + nx * 4, ay + (by - ay) / 2 + ny * 4); // the street tile this face looks onto
-      // the face as a dense dot grid (WALL_ROW × WALL_COL); the shader keeps only dots on a lidar beam line from this
-      // tile's closest scan, so a face sharpens as you walk up to it (lid = 1). Lit windows: some 8-unit floors.
+      // the face as a dense dot grid (WALL_ROW × WALL_COL), coloured by what's there: material, lit windows on some
+      // 8-unit floors, the block's neon band. The scan picks out the lines.
       const floorsLit: boolean[] = []; for (let fl = 0; fl * 8 < b.h; fl++) floorsLit.push(rnd() < 0.18);
       for (let z = WALL_ROW / 2; z < b.h; z += WALL_ROW) for (let k = 0; k < WALL_COLS; k++) {
-        const f = (k + 0.5) / WALL_COLS, zf = z % 8, w = floorsLit[(z / 8) | 0] && f > 0.3 && f < 0.7 && zf > 2 && zf < 6.5;
-        add(ax + (bx - ax) * f, ay + (by - ay) * f, z, w ? windowC : b.col, w ? 4 : 1, ti, 0.08, 1);
+        const f = (k + 0.5) / WALL_COLS, zf = z % 8;
+        const neon = b.neon && Math.abs(z - b.neonZ) < 3, win = !neon && floorsLit[(z / 8) | 0] && f > 0.3 && f < 0.7 && zf > 2 && zf < 6.5;
+        add(ax + (bx - ax) * f + nx * OUT, ay + (by - ay) * f + ny * OUT, z, neon ? b.neon! : win ? windowC : b.col, neon ? 5 : win ? 4 : 1, ti, neon ? 0.02 : 0.08);
       }
-      if (b.neon) for (let k = 0; k < 16; k++) { const f = (k + 0.5) / 16; add(ax + (bx - ax) * f, ay + (by - ay) * f, b.neonZ, b.neon, 5, ti, 0.02); }
-      for (let k = 0; k < 12; k++) { const f = k / 12; add(ax + (bx - ax) * f, ay + (by - ay) * f, b.h, edgeC, 1, ti); } // roof edge
-      for (let k = 0; k < 8; k++) { const f = (k + 0.5) / 8; add(ax + (bx - ax) * f + nx * 2, ay + (by - ay) * f + ny * 2, 0.5, kerb, 0, nti, 0.1); } // kerb
-      // neon blade sign: a vertical panel sticking out from the wall over the street, with stacked "glyphs"
+      // neon blade sign: a vertical panel sticking out from the wall over the street (dense, so the scan can pick it out)
       if (rnd() < 0.09 && b.h > 60) {
         const c = hex(pick(NEON)), mx = ax + (bx - ax) * 0.5, my = ay + (by - ay) * 0.5, z0 = 14 + rnd() * (b.h - 60), hgt = 30 + rnd() * 24, out = 12;
-        for (let z = 0; z <= hgt; z += 2.5) { add(mx + nx * 2, my + ny * 2, z0 + z, c, 5, nti, 0.02); add(mx + nx * out, my + ny * out, z0 + z, c, 5, nti, 0.02); }
-        for (let u = 2; u <= out; u += 2.5) { add(mx + nx * u, my + ny * u, z0, c, 5, nti, 0.02); add(mx + nx * u, my + ny * u, z0 + hgt, c, 5, nti, 0.02); }
-        for (let g = 0; g < Math.floor(hgt / 8); g++) for (let gx = 0; gx < 3; gx++) for (let gz = 0; gz < 3; gz++) if (rnd() < 0.5)
-          add(mx + nx * (4 + gx * 3), my + ny * (4 + gx * 3), z0 + 3 + g * 8 + gz * 2, c, 5, nti, 0.05);
+        for (let u = 2; u <= out; u += 2) for (let z = 0; z <= hgt; z += 2) {
+          const frame = u < 3 || u > out - 1.5 || z < 1 || z > hgt - 1.5, glyph = ((u * 7 + (z / 2 | 0) * 13) % 5) < 2;
+          if (frame || glyph) add(mx + nx * u, my + ny * u, z0 + z, c, 5, nti, 0.04);
+        }
         glow.set(nti, c);
       }
       // overhead cable across the street to the facing wall (some strung with lights)
@@ -116,61 +121,69 @@ function buildScene() {
         if (d < 5 && d > 1) {
           const z1 = 20 + rnd() * Math.max(10, Math.min(60, b.h - 20)), span = (d - 1) * T, lights = rnd() < 0.5;
           const mx = ax + (bx - ax) * (0.2 + rnd() * 0.6), my = ay + (by - ay) * (0.2 + rnd() * 0.6);
-          for (let s = 0; s <= span; s += 2) {
+          for (let s = 0; s <= span; s += 1.5) {
             const f = s / span, x = mx + nx * s, y = my + ny * s, z = z1 - Math.sin(f * Math.PI) * 10, bulb = lights && s % 8 < 2;
             add(x, y, z, bulb ? hex(pick(['#ffd28a', '#ff8ad0', '#8af0ff'])) : cableC, bulb ? 4 : 1, tileOf(x, y), 0.05);
           }
         }
       }
     }
-    for (let k = 0; k < 7; k++) add(x0 + rnd() * T, y0 + rnd() * T, b.h, roofC, 2, ti, 0.15);
-    // roof kit: HVAC box, water tank, antenna with a red blinker, the block's billboard
+    // above-roof kit (reachable by upward beams): water tank, antenna with a red blinker, the block's billboard
     const r = rnd();
     if (r < 0.07) box(x0 + 8, y0 + 8, b.h, 12, 12, 8, hvac, ti);
-    else if (r < 0.11) { for (let z = 0; z < 16; z += 2.5) for (let a = 0; a < 14; a++) add(x0 + 16 + Math.cos(a / 14 * 6.28) * 7, y0 + 16 + Math.sin(a / 14 * 6.28) * 7, b.h + 6 + z, tankC, 3, ti); pole(x0 + 12, y0 + 12, b.h, 6, steel, ti); }
+    else if (r < 0.11) { for (let z = 0; z < 16; z += 2) for (let a = 0; a < 22; a++) add(x0 + 16 + Math.cos(a / 22 * 6.28) * 7, y0 + 16 + Math.sin(a / 22 * 6.28) * 7, b.h + 6 + z, tankC, 3, ti); pole(x0 + 12, y0 + 12, b.h, 6, steel, ti); }
     else if (r < 0.16) { pole(x0 + 16, y0 + 16, b.h, 50, steel, ti); for (let k = 0; k < 5; k++) add(x0 + 16 + (rnd() - 0.5) * 3, y0 + 16 + (rnd() - 0.5) * 3, b.h + 51, red, 6, ti, 0.02); }
     if (b.billboard && (open(tx, ty - 1) || open(tx, ty + 1)) && rnd() < 0.35) { // billboard on a street-facing roof edge
       b.billboard = false;
       const c1 = hex(pick(NEON)), c2 = hex(pick(NEON)), yy = open(tx, ty - 1) ? y0 + 2 : y0 + T - 2, bw = T * 1.6, bh = 26;
-      for (let u = 0; u <= bw; u += 2.2) for (let z = 0; z <= bh; z += 2.2) {
-        const f = u / bw, edge = u < 2 || u > bw - 2.2 || z < 2 || z > bh - 2.2, c = edge ? c1 : [0, 1, 2].map(i => c1[i] * (1 - f) + c2[i] * f);
-        if (edge || rnd() < 0.55) add(x0 + u - bw * 0.2, yy, b.h + 10 + z, c, 5, ti, 0.04);
+      for (let u = 0; u <= bw; u += 2) for (let z = 0; z <= bh; z += 2) {
+        const f = u / bw, edge = u < 2 || u > bw - 2 || z < 2 || z > bh - 2, c = edge ? c1 : [0, 1, 2].map(i => c1[i] * (1 - f) + c2[i] * f);
+        add(x0 + u - bw * 0.2, yy, b.h + 10 + z, c, 5, ti, 0.04);
       }
       pole(x0 + 4, yy, b.h, 10, steel, ti); pole(x0 + bw - 12, yy, b.h, 10, steel, ti);
     }
   }
-  // ---- streets: asphalt, lane paint, clutter, items, infrastructure
+  // ---- streets: items + infrastructure first (lamps tint the ground), then the ground grid
+  const feat = new Map<number, { horiz: boolean; vert: boolean; puddle?: number[]; tint?: number[]; manhole?: boolean }>();
   for (let ty = 0; ty < H; ty++) for (let tx = 0; tx < W; tx++) {
     const ti = ty * W + tx, x0 = tx * T, y0 = ty * T;
     if (solid[ti]) continue;
-    for (let a = 0; a < 3; a++) for (let b = 0; b < 3; b++) if (rnd() < 0.5)
-      add(x0 + (a + 0.5 + (rnd() - 0.5) * 0.5) * T / 3, y0 + (b + 0.5 + (rnd() - 0.5) * 0.5) * T / 3, 0, asphalt, 0, ti, 0.25);
     const horiz = !open(tx, ty - 1) && !open(tx, ty + 1), vert = !open(tx - 1, ty) && !open(tx + 1, ty);
     const nOpen = [[1, 0], [-1, 0], [0, 1], [0, -1]].filter(([dx, dy]) => open(tx + dx, ty + dy)).length;
-    if (horiz && tx % 2 === 0) for (let k = 0; k < 5; k++) add(x0 + 4 + k * 3, y0 + T / 2, 0, paintY, 0, ti, 0.05);
-    if (vert && ty % 2 === 0) for (let k = 0; k < 5; k++) add(x0 + T / 2, y0 + 4 + k * 3, 0, paintW, 0, ti, 0.05);
-    // clutter: loose debris everywhere, sometimes a rubble heap, a puddle (tinted by neon overhead), a manhole
-    for (let k = 0, n = Math.floor(rnd() * 5); k < n; k++) add(x0 + rnd() * T, y0 + rnd() * T, rnd() * 1.5, pick(debris), 7, ti, 0.2);
+    const F: any = { horiz, vert };
+    // clutter: loose debris, sometimes a rubble heap; ground features (puddle tinted by neon overhead, manhole) go in F
+    for (let k = 0, n = Math.floor(rnd() * 6); k < n; k++) add(x0 + rnd() * T, y0 + rnd() * T, 0.3 + rnd() * 1.5, pick(debris), 7, ti, 0.2);
     const c = rnd();
-    if (c < 0.06) { const cx = x0 + 6 + rnd() * 20, cy = y0 + 6 + rnd() * 20; for (let k = 0; k < 26; k++) { const a = rnd() * 6.28, r = rnd() * 7; add(cx + Math.cos(a) * r, cy + Math.sin(a) * r, (7 - r) * 0.7 * rnd(), pick(debris), 7, ti, 0.2); } }
-    else if (c < 0.14) {
-      const tint = glow.get(ti) || glow.get(ti - 1) || glow.get(ti + 1) || glow.get(ti - W) || glow.get(ti + W);
-      const cx = x0 + 8 + rnd() * 16, cy = y0 + 8 + rnd() * 16, rx = 5 + rnd() * 6, ry = 3 + rnd() * 4;
-      for (let k = 0; k < 22; k++) { const a = rnd() * 6.28, r = Math.sqrt(rnd()), lit = tint && rnd() < 0.6; add(cx + Math.cos(a) * rx * r, cy + Math.sin(a) * ry * r, 0.2, lit ? tint!.map(v => v * 0.6) : puddle, lit ? 5 : 7, ti, 0.2); }
-    } else if (c < 0.17) { for (let a = 0; a < 12; a++) add(x0 + 16 + Math.cos(a / 12 * 6.28) * 5, y0 + 16 + Math.sin(a / 12 * 6.28) * 5, 0.3, manhole, 7, ti, 0.05); }
-    // items + infrastructure
+    if (c < 0.06) { const cx = x0 + 6 + rnd() * 20, cy = y0 + 6 + rnd() * 20; for (let k = 0; k < 40; k++) { const a = rnd() * 6.28, r = rnd() * 7; add(cx + Math.cos(a) * r, cy + Math.sin(a) * r, (7 - r) * 0.7 * rnd(), pick(debris), 7, ti, 0.2); } }
+    else if (c < 0.14) { F.puddle = [x0 + 8 + rnd() * 16, y0 + 8 + rnd() * 16, 5 + rnd() * 6, 3 + rnd() * 4]; F.tint = glow.get(ti) || glow.get(ti - 1) || glow.get(ti + 1) || glow.get(ti - W) || glow.get(ti + W); }
+    else if (c < 0.17) F.manhole = true;
+    feat.set(ti, F);
     const r = rnd();
     if (r < 0.05) { const hz = rnd() < 0.5; box(x0 + 4, y0 + 9, 0, hz ? 24 : 12, hz ? 12 : 24, 9, hex(pick(PAINT)), ti); }                    // parked car
     else if (r < 0.08) { box(x0 + 6, y0 + 6, 0, 9, 9, 9, pick(crateC), ti); if (rnd() < 0.6) box(x0 + 17, y0 + 12, 0, 9, 9, 9, pick(crateC), ti); } // crates
-    else if (r < 0.10) { for (let u = 0; u <= 27; u += 3) for (let z = 0; z <= 6; z += 3) add(x0 + 2 + u, y0 + T / 2, z, barrier[(u / 6 | 0) % 2], 3, ti); } // barrier
+    else if (r < 0.10) { for (let u = 0; u <= 27; u += 2) for (let z = 0; z <= 6; z += 2) add(x0 + 2 + u, y0 + T / 2, z, barrier[(u / 6 | 0) % 2], 3, ti); } // barrier
     else if (r < 0.16 && nOpen < 4 && (!open(tx, ty - 1) || !open(tx - 1, ty))) {                                             // street lamp by a wall
       pole(x0 + 6, y0 + 6, 0, 60, steel, ti);
-      for (let k = 0; k < 10; k++) add(x0 + 6 + (rnd() - 0.5) * 6, y0 + 6 + (rnd() - 0.5) * 6, 60 + rnd() * 3, lampHead, 4, ti, 0.05);
-      for (let k = 0; k < 16; k++) { const a = rnd() * 6.28, rr = rnd() * 14; add(x0 + 6 + Math.cos(a) * rr, y0 + 6 + Math.sin(a) * rr, 0.3, lampHead.map(v => v * 0.25), 4, ti, 0.2); } // light pool
+      for (let k = 0; k < 16; k++) add(x0 + 6 + (rnd() - 0.5) * 6, y0 + 6 + (rnd() - 0.5) * 6, 59 + rnd() * 4, lampHead, 4, ti, 0.05);
+      lamps.set(ti, [x0 + 6, y0 + 6]);
     }
     if (nOpen >= 3 && rnd() < 0.35) {                                                                                          // traffic light at a junction
       pole(x0 + 3, y0 + 3, 0, 34, steel, ti); box(x0 + 1, y0 + 1, 34, 4, 4, 10, steel, ti, 1, 2);
-      const lc = pick([red, amber, green]); for (let k = 0; k < 4; k++) add(x0 + 3 + (rnd() - 0.5) * 2, y0 + 3 + (rnd() - 0.5) * 2, 40 + rnd() * 2, lc, 4, ti, 0.02);
+      const lc = pick([red, amber, green]); for (let k = 0; k < 6; k++) add(x0 + 3 + (rnd() - 0.5) * 2, y0 + 3 + (rnd() - 0.5) * 2, 39 + rnd() * 3, lc, 4, ti, 0.02);
+    }
+  }
+  // the ground as a fine grid (GROUND_STEP), coloured by what's painted / lying there; the scan picks out its rings
+  for (const [ti, F] of feat) {
+    const tx = ti % W, ty = (ti / W) | 0, x0 = tx * T, y0 = ty * T, lamp = lamps.get(ti) || lamps.get(ti - 1) || lamps.get(ti - W);
+    for (let gy = GROUND_STEP / 2; gy < T; gy += GROUND_STEP) for (let gx = GROUND_STEP / 2; gx < T; gx += GROUND_STEP) {
+      const x = x0 + gx, y = y0 + gy;
+      let col = asphalt, kind = 0, j = 0.25;
+      if (F.horiz && Math.abs(gy - T / 2) < 1.3 && (x % 16) < 9) { col = paintY; j = 0.05; }
+      if (F.vert && Math.abs(gx - T / 2) < 1.3 && (y % 16) < 9) { col = paintW; j = 0.05; }
+      if (F.manhole) { const d = Math.hypot(gx - 16, gy - 16); if (d > 3.5 && d < 6) col = manholeC; }
+      if (F.puddle) { const [px, py, rx, ry] = F.puddle, q = ((x - px) / rx) ** 2 + ((y - py) / ry) ** 2; if (q < 1) { col = F.tint ? F.tint.map((v: number) => v * 0.55) : puddleC; kind = F.tint ? 5 : 0; } }
+      if (lamp) { const d = Math.hypot(x - lamp[0], y - lamp[1]); if (d < 16) { const k = (1 - d / 16) * 0.5; col = col.map((v, i) => v * (1 - k) + lampHead[i] * k * 0.6); } }
+      add(x, y, 0.2, col, kind, ti, j);
     }
   }
   const g = new THREE.BufferGeometry();
@@ -178,7 +191,7 @@ function buildScene() {
   g.setAttribute('color', new THREE.Float32BufferAttribute(C, 3));
   g.setAttribute('meta', new THREE.Float32BufferAttribute(A, 3));
   g.setAttribute('lid', new THREE.Float32BufferAttribute(LID, 1));
-  console.info('[lab] scene dots:', P.length / 3, '(wall grid:', LID.filter(v => v).length + ')');
+  console.info('[lab] scene dots:', P.length / 3);
   return { geo: g, heights };
 }
 
@@ -245,7 +258,7 @@ const VERT = /* glsl */`
   attribute float lid;            // 1 = wall grid dot: only shows on a lidar beam line (see lidarOK)
   uniform float size, depth, time, sweep, trueMix, greyDim, heightTint, neon, clutter;
   uniform sampler2D scanTex;      // per tile: closest scan x, y, distance, scanned
-  uniform float sH, r0, gap, grow, rmax, dPhi;
+  uniform float sH, r0, gap, grow, rmax, dPhi, thM, dTh, ringsOn;
   // Wall dots resolve along the same beams that draw the ground rings. Trace the beam from the sensor (height sH, at
   // the tile's closest scan position) through this dot down to the ground (or mirrored up, above sensor height):
   // if it lands on a ring, the dot is on a scan line. Rings sit at r_k = r0 + gap*k + grow*k(k+1)/2 (ringGeo), so
@@ -255,9 +268,16 @@ const VERT = /* glsl */`
     if (sc.w < 0.5) return 0.0;
     vec2 dv = wp - sc.xy; float d = max(length(dv), 1.0), dz = max(abs(z - sH), 0.01);
     float r = d * sH / dz;                                       // where this beam meets the ground
-    if (r < r0 || r > rmax * 2.5) return 0.0;                    // steeper than the dead zone / past the far beams
-    float a = grow * 0.5, b = gap + grow * 0.5, k = a < 1e-4 ? (r - r0) / gap : (-b + sqrt(b * b + 4.0 * a * (r - r0))) / (2.0 * a);
-    float sp = d * sH / (r * r) * max(1.0, gap + grow * (k + 1.0)); // spacing between beam lines on this wall
+    if (r < r0) return 0.0;                                      // steeper than the dead zone: the ExoS's own body
+    float k, sp;
+    float th = atan(dz, d);
+    if (th >= thM) {                                             // a ring beam: k from the ring layout (quadratic root)
+      float a = grow * 0.5, b = gap + grow * 0.5;
+      k = a < 1e-4 ? (r - r0) / gap : (-b + sqrt(b * b + 4.0 * a * (r - r0))) / (2.0 * a);
+      sp = d * sH / (r * r) * max(1.0, gap + grow * (k + 1.0));  // spacing between beam lines on this wall
+    } else {                                                     // toward the horizon: even angular steps
+      k = (thM - th) / dTh; sp = d * dTh / max(0.2, cos(th) * cos(th));
+    }
     float rowOK = sp < ${WALL_ROW.toFixed(2)} * 1.1 ? 1.0 : step(abs(fract(k + 0.5) - 0.5) * sp, ${WALL_ROW.toFixed(2)} * 0.55);
     float sp2 = d * dPhi;                                       // spacing between azimuth columns
     float colOK = sp2 < ${WALL_COL.toFixed(2)} * 1.1 ? 1.0 : step(abs(fract(atan(dv.y, dv.x) / dPhi + 0.5) - 0.5) * sp2, ${WALL_COL.toFixed(2)} * 0.55);
@@ -274,6 +294,7 @@ const VERT = /* glsl */`
     // resolve: this dot exists once the tile's reveal passes its own threshold; flash white just after it lands
     float th = meta.z * 0.9 + 0.02, on = step(th, rev);
     if (lid > 0.5 && useFog > 0.5 && on > 0.0) on *= lidarOK(vec2(position.x, -position.y), position.z, meta.y);
+    if (kind < 0.5 && lid > 0.5) on *= 1.0 - ringsOn * smoothstep(0.0, 0.6, live); // ground in sight: the live rings show it; out of sight: the remembered scan
     float flash = on * (1.0 - smoothstep(0.0, 0.18, rev - th)) * step(rev, 0.999);
     // true colour, nudged by the look's ink and by the lidar height ramp (street → rooftops)
     float lum = dot(color, vec3(0.299, 0.587, 0.114));
@@ -361,11 +382,11 @@ const BVERT = /* glsl */`
     gl_Position = projectionMatrix * modelViewMatrix * w;
   }`;
 const BFRAG = /* glsl */`
-  uniform vec3 cBlock, cEdge;
+  uniform vec3 cBlock, cEdge; uniform float fade;
   varying float vRev, vShade; varying vec2 vUv; varying vec3 vW;
   float h(vec3 p) { return fract(sin(dot(floor(p / 3.0), vec3(12.9898, 78.233, 37.719))) * 43758.5453); }
   void main() {
-    if (h(vW) < vRev * 1.15) discard;                         // dissolve into the scan
+    if (h(vW) < vRev * 1.15 * fade) discard;                  // fade = how much a scanned block dissolves (0 = never)
     float e = min(min(vUv.x, 1.0 - vUv.x), min(vUv.y, 1.0 - vUv.y));
     gl_FragColor = vec4(mix(cEdge, cBlock * vShade, smoothstep(0.0, 0.05, e)), 1.0);
   }`;
@@ -416,6 +437,7 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
     uniforms: { ...fogU(), size: { value: 2 }, depth: { value: 0.5 }, time: { value: 0 }, sweep: { value: 0 }, trueMix: { value: 0.85 }, greyDim: { value: 0.6 },
       heightTint: { value: 0 }, neon: { value: 1.6 }, clutter: { value: 1 },
       scanTex: { value: scanTex }, sH: { value: 24 }, r0: { value: 16 }, gap: { value: 3 }, grow: { value: 0.2 }, rmax: { value: TUNE.EYES_RANGE * T }, dPhi: { value: 0.026 },
+      thM: { value: 0.06 }, dTh: { value: 0.01 }, ringsOn: { value: 1 },
       cInk: C(), cFog: C(), rampLo: C(), rampMid: C(), rampHi: C(), eyes: { value: [0, 1, 2, 3].map(() => new THREE.Vector4()) } },
   });
   // grid
@@ -426,7 +448,7 @@ export function initField(canvas: HTMLCanvasElement, marks: HTMLCanvasElement) {
   const bg = new THREE.BoxGeometry(1, 1, 1); bg.translate(0.5, -0.5, 0.5);
   const tileAttr = new Float32Array(tiles.length); tiles.forEach((ti, k) => { tileAttr[k] = ti; });
   bg.setAttribute('tile', new THREE.InstancedBufferAttribute(tileAttr, 1));
-  blockMat = new THREE.ShaderMaterial({ vertexShader: BVERT, fragmentShader: BFRAG, uniforms: { ...fogU(), depth: mat.uniforms.depth, cBlock: C(), cEdge: C() } });
+  blockMat = new THREE.ShaderMaterial({ vertexShader: BVERT, fragmentShader: BFRAG, uniforms: { ...fogU(), depth: mat.uniforms.depth, cBlock: C(), cEdge: C(), fade: { value: 0 } } });
   const im = new THREE.InstancedMesh(bg, blockMat, tiles.length), M = new THREE.Matrix4();
   tiles.forEach((ti, k) => { M.makeScale(T, T, heights[ti]).setPosition((ti % W) * T, -((ti / W) | 0) * T, 0); im.setMatrixAt(k, M); });
   im.frustumCulled = false; im.renderOrder = 1; scene.add(im);
@@ -463,12 +485,19 @@ export function renderField(t: number, dt: number, camX: number, camY: number, z
   const L = look, u = mat.uniforms;
   const dist = (vh / 2) / (zoom * Math.tan(FOV * Math.PI / 360)); // ground plane at exactly `zoom` px per unit
   cam.position.set(camX, -camY, dist); cam.lookAt(camX, -camY, 0);
-  renderer.setClearColor(L.bg);
+  // the clear colour gets the sRGB encode twice in this composer chain (measured: #808080 came out 188); pre-decode it once more
+  renderer.setClearColor(clearCol.set(L.bg).convertSRGBToLinear());
   const size = L.dotSize * dpr * Math.max(0.8, zoom * 1.4);
   u.time.value = t; u.size.value = size; u.depth.value = Math.max(0.02, L.depth);
   u.useFog.value = FX.fog ? 1 : 0; u.sweep.value = FX.sweep ? L.sweep : 0; u.trueMix.value = L.trueMix; u.greyDim.value = L.greyDim;
   u.heightTint.value = L.heightTint; u.neon.value = L.neon; u.clutter.value = L.clutter;
   u.sH.value = L.scanHeight; u.r0.value = Math.max(2, L.scanDead * T); u.gap.value = L.scanGap; u.grow.value = L.scanGrow; u.dPhi.value = L.scanAz * Math.PI / 180;
+  { // the farthest ring's beam angle, and the angular step between the last two rings (horizon beams continue at it)
+    const r0 = Math.max(2, L.scanDead * T), rOf = (k: number) => r0 + L.scanGap * k + L.scanGrow * k * (k + 1) / 2, rmax = TUNE.EYES_RANGE * T;
+    let k = 0; while (rOf(k + 1) < rmax) k++;
+    u.thM.value = Math.atan2(L.scanHeight, rOf(k)); u.dTh.value = Math.max(0.002, Math.atan2(L.scanHeight, rOf(Math.max(0, k - 1))) - u.thM.value);
+  }
+  u.ringsOn.value = FX.rings && L.scanAmt > 0 ? 1 : 0; blockMat.uniforms.fade.value = L.blockFade;
   scanTex.needsUpdate = true;
   u.cInk.value.set(L.ink); u.cFog.value.set(L.fog); u.rampLo.value.set(L.rampLo); u.rampMid.value.set(L.rampMid); u.rampHi.value.set(L.rampHi);
   blockMat.uniforms.cBlock.value.set(L.block); blockMat.uniforms.cEdge.value.set(L.blockEdge);

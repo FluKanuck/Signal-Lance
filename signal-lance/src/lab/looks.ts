@@ -18,6 +18,7 @@ export type Look = {
   trueMix: number;              // live scan: 1 = pure true colour, 0 = the look's ink only
   greyDim: number;              // revealed-but-unseen: brightness of the drained grey
   block: string; blockEdge: string; // unscanned grey massing blocks + their edge line
+  blockFade: number;            // how much a grey block dissolves once scanned (0 = never: the scan lands on the block)
   heightTint: number;           // how much the height ramp (survey-lidar style) overrides true colour
   rampLo: string; rampMid: string; rampHi: string; // height ramp: street level → mid → rooftops
   scanAmt: number;              // ground scan rings around each ExoS (0 = off)
@@ -44,7 +45,7 @@ export type Look = {
 
 // slider ranges for the TUNE panel: [min, max, step]
 export const KNOBS: Record<string, [number, number, number]> = {
-  dotSize: [0.5, 5, 0.1], depth: [0, 1.5, 0.05], sweep: [0, 2, 0.05], trueMix: [0, 1, 0.05], greyDim: [0, 1.5, 0.05],
+  dotSize: [0.5, 5, 0.1], blockFade: [0, 1, 0.05], depth: [0, 1.5, 0.05], sweep: [0, 2, 0.05], trueMix: [0, 1, 0.05], greyDim: [0, 1.5, 0.05],
   heightTint: [0, 1, 0.05], scanAmt: [0, 1.5, 0.05], scanSpin: [0, 2, 0.05],
   scanDead: [0, 3, 0.05], scanGap: [1, 12, 0.1], scanGrow: [0, 1.5, 0.01], scanFade: [0.3, 4, 0.05], scanRate: [0.05, 3, 0.05], scanPersist: [0, 1, 0.05], scanDrop: [0, 0.9, 0.05], scanCone: [0, 1, 1], scanHeight: [4, 80, 1], scanAz: [0.2, 6, 0.1], grid: [0, 1, 0.02], neon: [0, 4, 0.1], clutter: [0, 1.5, 0.05],
   bloom: [0, 3, 0.05], grain: [0, 0.3, 0.005], scan: [0, 1, 0.05], vignette: [0, 1.5, 0.05], aberr: [0, 4, 0.1], hazeAmt: [0, 1.5, 0.05],
@@ -67,7 +68,7 @@ export const LOOKS: Look[] = [
     name: 'MICRO', note: 'Micrographics lavender: hairlines, grain, low bloom',
     font: FONTS[1].font, display: FONTS[1].display,
     bg: '#0b0a10', ink: '#b9b2ff', dim: '#5d5880',
-    fog: '#1d1b2a', dotSize: 1.6, depth: 0.55, sweep: 0.5, trueMix: 0.8, greyDim: 0.55, block: '#24222c', blockEdge: '#383547',
+    fog: '#1d1b2a', dotSize: 1.6, depth: 0.55, sweep: 0.5, trueMix: 0.8, greyDim: 0.55, block: '#24222c', blockEdge: '#383547', blockFade: 0,
     heightTint: 0.15, rampLo: '#2a6cff', rampMid: '#2fe0b0', rampHi: '#ffd23f', scanAmt: 0.7, scanNear: '#b9b2ff', scanFar: '#4a6cff', scanSpin: 0.6,
     scanDead: 0.5, scanGap: 3, scanGrow: 0.22, scanFade: 1.4, scanRate: 0.45, scanPersist: 0.3, scanDrop: 0.25, scanCone: 1, scanHeight: 24, scanAz: 1.5,
     grid: 0.12, neon: 1.6, clutter: 0.8,
@@ -78,7 +79,7 @@ export const LOOKS: Look[] = [
     name: 'PHOSPHOR', note: 'HUD Vectors green: CRT scanlines, stronger glow',
     font: FONTS[3].font, display: FONTS[3].display,
     bg: '#020805', ink: '#1cf59a', dim: '#0f6b47',
-    fog: '#06231a', dotSize: 1.8, depth: 0.45, sweep: 0.8, trueMix: 0.6, greyDim: 0.55, block: '#16201c', blockEdge: '#22382e',
+    fog: '#06231a', dotSize: 1.8, depth: 0.45, sweep: 0.8, trueMix: 0.6, greyDim: 0.55, block: '#16201c', blockEdge: '#22382e', blockFade: 0,
     heightTint: 0.2, rampLo: '#0d8a57', rampMid: '#1cf59a', rampHi: '#e8ff7a', scanAmt: 0.8, scanNear: '#1cf59a', scanFar: '#0a6b44', scanSpin: 0.8,
     scanDead: 0.5, scanGap: 3, scanGrow: 0.22, scanFade: 1.2, scanRate: 0.6, scanPersist: 0.35, scanDrop: 0.2, scanCone: 1, scanHeight: 24, scanAz: 1.5,
     grid: 0.15, neon: 1.4, clutter: 0.7,
@@ -89,7 +90,7 @@ export const LOOKS: Look[] = [
     name: '2049', note: 'Blade Runner amber haze: warm dust, heavy bloom, cool info',
     font: FONTS[5].font, display: FONTS[5].display,
     bg: '#0c0705', ink: '#f2a65a', dim: '#7a4e2a',
-    fog: '#24140b', dotSize: 1.7, depth: 0.8, sweep: 0.4, trueMix: 0.75, greyDim: 0.55, block: '#2a221d', blockEdge: '#40342c',
+    fog: '#24140b', dotSize: 1.7, depth: 0.8, sweep: 0.4, trueMix: 0.75, greyDim: 0.55, block: '#2a221d', blockEdge: '#40342c', blockFade: 0,
     heightTint: 0.1, rampLo: '#5a2a10', rampMid: '#f2a65a', rampHi: '#fff1dc', scanAmt: 0.6, scanNear: '#ffb36b', scanFar: '#7a3a18', scanSpin: 0.5,
     scanDead: 0.5, scanGap: 3.5, scanGrow: 0.25, scanFade: 1.6, scanRate: 0.35, scanPersist: 0.25, scanDrop: 0.3, scanCone: 1, scanHeight: 24, scanAz: 1.5,
     grid: 0.08, neon: 2.2, clutter: 0.9,
@@ -100,7 +101,7 @@ export const LOOKS: Look[] = [
     name: 'LIDAR', note: 'Survey lidar (Jamie\'s reference photo): height ramp, rings, shadows, grid',
     font: FONTS[0].font, display: FONTS[0].display,
     bg: '#000000', ink: '#7fd8ff', dim: '#3a6a80',
-    fog: '#0a1420', dotSize: 1.6, depth: 0.7, sweep: 0.3, trueMix: 0.5, greyDim: 0.5, block: '#141a20', blockEdge: '#232c36',
+    fog: '#0a1420', dotSize: 1.6, depth: 0.7, sweep: 0.3, trueMix: 0.5, greyDim: 0.5, block: '#141a20', blockEdge: '#232c36', blockFade: 0,
     heightTint: 0.9, rampLo: '#1a6cff', rampMid: '#2fe0a0', rampHi: '#ffb020', scanAmt: 1.0, scanNear: '#5fd8ff', scanFar: '#1a4cff', scanSpin: 0.4,
     scanDead: 0.5, scanGap: 2.6, scanGrow: 0.2, scanFade: 1.1, scanRate: 0.5, scanPersist: 0.45, scanDrop: 0.15, scanCone: 1, scanHeight: 24, scanAz: 1.5,
     grid: 0.3, neon: 1.2, clutter: 0.9,
@@ -111,7 +112,7 @@ export const LOOKS: Look[] = [
     name: 'CURRENT', note: 'Today\'s grey look, as a baseline (dots, no post FX)',
     font: 'monospace', display: 'monospace',
     bg: '#111111', ink: '#d8d8d8', dim: '#777777',
-    fog: '#2c2d30', dotSize: 2.2, depth: 0, sweep: 0, trueMix: 1, greyDim: 0.6, block: '#3a3b3e', blockEdge: '#55575c',
+    fog: '#2c2d30', dotSize: 2.2, depth: 0, sweep: 0, trueMix: 1, greyDim: 0.6, block: '#3a3b3e', blockEdge: '#55575c', blockFade: 0,
     heightTint: 0, rampLo: '#333333', rampMid: '#777777', rampHi: '#bbbbbb', scanAmt: 0, scanNear: '#d8d8d8', scanFar: '#555555', scanSpin: 0,
     scanDead: 0.5, scanGap: 3, scanGrow: 0.22, scanFade: 1.5, scanRate: 0.5, scanPersist: 0.3, scanDrop: 0.2, scanCone: 1, scanHeight: 24, scanAz: 1.5,
     grid: 0, neon: 1, clutter: 0.5,
@@ -130,6 +131,7 @@ export const TIPS: Record<string, string> = {
   fog: 'Tint of revealed areas once out of sight (what the colour drains to).',
   block: 'Colour of the grey massing blocks (buildings not scanned yet).',
   blockEdge: 'Edge line on the grey massing blocks.',
+  blockFade: 'How much a grey block dissolves once scanned. 0 = never: it stays as a grey mass and the scan dots land on it.',
   rampLo: 'Height ramp, street level (only shows with heightTint above 0).',
   rampMid: 'Height ramp, mid height.',
   rampHi: 'Height ramp, rooftops.',
