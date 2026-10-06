@@ -127,3 +127,4 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 43. R7 rough edges: type label lost on re-acquire; unidentified wrecks named; both suits uplink in one round; one suit at extraction ends the hunt
 44. R8 rough edges: artifact and Pages keep separate run logs; same field can repeat across a cycle boundary
 45. Ported bug: hidden first hunt at page load; tighter TypeScript types
+51. Decoys and masking, to disguise what you are, to hide or lure the enemy — strand: hunt · parked 2026-10-05
