@@ -545,12 +545,12 @@ export function cmdDraw(pts: { x: number; y: number }[], keepTo = Infinity) {
 }
 // R17: set (or re-aim) the facing waypoint d tiles along the drawn path. false = off the path, or FACE_WAYPOINTS_MAX already set.
 const WP_SAME = 0.6; // tiles: a waypoint this close along the path is the same one
-export function cmdWaypoint(d: number, fx: number, fy: number) {
+export function cmdWaypoint(d: number, fx: number, fy: number, lx?: number, ly?: number) { // r17-s3: lx, ly = the look marker (view only)
   if (!G.planD || !G.plan || !G.plan.drawn || !playerFree() || d <= 0.05 || d > G.plan.length + 1e-6) return false;
   const w = G.planD.wps.find(w => Math.abs(w.d - d) < WP_SAME);
-  if (w) { w.fx = fx; w.fy = fy; }
+  if (w) { w.fx = fx; w.fy = fy; w.lx = lx; w.ly = ly; }
   else if (G.planD.wps.length >= TUNE.FACE_WAYPOINTS_MAX) return false;
-  else G.planD.wps.push({ d, fx, fy });
+  else G.planD.wps.push({ d, fx, fy, lx, ly });
   replan(); return true;
 }
 export function waypointNear(d: number) { return G.planD ? G.planD.wps.find(w => Math.abs(w.d - d) < WP_SAME) || null : null; }

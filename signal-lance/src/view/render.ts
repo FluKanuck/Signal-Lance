@@ -31,6 +31,11 @@ function alongPath(P, want) {
   }
   return P[P.length - 1];
 }
+// r17-s3: where a waypoint's look marker sits: where you tapped, or 3 tiles along its facing
+export function markerPos(w, P) {
+  if (w.lx !== undefined) return { x: w.lx, y: w.ly };
+  const q = along(P, w.d), d = Math.hypot(w.fx, w.fy) || 1; return q ? { x: q.x + w.fx / d * 3 * T, y: q.y + w.fy / d * 3 * T } : null;
+}
 // R17: a faint eyes cone (EYES_HALF_ANG, EYES_RANGE) from (x, y) along (fx, fy)
 function eyesCone(x, y, fx, fy, alpha) {
   const a0 = Math.atan2(fy, fx), h = TUNE.EYES_HALF_ANG * Math.PI / 180;
@@ -200,7 +205,13 @@ export function render() {
       const on = kept.has(Math.round(w.d * 100)), d = Math.hypot(w.fx, w.fy) || 1;
       ctx.strokeStyle = ctx.fillStyle = on ? '#8fe3ff' : '#888'; ctx.lineWidth = 3 / z;
       ctx.beginPath(); ctx.moveTo(q.x, q.y - 9); ctx.lineTo(q.x + 9, q.y); ctx.lineTo(q.x, q.y + 9); ctx.lineTo(q.x - 9, q.y); ctx.closePath(); ctx.fill();
-      ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(q.x + w.fx / d * 26, q.y + w.fy / d * 26); ctx.stroke();
+      const mk = markerPos(w, F); // r17-s3: the look marker (an eye): drag it to move where this point looks
+      if (mk) {
+        ctx.lineWidth = 1.5 / z; ctx.setLineDash([4 / z, 4 / z]); ctx.beginPath(); ctx.moveTo(q.x, q.y); ctx.lineTo(mk.x, mk.y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.lineWidth = 2.5 / z; ctx.fillStyle = 'rgba(20,40,60,0.85)';
+        ctx.beginPath(); ctx.ellipse(mk.x, mk.y, 14 / z, 8 / z, 0, 0, 6.2832); ctx.fill(); ctx.stroke();
+        ctx.fillStyle = on ? '#8fe3ff' : '#888'; ctx.beginPath(); ctx.arc(mk.x, mk.y, 4 / z, 0, 6.2832); ctx.fill();
+      }
       if (!on) { ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText('past the AP', q.x + 12, q.y - 8); }
     }
     const la = V.lookArm !== null ? along(F, V.lookArm) : V.wpMenu !== null ? along(F, V.wpMenu) : null;

@@ -819,6 +819,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      is open only closes it. A tap on the ExoS still arms a face change.
    - Jamie: "get rid of the stop circle, its not needed". The gold ring is gone; the cyan / red dashed split shows where
      the AP runs out, and the cost label sits at that point.
+   R17 r17-s3 ASSUMPTIONS (Jamie: no LOOK button; tap where to look, then drag the marker)
+   - Tap the path (or its end handle): that point is picked and pulses; the next tap anywhere places its look marker there
+     (the facing = from the point to the marker). A tap on the same spot (under 0.4 tiles away) cancels. A look marker can
+     be dragged (live re-aim) or tapped (picks its point again; a "✕ LOOK" button then removes it). The marker is view
+     data on the waypoint (lx, ly); the rules use only the facing.
 ```
 
 ## TWEAK LOG
@@ -1199,4 +1204,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            (DRAW_SAMPLE 0.35, DRAW_SIMPLIFY 0.25), end handle to carry on (DRAW_END_GRAB_PX 34), drag mid-path = redraw from
            there, tap path = LOOK / ✕ menu then tap where to look; stop ring removed. Rules, costs and runner unchanged
            (the scripted lance taps). BUILD r17-s2 | -
+   round17 feedback (r17-s2) | Jamie: "i click the path, i see look flashing, then i have to tap look and then click my
+           look direction, instead … i should just be able to tap somewhere, that leaves a look marker, i can then click
+           and drag that mark to maneuver it" | LOOK button removed: tap the path, then tap where to look (eye marker,
+           draggable); ✕ LOOK shows on a point that has one. BUILD r17-s3 | -
 ```

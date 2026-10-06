@@ -5,7 +5,7 @@ import { cx, cy } from '../sim/sensors.ts';
 import { forksAhead } from '../sim/escort.ts';
 import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdExtract, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect, cmdDraw, cmdWaypoint, cmdClearWaypoint, waypointNear, along, nearestAlong } from '../sim/turns.ts';
 import { V } from './state.ts';
-import { cv, vw, vh, resize, routeBtn } from './render.ts';
+import { cv, vw, vh, resize, routeBtn, markerPos } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
 import { showTip, hideTip, TIP_HOLD_MS } from './tip.ts';
 
@@ -32,22 +32,30 @@ btn('bDbg', () => { V.dbg = !V.dbg; $('bDbg').classList.toggle('on', V.dbg); ref
 
 export const ROUTE_BTN_PX = 30; // R15 Escort: route button radius on screen (60 px across)
 export const ptr = { id: -1, sx: 0, sy: 0, lx: 0, ly: 0, pan: false, held: false, holdT: 0 as any, hideT: 0 as any,
-  cand: '', mode: '', d: 0, base: [] as { x: number; y: number }[], pts: [] as { x: number; y: number }[], keepTo: Infinity, swallow: false };
+  cand: '', mode: '', d: 0, base: [] as { x: number; y: number }[], pts: [] as { x: number; y: number }[], keepTo: Infinity };
 // ---- R17 drawn paths, r17-s2 controls (Jamie: free hand, and "hard to accurately grab the point to keep going, it keeps
 // doing facing instead"; Door Kickers style). Drag from your ExoS = a new path. Drag the handle at the path's end = carry it
-// on. Drag from the middle of the path = redraw from there. Tap the path = a small LOOK / ✕ menu; LOOK, then tap (or drag)
-// where that point should look. Aiming is never a drag on the path, so it can't be hit by accident.
+// on. Drag from the middle of the path = redraw from there. r17-s3 (Jamie): tap the path = that point waits for a look
+// (✕ shows if it has one); the next tap anywhere drops a look marker there; drag a marker to move it, tap it to pick it
+// again. Aiming is never a drag on the path, so it can't be hit by accident.
 const drawnPlan = () => (G.planD && G.plan && G.plan.drawn ? G.plan : null);
 // What a press here may turn into: 'aim' (LOOK is armed), 'extend' (the end handle), 'new' (your ExoS), 'path' (on the
 // path: tap = menu, drag = redraw from there), or '' (an ordinary press: tap, pan or hold).
 function pressKind(wx: number, wy: number) {
   if (!TUNE.DRAW_PATH_ENABLED || !playerFree() || V.mortarArm || V.ghostArm || V.faceArm) return '';
+  const mk = markerAt(wx, wy); if (mk) { ptr.d = mk.d; return 'marker'; } // r17-s3: a look marker: drag = move it, tap = pick it
   if (V.lookArm !== null && drawnPlan()) return 'aim';
   const z = TUNE.ZOOMS[V.zoomI], pl = drawnPlan();
   if (pl) { const e = pl.full[pl.full.length - 1]; if (Math.hypot(wx - e.x, wy - e.y) <= TUNE.DRAW_END_GRAB_PX / z) { ptr.d = pl.length; return 'extend'; } }
   if (Math.hypot(wx - G.p.x, wy - G.p.y) <= TUNE.DRAW_GRAB_PX / z) return 'new';
   if (pl) { const n = nearestAlong(pl.full, wx, wy); if (n.off * T <= TUNE.WAYPOINT_GRAB_PX / z) { ptr.d = n.d; return 'path'; } }
   return '';
+}
+function markerAt(wx: number, wy: number) {
+  const pl = drawnPlan(); if (!pl || !G.planD) return null;
+  const r = TUNE.DRAW_END_GRAB_PX / TUNE.ZOOMS[V.zoomI];
+  for (const w of G.planD.wps) { const m = markerPos(w, pl.full); if (m && Math.hypot(wx - m.x, wy - m.y) <= r) return w; }
+  return null;
 }
 // the drawn path up to d tiles along it (its points after the start, ending exactly at d)
 function prefixTo(P, d: number) {
@@ -63,17 +71,17 @@ function strokeTo(wx: number, wy: number) {
 export function showWpMenu(d: number) {
   const pl = drawnPlan(), q = pl && along(pl.full, d); if (!q) return;
   const z = TUNE.ZOOMS[V.zoomI], sx = vw / 2 + (q.x - V.camX) * z, sy = vh / 2 + (q.y - V.camY) * z, M = $('wpMenu');
-  V.wpMenu = d; M.hidden = false;
-  $('bWpX').hidden = !waypointNear(d);
+  V.wpMenu = d; M.hidden = !waypointNear(d); // r17-s3: only ✕ (remove), and only on a point that already looks somewhere
   M.style.left = Math.max(8, Math.min(vw - 150, sx - 60)) + 'px'; M.style.top = Math.max(70, Math.min(vh - 120, sy - 80)) + 'px';
 }
 export function hideWpMenu() { V.wpMenu = null; $('wpMenu').hidden = true; }
-btn('bLook', () => { if (V.wpMenu !== null && playerFree()) { V.lookArm = V.wpMenu; V.wpWhy = ''; } hideWpMenu(); syncButtons(); });
-btn('bWpX', () => { if (V.wpMenu !== null) cmdClearWaypoint(V.wpMenu); hideWpMenu(); syncButtons(); });
+btn('bWpX', () => { if (V.wpMenu !== null) cmdClearWaypoint(V.wpMenu); V.lookArm = null; hideWpMenu(); syncButtons(); });
+// r17-s3: pick a point on the path: it waits for the next tap to say where it looks
+function armLook(d: number) { V.lookArm = d; V.wpWhy = ''; showWpMenu(d); }
 function aimAt(wx: number, wy: number) {
   const pl = drawnPlan(), q = pl && V.lookArm !== null && along(pl.full, V.lookArm); if (!q) return;
   const fx = wx - q.x, fy = wy - q.y;
-  if (Math.hypot(fx, fy) > T * 0.4) { V.wpWhy = cmdWaypoint(V.lookArm, fx, fy) ? '' : 'MAX ' + TUNE.FACE_WAYPOINTS_MAX; syncButtons(); }
+  if (Math.hypot(fx, fy) > T * 0.4) { V.wpWhy = cmdWaypoint(V.lookArm, fx, fy, wx, wy) ? '' : 'MAX ' + TUNE.FACE_WAYPOINTS_MAX; syncButtons(); }
 }
 const toWorld = (sx, sy) => { const z = TUNE.ZOOMS[V.zoomI]; return [(sx - vw / 2) / z + V.camX, (sy - vh / 2) / z + V.camY]; };
 const tipHere = (sx, sy) => { const [wx, wy] = toWorld(sx, sy); showTip(sx, sy, wx, wy); };
@@ -81,8 +89,8 @@ cv.addEventListener('pointerdown', e => {
   e.preventDefault();
   if (ptr.id !== -1) return; // ignore second finger
   ptr.id = e.pointerId; ptr.sx = ptr.lx = e.clientX; ptr.sy = ptr.ly = e.clientY; ptr.pan = false; ptr.held = false;
-  ptr.swallow = V.wpMenu !== null; if (ptr.swallow) hideWpMenu(); // R17: a press off the open menu just closes it
-  { const [wx, wy] = toWorld(e.clientX, e.clientY); ptr.cand = ptr.swallow ? '' : pressKind(wx, wy); ptr.mode = ''; } // R17
+  hideWpMenu(); // R17: a press off the ✕ menu closes it (the press itself still counts: e.g. the tap that places a look)
+  { const [wx, wy] = toWorld(e.clientX, e.clientY); ptr.cand = pressKind(wx, wy); ptr.mode = ''; } // R17
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
   // R16: a still finger (or button) held TIP_HOLD_MS shows what is under it; that press then never taps or pans
   clearTimeout(ptr.holdT); clearTimeout(ptr.hideT); hideTip();
@@ -97,6 +105,7 @@ cv.addEventListener('pointermove', e => {
     clearTimeout(ptr.holdT);
     const pl = drawnPlan();
     if (ptr.cand === 'aim') ptr.mode = 'aim';
+    else if (ptr.cand === 'marker') { ptr.mode = 'aim'; V.lookArm = ptr.d; } // r17-s3: drag a look marker to move it
     else if (ptr.cand && playerFree()) { // R17: start drawing: fresh, carrying on from the end, or redrawing from a point
       ptr.mode = 'draw'; ptr.pts = []; V.wpWhy = '';
       ptr.base = ptr.cand === 'new' || !pl ? [] : prefixTo(pl.full, ptr.d);
@@ -123,10 +132,10 @@ export function ptrEnd(e) {
     const [wx, wy] = toWorld(e.clientX, e.clientY); ptr.pts.push({ x: wx, y: wy }); cmdDraw(ptr.base.concat(ptr.pts), ptr.keepTo);
   }
   if (ptr.mode) { if (ptr.mode === 'aim') V.lookArm = null; ptr.mode = ''; V.drawPt = null; syncButtons(); return; } // R17: a drawn path / an aim, not a tap
-  if (ptr.swallow) return;
   const tap = !ptr.pan && !ptr.held && e.type === 'pointerup';
   if (tap && ptr.cand === 'aim') { const [wx, wy] = toWorld(e.clientX, e.clientY); aimAt(wx, wy); V.lookArm = null; syncButtons(); return; } // R17: LOOK, tapped
-  if (tap && (ptr.cand === 'path' || ptr.cand === 'extend')) { showWpMenu(ptr.d); syncButtons(); return; } // R17: tap the path = LOOK / ✕
+  if (tap && ptr.cand === 'marker') { armLook(ptr.d); syncButtons(); return; } // r17-s3: tap a marker = pick it again (✕ to remove)
+  if (tap && (ptr.cand === 'path' || ptr.cand === 'extend')) { armLook(ptr.d); syncButtons(); return; } // r17-s3: tap the path = the next tap says where it looks
   if (ptr.held) { ptr.held = false; ptr.hideT = setTimeout(hideTip, e.pointerType === 'mouse' ? 0 : 1500); return; } // R16: a hold was a look, not a tap
   if (tap) onTap(e.clientX, e.clientY);
 }
