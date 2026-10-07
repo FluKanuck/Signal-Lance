@@ -26,6 +26,9 @@
 
 **Debug run (items 5–8):** Jamie's QUIT log line had no seed (item 9), but his DBG screenshot did: hunt seed **835900613**, Mixed, BOUNTY, 6×2, pack on; fits Brawler (A) + Scout (B). Rebuilt headless: U0 = TURRET **sentry** at tile (9,0), U1 = EMPLACEMENT **fire** at (8,0), both on the map's top row against the NOISE yard (A1, centre 8,2); the "brown debris" beside them is a set piece (wall kind 2), joined to the building block (kind 1) by the cover-piece flood fill (item 7). The radar pulse reached the emplacement through those walls (fuzzy, slow to shrink: item 6).
 
+## For the round report
+- 2026-10-06, an "oh, that's how it works" moment (Jamie, on why the sentry never showed ESM): "never made that round trip in my head, that what signals are putting off nothing is just as important as what it is putting off".
+
 ## Agent notes (not on the fix list unless Jamie adds them)
 ### From Jamie's play
 1. **Heavy load scenario isn't a telling test.** Being heard by the turret has no consequence before you're past the alley. Rework so weight costs something you see: e.g. a patrol in the alley that hunts what it hears, a longer stretch past the listener, or a route that needs a sprint. (Debrief 1; Jamie: "it'll need a game to show what that weight carries".)
