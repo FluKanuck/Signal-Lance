@@ -2,6 +2,7 @@
 // COST (company lines pointing back to them); the live end-of-hunt map stays visible on the left. Tap a moment to pulse it on
 // the map (not a replay). The old panels sit behind DETAILS. Rules and words come from sim/aar.ts.
 import { G } from '../sim/state.ts';
+import { TUNE } from '../tune.ts';
 import { T } from '../sim/world.ts';
 import { aarLines, pickMoments, costLines, heldField, aarLogLines, type MomentLine, type CostLine } from '../sim/aar.ts';
 import { V, camZ } from './state.ts';
@@ -35,11 +36,15 @@ function look(x: number, y: number) {
 function pick(i: number) {
   const l = lines[i]; if (!l) return;
   const same = V.aarHl && V.aarHl.i === i;
-  V.aarHl = same ? null : { i, hl: l.hl, t0: performance.now() };
+  V.aarHl = same ? null : { i, hl: l.hl, t0: performance.now(), turn: l.turn };
   for (const b of Array.from(document.querySelectorAll('.aarm')) as HTMLElement[]) b.classList.toggle('on', !same && +b.dataset.i === i);
   if (same) return;
   const P = [...l.hl.own, ...l.hl.foe, ...(l.hl.spot ? [l.hl.spot] : [])];
-  if (P.length) look(P.reduce((a, p) => a + p.x, 0) / P.length, P.reduce((a, p) => a + p.y, 0) / P.length);
+  if (!P.length) return;
+  // zoom out if the moment doesn't fit the clear strip left of the page (plus a margin for the labels)
+  const pw = ($('res') as HTMLElement).getBoundingClientRect().width || 0, wx = Math.max(...P.map(p => p.x)) - Math.min(...P.map(p => p.x)) + 4 * T, wy = Math.max(...P.map(p => p.y)) - Math.min(...P.map(p => p.y)) + 4 * T;
+  if (wx * camZ() > window.innerWidth - pw || wy * camZ() > window.innerHeight) V.zoomI = TUNE.ZOOMS.length - 1;
+  look(P.reduce((a, p) => a + p.x, 0) / P.length, P.reduce((a, p) => a + p.y, 0) / P.length);
 }
 $('aarList').addEventListener('click', ev => { const b = (ev.target as any).closest('.aarm'); if (b) pick(+b.dataset.i); });
 $('aarCostList').addEventListener('click', ev => { const c = (ev.target as any).closest('.aarc.ref'); if (!c) return; const i = lines.findIndex(l => l.turn === +c.dataset.t); if (i >= 0) pick(i); });
@@ -60,8 +65,20 @@ export function drawAarHl(ctx: CanvasRenderingContext2D, z: number) {
     ctx.fillText('?', b.x + Math.cos(b.ang) * (L + 12 / z), b.y + Math.sin(b.ang) * (L + 12 / z) + 6 / z); ctx.textAlign = 'left';
   }
   const ring = (p: { x: number; y: number }, col: string) => { ctx.strokeStyle = col.replace('A', String(a)); ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, 6.2832); ctx.stroke(); };
-  for (const p of hl.own) ring(p, 'rgba(140,220,255,A)');
-  for (const p of hl.foe) { ring(p, 'rgba(255,90,90,A)'); ctx.fillStyle = 'rgba(255,90,90,' + a + ')'; ctx.fillRect(p.x - 5, p.y - 5, 10, 10); }
+  // the unit as it was at that turn: cover what the end-of-hunt map shows on that spot (a wreck, nothing), draw it, name it
+  const asThen = (p: { x: number; y: number; name?: string }, foe: boolean) => {
+    ctx.fillStyle = 'rgba(17,17,17,0.9)'; ctx.beginPath(); ctx.arc(p.x, p.y, 0.55 * T, 0, 6.2832); ctx.fill();
+    ctx.fillStyle = foe ? '#ff5a5a' : '#8cdcff';
+    if (foe) ctx.fillRect(p.x - 7, p.y - 7, 14, 14); else { ctx.beginPath(); ctx.arc(p.x, p.y, 8, 0, 6.2832); ctx.fill(); }
+    ring(p, foe ? 'rgba(255,90,90,A)' : 'rgba(140,220,255,A)');
+    const t = 'T' + H.turn + ' · ' + (p.name || ''), fs = 12 / z;
+    ctx.font = 'bold ' + fs + 'px monospace'; ctx.textAlign = 'center';
+    const w = ctx.measureText(t).width, y = p.y - r - 6 / z;
+    ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(p.x - w / 2 - 4 / z, y - fs, w + 8 / z, fs + 4 / z);
+    ctx.fillStyle = foe ? '#ff9a9a' : '#bfe9ff'; ctx.fillText(t, p.x, y); ctx.textAlign = 'left';
+  };
+  for (const p of hl.own) asThen(p, false);
+  for (const p of hl.foe) asThen(p, true);
   if (hl.spot) ring(hl.spot, 'rgba(255,204,51,A)');
   ctx.restore();
 }

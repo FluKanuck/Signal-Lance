@@ -461,6 +461,7 @@ export function render() {
   // wrecks: destroyed units (red X at the true spot)
   for (const e of G.units) {
     if (!e.dead) continue;
+    if (V.aarHl && V.aarHl.hl.foe.some(f => f.id === e.id)) continue; // R22 fix: the after-action page shows it as it was at that turn
     ctx.strokeStyle = '#f33'; ctx.lineWidth = 4 / z; ctx.beginPath();
     ctx.moveTo(e.x - 12, e.y - 12); ctx.lineTo(e.x + 12, e.y + 12); ctx.moveTo(e.x + 12, e.y - 12); ctx.lineTo(e.x - 12, e.y + 12); ctx.stroke();
     ctx.fillStyle = '#f66'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText(e.type + ' ✕', e.x + 14, e.y + 4); // R7 run1: named wreck

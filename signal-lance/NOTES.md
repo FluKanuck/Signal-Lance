@@ -1668,6 +1668,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            AAR_WEIGHT_OBJ 5); a KIA folds into its suit's DOWN line ("…; left behind: KIA", weighted as a KIA). After: --contracts 20
            ROUTE 21 → 0 moments, HIT 46% → 52%, OBJ 32% → 24%; --company 10 --companies 6 always-in dropped 6 → 0, redacted when
            not held 46% → 63%; cap still 98-100%, thin 0. Game unchanged (6 fold, 18 played, 7 complete, 32 KIA). BUILD r22-s2 | -
+   round22 fix (r22-s3) | Jamie (Held the field, tapping T1 "A Mara destroyed a patrol"): "at this point in the replay the patrol
+           should be alive" (the pulse sat on the end-of-hunt wreck ✕) | view only: a tapped moment draws each unit as it was at
+           that turn (a dark disc over the spot, its marker, "T1 · patrol (line)"), hides the wreck of a field unit it shows, and
+           zooms out when the moment is wider than the map strip. Not held: still no field unit drawn. BUILD r22-s3 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

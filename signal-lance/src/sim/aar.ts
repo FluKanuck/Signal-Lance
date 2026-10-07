@@ -25,7 +25,7 @@ export type AarEv = {
   kia?: boolean;    // DOWN: its operator was left behind (the KIA folded into this line, R22 tuning)
 };
 export type Moment = AarEv & { w: number; must: boolean };
-export type Hl = { own: { x: number; y: number }[]; foe: { x: number; y: number }[]; line: number[] | null; bearing: { x: number; y: number; ang: number } | null; spot: { x: number; y: number } | null };
+export type Hl = { own: { x: number; y: number; name?: string }[]; foe: { x: number; y: number; name?: string; id?: string }[]; line: number[] | null; bearing: { x: number; y: number; ang: number } | null; spot: { x: number; y: number } | null };
 export type MomentLine = { turn: number; kind: string; sub: string; held: boolean; redacted: boolean; text: string; hl: Hl };
 
 // ============================ RECORDING ===============================
@@ -224,9 +224,11 @@ export function momentLine(e: AarEv, held = heldField()): MomentLine {
 export function highlight(e: AarEv, held = heldField()): Hl {
   const own: Hl['own'] = [], foe: Hl['foe'] = [];
   const ownA = e.a && !!G.lance.find(m => m.id === e.a), ownB = e.b && !!G.lance.find(m => m.id === e.b);
-  if (has(e.ax) && ownA) own.push({ x: e.ax, y: e.ay });
-  if (has(e.bx) && ownB) own.push({ x: e.bx, y: e.by });
-  if (held) { if (has(e.ax) && e.a && !ownA) foe.push({ x: e.ax, y: e.ay }); if (has(e.bx) && e.b && !ownB) foe.push({ x: e.bx, y: e.by }); }
+  // R22 fix (Jamie: "at this point in the replay the patrol should be alive"): each point carries its name, so the view can draw
+  // the unit as it was at that turn over whatever the end-of-hunt map shows there (a wreck)
+  if (has(e.ax) && ownA) own.push({ x: e.ax, y: e.ay, name: e.aName });
+  if (has(e.bx) && ownB) own.push({ x: e.bx, y: e.by, name: e.bName });
+  if (held) { if (has(e.ax) && e.a && !ownA) foe.push({ x: e.ax, y: e.ay, name: e.aName, id: e.a }); if (has(e.bx) && e.b && !ownB) foe.push({ x: e.bx, y: e.by, name: e.bName, id: e.b }); }
   const line = held && has(e.ax) && has(e.bx) ? [e.ax, e.ay, e.bx, e.by] : null;
   const bearing = !held && e.side === 'E' && has(e.ax) && has(e.bx) ? { x: e.bx, y: e.by, ang: compassAng(e.bx, e.by, e.ax, e.ay) } : null;
   const spot = e.kind === 'OBJ' && (e.sub === 'UPLINK' || e.sub === 'PICKUP' || (e.sub === 'END' && G.mission && G.mission.type === 'UPLINK')) ? { x: G.up.x, y: G.up.y } : null;

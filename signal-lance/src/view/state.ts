@@ -10,7 +10,7 @@ export const V = {
   wpMenu: null as null | number,            // r17-s2: the LOOK / ✕ menu is open for the path point this far along (tiles)
   lookArm: null as null | number,           // r17-s2: LOOK chosen: the next tap (or drag) aims the point this far along
   rwrSel: '' as string,                     // R19 cp3: the RWR warning tapped (its emitter id)
-  aarHl: null as null | { i: number; hl: any; t0: number }, // R22: the after-action moment tapped (pulsed on the map)
+  aarHl: null as null | { i: number; hl: any; t0: number; turn: number }, // R22: the after-action moment tapped (pulsed on the map)
   uiS: 1,                                   // R18 fix (Jamie, iPad split screen): UI scale for this window (1 = the phone the game was laid out on)
 };
 // R18 fix: the map's zoom (screen px per world unit) scales with the window too, so a big screen shows the same district bigger
