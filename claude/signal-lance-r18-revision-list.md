@@ -7,13 +7,15 @@
 | # | Item (Jamie's words) | Status |
 |---|---|---|
 | 1 | Hangar: "The highlighted body part isn't obvious enough, not terrible when looking at a big body part but not the mast, it needs to be more clear" | to fix |
+| 2 | iPad Pro 12.9 split screen (game in the bottom half, chat above): "id like to be able to split screen like this and have the game in correct aspect to play the game and chat to you easily, can you figure out for it to autoscale correctly". The game window there is very wide and short (~1000 × 370 CSS px): hangar, hunt HUD / buttons and the other panels must fit and stay readable, scaling with the window | to fix |
+| 3 | "add a bit of a buffer from the top of the screen just for easy reading" (all screens; the iPad status bar also sat over the ExoS A / B buttons full screen) | to fix |
 
 ## Agent notes (not on the fix list unless Jamie adds them)
 ### From Jamie's play
 1. **Heavy load scenario isn't a telling test.** Being heard by the turret has no consequence before you're past the alley. Rework so weight costs something you see: e.g. a patrol in the alley that hunts what it hears, a longer stretch past the listener, or a route that needs a sprint. (Debrief 1; Jamie: "it'll need a game to show what that weight carries".)
 2. **Rate the overload Energy change** (`OVERLOAD_EN_PER_TILE` 0.5, r18-s4) in contract play: helped / worse / couldn't tell. It hasn't been played yet.
-3. **iPad: the status bar sits over the ExoS A / B buttons** when the page isn't inside the Claude viewer. The panels pad by `--top` only; add `env(safe-area-inset-top)`.
-4. **iPad: the hangar only uses the top third of the screen.** Scale the wireframe and readouts up on big screens (tablet layout).
+3. (now fix list #3) **iPad: the status bar sits over the ExoS A / B buttons** when the page isn't inside the Claude viewer. The panels pad by `--top` only; add `env(safe-area-inset-top)`.
+4. (part of fix list #2) **iPad: the hangar only uses the top third of the screen.** Scale the wireframe and readouts up on big screens (tablet layout).
 5. (now fix list #1)
 6. **Stale cached builds on iPad** (the screenshot showed `r18-s4` after s6 was live). Maybe a "new build: reload" note when the stamp is older than the published one.
 7. **QUIT goes to the hangar.** Confirm that's the "start screen" Jamie meant (or the tester splash).
