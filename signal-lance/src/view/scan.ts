@@ -34,6 +34,7 @@ export function renderScan() {
   const S = G.scan, done = S.lvl >= 0;
   $('sDial').innerHTML = LISTEN.map((n, i) => '<button class="sd' + (i === (done ? S.lvl : pickLvl) ? ' on' : '') + (done && i !== S.lvl ? ' lockd' : '') + '" data-l="' + i + '">' + n + '</button>').join('');
   const L = done ? S.lvl : pickLvl, risk = scanRisk(L);
+  $('sWhat').hidden = done; // R19 readability: once you have listened, the space goes to what was heard
   $('sWhat').innerHTML = '<b>' + LISTEN[L] + ':</b> ' + esc(L ? 'Everything below, plus: ' + REVEALS[L] : REVEALS[0]) + (risk ? '<br><span class="warnt"><b>Risk:</b> ' + esc(risk) + '</span>' : '');
   $('bListen').hidden = done;
   $('bListen').textContent = pickLvl ? 'LISTEN: ' + LISTEN[pickLvl] : 'SKIP THE SCAN';
@@ -57,16 +58,16 @@ function heard() {
   if (S.lvl >= 2) for (const k of ['QUIET', 'NOISE']) { const zs = G.zones.filter(z => z.type === k); if (zs.length) L.push('<b>' + TUNE.ZONE_TYPES[k].NAME + ':</b> ' + esc(zs.map(z => z.name).join(', '))); }
   if (S.lvl >= 3) {
     const silent = S.roster.reduce((a, r) => a + r.n, 0) - S.blips.length;
-    L.push('<b>Blips:</b> ' + S.blips.length + ' emitters placed (where they were when the ship listened; patrols move)' + (silent > 0 ? ', ' + silent + ' silent, not placed' : '') + '. Label = best guess and how many CARD variants fit.');
+    L.push('<b>Blips:</b> ' + S.blips.length + ' emitters (patrols will have moved)' + (silent > 0 ? '; ' + silent + ' silent, not shown' : '') + '.');
   }
-  if (S.lvl >= 2) L.push('<b>Drop zone:</b> tap one (map or buttons).');
+  if (S.lvl >= 2) L.push('<b>Drop zone:</b> tap 1–' + offeredDrops().length + ' on the map or below.');
   return L;
 }
 // ---- the map: the whole district, fitted to the canvas ----
 function drawMap() {
   const cv = $('scv') as HTMLCanvasElement, S = G.scan, dpr = Math.min(2, window.devicePixelRatio || 1);
-  const box = cv.parentElement.getBoundingClientRect(), maxH = Math.max(140, window.innerHeight * 0.8);
-  const k = Math.max(2, Math.min(box.width / W, maxH / H)); // CSS px per tile
+  const box = cv.parentElement.getBoundingClientRect(), zm = parseFloat(($('scan').style as any).zoom || '1') || 1, maxH = Math.max(140, (window.innerHeight - 70) / zm); // R19 readability: the map takes the height it can
+  const k = Math.max(2, Math.min(box.width / zm / W, maxH / H)); // CSS px per tile
   cv.style.width = W * k + 'px'; cv.style.height = H * k + 'px'; cv.width = Math.round(W * k * dpr); cv.height = Math.round(H * k * dpr);
   const c = cv.getContext('2d'), z = k / T; c.setTransform(dpr * z, 0, 0, dpr * z, 0, 0);
   c.fillStyle = '#2c2d30'; c.fillRect(0, 0, W * T, H * T);
@@ -93,6 +94,7 @@ function drawMap() {
     c.fillStyle = on ? '#001' : '#cde'; c.font = 'bold ' + (11 / z) + 'px monospace'; c.textAlign = 'center'; c.fillText(String(i + 1), x, y + 4 / z); c.textAlign = 'left';
   });
   // LONG blips: a fuzzy circle and the best guess
+  const placed: { x0: number; y0: number; x1: number; y1: number }[] = []; // R19 readability: labels that would overlap stack downwards
   for (const b of S.blips || []) {
     c.strokeStyle = '#f90'; c.fillStyle = 'rgba(255,150,0,0.12)'; c.lineWidth = 2 / z; c.setLineDash([5 / z, 4 / z]);
     c.beginPath(); c.arc(b.x, b.y, b.unc, 0, 6.2832); c.fill(); c.stroke(); c.setLineDash([]);
@@ -100,7 +102,11 @@ function drawMap() {
     c.fillStyle = '#ffd27a'; c.font = 'bold ' + (11 / z) + 'px monospace';
     const t = b.guess + '? ' + (b.fits.length > 1 ? '1 of ' + b.fits.length : 'sure'), tw = c.measureText(t).width;
     const lx = b.x + b.unc * 0.75 + tw > W * T ? b.x - b.unc * 0.75 - tw : b.x + b.unc * 0.75; // stay on the map
-    c.fillText(t, lx, Math.max(12 / z, b.y - b.unc * 0.6));
+    let ly = Math.max(12 / z, b.y - b.unc * 0.6); const h = 13 / z;
+    for (let g = 0; g < 20; g++) { const hit = placed.find(p => lx < p.x1 && lx + tw > p.x0 && ly - h < p.y1 && ly > p.y0); if (!hit) break; ly = hit.y1 + h; }
+    placed.push({ x0: lx, y0: ly - h, x1: lx + tw, y1: ly + 2 / z });
+    c.fillStyle = 'rgba(10,12,14,0.7)'; c.fillRect(lx - 2 / z, ly - h + 1 / z, tw + 4 / z, h + 2 / z); c.fillStyle = '#ffd27a';
+    c.fillText(t, lx, ly);
   }
 }
 function tapMap(ev: PointerEvent) {

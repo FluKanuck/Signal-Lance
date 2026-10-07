@@ -1468,4 +1468,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            44% (SKIP draws no cost rolls: same as r19-s1). No level dominates; LONG costs the scripted lance most (it can't use the intel). BUILD r19-s2 | -
    round19 cp3 (r19-s3) | the RWR | NEW RWR_ENABLED true, RWR_BEARING_ERR 10, RWR_BANDS close 3–6 / medium 9–15 / far 15–25, RWR_REF_SIG
            16, RWR_LIFE 3; 'rwr' added to HANGAR_ITEMS. BUILD r19-s3 | -
+   round19 readability pass (Jamie, iPhone screenshot: "At iPhone scale this is very hard to read, as is some other text on various UIs") |
+           measured at 844×390: hangar 0.83 (10.8 px body, 8.3 px small), scan after LONG 0.70 (9.1 px) | UI_MIN 0.7 → 0.85; NEW
+           UI_PANEL_MIN 0.92 (a panel shrinks to fit the height only to here, then scrolls); button small 10 → 11 px; scan: side column
+           fixed at min(330 px, 42%), the map takes the rest and the full height, the reveal/risk text hides after listening, shorter
+           blip line, blip labels stack with a dark backing. Now 844×390: hangar / jobs 0.92 (12 px), scan 1.0 (13 px); 667×375:
+           0.85 everywhere (11 px). BUILD r19-s4 | -
 ```

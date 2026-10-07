@@ -8,7 +8,8 @@ export const TUNE = {
   ZOOMS: [1.0, 0.55],   // the two zoom levels (screen px per world unit)
   UI_REF_W: 844,        // R18 fix (iPad split screen): the window the layout was made for (phone landscape, CSS px); UI scale = window ÷ this...
   UI_REF_H: 390,
-  UI_MIN: 0.7,          // ...never smaller than this (a panel that still doesn't fit scrolls)...
+  UI_MIN: 0.85,         // ...never smaller than this (R19 readability pass, Jamie: "at iPhone scale this is very hard to read": 0.7 → 0.85)...
+  UI_PANEL_MIN: 0.92,   // R19 readability pass: a menu panel shrinks to fit the screen height only down to this, then scrolls (was UI_MIN 0.7: 9 px text)
   UI_MAX: 1.6,          // ...nor bigger than this (iPad Pro full screen)
   DRAG_PX: 12,          // finger travel (px) before a touch counts as a pan
   EXTRACT_COLS: 3,      // rightmost map columns that count as extraction

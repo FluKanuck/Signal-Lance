@@ -213,7 +213,7 @@ export function fitPanels() {
     if (el.hidden || (el.id === 'hsbox' && document.getElementById('hsheet').hidden)) continue;
     (el.style as any).zoom = '1';
     const need = el.id === 'hsbox' ? el.scrollHeight / 0.8 : contentHeight(el); // the sheet may take 80% of the height
-    (el.style as any).zoom = String(Math.max(TUNE.UI_MIN, Math.min(V.uiS, need > 0 ? window.innerHeight / need : V.uiS)));
+    (el.style as any).zoom = String(Math.max(Math.min(V.uiS, TUNE.UI_PANEL_MIN), Math.min(V.uiS, need > 0 ? window.innerHeight / need : V.uiS))); // R19: never below UI_PANEL_MIN; it scrolls instead
   }
 }
 function contentHeight(el: HTMLElement) { // the panel's own height at zoom 1 if nothing were cut: its children plus padding
