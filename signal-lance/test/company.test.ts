@@ -4,8 +4,10 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
 import { G } from '../src/sim/state.ts';
 import { T } from '../src/sim/world.ts';
-import { newCompany, validCompany, afterHunt, endContract, fateOf, noteCarry, onSuitDown, hire, hireBlock, seat, fillCrew, levelOf, skillVal, lanceTech, crewForHunt } from '../src/sim/company.ts';
+import { startCompanyContract, pullContract, setSuitFit, suitRefit, suitRefitBlock, cycleSeat, autoCrew, lanceSize, suitById, newCompany, validCompany, afterHunt, endContract, fateOf, noteCarry, onSuitDown, hire, hireBlock, seat, fillCrew, levelOf, skillVal, lanceTech, crewForHunt } from '../src/sim/company.ts';
 import { newContract, takeJob, rollJobs } from '../src/sim/contract.ts';
+import { G as G2, newHunt, rollEnemy } from '../src/sim/state.ts';
+import { HANGAR_TEMPLATES, DEFAULT_FIT } from '../src/sim/kit.ts';
 import { scenarioByName, startScenario, leaveScenario } from '../src/sim/scenarios.ts';
 import { playOut } from '../src/sim/autoplay.ts';
 import { hitChance } from '../src/sim/combat.ts';
@@ -88,11 +90,11 @@ describe('the company (R21 cp1)', () => {
     endContract('COMPLETE'); expect(o.bench).toBe(0); expect(o.status).toBe('OK');
     expect(G.co.rec.contracts).toBe(3);
   });
-  it('a benched operator gives up its seat; seats refill from the reserve', () => {
+  it('a benched operator gives up its seat (cp2: the seat stays empty until you pick someone)', () => {
     newCompany(6); const A = G.co.crew.A;
     G.co.ops.find(o => o.id === A).status = 'BENCH';
     fillCrew();
-    expect(G.co.crew.A).not.toBe(A); expect(G.co.crew.A).toBeTruthy();
+    expect(G.co.crew.A).toBe('');
     expect(seat(A, 'B')).toBe(false); // can't seat a benched operator
   });
   it('recruits: hire up to OP_CAP; new recruits after each contract', () => {
@@ -199,5 +201,65 @@ describe('test bed: Carry them out (R21 cp1)', () => {
   it('left where it is, B is KIA when the hunt ends', () => {
     startScenario(scenarioByName('Carry them out'));
     expect(fateOf(G.lance[1])).toBe('KIA');
+  });
+});
+
+describe('the roster (R21 cp2)', () => {
+  it('a new company: START_SUITS suits, one operator seated in each, the rest in reserve', () => {
+    newCompany(21);
+    expect(G.co.suits.map(x => x.id)).toEqual('ABCD'.slice(0, TUNE.START_SUITS).split(''));
+    expect(lanceSize()).toBe(Math.min(TUNE.START_SUITS, TUNE.START_OPS));
+    expect(new Set(Object.values(G.co.crew)).size).toBe(TUNE.START_SUITS);
+  });
+  it('only suits with an operator drop; the lance can be 1 to 3', () => {
+    newCompany(22); startCompanyContract(7, 3);
+    takeJob(0); expect(G.lance.map(m => m.id)).toEqual(['A', 'B', 'C']);
+    expect(new Set(G.lance.map(m => Math.floor(m.x / T) + ',' + Math.floor(m.y / T))).size).toBe(3); // three tiles
+    rollJobs(); // the next hunt's jobs (the same contract)
+    seat('', 'B'); seat('', 'C'); takeJob(0);
+    expect(G.lance.map(m => m.id)).toEqual(['A']);
+    expect(G.order.filter(u => G.lance.includes(u)).length).toBe(1);
+  });
+  it('cycling a seat steps through stays aboard and the free operators', () => {
+    newCompany(23); const reserve = G.co.ops.find(o => !Object.values(G.co.crew).includes(o.id));
+    const seen = new Set<string>(); for (let i = 0; i < 5; i++) { cycleSeat('C'); seen.add(G.co.crew.C); }
+    expect(seen.has('')).toBe(true); expect(seen.has(reserve.id)).toBe(true);
+    expect(Object.values(G.co.crew).filter(Boolean).length).toBe(new Set(Object.values(G.co.crew).filter(Boolean)).size); // never seated twice
+  });
+  for (const n of [1, 2, 3, 4]) it(`a lance of ${n} plays a hunt to its end`, () => {
+    const mm = TUNE.MAP_MODE; TUNE.MAP_MODE = 'blocks'; try { rollEnemy(40 + n, undefined, 'UPLINK'); } finally { TUNE.MAP_MODE = mm; }
+    newHunt(Array.from({ length: n }, () => structuredClone(DEFAULT_FIT)));
+    expect(G2.lance.length).toBe(n);
+    expect(G2.order.filter(u => G2.lance.includes(u)).length).toBe(n);
+    playOut(80);
+    expect(G2.mode).toBe('result');
+  });
+  it('damage carries between contracts on the company’s suits', () => {
+    newCompany(24); startCompanyContract(9, 1);
+    takeJob(0); G.lance[0].parts.LEGS -= 1; playOut(80);
+    const A = suitById('A');
+    expect(A.carry).toEqual(G.ct.carry.A);
+    startCompanyContract(10, 1);
+    expect(G.ct.carry.A).toEqual(A.carry);
+  });
+  it('a destroyed suit can’t drop until it is rebuilt (from the company’s credits)', () => {
+    newCompany(25); const A = suitById('A');
+    A.carry.dead = true; A.carry.hits = 0; fillCrew();
+    expect(G.co.crew.A).toBe(''); expect(seat(G.co.ops[3].id, 'A')).toBe(false);
+    expect(suitRefitBlock('A', 'rebuild')).toBe('CR');
+    G.co.credits = TUNE.COST_REBUILD; expect(suitRefit('A', 'rebuild')).toBe(true);
+    expect(A.carry.dead).toBe(false); expect(A.carry.hits).toBe(A.carry.maxHits); expect(G.co.credits).toBe(0);
+    expect(seat(G.co.ops[3].id, 'A')).toBe(true);
+  });
+  it('a new fit keeps the damage part by part', () => {
+    newCompany(26); const A = suitById('A');
+    A.carry.parts.LEGS -= 1; A.carry.hits -= 1;
+    setSuitFit(0, HANGAR_TEMPLATES.find(t => t.id === 'scout').fit());
+    expect(A.carry.pmax.LEGS - A.carry.parts.LEGS).toBe(1);
+  });
+  it('a contract’s pay lands in the company’s credits', () => {
+    newCompany(27); startCompanyContract(11, 1); takeJob(0); playOut(80);
+    expect(G.co.credits).toBe(G.ct.credits);
+    expect(G.co.credits).toBe(G.ct.earned - G.ct.spent);
   });
 });

@@ -32,7 +32,7 @@
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
-import { newCompany, hire, hireBlock, companyLine } from '../src/sim/company.ts';
+import { newCompany, hire, hireBlock, companyLine, autoCrew, startCompanyContract, suitRefit, lanceSize } from '../src/sim/company.ts';
 import { playOut as autoPlayOut, AUTO } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
 import { idTick, idSummary } from '../src/sim/ids.ts';
@@ -178,7 +178,7 @@ function report(title: string, res: any[]) {
 function greedy() {
   for (const what of ['repair', 'rebuild', 'rounds', 'shell']) for (let k = 0; k < 50; k++) {
     let any = false;
-    for (const id of ['A', 'B']) if (refit(id, what)) any = true;
+    for (const id of G.ct.ids) if (refit(id, what)) any = true; // R21 cp2: every suit
     if (!any) break;
   }
 }
@@ -253,13 +253,17 @@ function contracts(n: number) {
 // R21: N contracts back to back on one company. The scripted lance takes job 1, repairs greedily (R11 refit), hires every
 // recruit it has room for, and never goes back for a CRITICAL suit (it only carries one by chance: #42). Cp3 adds the books.
 function companyRun(n: number) {
-  newCompany(FROM);
-  const per: any[] = []; let crits = 0, carried = 0, hired = 0;
+  newCompany(FROM, [loadA(), loadB()]);
+  const per: any[] = [], sizes: Record<number, number> = {}; let crits = 0, carried = 0, hired = 0;
   for (let c = 0; c < n; c++) {
     while (hireBlock(0) === '') { hire(0); hired++; }
-    if (!Object.values(G.co.crew).some(Boolean)) { console.log(`  contract ${c + 1}: nobody can drop (all benched) — skipped`); G.co.n++; continue; }
-    newContract(FROM * 1000 + c, [loadA(), loadB()]);
+    for (const what of ['rebuild', 'repair', 'rounds', 'shell']) for (let k = 0; k < 50; k++) { let any = false; for (const s of G.co.suits) if (suitRefit(s.id, what)) any = true; if (!any) break; } // between contracts: repair what it can afford
+    autoCrew();
+    if (!lanceSize()) { console.log(`  contract ${c + 1}: the company can't field a lance (every suit lost, ${G.co.credits} cr) — stopped`); break; }
+    startCompanyContract(FROM * 1000 + c);
     while (G.ct.status === 'ACTIVE') {
+      autoCrew(); if (!lanceSize()) { G.ct.status = 'FAILED'; break; } // every suit that can drop does
+      sizes[lanceSize()] = (sizes[lanceSize()] || 0) + 1;
       takeJob(0); playOut(G.ct.huntSeed);
       for (const m of G.lance) if (m.crit) { crits++; if (m.carriedBy) carried++; }
       if (G.mode === 'hunt') { G.ct.status = 'FAILED'; break; } // a stall ends the contract
@@ -270,8 +274,9 @@ function companyRun(n: number) {
     G.co.news = [];
   }
   const C = G.co, R = C.rec, lv = [1, 2, 3].map(l => C.ops.filter((o: any) => o.lvl === l).length);
-  console.log(`== COMPANY ${C.code}: ${n} contracts | complete ${R.complete} | failed ${R.failed} | hunts won ${R.wins}/${R.hunts}`);
+  console.log(`== COMPANY ${C.code}: ${R.contracts} of ${n} contracts played | complete ${R.complete} | failed ${R.failed} | hunts won ${R.wins}/${R.hunts}`);
   console.log(`  operators: KIA ${R.kia}, CRITICAL ${crits} (carried out ${carried}), hired ${hired} | roster at the end ${C.ops.length}: level 1 ×${lv[0]}, 2 ×${lv[1]}, 3 ×${lv[2]}, benched ${C.ops.filter((o: any) => o.status === 'BENCH').length}`);
+  console.log('  lance size per hunt: ' + Object.entries(sizes).map(([k, v]) => `${k} suits ×${v}`).join(', ') + ` | credits at the end ${C.credits}`);
   console.log('  by contract: ' + per.map(p => `C${p.c} ${p.status[0]} ${p.wins}/${p.hunts}`).join(' · '));
   console.log('  end: ' + companyLine());
   if (C.memorial.length) console.log('  memorial: ' + C.memorial.map((m: any) => `${m.name} (${m.skill}${m.lvl}, ${m.when})`).join(', '));

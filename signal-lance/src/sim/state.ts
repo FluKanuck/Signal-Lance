@@ -123,9 +123,10 @@ export function fieldCount(C, type: string) {
 function tileFree(x, y, taken) { return !taken.some(t => t.x === x && t.y === y); }
 function farFromPlayer(x, y) { return dropPts().every(d => Math.hypot(x - d.x, y - d.y) >= TUNE.UPLINK_MIN_DIST); } // R19: from every drop zone (the scan shows the field before you pick one)
 // B spawns on the nearest reachable tile next to A (8 neighbours, then a ring further out).
-function nextTo(x, y) {
+// R21 cp2: taken = tiles already used by other suits (a 3rd / 4th suit lands on the next free one)
+function nextTo(x, y, taken: { x: number; y: number }[] = []) {
   for (let r = 1; r <= 3; r++) for (let oy = -r; oy <= r; oy++) for (let ox = -r; ox <= r; ox++)
-    if ((ox || oy) && canReach(x + ox, y + oy) && x + ox < W - TUNE.EXTRACT_COLS) return { x: x + ox, y: y + oy };
+    if ((ox || oy) && canReach(x + ox, y + oy) && x + ox < W - TUNE.EXTRACT_COLS && !taken.some(t => t.x === x + ox && t.y === y + oy)) return { x: x + ox, y: y + oy };
   return { x, y };
 }
 function guardTile(taken) {
@@ -211,16 +212,16 @@ export function freeTile(x: number, y: number) { return canReach(x, y) && x < W 
 export { anyTile };
 // R7 s2: loads = [A's loadout, B's loadout] (one loadout = both mechs the same). R18: each is a fit (kit.ts).
 // R11: prep (optional) runs after the lance and field are built, before round 1 (the contract's carry-over).
-export function newHunt(loads?, prep?: () => void) {
+// R21 cp2: ids = the suits' letters (default A, B, C, D by position); 1 to 4 suits.
+export function newHunt(loads?, prep?: () => void, ids?: string[]) {
   if (loads && !Array.isArray(loads)) loads = [loads, loads];
   if (!loads) loads = G.lance.length ? G.lance.map(m => m.fit) : [DEFAULT_FIT, DEFAULT_FIT];
   loads = loads.map(toFit); // R18: old load numbers still work (runner, tests)
   const D = G.scan && G.drops && G.drops[G.scan.drop]; // R19: land on the drop zone the scan picked (MEDIUM+)
   if (D && (D.x !== spawnX || D.y !== spawnY)) setSpawn(D.x, D.y);
-  const A = makeMech('A', loads[0]), B = makeMech('B', loads[1]), b = nextTo(spawnX, spawnY);
-  A.x = (spawnX + 0.5) * T; A.y = (spawnY + 0.5) * T;
-  B.x = (b.x + 0.5) * T; B.y = (b.y + 0.5) * T;
-  G.lance = [A, B]; setActive(A);
+  const L = loads.map((l, i) => makeMech(ids ? ids[i] : 'ABCD'[i], l)), taken = [{ x: spawnX, y: spawnY }];
+  L.forEach((m, i) => { const t = i ? nextTo(spawnX, spawnY, taken) : taken[0]; if (i) taken.push(t); m.x = (t.x + 0.5) * T; m.y = (t.y + 0.5) * T; }); // the first on the drop point, the rest beside it
+  G.lance = L; setActive(L[0]);
   for (const m of G.lance) m.op = G.crew ? G.crew[m.id] || null : null; // R21: the operator driving it (skills, CRITICAL)
   G.carryLog = [];
   G.ghost.on = false; G.ghost.owner = null;

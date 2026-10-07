@@ -24,11 +24,11 @@ import { LISTEN, listen, chooseDrop, zoneKnow, zoneKnowOf, offeredDrops, scanTex
 import { replayScan, encodeCmds, decodeCmds, jobDeadline } from '../sim/livescan.ts';
 import { showScan } from './scan.ts';
 import { rwrText } from '../sim/rwr.ts';
-import { crewLines, endContract, fillCrew, opShort, canDrop, opById } from '../sim/company.ts';
-import { loadCompany, saveCompany, showCompany, companyMode, companyActions, companyLogLines } from './company.ts';
+import { crewLines, endContract, fillCrew, opShort, canDrop, opById, startCompanyContract, pullContract, cycleSeat, lanceSize, suitFit } from '../sim/company.ts';
+import { loadCompany, saveCompany, showCompany, companyMode, companyActions, companyLogLines, bindHangar } from './company.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r21-s1';  // r21-s1: R21 checkpoint 1: the company (people): named operators with one skill (STEADY AIM, QUIET MOVER, SHARP EARS, SENSOR TECH), XP and levels, CRITICAL + carry them out (benched) or KIA (memorial), recruits; the company screen and one save slot; Carry them out. r20-s5: R20 wrap: Round 20 on the splash round history. r20-s4: R20 checkpoint 3: the scan log (a line per stretch, then the drop) on the result screen and as [SCAN] log lines; runner --scan presets and --scansweep. r20-s3: R20 fix list 5: ship altitude HIGH / MID / LOW (ring size, sensor strength, fuzz, loudness); R20 debrief 1: the job card's top line says SCAN WINDOW N MIN or NO TIME LIMIT. r20-s2: R20 fix list 1-4 + checkpoint 2: sensors at once with their own rings, FULL MAP, no clock cap (PAUSE), the risk meter (steps call units in; the drop step wakes the field / paints the ship; cools with sensors off), arrivals over time, job deadlines on the scan screen. r20-s1: R20 checkpoint 1: the live scan (START / STOP clock, RADAR / THERMAL / EM, a draggable aim ring, bands per unit and zone, patrols walk, drop zones need radar), Where first. r19-s7: R19 wrap: Round 19 on the splash round history. r19-s6: R19 fix list 1: every suit has a built-in RWR (PAINTED, the round, no bearing); the module adds the readout. r19-s5: R19 fix list 2: the scan map never stretches (height follows width, redrawn once the panel scale settles, drawn sharp). r19-s4: readability pass (Jamie: iPhone text too small): menus stop shrinking at 0.92 and scroll, UI floor 0.85, bigger scan map, shorter scan text, stacked blip labels. r19-s3: R19 checkpoint 3: the RWR (scope rings, spokes, heard-moving wedge), Painted on the move scenario. r19-s2: R19 checkpoint 2: the cost ladder (extra units, the field wakes, the ship painted → ambush), runner --listensweep. r19-s1: R19 checkpoint 1: the pre-drop scan (listen dial, roster, zones, drop zones, blips), hunt 1 builds after its scan. r18-s13: R18 wrap: Round 18 on the splash round history. r18-s12: R18 fix list 17: a thermal look with no heat marks the contact (struck IR tag, 'no heat at N' trait). r18-s11: R18 fix list 14-16: cover shield, NEW BUILD works on iPad, NOISE never moves a passive centre. r18-s10: R18 fix list 11-13: vague fixes keep good tracks, blind lob scales with range, EO/ESM/ACO/MZL tags + suit letters. r18-s9: R18 fix list 10: passive fixes = best fit of every bearing, weighted by trust; trusted crossings beat NOISE. r18-s8: R18 fix list 5-9: stacked contact labels, sensor tags, cover pieces by kind, interrupt only on new contacts, PLAY SEED + seed in the log. r18-s7: R18 fix list 1-4: clear hangar highlight, autoscale to the window (iPad split screen), top buffer, sheet acts on touch; new-build check; quit-Escort crash. r18-s6: R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
+export const BUILD = 'r21-s2';  // r21-s2: R21 checkpoint 2: the roster: 3 suits with their own fits and damage carried between contracts, the lance picked before every hunt (1-3 suits, an operator each), company credits, the SUITS tab. r21-s1: R21 checkpoint 1: the company (people): named operators with one skill (STEADY AIM, QUIET MOVER, SHARP EARS, SENSOR TECH), XP and levels, CRITICAL + carry them out (benched) or KIA (memorial), recruits; the company screen and one save slot; Carry them out. r20-s5: R20 wrap: Round 20 on the splash round history. r20-s4: R20 checkpoint 3: the scan log (a line per stretch, then the drop) on the result screen and as [SCAN] log lines; runner --scan presets and --scansweep. r20-s3: R20 fix list 5: ship altitude HIGH / MID / LOW (ring size, sensor strength, fuzz, loudness); R20 debrief 1: the job card's top line says SCAN WINDOW N MIN or NO TIME LIMIT. r20-s2: R20 fix list 1-4 + checkpoint 2: sensors at once with their own rings, FULL MAP, no clock cap (PAUSE), the risk meter (steps call units in; the drop step wakes the field / paints the ship; cools with sensors off), arrivals over time, job deadlines on the scan screen. r20-s1: R20 checkpoint 1: the live scan (START / STOP clock, RADAR / THERMAL / EM, a draggable aim ring, bands per unit and zone, patrols walk, drop zones need radar), Where first. r19-s7: R19 wrap: Round 19 on the splash round history. r19-s6: R19 fix list 1: every suit has a built-in RWR (PAINTED, the round, no bearing); the module adds the readout. r19-s5: R19 fix list 2: the scan map never stretches (height follows width, redrawn once the panel scale settles, drawn sharp). r19-s4: readability pass (Jamie: iPhone text too small): menus stop shrinking at 0.92 and scroll, UI floor 0.85, bigger scan map, shorter scan text, stacked blip labels. r19-s3: R19 checkpoint 3: the RWR (scope rings, spokes, heard-moving wedge), Painted on the move scenario. r19-s2: R19 checkpoint 2: the cost ladder (extra units, the field wakes, the ship painted → ambush), runner --listensweep. r19-s1: R19 checkpoint 1: the pre-drop scan (listen dial, roster, zones, drop zones, blips), hunt 1 builds after its scan. r18-s13: R18 wrap: Round 18 on the splash round history. r18-s12: R18 fix list 17: a thermal look with no heat marks the contact (struck IR tag, 'no heat at N' trait). r18-s11: R18 fix list 14-16: cover shield, NEW BUILD works on iPad, NOISE never moves a passive centre. r18-s10: R18 fix list 11-13: vague fixes keep good tracks, blind lob scales with range, EO/ESM/ACO/MZL tags + suit letters. r18-s9: R18 fix list 10: passive fixes = best fit of every bearing, weighted by trust; trusted crossings beat NOISE. r18-s8: R18 fix list 5-9: stacked contact labels, sensor tags, cover pieces by kind, interrupt only on new contacts, PLAY SEED + seed in the log. r18-s7: R18 fix list 1-4: clear hangar highlight, autoscale to the window (iPad split screen), top buffer, sheet acts on touch; new-build check; quit-Escort crash. r18-s6: R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
 declare const __BUILT__: string;
 declare const __MARK__: string;
 // R18 fix (Jamie's iPad kept an old build): fetch the published page fresh; if its build stamp differs, offer a reload.
@@ -204,17 +204,18 @@ function contractLine() {
 function startContract() {
   G.replay = 0;
   ctN++; store.set('signalLance.ctN', ctN);
-  newContract((Math.random() * 4294967296) >>> 0, currentLoads(), ctHunts());
-  if (G.co) { fillCrew(); saveCompany(); } // R21
+  if (G.co) { startCompanyContract((Math.random() * 4294967296) >>> 0, ctHunts()); saveCompany(); } // R21 cp2: on the company's suits, their damage, its credits
+  else newContract((Math.random() * 4294967296) >>> 0, currentLoads(), ctHunts());
   showJobs();
 }
 // R21: back into a saved contract (after a reload): its next hunt's jobs
 function resumeContract() { const C = G.ct; if (C.results.length >= C.hunt) rollJobs(); saveCompany(); showJobs(); }
 function mechLine(id) {
-  const c = G.ct.carry[id], L = G.ct.loads[id === 'A' ? 0 : 1];
-  const op = G.co ? opById(G.co.crew[id]) : null, opTxt = G.co ? ' · ' + (op ? escH(opShort(op)) : '<span class="badt">no operator</span>') : ''; // R21: who drives it
-  if (c.dead) return '<b class="lost">' + id + '  LOST</b>' + opTxt;
-  return '<b>' + id + '  ' + dmgWord(c) + '</b>' + opTxt + ' · ' + frameOf(L).name + ' · ' + partsRead(c) + (fitHasGun(L) ? ' · ' + c.ammo + ' rds' : '') + (fitHasMortar(L) ? ' · ' + c.shells + ' shells' : '');
+  const c = G.ct.carry[id], L = G.ct.loads[G.ct.ids.indexOf(id)];
+  const op = G.co ? opById(G.co.crew[id]) : null; // R21 cp2: who drives it, picked here before every hunt (tap to change)
+  const opTxt = G.co && !c.dead ? ' <button class="seatb' + (op ? ' on' : '') + '" data-s="' + id + '">' + (op ? 'DROPS · ' + escH(opShort(op)) : 'STAYS ABOARD') + ' ▸</button>' : '';
+  if (c.dead) return '<b class="lost">' + id + '  LOST</b>' + (G.co ? ' <small>(rebuild it to drop it)</small>' : '');
+  return opTxt + '<b>' + id + '  ' + dmgWord(c) + '</b> · ' + frameOf(L).name + ' · ' + partsRead(c) + (fitHasGun(L) ? ' · ' + c.ammo + ' rds' : '') + (fitHasMortar(L) ? ' · ' + c.shells + ' shells' : '');
 }
 // R11 s2: refit buttons for one mech (hidden before hunt 1: nothing to cap from, no credits)
 const RF = [['repair', 'REPAIR WORST', TUNE.COST_REPAIR], ['rounds', '+10 RDS', TUNE.COST_ROUNDS], ['shell', '+1 SHELL', TUNE.COST_SHELL], ['rebuild', 'REBUILD', TUNE.COST_REBUILD]];
@@ -223,21 +224,24 @@ function refitRow(id) {
   const why = { CR: 'need cr', CAP: 'at max', LOST: '', NONE: '' };
   let h = '';
   for (const [k, name, cost] of RF) {
-    const b = refitBlock(id, k); if (b === 'NONE' || b === 'LOST') continue;
+    const b = refitBlock(id, k); if (b === 'NONE' || b === 'LOST' || (G.co && b === 'CAP')) continue; // R21 cp2: nothing to do = no button
     h += '<button class="rf' + (b ? ' lockd' : '') + '" data-id="' + id + '" data-k="' + k + '">' + name + '<br><small>' + cost + ' cr' + (b ? ' · ' + why[b] : '') + '</small></button>';
   }
-  const capTxt = G.ct.carry[id].dead ? 'rebuilds to ' + cap.hits + ' hits' : 'max ' + cap.hits + ' hits' + (fitHasGun(G.ct.loads[id === 'A' ? 0 : 1]) ? ' · ' + cap.ammo + ' rds' : '') + (fitHasMortar(G.ct.loads[id === 'A' ? 0 : 1]) ? ' · ' + cap.shells + ' shells' : '');
+  const capTxt = G.ct.carry[id].dead ? 'rebuilds to ' + cap.hits + ' hits' : 'max ' + cap.hits + ' hits' + (fitHasGun(G.ct.loads[G.ct.ids.indexOf(id)]) ? ' · ' + cap.ammo + ' rds' : '') + (fitHasMortar(G.ct.loads[G.ct.ids.indexOf(id)]) ? ' · ' + cap.shells + ' shells' : '');
+  if (G.co) return h ? '<div class="rfrow">' + h + '</div>' : '';
   return '<div class="rfrow">' + h + '<small class="cap">' + capTxt + '</small></div>';
 }
 function renderLance() {
   const C = G.ct;
-  $('jhead').textContent = 'HUNT ' + C.hunt + '/' + C.hunts + ' · wins ' + C.wins + ' (need ' + C.need + ') · ' + C.credits + ' cr';
-  $('jlance').innerHTML = ['A', 'B'].map(id => '<div>' + mechLine(id) + refitRow(id) + '</div>').join('') +
-    (C.hunt > 1 ? '<small class="cap">Refit caps at ' + Math.round(TUNE.REFIT_CAP * 100) + '% of what each mech started its last hunt with.</small>' : '');
+  const n = G.co ? lanceSize() : 0;
+  $('jhead').innerHTML = 'HUNT ' + C.hunt + '/' + C.hunts + ' · wins ' + C.wins + ' (need ' + C.need + ') · ' + C.credits + ' cr' + (G.co ? ' · <span class="' + (n ? 'okt' : 'badt') + '">LANCE: ' + (n ? n + ' suit' + (n > 1 ? 's' : '') + ' drop' + (n > 1 ? '' : 's') : 'pick who drops') + '</span>' : '');
+  $('jlance').innerHTML = C.ids.map(id => '<div>' + mechLine(id) + refitRow(id) + '</div>').join('') +
+    (G.co ? '<small class="cap">Tap a suit’s button to pick its operator, or leave it aboard. Repairs go to full, paid from the company’s credits.</small>' : C.hunt > 1 ? '<small class="cap">Refit caps at ' + Math.round(TUNE.REFIT_CAP * 100) + '% of what each mech started its last hunt with.</small>' : '');
+  for (const i of [0, 1]) $('bJ' + i).classList.toggle('lockd', !!G.co && !n); // R21 cp2: no one picked = no drop
 }
 export function showJobs() {
   const C = G.ct;
-  if (G.co) { fillCrew(); if (!Object.values(G.co.crew).some(id => canDrop(opById(id as string)))) { C.status = 'FAILED'; endContract('FAILED'); saveCompany(); logLine('[COMPANY] contract failed: no operator left who can drop · ' + companyLogLines().pop()); showContractResult(); return; } } // R21: nobody left to drive a suit
+  if (G.co) { fillCrew(); if (!G.co.ops.some(canDrop) || !C.ids.some(id => suitFit(id))) { C.status = 'FAILED'; endContract('FAILED'); saveCompany(); logLine('[COMPANY] contract failed: no operator left who can drop · ' + companyLogLines().pop()); showContractResult(); return; } } // R21: nobody left to drive a suit
   $('load').hidden = $('res').hidden = $('cres').hidden = true;
   renderLance();
   const esc = (t: string) => t.replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -249,6 +253,7 @@ export function showJobs() {
 // fits lock) → the drop. Hunts 2+ go straight from the scan to the drop.
 let scanJob = 0;
 function pickJob(i) {
+  if (G.co && !lanceSize()) return; // R21 cp2: pick who drops first
   $('jobs').hidden = true;
   if (!TUNE.SCAN_ENABLED) { goJob(i); return; }
   scanJob = i; G.scan = null; previewJob(i);
@@ -267,7 +272,7 @@ function preMode(on: boolean) { $('lpre').hidden = !on; $('lnorm').hidden = on; 
 function showPreHangar() {
   preMode(true);
   const [job, intel] = intelText().split('\n'), S = G.scan, D = dropPts()[S.drop] || dropPts()[0];
-  $('pintel').innerHTML = '<b style="color:#fc3">' + escH(job) + '</b><br>' + escH(intel) + '<br><b>Scan: ' + (S.mode === 'active' ? Math.round(S.t * 4) / 4 + ' min' : LISTEN[S.lvl]) + ' · drop: ' + escH(D.name || 'west edge') + '</b><br>Build both ExoS for what you heard. The fits lock when you launch.';
+  $('pintel').innerHTML = '<b style="color:#fc3">' + escH(job) + '</b><br>' + escH(intel) + '<br><b>Scan: ' + (S.mode === 'active' ? Math.round(S.t * 4) / 4 + ' min' : LISTEN[S.lvl]) + ' · drop: ' + escH(D.name || 'west edge') + '</b><br>Build your ExoS for what you heard. The fits lock when you launch.';
   $('load').hidden = false; renderHangar();
 }
 const escH = (t: string) => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -352,7 +357,9 @@ $('bSeed').addEventListener('click', playSeed);
 $('seedIn').addEventListener('keydown', e => { if (e.key === 'Enter') playSeed(); });
 $('bLaunch').addEventListener('click', () => { if (companyMode()) { $('load').hidden = true; showCompany(); return; } const w = hangarBlock(); if (w) { $('intel').textContent = 'Can’t launch: ' + w + '.'; return; } $('load').hidden = true; startContract(); }); // R11: locks the fits, opens the job pick. R18: only fits that launch
 $('bJ0').addEventListener('click', () => pickJob(0));
-$('jlance').addEventListener('click', ev => { const b = (ev.target as any).closest('.rf'); if (!b) return; if (refit(b.dataset.id, b.dataset.k)) renderLance(); }); // R11 s2
+$('jlance').addEventListener('click', ev => {
+  const s = (ev.target as any).closest('.seatb'); if (s) { cycleSeat(s.dataset.s); saveCompany(); renderLance(); return; } // R21 cp2
+  const b = (ev.target as any).closest('.rf'); if (!b) return; if (refit(b.dataset.id, b.dataset.k)) { if (G.co) { pullContract(); saveCompany(); } renderLance(); } }); // R11 s2
 $('bJ1').addEventListener('click', () => pickJob(1));
 $('bReroll').addEventListener('click', () => { rerollJobs(); showJobs(); }); // R16 debug: fish for a mission type
 $('bNewC').addEventListener('click', () => { G.ct = null; if (companyMode()) { saveCompany(); showCompany(); } else showLoadout(); });
@@ -384,7 +391,7 @@ $('bMap').addEventListener('click', () => { TUNE.MAP_MODE = TUNE.MAP_MODE === 'h
 // R21: the company toggle (remembered). ON: contracts run inside the saved company. OFF: the R11 contract flow.
 function showCoMode() { $('bCoMode').textContent = 'COMPANY: ' + (TUNE.COMPANY_MODE ? 'ON' : 'OFF'); $('bCoMode').classList.toggle('on', TUNE.COMPANY_MODE); }
 TUNE.COMPANY_MODE = store.get('signalLance.companyMode', true) !== false; showCoMode();
-$('bCoMode').addEventListener('click', () => { TUNE.COMPANY_MODE = !TUNE.COMPANY_MODE; store.set('signalLance.companyMode', TUNE.COMPANY_MODE); showCoMode(); G.ct = null; if (TUNE.COMPANY_MODE) loadCompany(); else G.co = null; showStart(); });
+$('bCoMode').addEventListener('click', () => { TUNE.COMPANY_MODE = !TUNE.COMPANY_MODE; store.set('signalLance.companyMode', TUNE.COMPANY_MODE); showCoMode(); G.ct = null; if (TUNE.COMPANY_MODE) loadCompany(); else G.co = null; bindHangar(); showStart(); });
 if (TUNE.COMPANY_MODE) loadCompany();
 companyActions(startContract, resumeContract, () => { showLoadout(); });
 $('tester').addEventListener('change', () => store.set('signalLance.tester', $('tester').value.trim()));

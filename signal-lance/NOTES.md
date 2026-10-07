@@ -1057,6 +1057,21 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - QUIET MOVER scales creep / walk / sprint sound (and clutter crunch on those moves), never shots or mortar.
    - COMPANY_MODE is also a splash toggle (COMPANY: ON / OFF, remembered). Off = the R11 contract flow with no operators.
      The runner and the old scenarios never make a company, so their numbers are byte-identical (checked r21-s1).
+   R21 cp2 (the company: roster)
+   - The company owns START_SUITS (3) suits, A B C. A and B start from the player's saved hangar fits, C from the default
+     fit. Each suit's damage (per part), rounds and shells live on the suit and carry between hunts and contracts.
+   - Who drops is picked on the job screen before every hunt: each suit's button steps through STAYS ABOARD and the free
+     operators. Seats are never filled automatically after cp2's new company (a lost or benched operator leaves the seat
+     empty). A destroyed suit (CORE gone) can't take an operator until REBUILT.
+   - Credits belong to the company in cp2 (pay in, refit out); the contract's credits start from them and go back after
+     every hunt / refit. In company mode the R11 REFIT_CAP is dropped: repairs and reloads go to full, a rebuild comes back
+     at full. Cp3 replaces this with parts.
+   - A new fit (hangar) keeps the suit's damage part by part (hits missing stay missing; CORE stays at least 1 on a
+     standing suit); rounds / shells are kept up to the new fit's full load. A destroyed suit stays destroyed.
+   - A 3rd / 4th suit lands on the next free tile beside the drop point (nextTo, skipping taken tiles).
+   - If every suit is destroyed and a rebuild can't be afforded (or no operator is left and none can be hired), the
+     company screen says it can't field a lance: NEW COMPANY. Debt and the fold are cp3.
+   - The HUD lists every other suit (hits left, short, when there are 2+ others).
 ```
 
 ## TWEAK LOG
@@ -1582,6 +1597,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            OP_CAP 4; the company screen + one save slot; test bed Carry them out. Runner --company 10 (seeds 1-3): complete
            2 / 3 / 0 of 10, KIA 14 / 14 / 18, CRITICAL carried out 0 / 3 / 2 (the scripted lance never goes back, #42).
            BUILD r21-s1 | -
+   round21 cp2 (r21-s2) | brief: the company, checkpoint 2 (roster) | START_SUITS 3, per-suit fits + damage carried between
+           contracts, lance 1-3 picked per hunt, company credits + SUITS tab refit. Runner --company 10 (seeds 1-5): the
+           scripted lance drops every suit and is wiped in 2-4 contracts (1/1/0/2/0 complete; 3 KIA each; stopped with
+           every suit lost, 15-133 cr). Plain --contracts 20 byte-identical. BUILD r21-s2 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

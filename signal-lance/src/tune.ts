@@ -493,6 +493,7 @@ export const TUNE = {
   LEGS_GONE_MULT: 0.5,         // R13 test 2: one leg gone = CREEP only; both gone = CREEP at this × distance per AP and speed
   // --- Round 21: the company (see sim/company.ts). Placeholder numbers to show the shape, not balanced ---
   COMPANY_MODE: true,          // R21: contracts run inside one saved company (operators, roster, books, ship). false = the R11 contract flow (runner default, old scenarios)
+  START_SUITS: 3,               // R21 cp2: suits a new company starts with (each its own fit; a 4th has to be bought, cp3, and needs a bay, cp4)
   START_OPS: 4,                // R21 cp1: operators a new company starts with
   OP_CAP: 4,                   // R21 cp1: most operators on the roster (cp4: OPERATOR BERTHS +2)
   OP_SKILLS: ['AIM', 'QUIET', 'EARS', 'TECH'], // R21 cp1: one skill per operator, rolled from this list

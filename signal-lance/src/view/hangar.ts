@@ -1,4 +1,4 @@
-// R18 (A10): the hangar is the loadout screen. Two suits (A, B), each a fit from the cheap-test set (TUNE.HANGAR_*).
+// R18 (A10): the hangar is the loadout screen. Two suits (A, B; R21 cp2: the company's suits), each a fit from the cheap-test set (TUNE.HANGAR_*).
 // Tap a location on the ExoS (Jamie's wireframe) to see its hardpoints, tap a hardpoint to pick what goes there.
 // Raw numbers only: the hunt teaches, the debrief explains. Fits are saved per suit as build codes (view-side storage).
 import { TUNE } from '../tune.ts';
@@ -27,13 +27,21 @@ function cheap(f: Fit | null): Fit | null {
   return f;
 }
 function read(i: number): Fit { try { const c = localStorage.getItem(KEYS[i]); const f = c ? cheap(fromCode(c)) : null; if (f) return f; } catch (_) {} return structuredClone(DEFAULT_FIT); }
-function save() { try { localStorage.setItem(KEYS[cur], toCode(fits[cur])); } catch (_) {} }
+function save() { if (onSet) { onSet(cur, fits[cur]); return; } try { localStorage.setItem(KEYS[cur], toCode(fits[cur])); } catch (_) {} }
 
-const fits: Fit[] = [read(0), read(1)];
+const own: Fit[] = [read(0), read(1)];
+let fits: Fit[] = own, ids = ['A', 'B'], onSet: ((i: number, f: Fit) => void) | null = null;
 let cur = 0, sel: Loc = 'MAST', tip = '';
+// R21 cp2: the hangar edits the company's suits (any number; each change goes through set, which keeps the suit's damage),
+// or (null) the two saved fits of the plain contract flow.
+export function useSuits(list: { id: string; fit: Fit }[] | null, set?: (i: number, f: Fit) => void) {
+  if (list) { fits = list.map(s => s.fit); ids = list.map(s => s.id); onSet = set || null; } else { fits = own; ids = ['A', 'B']; onSet = null; }
+  cur = Math.min(cur, fits.length - 1);
+}
+export function ownFits(): Fit[] { return own.map(f => structuredClone(f)); }
 export function currentFits(): Fit[] { return fits.map(f => structuredClone(f)); }
-// '' = both suits can launch, else the first reason ("A: no reactor in CORE")
-export function hangarBlock() { for (let i = 0; i < 2; i++) { const w = launchBlock(fits[i]); if (w) return 'AB'[i] + ': ' + w; } return ''; }
+// '' = every suit can launch, else the first reason ("A: no reactor in CORE")
+export function hangarBlock() { for (let i = 0; i < fits.length; i++) { const w = launchBlock(fits[i]); if (w) return ids[i] + ': ' + w; } return ''; }
 function set(f: Fit) { fits[cur] = f; tip = ''; save(); render(); }
 
 // ---- the suit picture ----
@@ -98,8 +106,8 @@ function locPanel() {
 
 function render() {
   const f = fits[cur], fr = frameOf(f);
-  $('hsuits').innerHTML = ['A', 'B'].map((n, i) => '<button class="' + (i === cur ? 'on' : '') + '" data-suit="' + i + '">ExoS ' + n + '<br><small>' + frameOf(fits[i]).name + (launchBlock(fits[i]) ? ' ✕' : '') + '</small></button>').join('') +
-    '<button data-copy="1">' + 'AB'[cur] + ' → ' + 'BA'[cur] + '<br><small>copy fit</small></button>';
+  $('hsuits').innerHTML = ids.map((n, i) => '<button class="' + (i === cur ? 'on' : '') + '" data-suit="' + i + '">ExoS ' + n + '<br><small>' + frameOf(fits[i]).name + (launchBlock(fits[i]) ? ' ✕' : '') + '</small></button>').join('') +
+    '<button data-copy="1">' + ids[cur] + ' → ' + ids[(cur + 1) % ids.length] + '<br><small>copy fit</small></button>';
   $('htpl').innerHTML = '<small>start from</small>' + HANGAR_TEMPLATES.map(t => '<button data-tpl="' + t.id + '">' + t.role + '</button>').join('') +
     '<small>frame</small>' + TUNE.HANGAR_FRAMES.map(id => '<button class="' + (id === f.frame ? 'on' : '') + '" data-frame="' + id + '">' + byId(FRAMES, id).name + '</button>').join('');
   $('hframe').innerHTML = '<b>' + fr.name + '</b> ' + fr.cls + ' · rated ' + fr.rated + ' / max ' + fr.max + ' · ' + esc(fr.role) + (tip ? '<br><span class="warnt">' + esc(tip) + '</span>' : '');
@@ -155,7 +163,7 @@ export function buildHangar() {
     if (!b || b.disabled) return;
     const d = b.dataset;
     if (d.suit) { cur = +d.suit; render(); }
-    else if (d.copy) { fits[1 - cur] = structuredClone(fits[cur]); const c = cur; cur = 1 - c; save(); cur = c; tip = 'copied to ' + 'AB'[1 - cur]; render(); }
+    else if (d.copy) { const to = (cur + 1) % fits.length, c = cur; fits[to] = structuredClone(fits[cur]); cur = to; save(); cur = c; tip = 'copied to ' + ids[to]; render(); } // R21 cp2: to the next suit
     else if (d.tpl) { const T = HANGAR_TEMPLATES.find(x => x.id === d.tpl); set(T.fit()); tip = T.role + ': ' + T.blurb; render(); }
     else if (d.frame) reframe(d.frame);
     else if (d.plate) { const f = structuredClone(fits[cur]); f.plate[sel] = f.plate[sel] ? null : TUNE.HANGAR_PLATES[0]; set(f); }
