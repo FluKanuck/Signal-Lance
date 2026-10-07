@@ -23,6 +23,8 @@
 //   --json                             print one '@@SL {...}' line per contract as it finishes (the Signal Lance mod reads these)
 //   --listen 2 [--drop 2|auto]         R19: the ship listens at this level before every hunt (0 SKIP, 1 SHORT, 2 MEDIUM, 3 LONG) and
 //                                      lands on drop zone N (1 = west edge; only offered at 2+; auto = nearest the objective). Default: no listen (= SKIP)
+//   --listensweep 40                   R19: 40 contracts at each listen level (drop auto): win rate per level and per mission, and what
+//                                      the listen cost on average (extra units, alert units, painted)
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
@@ -76,7 +78,7 @@ argv.forEach((k, i) => {
   console.log(`  (--item ${path} = ${o[last]})`);
 });
 const JSON_OUT = argv.includes('--json'), FROM = arg('--from', 1);
-let LISTEN_LVL = arg('--listen', -1); const DROP = sarg('--drop') === 'auto' ? -1 : arg('--drop', 1) - 1; // R19: auto = the offered drop zone nearest the objective
+let LISTEN_LVL = arg('--listen', -1); const DROP = sarg('--drop') === 'auto' || argv.includes('--listensweep') ? -1 : arg('--drop', 1) - 1; // R19: auto = the offered drop zone nearest the objective
 const MAX_TURNS = 80;
 // --check: remember every FLAG / WARNING line, exit 1 at the end if there were any
 const FLAGS: string[] = [], log0 = console.log;
@@ -255,6 +257,24 @@ function sweep(n: number) {
   const by = (k: string) => { const g: Record<string, { w: number; h: number }> = {}; for (const r of rows) { const x = g[r[k]] ||= { w: 0, h: 0 }; x.w += r.wins; x.h += r.hunts; } return Object.entries(g).map(([n, x]) => `${n} ${Math.round(100 * x.w / Math.max(1, x.h))}%`).join(', '); };
   log0(`== SWEEP (${n} contracts each, * = the template's own reactor) | win by frame: ${by('frame')} | by reactor: ${by('reactor')}`);
 }
+// R19 checkpoint 2: the listen sweep. Same contract seeds at every level; the scripted lance lands on the drop zone nearest the objective.
+function listenSweep(n: number) {
+  const rows: any[] = [], quiet = () => { console.log = () => {}; }, loud = () => { console.log = (...a: any[]) => { const s = a.join(' '); if (/FLAG:|WARNING:/.test(s)) FLAGS.push(s.trim()); log0(...a); }; };
+  for (const L of [0, 1, 2, 3]) {
+    LISTEN_LVL = L; quiet(); const out = contracts(n); loud();
+    const H = out.res.flatMap((c: any) => c.results), wins = H.filter((h: any) => h.outcome.startsWith('WIN')).length;
+    const S = out.hunts.map((h: any) => h.scan).filter(Boolean), avg = (f: (c: any) => number) => (S.reduce((a: number, c: any) => a + f(c), 0) / Math.max(1, S.length)).toFixed(2);
+    const byM: Record<string, { w: number; h: number }> = {};
+    for (const h of H) { const x = byM[h.mission] ||= { w: 0, h: 0 }; x.h++; if (h.outcome.startsWith('WIN')) x.w++; }
+    const lost = out.hunts.reduce((a: number, h: any) => a + h.lost, 0);
+    rows.push({ L, wins, hunts: H.length, complete: out.res.filter((c: any) => c.status === 'COMPLETE').length });
+    log0(`  ${['SKIP  ', 'SHORT ', 'MEDIUM', 'LONG  '][L]} hunts ${H.length} | win ${wins} (${Math.round(100 * wins / Math.max(1, H.length))}%) | contracts ${rows[rows.length - 1].complete}/${n} | mechs lost ${lost} | cost per hunt: extra ${avg(c => c.extra.length)}, alert ${avg(c => c.alert.length)}, painted ${avg(c => c.painted ? 1 : 0)} | ` +
+      Object.entries(byM).map(([k, x]) => `${k} ${Math.round(100 * x.w / Math.max(1, x.h))}%`).join(', '));
+  }
+  const pct = (r: any) => 100 * r.wins / Math.max(1, r.hunts), best = rows.slice().sort((a, b) => pct(b) - pct(a));
+  log0(`== LISTEN SWEEP (${n} contracts each, drop auto) | best ${['SKIP', 'SHORT', 'MEDIUM', 'LONG'][best[0].L]} ${Math.round(pct(best[0]))}%, worst ${['SKIP', 'SHORT', 'MEDIUM', 'LONG'][best[3].L]} ${Math.round(pct(best[3]))}%` +
+    (pct(best[0]) - pct(best[1]) >= 10 ? ' | NOTE: one level wins clearly (dominance?)' : ''));
+}
 let last = { failed: 0, complete: 0, lost: 0, n: 0 }; // R13: the latest contracts() summary (--both compares two)
 // R13: this hunt's sound / emissions numbers (read right after the hunt ends)
 function huntStats() {
@@ -265,6 +285,7 @@ function huntStats() {
     loudest: Math.max(0, ...G.lance.map((m: any) => m.loudest || 0)), sprints: G.lance.reduce((a: number, m: any) => a + (m.sprints || 0), 0),
     ids: (idTick(false), idSummary()), // R14: per field unit: read? narrowed? ID'd, right, before eyes
     mission: G.mission.type, mres: G.mission.result, ally: G.ally ? { hits: Math.max(0, G.ally.hits), max: G.ally.maxHits, dead: G.ally.dead, shotAt: G.shotLog.filter((r: any) => r.target === 'ALLY').length, heard: G.ally.heardN || 0 } : null, legs: G.mission.legs.slice(), pickTurn: G.mission.pickTurn || 0, handoffs: G.mission.handoffs, endTurn: G.turn, units: G.units.map((u: any) => ({ v: u.variant, dead: u.dead })), // R15
+    scan: G.scanCost ? JSON.parse(JSON.stringify(G.scanCost)) : null, // R19
     found: G.lance.map((m: any) => G.firstLog.find((f: any) => f.side === 'E' && f.tgt === m.id && f.src !== 'GHOST') || null), // R18 (A12)
     rear: G.shotLog.filter((r: any) => r.hit && r.rear).length, hitsAll: G.shotLog.filter((r: any) => r.hit).length,
     grid: MAP.info.grid, rerolls: MAP.info.rerolls || 0, moves: { ...G.moveStat }, outcome: G.mode === 'hunt' ? 'STALL' : G.outcome, // R16
@@ -414,6 +435,8 @@ if (SCEN) {
   log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;
   console.log(`== NORMAL vs LOUD: failed ${a.failed} vs ${b.failed} | complete ${a.complete} vs ${b.complete} | mechs lost ${a.lost} vs ${b.lost}`);
   if (b.lost < a.lost * 1.15 && b.failed < a.failed + 2) console.log('  FLAG: --loud does not lose noticeably more than normal (getting loud still carries no risk)');
+} else if (arg('--listensweep', 0) > 0) {
+  listenSweep(arg('--listensweep', 0));
 } else if (arg('--sweep', 0) > 0) {
   sweep(arg('--sweep', 0));
 } else if (CONTRACTS > 0) {

@@ -8,7 +8,9 @@
 // drift, the blips become stale contacts and the notes carry into the hunt.
 import { TUNE } from '../tune.ts';
 import { W, H, T, MAP, spawnX, spawnY, mapGen, loadMap, canReach } from './world.ts';
-import { G, freeTile } from './state.ts';
+import { G, freeTile, makeUnit, anyTile } from './state.ts';
+import { observe } from './sensors.ts';
+import { zoneAtTile } from './zones.ts';
 import { matchVariants } from './ids.ts';
 import { rand } from './rng.ts';
 import { has } from './kit.ts';
@@ -108,6 +110,7 @@ function blip(u, r: () => number) {
 export function applyScan() {
   const S = G.scan;
   for (const u of G.units) if (u.mobile && !u.dead) drift(u); // every listen level: the same field lands, whatever you heard
+  payCosts(Math.max(0, S.lvl));
   for (const b of S.blips || []) {
     const u = G.units.find(x => x.id === b.id); if (!u || u.dead) continue;
     G.obs[b.id] = structuredClone(b.obs);
@@ -115,6 +118,54 @@ export function applyScan() {
     Object.assign(c, { on: true, id: b.id, type: '', tx: b.x, ty: b.y, vx: 0, vy: 0, unc: b.unc, minU: b.unc, gap: TUNE.TRACK_GAP, lost: TUNE.TRACK_GAP + 0.01,
       fresh: false, seen: { SCAN: G.time }, by: {}, src: 'SCAN', snd: false, shr: false, dmg: '', walls: 0, q: 0, noisy: false, keep: TUNE.SCAN_BLIP_KEEP });
   }
+}
+// ============================ THE COST LADDER (checkpoint 2) ===========
+// The ship emitted for as long as it listened. Rolled at the drop with the hunt's RNG (same seed + level = same result), in
+// this order: extra units (one roll per step), the ship painted (LONG: an ambush toward the drop), then the alert share
+// (of everything on the map, extras and ambush included). G.scanCost records it (log line, result screen, runner).
+function payCosts(lvl: number) {
+  const C = G.scanCost = { lvl, extra: [] as string[], painted: false, ambush: [] as string[], alert: [] as string[] };
+  const keys = Object.keys(TUNE.FIELD_VARIANTS);
+  for (let s = 1; s <= lvl; s++) if (rand() < (TUNE.SCAN_EXTRA_CHANCE[s] || 0)) {
+    const vk = keys[Math.floor(rand() * keys.length)], u = addUnit(vk), t = anyTile(G.units.map(o => ({ x: Math.floor(o.x / T), y: Math.floor(o.y / T) })));
+    place(u, t.x, t.y); faceTo(u, G.up.x, G.up.y); u.extra = true; C.extra.push(u.id);
+  }
+  if (lvl >= 3 && rand() < TUNE.SCAN_PAINT_CHANCE) {
+    C.painted = true;
+    const pv = keys.filter(k => TUNE.FIELD_VARIANTS[k].TYPE === 'PATROL'), [d0, d1] = TUNE.SCAN_AMBUSH_DIST;
+    for (let n = 0; n < TUNE.SCAN_AMBUSH; n++) {
+      const t = near(spawnX, spawnY, d0, d1); if (!t) break;
+      const u = addUnit(pv[Math.floor(rand() * pv.length)]); place(u, t.x, t.y); u.ambush = true; C.ambush.push(u.id);
+    }
+  }
+  const share = TUNE.SCAN_ALERT_SHARE[lvl] || 0, live = G.units.filter(u => !u.dead);
+  const n = Math.max(C.ambush.length, Math.round(share * live.length));
+  const rest = live.filter(u => !u.ambush), pick = live.filter(u => u.ambush).concat(n > C.ambush.length ? shuffle(rest) : rest); // an ambush is always awake; no roll when nobody else wakes
+  for (const u of pick.slice(0, n)) alert(u);
+  C.alert = pick.slice(0, n).map(u => u.id);
+}
+export function scanAlertOn() { return !!G.scanCost && G.scanCost.alert.length > 0; } // the pack logic runs this hunt (pack.ts)
+// an alert unit: a shared fix on the drop zone (on both suits, fuzzy), facing it
+function alert(u) {
+  const x = (spawnX + 0.5) * T, y = (spawnY + 0.5) * T;
+  for (const m of G.lance) if (!m.dead) observe(u.ec, m.id, x, y, TUNE.SCAN_ALERT_UNC * T, 0, 0, true, true, false, 'ALARM');
+  u.alert = true; faceTo(u, x, y);
+}
+function addUnit(vk: string) { const u = makeUnit(TUNE.FIELD_VARIANTS[vk].TYPE, nextId(), vk); G.units.push(u); return u; }
+function nextId() { let i = G.units.length; while (G.units.some(u => u.id === 'U' + i)) i++; return i; }
+function place(u, x: number, y: number) {
+  u.x = u.gx = (x + 0.5) * T; u.y = u.gy = (y + 0.5) * T; u.zoned = zoneAtTile(x, y)?.type || '';
+  if (has(u, 'RADAR')) u.pulseCD = u.pulseN;
+}
+function faceTo(u, x: number, y: number) { const dx = x - u.x, dy = y - u.y, d = Math.hypot(dx, dy) || 1; u.fx = dx / d; u.fy = dy / d; }
+function shuffle<X>(a: X[]) { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(rand() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; }
+// a free tile d0..d1 tiles from (x0, y0), toward the map (seeded); null if none
+function near(x0: number, y0: number, d0: number, d1: number) {
+  for (let k = 0; k < 400; k++) {
+    const a = rand() * 6.2832, d = d0 + rand() * (d1 - d0), x = Math.round(x0 + Math.cos(a) * d), y = Math.round(y0 + Math.sin(a) * d);
+    if (Math.hypot(x - x0, y - y0) >= d0 && freeTile(x, y)) return { x, y };
+  }
+  return null;
 }
 // A patrol walks somewhere within SCAN_DRIFT tiles while the ship listens (never into the lance's drop zone)
 function drift(u) {
@@ -126,6 +177,19 @@ function drift(u) {
   }
 }
 // What listening at lvl risks, in plain words for the dial ('' = nothing). Checkpoint 2 fills in the costs.
-export function scanRisk(lvl: number) { void lvl; return ''; }
+export function scanRisk(lvl: number) {
+  if (!lvl) return '';
+  const pct = (x: number) => Math.round(x * 100) + '%', L: string[] = [];
+  let ex = 0; for (let s = 1; s <= lvl; s++) ex += TUNE.SCAN_EXTRA_CHANCE[s] || 0;
+  if (ex) L.push('more enemies: ' + (lvl > 1 ? 'up to ' + lvl + ' extra units (about ' + ex.toFixed(1) + ' on average)' : pct(ex) + ' chance of 1 extra unit'));
+  if (TUNE.SCAN_ALERT_SHARE[lvl]) L.push(pct(TUNE.SCAN_ALERT_SHARE[lvl]) + ' of the field wakes up and knows roughly where you landed');
+  if (lvl >= 3 && TUNE.SCAN_PAINT_CHANCE) L.push(pct(TUNE.SCAN_PAINT_CHANCE) + ' chance the ship is painted: ' + TUNE.SCAN_AMBUSH + ' patrols wait near your drop zone');
+  return L.join('; ') + '.';
+}
+// " · scan LONG: +2 units, 3 alert, painted (ambush 2)" for the log line and the result screen ('' with no scan)
+export function scanText() {
+  const C = G.scanCost; if (!C) return '';
+  return ' · scan ' + LISTEN[C.lvl] + (C.lvl ? ': +' + C.extra.length + ' unit' + (C.extra.length === 1 ? '' : 's') + ', ' + C.alert.length + ' alert' + (C.painted ? ', painted (ambush ' + C.ambush.length + ')' : '') : '');
+}
 // What the lance knows of the zones: 0 nothing, 1 outlines, 2 outlines and types. With the scan off, everything (the R18 map).
 export function zoneKnow() { if (!G.scan || (G.tb && !G.tb.job)) return 2; return Math.min(2, Math.max(0, G.scan.lvl)); } // no scan (scan off, or a hand-placed test bed) = the R18 map

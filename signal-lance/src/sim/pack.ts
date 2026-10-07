@@ -6,12 +6,13 @@ import { G, unitById, isFriend } from './state.ts';
 import { observe } from './sensors.ts';
 import { effEmit } from './zones.ts';
 import { partGone } from './combat.ts';
+import { scanAlertOn } from './scan.ts';
 
 // A field unit's OWN senses (a shared ALARM contact never raises a further alarm: no relay).
 const OWN = ['EYES', 'RADAR', 'PASSIVE', 'SOUND', 'FLASH', 'THERMAL']; // R18 cp3: a thermal sight's own fix alarms too
 
 // R15 Retrieve: once the cargo is picked up, the pack logic is on for this hunt whatever PACK_ENABLED says.
-export function packOn() { return TUNE.PACK_ENABLED || (!!G.mission && G.mission.type === 'RETRIEVE' && G.mission.flipped); }
+export function packOn() { return TUNE.PACK_ENABLED || (!!G.mission && G.mission.type === 'RETRIEVE' && G.mission.flipped) || scanAlertOn(); } // R19: a listen that woke the field
 
 export function alarmRadius(mech) { return TUNE.ALARM_RADIUS_BASE + TUNE.ALARM_RADIUS_EMIT * effEmit(mech) / TUNE.SIGNAL_MAX; }
 

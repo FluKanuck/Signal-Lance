@@ -225,7 +225,7 @@ export function newHunt(loads?, prep?: () => void) {
   const U = G.up; U.prog = 0; U.used = false; G.winBy = '';
   G.ally = null;
   if (!G.fieldReady) placeField(); // R19: with the scan on, rollEnemy placed it already (the scan shows it before you land)
-  G.fieldReady = false; G.kills = 0; G.ei = 0;
+  G.fieldReady = false; G.kills = 0; G.ei = 0; G.scanCost = null; // R19: set by applyScan
   newMission(G.mtype); G.pop = null; // R15
   if (G.mtype === 'ESCORT') G.ally = makeAlly(); // R15 s3: the transport starts on the route's first node
   for (const c of G.pc) c.on = false;

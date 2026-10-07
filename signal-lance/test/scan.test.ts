@@ -103,7 +103,7 @@ describe('the reveal ladder', () => {
     expect(empl).toBeGreaterThan(5); expect(patrol).toBeGreaterThan(5);
   });
   it('the listen never moves the hunt: same seed, same field at every level (before any costs)', () => {
-    const at = (lvl: number) => { job(61); listen(lvl); newHunt([{ ...LOAD_A }, { ...LOAD }]); return G.units.map((u: any) => u.variant + '@' + u.x + ',' + u.y).join(' '); };
+    const at = (lvl: number) => { job(61); listen(lvl); newHunt([{ ...LOAD_A }, { ...LOAD }]); return G.units.filter((u: any) => !u.extra && !u.ambush).map((u: any) => u.variant + '@' + u.x + ',' + u.y).join(' '); }; // R19 cp2: costs add units, never move these
     const a = at(0); expect(at(1)).toBe(a); expect(at(3)).toBe(a);
   });
 });
@@ -121,7 +121,7 @@ describe('the drop', () => {
       expect(G.obs[b.id].emit).toEqual(b.obs.emit);
     }
     let moved = 0;
-    for (const u of G.units) if (u.mobile) { const p = before.get(u.id); if (Math.hypot(u.x - p.x, u.y - p.y) > 0) moved++; expect(Math.hypot(u.x - p.x, u.y - p.y) / T).toBeLessThanOrEqual(TUNE.SCAN_DRIFT + 1e-6); }
+    for (const u of G.units) if (u.mobile && before.has(u.id)) { const p = before.get(u.id); if (Math.hypot(u.x - p.x, u.y - p.y) > 0) moved++; expect(Math.hypot(u.x - p.x, u.y - p.y) / T).toBeLessThanOrEqual(TUNE.SCAN_DRIFT + 1e-6); }
     expect(moved).toBeGreaterThan(0);
   });
   it('a skipped scan carries nothing in', () => {
@@ -159,3 +159,66 @@ import { HANGAR_TEMPLATES } from '../src/sim/kit.ts';
 import * as CT from '../src/sim/contract.ts';
 function require_fit(id: string) { return HANGAR_TEMPLATES.find(t => t.id === id).fit(); }
 function require_contract() { return CT; }
+
+// ============================ checkpoint 2: the cost ladder ============================
+import { scanAlertOn, scanRisk, scanText } from '../src/sim/scan.ts';
+import { packOn } from '../src/sim/pack.ts';
+const drop = (lvl: number, seed: number, set: Record<string, any> = {}) => {
+  const saved: any = {}; for (const k of Object.keys(set)) { saved[k] = (TUNE as any)[k]; (TUNE as any)[k] = set[k]; }
+  try { job(seed, 'UPLINK', 'Mixed'); listen(lvl); newHunt([{ ...LOAD_A }, { ...LOAD }]); } finally { Object.assign(TUNE, saved); }
+  return G.scanCost;
+};
+describe('the cost ladder', () => {
+  it('SKIP and SHORT never wake the field; nothing is painted below LONG', () => {
+    for (let s = 101; s <= 120; s++) for (const lvl of [0, 1, 2]) {
+      const C = drop(lvl, s);
+      if (lvl < 2) expect(C.alert.length).toBe(0);
+      expect(C.painted).toBe(false);
+      if (lvl === 0) expect(C.extra.length).toBe(0);
+    }
+  });
+  it('the alert share follows SCAN_ALERT_SHARE: that share of the field holds a fuzzy fix on the drop zone and faces it', () => {
+    for (let s = 121; s <= 130; s++) {
+      const C = drop(2, s, { SCAN_EXTRA_CHANCE: [0, 0, 0, 0] });
+      expect(C.alert.length).toBe(Math.round(TUNE.SCAN_ALERT_SHARE[2] * G.units.length));
+      for (const id of C.alert) {
+        const u = G.units.find((x: any) => x.id === id), c = u.ec.find((k: any) => k.on && k.id === 'A');
+        expect(c).toBeTruthy(); expect(c.src).toBe('ALARM');
+        expect(Math.hypot(c.tx - (spawnX + 0.5) * T, c.ty - (spawnY + 0.5) * T)).toBeLessThan(1);
+        expect(c.unc).toBeCloseTo(TUNE.SCAN_ALERT_UNC * T);
+      }
+      expect(scanAlertOn()).toBe(C.alert.length > 0);
+      if (C.alert.length) expect(packOn()).toBe(true);
+    }
+  });
+  it('extra units follow SCAN_EXTRA_CHANCE: certain at 1, never at 0, one roll per step', () => {
+    const n0 = (() => { drop(0, 131); return G.units.length; })();
+    expect(drop(3, 131, { SCAN_EXTRA_CHANCE: [0, 1, 1, 1], SCAN_PAINT_CHANCE: 0 }).extra.length).toBe(3);
+    expect(G.units.length).toBe(n0 + 3);
+    expect(drop(2, 131, { SCAN_EXTRA_CHANCE: [0, 1, 1, 1] }).extra.length).toBe(2);
+    expect(drop(3, 131, { SCAN_EXTRA_CHANCE: [0, 0, 0, 0], SCAN_PAINT_CHANCE: 0 }).extra.length).toBe(0);
+    for (const id of drop(3, 132, { SCAN_EXTRA_CHANCE: [0, 1, 1, 1], SCAN_PAINT_CHANCE: 0 }).extra) {
+      const u = G.units.find((x: any) => x.id === id); expect(canReach(Math.floor(u.x / T), Math.floor(u.y / T))).toBe(true);
+      expect(Math.hypot(u.x / T - spawnX, u.y / T - spawnY)).toBeGreaterThanOrEqual(TUNE.UPLINK_MIN_DIST - 1);
+    }
+  });
+  it('painted: SCAN_AMBUSH alert patrols wait SCAN_AMBUSH_DIST from the drop zone, outside the apron', () => {
+    for (let s = 141; s <= 150; s++) {
+      const C = drop(3, s, { SCAN_PAINT_CHANCE: 1 });
+      expect(C.painted).toBe(true); expect(C.ambush.length).toBe(TUNE.SCAN_AMBUSH);
+      for (const id of C.ambush) {
+        const u = G.units.find((x: any) => x.id === id), d = Math.hypot(Math.floor(u.x / T) - spawnX, Math.floor(u.y / T) - spawnY);
+        expect(u.type).toBe('PATROL'); expect(C.alert).toContain(id);
+        expect(d).toBeGreaterThanOrEqual(TUNE.SCAN_AMBUSH_DIST[0] - 1e-6); expect(d).toBeLessThanOrEqual(TUNE.SCAN_AMBUSH_DIST[1] + 1);
+      }
+    }
+    expect(drop(3, 151, { SCAN_PAINT_CHANCE: 0 }).painted).toBe(false);
+  });
+  it('the dial says what each step risks; the log says what it cost', () => {
+    expect(scanRisk(0)).toBe(''); expect(scanRisk(1)).toMatch(/extra unit/); expect(scanRisk(2)).toMatch(/wakes/); expect(scanRisk(3)).toMatch(/painted/);
+    drop(3, 152, { SCAN_PAINT_CHANCE: 1 }); expect(scanText()).toMatch(/scan LONG: \+\d+ units?, \d+ alert, painted \(ambush 2\)/);
+  });
+  it('same seed, same listen = the same costs (replayable)', () => {
+    const a = JSON.stringify(drop(3, 160)), b = JSON.stringify(drop(3, 160)); expect(a).toBe(b);
+  });
+});

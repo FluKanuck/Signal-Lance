@@ -942,6 +942,19 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Runner: --listen N [--drop N|auto] (auto = the offered drop zone nearest the objective). The scripted lance never lobs at or
      chases a SHIP-only contact (it lobbed its shells at stale blips on turn 1); it does read blips for Escort legs.
      With SCAN_ENABLED false the runner is byte-identical to R18 (60 contracts). The rule tests start hunts with the scan off.
+   R19 checkpoint 2 (the cost ladder) ASSUMPTIONS
+   - Rolled at the drop (applyScan, after the patrols drift) with the hunt's RNG, in order: extra units (one SCAN_EXTRA_CHANCE roll
+     per step up to the level; variant from all 10, placed like the field, far from every drop zone, facing the objective), then
+     painted (LONG only, SCAN_PAINT_CHANCE: SCAN_AMBUSH patrols, variant rolled among the 3, on free tiles SCAN_AMBUSH_DIST from
+     where you landed), then the alert share (round(SCAN_ALERT_SHARE × every unit on the map, extras included); an ambush is always
+     alert and counts toward it; the rest picked at random).
+   - "Alert" = an ALARM contact on each suit at your drop zone, SCAN_ALERT_UNC (5) tiles fuzzy (never a lock), and the unit faces
+     the drop ("dug in" for a static = watching your drop zone; no other bonus). Any alert unit turns the pack logic on for the
+     hunt (packOn, like a Retrieve after the pick-up): alarms spread, patrols drop the leash and hunt.
+   - The costs never show before you land: the dial says the odds in plain words (scanRisk); the result screen and log line say
+     what was rolled ("scan LONG: +1 unit, 4 alert, painted (ambush 2)").
+   - Runner --listensweep N: N contracts per level, same seeds, drop auto. The scripted lance can't read the roster or blips, so
+     the sweep shows the costs fully and the benefits barely (only the drop zone and Escort leg choice).
 ```
 
 ## TWEAK LOG
@@ -1433,4 +1446,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round19 cp1 (r19-s1) | the reveal ladder | NEW SCAN_ENABLED true, SCAN_BLIP_UNC 3, SCAN_BLIP_KEEP 30, SCAN_DRIFT 4,
            SCAN_STILL_ACTS 4, DROP_ZONES 3, DROP_X N 0.35 / S 0.55. Runner 60 contracts (no costs yet; --drop auto):
            SKIP 15, SHORT 15, MEDIUM 23, LONG 19 complete. BUILD r19-s1 | -
+   round19 cp2 (r19-s2) | the cost ladder | NEW SCAN_ALERT_SHARE [0, 0, 0.25, 0.5], SCAN_ALERT_UNC 5, SCAN_EXTRA_CHANCE [0, 0.25, 0.35,
+           0.5], SCAN_PAINT_CHANCE 0.5, SCAN_AMBUSH 2, SCAN_AMBUSH_DIST [6, 10]. Runner --listensweep 60 (hunt wins / contracts
+           complete): SKIP 54% 15, SHORT 50% 10, MEDIUM 54% 15, LONG 41% 6; LONG costs per hunt: +1.1 units, 3.6 alert, painted
+           44% (SKIP draws no cost rolls: same as r19-s1). No level dominates; LONG costs the scripted lance most (it can't use the intel). BUILD r19-s2 | -
 ```

@@ -47,8 +47,8 @@ export const SCENARIOS: Scenario[] = [
   // ---- Round 19 (listen before you land): a real rolled job on seed 1909 (4×2 packed district, Mixed field: a silent sentry, a
   // fire-control emplacement, two patrols), through the scan screen with the dial forced. Same seed both times. ----
   {
-    name: 'Long listen', round: 19, seed: 1909, mission: 'UPLINK', job: { seed: 1909, comp: 'Mixed', listen: 3 },
-    tryThis: 'The ship listens LONG: the roster, the zones, three drop zones and blips for everything that emits. Read the map, pick where to land, then take the uplink. Then try Quiet drop: the same job with no scan.',
+    name: 'Long listen', round: 19, seed: 1909, mission: 'UPLINK', job: { seed: 1909, comp: 'Mixed', listen: 3 }, tune: { SCAN_PAINT_CHANCE: 1 },
+    tryThis: 'The ship listens LONG: the roster, the zones, three drop zones and blips for everything that emits. But it listened too long: the ship is painted, so patrols wait near wherever you land, and part of the field is awake. Read the map, pick where to land, then take the uplink. Then try Quiet drop: the same job with no scan.',
     uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
     question: { q: 'Did what you heard change where you landed?', a: ['Yes, I picked another drop zone', 'Yes, it changed my route', 'No, I’d have done the same', 'Not sure'] },
   },

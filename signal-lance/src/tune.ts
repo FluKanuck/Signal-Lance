@@ -425,6 +425,16 @@ export const TUNE = {
   SCAN_DRIFT: 4,           // tiles; between the scan and the drop each patrol walks to a random reachable tile this close (blips go stale)
   SCAN_STILL_ACTS: 4,      // a LONG listen watches each emitter this many of its rounds (a static reads "still"; outlasts a 3-round pulse)
   DROP_ZONES: 3,           // drop zones offered at MEDIUM+ (west edge = the default spawn, then north and south edges; at most 3)
+  // R19 checkpoint 2: the cost ladder. The longer the ship listens, the more it emits. Per listen step [SKIP, SHORT, MEDIUM, LONG];
+  // rolled at the drop (seeded), never shown before you land. Starting guesses, tuned in the debrief.
+  SCAN_ALERT_SHARE: [0, 0, 0.25, 0.5], // share of the field (rounded) that starts ALERT: a shared fix on your drop zone (the pack's
+                           // alarm / converge logic on for this hunt, whatever PACK_ENABLED says); alert statics face the drop (dug in)
+  SCAN_ALERT_UNC: 5,       // tiles; how fuzzy an alert unit's fix on your drop zone is (never a lock)
+  SCAN_EXTRA_CHANCE: [0, 0.25, 0.35, 0.5], // each step up to the listen level rolls this chance of one extra starting unit (variant
+                           // from all 10, placed like the field: far from your drop). LONG = up to 3 extra
+  SCAN_PAINT_CHANCE: 0.5,  // at LONG, the chance the field reads where you'll land (the ship is painted)...
+  SCAN_AMBUSH: 2,          // ...and then this many patrols wait toward your drop zone, alert...
+  SCAN_AMBUSH_DIST: [6, 10], // ...this many tiles from where you land (min, max: outside the apron)
   DROP_X: { N: 0.35, S: 0.55 }, // where along the edge each extra apron is wanted (fraction of the width); the most open spot near it wins
   PART_MIN: { LEGS: 2 },       // R13 test 2 (Jamie): at least this many hits on a part (added on top of the pool): two legs
   LEGS_GONE_MULT: 0.5,         // R13 test 2: one leg gone = CREEP only; both gone = CREEP at this × distance per AP and speed
