@@ -18,7 +18,9 @@ export const BANDS = ['CLOSE', 'MEDIUM', 'FAR'];
 
 // Called by updateSensors for every field unit e with its radar on, and every lance suit p it could cover.
 export function rwrPaint(e, p) {
-  if (!TUNE.RWR_ENABLED || p.dead || p.out || !active(p, 'rwr') || inRadar(e, p) < 0) return null;
+  if (!TUNE.RWR_ENABLED || p.dead || p.out || inRadar(e, p) < 0) return null;
+  if (TUNE.RWR_BASELINE && p.paintTurn !== G.turn) { p.paintTurn = G.turn; p.paintN = (p.paintN || 0) + 1; } // the built-in receiver: painted, nothing more
+  if (!active(p, 'rwr')) return null; // the module's readout from here on
   const L: Warning[] = p.rwr || (p.rwr = []), seq = e.pulseSeq || 0;
   let w = L.find(k => k.id === e.id);
   const c = e.ec.find(k => k.on && k.id === p.id), lock = !!c && c.lost <= c.gap && c.unc <= (e.ft.FIRE_UNC || 0) * T;
@@ -41,7 +43,9 @@ export function bandOf(d: number) {
   return best;
 }
 // Age the warnings at the start of each round: gone after RWR_LIFE rounds (a repaint refreshes one)
-export function ageRwr() { for (const m of G.lance) if (m.rwr) m.rwr = m.rwr.filter((w: Warning) => G.turn - w.turn < TUNE.RWR_LIFE); }
+export function ageRwr() { for (const m of G.lance) { if (m.rwr) m.rwr = m.rwr.filter((w: Warning) => G.turn - w.turn < TUNE.RWR_LIFE); if (m.paintTurn !== undefined && G.turn - m.paintTurn >= TUNE.RWR_LIFE) m.paintTurn = undefined; } }
+// R19 fix list 1: the built-in warning's strength (1 = painted this round, fading over RWR_LIFE rounds; 0 = nothing)
+export function paintFade(m) { return m.paintTurn === undefined ? 0 : Math.max(0, 1 - (G.turn - m.paintTurn) / TUNE.RWR_LIFE); }
 export function rwrFade(w: Warning) { return Math.max(0.15, 1 - (G.turn - w.turn) / TUNE.RWR_LIFE); }
 // Moved off where it was heard? (a hair of drift doesn't count)
 export function heardMoving(w: Warning, x: number, y: number) { return Math.hypot(x - w.x, y - w.y) > 0.5 * T; }
@@ -61,4 +65,4 @@ export function rwrGuess(id: string) {
   const o = G.obs[id], m = o ? matchVariants(o) : []; return m.length === 1 ? m[0] + '?' : '?';
 }
 // " · RWR 3" for the log line ('' with no RWR fitted)
-export function rwrText() { const L = G.lance.filter(m => active(m, 'rwr')); return L.length ? ' · RWR ' + L.reduce((a, m) => a + (m.rwrN || 0), 0) : ''; }
+export function rwrText() { const L = G.lance.filter(m => active(m, 'rwr')), n = G.lance.reduce((a, m) => a + (m.paintN || 0), 0); return (n ? ' · painted ' + n : '') + (L.length ? ' · RWR ' + L.reduce((a, m) => a + (m.rwrN || 0), 0) : ''); } // R19 fix list 1: rounds painted (built-in), module warnings

@@ -3,7 +3,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
 import { G } from '../src/sim/state.ts';
 import { T } from '../src/sim/world.ts';
-import { bandOf, rwrWedge, heardMoving, rwrPaint, ageRwr, guessDist } from '../src/sim/rwr.ts';
+import { bandOf, rwrWedge, heardMoving, rwrPaint, ageRwr, guessDist, paintFade } from '../src/sim/rwr.ts';
 import { scenarioByName, startScenario, leaveScenario, RWR_FIT } from '../src/sim/scenarios.ts';
 import { launchBlock, kitOf } from '../src/sim/kit.ts';
 import { endPlayerTurn, step } from '../src/sim/turns.ts';
@@ -66,6 +66,15 @@ describe('the RWR', () => {
   it('stale once you have walked past the strip near edge', () => {
     const w: any = { x: 0, y: 0, ang: -Math.PI / 2, band: 'CLOSE' };
     expect(rwrWedge(w, 0, -2 * T).stale).toBe(false); expect(rwrWedge(w, 1 * T, -3.5 * T).stale).toBe(true);
+  });
+  it('fix list 1: every suit has the built-in receiver: painted (which round), nothing more; the module adds the readout', () => {
+    const { A, E } = setup(); E.radarOn = true; E.pulseSeq = 1; aim(E, A);
+    A.fit.mounts.MAST = A.fit.mounts.MAST.map((id: string) => id === 'rwr' ? null : id); A.items = kitOf(A.fit);
+    expect(rwrPaint(E, A)).toBe(null);            // no readout without the module...
+    expect(A.paintTurn).toBe(G.turn); expect(A.paintN).toBe(1); expect(paintFade(A)).toBe(1); // ...but it knows it was painted
+    expect(A.rwr || []).toEqual([]);
+    G.turn += TUNE.RWR_LIFE; ageRwr(); expect(A.paintTurn).toBeUndefined(); expect(paintFade(A)).toBe(0);
+    E.fx = -E.fx; E.fy = -E.fy; E.pulseSeq = 2; rwrPaint(E, A); expect(A.paintTurn).toBeUndefined(); // not covered: not painted
   });
   it('in the scenario, waiting a few rounds gets a warning from the emplacement', () => {
     const { A } = setup(); let g = 0;

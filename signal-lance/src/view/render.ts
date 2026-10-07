@@ -15,7 +15,7 @@ import { isType, carrier } from '../sim/mission.ts';
 import { legButton, legPath, forksAhead, allyNextStop } from '../sim/escort.ts';
 import { anchors } from '../sim/world.ts';
 import { zoneKnow } from '../sim/scan.ts';
-import { BANDS, heardMoving, rwrWedge, rwrFade, rwrGuess } from '../sim/rwr.ts';
+import { BANDS, heardMoving, rwrWedge, rwrFade, rwrGuess, paintFade } from '../sim/rwr.ts';
 import { active } from '../sim/kit.ts';
 import { pathLen } from '../sim/turns.ts';
 
@@ -147,6 +147,18 @@ export function rwrTips(p, z: number) {
     const a = mv && !W.stale ? W.centre : w.ang;
     return { w, r, mv, W, a, x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r };
   });
+}
+// R19 fix list 1: the built-in RWR on every suit: a red dashed ring and "PAINTED · round N" (no bearing), fading
+function drawPainted(z: number) {
+  if (!TUNE.RWR_ENABLED || !TUNE.RWR_BASELINE) return;
+  for (const m of G.lance) {
+    const a = m.dead || m.out ? 0 : paintFade(m); if (!a) continue;
+    const r = 24 + 3 * Math.sin(performance.now() / 160);
+    ctx.strokeStyle = 'rgba(255,70,70,' + 0.9 * a + ')'; ctx.lineWidth = 3 / z; ctx.setLineDash([5 / z, 4 / z]);
+    ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
+    const zl = z / V.uiS; ctx.font = 'bold ' + (11 / zl) + 'px monospace'; ctx.fillStyle = 'rgba(255,110,110,' + a + ')'; ctx.textAlign = 'center';
+    ctx.fillText('PAINTED · round ' + m.paintTurn, m.x, m.y + r + 14 / zl); ctx.textAlign = 'left';
+  }
 }
 function drawRwr(p, z: number) {
   if (!p || p.dead || !active(p, 'rwr') || !TUNE.RWR_ENABLED) return;
@@ -592,7 +604,7 @@ export function render() {
     if (act) { ctx.strokeStyle = '#9cf'; ctx.lineWidth = 2 / z; ctx.beginPath(); ctx.arc(m.x, m.y, 15, 0, 6.2832); ctx.stroke(); }
     ctx.fillStyle = act ? '#9cf' : '#a9b0b8'; ctx.fillText(m.id, m.x + 12, m.y - 10);
   }
-  if (G.mode === 'hunt') drawRwr(G.p, z); // R19 cp3
+  if (G.mode === 'hunt') { drawPainted(z); drawRwr(G.p, z); } // R19 cp3; fix list 1: the built-in warning on every suit
   // took a hit: red screen border
   if (V.hitFlash > 0) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.strokeStyle = 'rgba(255,40,40,' + (V.hitFlash / 0.4) + ')';

@@ -1477,4 +1477,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round19 fix list 2 (Jamie: "ugly stretch on desktop on the sigint map") | r19-s4 sized the canvas before the panel zoom settled; max-width
            then clamped its width but not its height | canvas height auto (aspect from its own pixels), re-sized two frames after
            opening, drawn at the panel's zoom (sharp on big screens). BUILD r19-s5 | -
+   round19 fix list 1 (Jamie: "module rwr vs free rwr. All mechs have a baseline RWR, that shows only they been hit with radar. You need the
+           module to have the readout info.") | NEW RWR_BASELINE true: any paint sets m.paintTurn (no RNG, so runs stay the same); a red dashed
+           ring "PAINTED · round N" on every suit, fading over RWR_LIFE; log " · painted n". The 'rwr' module's readout unchanged.
+           Details picked as the simplest (Jamie left them open): the map ring, and the round. BUILD r19-s6 | -
 ```

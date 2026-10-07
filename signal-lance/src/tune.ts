@@ -439,6 +439,8 @@ export const TUNE = {
   DROP_X: { N: 0.35, S: 0.55 },
   // R19 checkpoint 3: the RWR (src/sim/rwr.ts). A catalogue row ('rwr', S hardpoint, wt 1, draw 0), now in the hangar.
   RWR_ENABLED: true,       // false = no warnings (the row still fits but does nothing)
+  RWR_BASELINE: true,      // R19 fix list 1 (Jamie: "All mechs have a baseline RWR, that shows only they been hit with radar"): every suit knows it was painted
+                           // (which round; no bearing, band, type or ID). The 'rwr' module adds the full readout
   RWR_BEARING_ERR: 10,     // degrees, max random error on a warning's bearing (passive ESM is BEARING_ERR 3)
   RWR_BANDS: { CLOSE: [3, 6], MEDIUM: [9, 15], FAR: [15, 25] }, // tiles each range ring stands for; the band is a guess from strength
   RWR_REF_SIG: 16,         // the radar the RWR assumes it hears (≈ an emplacement mid-pulse): a louder one reads closer, walls read further
