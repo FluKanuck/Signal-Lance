@@ -72,7 +72,7 @@ function readout() {
     '<div><b>EM</b> ' + bar(S.emBase, 3, 'em') + ' ' + S.emBase.toFixed(1) + ' <small>passive hears you ~' + Math.round(heardAt(S.emBase)) + 't once you emit</small>' +
       (radar ? '<br><small>radar pulse: +' + Math.round(radarEmit(f)) + ' EMIT, ' + radar.ap + ' AP ' + radar.en + ' EN</small>' : '') + '</div>',
     (TUNE.THERMAL_ENABLED ? '<div><b>IR</b> ' + bar(S.irBase, 10, 'ir') + ' ' + S.irBase + ' <small>thermal sights see you ~' + Math.round(Math.min(TUNE.IR_RANGE, TUNE.IR_TILES_PER_PT * S.irBase)) + 't in line of sight; +' + TUNE.IR_FIRE + ' a shot, +' + TUNE.IR_SPRINT + ' a sprint, cools ' + TUNE.IR_COOL_PER_TURN + '/turn</small></div>' : '') +
-    '<div><b>SND</b> ' + bar(mv('NORMAL'), 14, 'snd') + ' move ' + mv('CREEP') + '/' + mv('NORMAL') + '/' + mv('SPRINT') + (gun ? ' · shot ' + gun.gun.snd : '') + (mortar ? ' · lob ' + mortar.mortar.snd : '') + ' <small>tiles</small></div>',
+    '<div><b>ACO</b> ' + bar(mv('NORMAL'), 14, 'snd') + ' move ' + mv('CREEP') + '/' + mv('NORMAL') + '/' + mv('SPRINT') + (gun ? ' · shot ' + gun.gun.snd : '') + (mortar ? ' · lob ' + mortar.mortar.snd : '') + ' <small>tiles</small></div>',
     '<div><b>HITS</b> ' + Object.keys(parts).map(p => PART_ABBR[p] + ' ' + parts[p]).join(' · ') + (gun ? ' · ' + fitRounds(f) + ' rds' : '') + '</div>',
   ];
   const w = launchBlock(f);

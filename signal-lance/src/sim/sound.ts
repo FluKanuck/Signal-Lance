@@ -39,7 +39,7 @@ export function hearSounds() {
       // never loosen a better live fix: sound only says "something is over there"
       const have = list.find(c => c.on && c.id === s.id);
       if (have && !have.snd && have.lost <= have.gap && have.unc <= u) continue;
-      observe(list, s.id, s.x + s.sndOff.x * u, s.y + s.sndOff.y * u, u, 0, 0, true, true, false, 'SOUND');
+      observe(list, s.id, s.x + s.sndOff.x * u, s.y + s.sndOff.y * u, u, 0, 0, true, true, false, 'SOUND', 0, isMech(l) ? l.id : '');
       const key = isMech(l) ? 'lance' : l.id; // the lance shares one contact picture, so it hears once
       if (isMech(l)) noteSound(s, soundRadius(s)); // R14: the lance writes down what it heard (step or shot, how far it carried)
       if (!s.heardBy.includes(key)) { s.heardBy.push(key); s.heardN = (s.heardN || 0) + 1; }

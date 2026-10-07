@@ -501,7 +501,9 @@ export function doMortar(m, c) { // R10: aimed-lob stats split by whether the ta
   lob(m, cx(c), cy(c), mortarScatter(c, m), u);
   const k = noisy ? 'mN' : 'mO'; m[k + 'S'] = (m[k + 'S'] || 0) + 1; m[k + 'U'] = (m[k + 'U'] || 0) + c.unc / T; m[k + 'H'] = (m[k + 'H'] || 0) + (m.mHits > h0 ? 1 : 0);
 }
-export function doMortarBlind(m, x, y) { const M = mortarOf(m); m.mBlind++; lob(m, x, y, (M.scatter + TUNE.MORTAR_BLIND_UNC * M.perUnc) * T, null); }
+export function doMortarBlind(m, x, y) { const M = mortarOf(m); m.mBlind++; lob(m, x, y, blindScatter(m, x, y), null); }
+// R18 fix list 12: a blind lob's scatter radius (world units) grows with range (a short lob lands closer)
+export function blindScatter(m, x, y) { const M = mortarOf(m), d = Math.hypot(x - m.x, y - m.y) / T; return (M.scatter + Math.max(TUNE.MORTAR_BLIND_UNC_MIN, Math.min(TUNE.MORTAR_BLIND_UNC, d * TUNE.MORTAR_BLIND_UNC_PER_TILE)) * M.perUnc) * T; }
 // one shell: aim point (ax, ay), scatter radius r. target = the unit whose contact was aimed at (gets the flash);
 // a blind lob has none, so every field unit the splash hits gets the flash instead.
 function lob(m, ax, ay, r, target) {

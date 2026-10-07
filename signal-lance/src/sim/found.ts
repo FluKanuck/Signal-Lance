@@ -3,7 +3,7 @@
 import { G } from './state.ts';
 
 // The sense that made a contact → the channel the player builds against
-export const CHANNEL: Record<string, string> = { SOUND: 'SND', PASSIVE: 'EM', RADAR: 'EM (radar)', EYES: 'eyes', FLASH: 'muzzle flash', ALARM: 'alarm', THERMAL: 'IR' };
+export const CHANNEL: Record<string, string> = { SOUND: 'ACO', PASSIVE: 'ESM', RADAR: 'RDR', EYES: 'EO', FLASH: 'MZL', ALARM: 'LINK', THERMAL: 'IR' }; // R18 fix list 13: the tag names
 export function firstFound(id: string) { return G.firstLog.find(f => f.side === 'E' && f.tgt === id && f.src !== 'GHOST') || null; }
 // "A: first found on SND at 7 tiles by a hush (round 2)" (or "never found"), one per lance suit
 export function foundLines(): string[] {

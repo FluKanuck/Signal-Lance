@@ -57,14 +57,17 @@ function soundRing(x, y, r, z, alpha, label?) {
 // the latest fix, as a short coloured tag. RDR through walls says how many ("RDR 2W": fuzzy, shrinks only while tracked).
 // Jamie (r18-s9): "change eye to vis. Also have the types stack, all in cyan, and the one that's winning is highlighted gold":
 // one tag per sense that fixed it within TAG_KEEP s, stacked; gold = the sense behind the current fix, cyan = the rest.
-const TAGS = { EYES: 'VIS', RADAR: 'RDR', PASSIVE: 'EM', THERMAL: 'IR', SOUND: 'SND', FLASH: 'FLASH', ALARM: 'ALARM', GHOST: 'GHOST' };
+// R18 fix list 13 (Jamie: "Let's go to the industry standard"): EO electro-optical, ESM electronic support measures, ACO acoustic,
+// MZL muzzle flash, LINK a shared (datalink) track. The suit letters after it = which of your suits made that fix lately.
+const TAGS = { EYES: 'EO', RADAR: 'RDR', PASSIVE: 'ESM', THERMAL: 'IR', SOUND: 'ACO', FLASH: 'MZL', ALARM: 'LINK', GHOST: 'GHOST' };
 const TAG_ORDER = ['EYES', 'RADAR', 'THERMAL', 'PASSIVE', 'FLASH', 'SOUND', 'ALARM', 'GHOST'];
-export function sensorTags(c): { t: string; win: boolean }[] {
+export function sensorTags(c): { t: string; win: boolean; noise: boolean }[] {
   const seen = c.seen || {}, out = [];
   for (const s of TAG_ORDER) {
     const win = s === c.src;
     if (!win && !(seen[s] !== undefined && G.time - seen[s] <= TUNE.TAG_KEEP)) continue;
-    out.push({ t: TAGS[s] + (win && s === 'RADAR' && c.walls ? ' ' + c.walls + 'W' : '') + (win && c.noisy && (c.q || 0) < 0.5 ? '·NOISE' : ''), win });
+    const B = (c.by || {})[s] || {}, who = Object.keys(B).filter(l => G.time - B[l] <= TUNE.TAG_KEEP).sort().join('+');
+    out.push({ t: TAGS[s] + (who ? ' ' + who : '') + (win && s === 'RADAR' && c.walls ? ' ' + c.walls + 'W' : ''), win, noise: win && c.noisy && (c.q || 0) < 0.5 }); // noise = amber dashed outline, not a word
   }
   out.sort((a, b) => (b.win ? 1 : 0) - (a.win ? 1 : 0)); // the winning sense on top
   return out;
@@ -94,6 +97,7 @@ function drawLabels(labels, z) {
       const ty = y0 + 1 / z + i * th, col = g.win ? '#fc3' : '#3dd';
       if (g.win) { ctx.fillStyle = 'rgba(255,204,51,0.22)'; ctx.fillRect(x0, ty, tw, 12 / z); }
       ctx.strokeStyle = ctx.fillStyle = col; ctx.strokeRect(x0, ty, tw, 12 / z); ctx.fillText(g.t, x0 + 3 / z, ty + 9.5 / z);
+      if (g.noise) { ctx.strokeStyle = '#e0a040'; ctx.setLineDash([3 / z, 2 / z]); ctx.strokeRect(x0 - 2 / z, ty - 2 / z, tw + 4 / z, 16 / z); ctx.setLineDash([]); } // R18: NOISE still blurring this fix
     });
     ctx.globalAlpha = L.a;
     let ly = y0 + 11 / z;
@@ -410,7 +414,7 @@ export function render() {
   }
   // contacts (red = tracked now, orange = lost/fading). R18 fix list 5: labels are collected here and laid out afterwards, so
   // contacts close together stack their labels instead of printing on top of each other.
-  const labels: { c: any; x: number; y: number; a: number; lines: { t: string; col: string; font: string; h: number }[]; tags: { t: string; win: boolean }[]; old: boolean }[] = [];
+  const labels: { c: any; x: number; y: number; a: number; lines: { t: string; col: string; font: string; h: number }[]; tags: { t: string; win: boolean; noise: boolean }[]; old: boolean }[] = [];
   for (const c of G.pc) {
     if (!c.on) continue;
     const lost = c.lost > c.gap, a = 1 - Math.max(0, c.lost - c.gap) / TUNE.CONTACT_LINGER, x = cx(c), y = cy(c);

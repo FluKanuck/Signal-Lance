@@ -1378,4 +1378,13 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            highlighted gold" | EYE → VIS; one tag per sense that fixed the contact within NEW TAG_KEEP 6 s (c.seen), stacked,
            cyan; the sense behind the current fix (c.src) gold, on top. Contact labels and tags also scale with the window
            (V.uiS), like the rest of the UI. BUILD r18-s9 | -
+   round18 fix list 11-13 (Jamie: "the noise jumps the signal to a completely new position, despite having a definitive track
+           on a stationary target"; "Blind lob is too inaccurate … needs to be less punishing"; "Let's go to the industry
+           standard" + "how do I know which is supplying") | 11: observe ignores a fix clearly vaguer than the contact's circle
+           (> 1.5× + 0.25 t) while they overlap ("still there"; it keeps a lockable track live), and a known static (seen or
+           ID'd) only moves for a better fix. 12: NEW MORTAR_BLIND_UNC_PER_TILE 0.25, MORTAR_BLIND_UNC_MIN 1.5 (cap stays
+           MORTAR_BLIND_UNC 6): blind scatter at 7 tiles 4.1 → 1.6 tiles. 13: tags EO / RDR / ESM / IR / ACO / MZL / LINK, each
+           with the suit letter(s) that made it within TAG_KEEP (c.by; bearings carry their suit); noise = amber dashed box,
+           not a word; the result screen and hangar use the same names. Runner 60 contracts: hunt wins 52% (s9 49%).
+           BUILD r18-s10 | -
 ```

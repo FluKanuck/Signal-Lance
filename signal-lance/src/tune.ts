@@ -330,7 +330,9 @@ export const TUNE = {
   MORTAR_SPLASH: 1,         // tiles; every unit (yours too) within this of the impact is damaged
   MORTAR_DMG: 1,            // armour plates of damage per splash (× ARMOUR_HITS = hits)
   SIG_MORTAR: 30,           // UNUSED from R13 (a mortar launch is Sound now: SOUND_RANGE.MORTAR). Was: Signal added to the firing mech per shot
-  MORTAR_BLIND_UNC: 6,      // R9 run1: tiles; a blind lob (tapped map spot, no fix) scatters as if the fix were this fuzzy (≈4.1-tile circle)
+  MORTAR_BLIND_UNC: 6,      // R9 run1: tiles; a blind lob (tapped map spot, no fix) scatters as if the fix were this fuzzy (≈4.1-tile circle). R18: the most it can be (long range)
+  MORTAR_BLIND_UNC_PER_TILE: 0.25, // R18 fix list 12 (Jamie: "Blind lob is too inaccurate … needs to be less punishing"): the pretend fuzz = this × the range
+  MORTAR_BLIND_UNC_MIN: 1.5,       // (tiles), never below this, never above MORTAR_BLIND_UNC. 7 tiles ≈ a 1.6-tile circle (was 4.1), 18 tiles ≈ 3.2
   MORTAR_FLASH_UNC: 4,      // tiles; the targeted unit's flash contact on the firer (fuzzier than a gun's FLASH_UNC)
   // --- Round 10: signal terrain. Rolled zones change how a unit STANDING IN ONE is seen (both sides, same rules) ---
   // QUIET.SIG_MULT (brief: ZONE_QUIET_SIG_MULT): others read a unit's Signal × this (fix lerp, SIGNAL_EMIT, noise ring).

@@ -244,3 +244,36 @@ describe('R18 fix list 10: trusted crossings beat NOISE', () => {
     expect(p.x).toBeCloseTo(5); expect(p.y).toBeCloseTo(5);
   });
 });
+
+describe('R18 fix list 11-13', () => {
+  it('11: a seen turret keeps its spot when a vaguer sound fix arrives; only a better fix moves it', async () => {
+    const { observe } = await import('../src/sim/sensors.ts'); const { reveal } = await import('../src/sim/ids.ts');
+    startScenario(scenarioByName('Warm core')); const u = G.units[0];
+    const c = observe(G.pc, u.id, u.x, u.y, 0.25 * T, 0, 0, true, false, true, 'EYES', 0, 'A'); reveal(u, c);
+    c.lost = 20; // the eyes fix has gone stale
+    observe(G.pc, u.id, u.x + 4 * T, u.y + 2 * T, 5 * T, 0, 0, true, true, false, 'SOUND', 0, 'A');
+    expect(Math.hypot(c.tx - u.x, c.ty - u.y)).toBeLessThan(0.01); expect(c.src).toBe('EYES'); expect(c.snd).toBe(false);
+    expect(c.lost).toBeLessThanOrEqual(c.gap); // a known static: still tracked
+    expect(c.seen.SOUND).toBeDefined(); // heard, so its tag stacks
+  });
+  it('11: a vague fix far outside a mobile contact\'s circle (it moved) does move it', async () => {
+    const { observe } = await import('../src/sim/sensors.ts');
+    startScenario(scenarioByName('Trip wire')); const u = G.units[0];
+    const c = observe(G.pc, u.id, u.x, u.y, 0.5 * T, 0, 0, true, true, false, 'PASSIVE');
+    observe(G.pc, u.id, u.x + 12 * T, u.y, 5 * T, 0, 0, true, true, false, 'SOUND');
+    expect(c.tx).toBeCloseTo(u.x + 12 * T); expect(c.src).toBe('SOUND');
+  });
+  it('12: a blind lob scatters less up close (7 tiles ≈ 1.6, was 4.1), never past the old cap', async () => {
+    const { blindScatter } = await import('../src/sim/turns.ts');
+    startHunt(1); const A = G.lance[0];
+    const r7 = blindScatter(A, A.x + 7 * T, A.y) / T, r18 = blindScatter(A, A.x + 18 * T, A.y) / T, r40 = blindScatter(A, A.x + 40 * T, A.y) / T;
+    expect(r7).toBeCloseTo(0.5 + 1.75 * 0.6); expect(r18).toBeGreaterThan(r7); expect(r40).toBeCloseTo(0.5 + TUNE.MORTAR_BLIND_UNC * 0.6);
+  });
+  it('13: each fix remembers which suit made it', async () => {
+    const { observe } = await import('../src/sim/sensors.ts');
+    startScenario(scenarioByName('Warm core')); const u = G.units[0];
+    const c = observe(G.pc, u.id, u.x, u.y, T, 0, 0, true, false, true, 'EYES', 0, 'B');
+    observe(G.pc, u.id, u.x, u.y, T, 0, 0, true, false, true, 'EYES', 0, 'A');
+    expect(Object.keys(c.by.EYES).sort()).toEqual(['A', 'B']);
+  });
+});
