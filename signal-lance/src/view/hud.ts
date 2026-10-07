@@ -1,5 +1,5 @@
 import { TUNE } from '../tune.ts';
-import { has, fitted, offWhy, radarOf, mortarOf } from '../sim/kit.ts';
+import { has, fitted, offWhy, radarOf, mortarOf, irOf, irRange } from '../sim/kit.ts';
 import { fireRange } from '../sim/turns.ts';
 import { G } from '../sim/state.ts';
 import { heardRange, sig, detStrength } from '../sim/sensors.ts';
@@ -54,7 +54,7 @@ export function updateHud(dt) {
       '  <b style="color:' + (p.sound ? '#e8f4ff' : '#778') + '">SOUND ' + (p.sound ? Math.round(soundRadius(p) * 10) / 10 : '–') + '</b>' + // R13: this activation's sound radius
 
     '<br><b>' + p.id + '</b> ' + partsRead(p) + (other ? '  <span style="color:#aab">' + other.id + ' ' + (other.dead ? 'destroyed' : other.out ? 'EXTRACTED' : partsRead(other)) + '</span>' : '') + // R12: per-part read
-    '<br>' + (has(p, 'GUN') ? '  AMMO ' + p.ammo : '') + (has(p, 'MORTAR') ? '  SHELLS ' + p.shells : '') + '  KILLS ' + G.kills + '/' + G.units.length + '  T ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  EMIT heard ~' + Math.round(heardRange(p)) + 't' : '  EMIT silent') + zoneHud(p) +
+    '<br>' + (has(p, 'GUN') ? '  AMMO ' + p.ammo : '') + (has(p, 'MORTAR') ? '  SHELLS ' + p.shells : '') + '  KILLS ' + G.kills + '/' + G.units.length + '  T ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  EMIT heard ~' + Math.round(heardRange(p)) + 't' : '  EMIT silent') + (TUNE.THERMAL_ENABLED ? '  IR ' + Math.round(irOf(p)) + ' (~' + Math.round(irRange(p)) + 't)' : '') + zoneHud(p) + // R18 cp3: heat, and how far a thermal sight sees it
     (has(p, 'MASK') ? '  ECM ' + (p.mask ? 'ON' : 'off') : '') + (has(p, 'GHOST') && G.ghost.on ? '  GHOST ' + G.ghost.turns + 't' : '') +
     oddsLine(p) + shotLine('P') + shotLine('E') +
     (G.splash ? '<br><b style="color:' + (G.splash.hit ? '#f63' : '#aaa') + '">SPLASH: ' + (G.splash.hit ? 'hit' : 'miss') + '</b>' : '') +

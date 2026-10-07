@@ -898,6 +898,23 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - C7: INTEL adds "Listens on": SND and eyes for all, EM passive ears (patrols, turrets), radar (emplacements). Counts are
      the briefed field's; a Bounty's extra units are not listed (as before).
    - Thermal optics is held back until checkpoint 3 (it has nothing to read yet).
+   R18 checkpoint 3 (THERMAL) ASSUMPTIONS
+   - B1: IR = steady + heat. Steady = the fit's always-on IR emit (Hot core 4, Cold-burn 0) + frame size (the frame's VIS
+     visibility × IR_SIZE_PER_VIS: Wisp 1, Warden 3, Bulwark 5). Heat (u.heat) builds: +IR_FIRE per gun shot or mortar lob,
+     +IR_SPRINT per sprint move; it cools IR_COOL_PER_TURN at the start of the unit's own turn, never below 0. Field units:
+     frame size 3 + FIELD_TYPES.IR (patrol engines 2, emplacement generators 4, turrets 0). The Escort transport has no IR.
+   - B2: a thermal sight reads IR like eyes: line of sight and the eyes' facing cone (EYES_CLOSE all round), out to
+     IR_TILES_PER_PT × the target's IR, at most IR_RANGE. It gives a fix of IR_UNC (lockable; NOISE doesn't blur it; no
+     Signal tightening) but no variant reveal. It is checked after eyes and before radar. Readers: every turret
+     (FIELD_TYPES.TURRET.THERMAL, a Thermal optics row on its MAST) and a suit with Thermal optics (MAST, draw 2). A
+     thermal fix alarms the pack like any own fix. The R17 scripted lance never carries optics.
+   - Only turrets read IR: they watch and wait, so the heat question is "do I pass a turret's line of sight running hot".
+     Splash toggle THERMAL ON/OFF (remembered; [NO-IR] in the log) plays checkpoint 2 on its own.
+   - Jamie mid-round: "Add a sniper turret variant that can hit further". A 4th turret variant, sniper: COMMS 0, no pulse,
+     a Long gun row (field only: range 20, falloff 1% a tile past HIT_RANGE_FREE instead of 3, 12 rounds, shot Sound 16),
+     FIRE_UNC 1.2 (firm lock: past eyes it needs its thermal sight). BOUNTY 70. TELL "very loud shot, from far off" (its
+     shot reads "loud" like the sentry's, so sound alone doesn't tell them apart). gun.falloff is new on GunStats. Every
+     turret slot now rolls 1 in 4 (was 1 in 3), so fewer of the tough gun turrets: the runner's wins rose.
 ```
 
 ## TWEAK LOG
@@ -1306,4 +1323,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            bulwark 80%; Cold-burn = Hot core exactly (Energy never runs short; the reactor choice waits for THERMAL). A Warden
            with the Brawler's plates + mortar (16/14, +2 sound a move) wins ~81%: plates + mortar carry it, not the frame. First
            found by: muzzle flash 32%, SND 30% (at ~5 tiles), eyes 27%, radar 3%. BUILD r18-s2 | -
+   round18 s3 | brief checkpoint 3: B1 THERMAL, B2 readers, THERMAL_ENABLED; Jamie's ask: a sniper turret | NEW
+           THERMAL_ENABLED true, IR_FIRE 3, IR_SPRINT 2, IR_COOL_PER_TURN 2, IR_TILES_PER_PT 2.5, IR_RANGE 20, IR_UNC 1,
+           IR_SIZE_PER_VIS 1; FIELD_TYPES THERMAL / IR; variant sniper (Long gun). Runner 60 contracts: hunt wins 58% (s2 52%,
+           the sniper replaces some gun turrets); the default Warden (cold) is never found on IR. Sweep: Hot core now found
+           first on IR in 5-7 of 62-119 hunts at 12-16 tiles (Cold-burn: 0-2), but wins by reactor are still equal (52% /
+           52%): a turret that sees heat early can't shoot past 12 (20 for a sniper, which needs the lock) and can't move.
+           BUILD r18-s3 | -
 ```

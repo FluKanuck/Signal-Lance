@@ -55,7 +55,7 @@ export function variantBands(v) {
     emit: V.PULSE ? ['low', 'high'] : [V.COMMS > 0 ? 'low' : 'none'], // a pulser's afterglow fades (and QUIET pulls it down) to low
     mobile: V.TYPE === 'PATROL',
     step: stepBand({ ...TUNE.SOUND_RANGE, ...V.SOUND }.NORMAL),
-    shot: shotBand({ SHOT: byId(ITEMS, 'autocannon').gun.snd, ...V.SOUND }.SHOT), // R18: every field gun is an autocannon row
+    shot: shotBand({ SHOT: byId(ITEMS, V.STATS.GUN || 'autocannon').gun.snd, ...V.SOUND }.SHOT), // R18: the variant's gun row (autocannon unless STATS.GUN)
   };
 }
 export function consistent(o, v: string) {

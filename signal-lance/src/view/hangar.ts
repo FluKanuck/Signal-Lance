@@ -15,7 +15,8 @@ const KEYS = ['signalLance.fitA', 'signalLance.fitB'];
 const SLOT_WORD: Record<HP, string> = { S: 'SENSOR', W: 'WEAPON', I: 'INTERNAL', U: 'UTILITY', M: 'MOBILITY', O: 'OPEN' };
 const LOC_NAME: Record<Loc, string> = { MAST: 'MAST', ARMS: 'ARMS', CORE: 'CORE', BACK: 'BACK', LEGS: 'LEGS' };
 const esc = (s: string) => s.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
-const okItem = (id: string | null) => !id || isCont(id) || TUNE.HANGAR_ITEMS.includes(id);
+const offer = () => TUNE.HANGAR_ITEMS.filter(id => id !== 'thermal' || TUNE.THERMAL_ENABLED); // R18 cp3: thermal optics only with THERMAL on
+const okItem = (id: string | null) => !id || isCont(id) || offer().includes(id);
 
 // Only cheap-set rows survive a saved code (rows may have changed, or a code may come from the toy's full catalogue)
 function cheap(f: Fit | null): Fit | null {
@@ -67,6 +68,7 @@ function readout() {
     '<div><b>POWER</b> ' + (S.regen >= 0 ? '+' : '') + S.regen + '/turn <small>(out ' + S.totals.output + ' − draw ' + S.totals.draw + ')</small> · pool ' + S.pool + '</div>',
     '<div><b>EM</b> ' + bar(S.emBase, 3, 'em') + ' ' + S.emBase.toFixed(1) + ' <small>passive hears you ~' + Math.round(heardAt(S.emBase)) + 't once you emit</small>' +
       (radar ? '<br><small>radar pulse: +' + Math.round(radarEmit(f)) + ' EMIT, ' + radar.ap + ' AP ' + radar.en + ' EN</small>' : '') + '</div>',
+    (TUNE.THERMAL_ENABLED ? '<div><b>IR</b> ' + bar(S.irBase, 10, 'ir') + ' ' + S.irBase + ' <small>thermal sights see you ~' + Math.round(Math.min(TUNE.IR_RANGE, TUNE.IR_TILES_PER_PT * S.irBase)) + 't in line of sight; +' + TUNE.IR_FIRE + ' a shot, +' + TUNE.IR_SPRINT + ' a sprint, cools ' + TUNE.IR_COOL_PER_TURN + '/turn</small></div>' : '') +
     '<div><b>SND</b> ' + bar(mv('NORMAL'), 14, 'snd') + ' move ' + mv('CREEP') + '/' + mv('NORMAL') + '/' + mv('SPRINT') + (gun ? ' · shot ' + gun.gun.snd : '') + (mortar ? ' · lob ' + mortar.mortar.snd : '') + ' <small>tiles</small></div>',
     '<div><b>HITS</b> ' + Object.keys(parts).map(p => PART_ABBR[p] + ' ' + parts[p]).join(' · ') + (gun ? ' · ' + fitRounds(f) + ' rds' : '') + '</div>',
   ];
@@ -119,7 +121,7 @@ function openPick(idx: number) {
   $('hstitle').textContent = sel + ' · ' + SLOT_WORD[slot].toLowerCase() + ' hardpoint' + (slot === 'O' ? ' (takes anything)' : '');
   const rows: string[] = [];
   if (curId) rows.push('<button class="hopt" data-pick="">Remove ' + esc(byId(ITEMS, curId).name) + '<br><small>' + delta(unmount(f, sel, idx)) + '</small></button>');
-  for (const id of TUNE.HANGAR_ITEMS) {
+  for (const id of offer()) {
     const it = byId(ITEMS, id) as Item;
     if (slot !== 'O' && !it.hp.includes(slot)) continue;
     const why = whyNot(f, sel, idx, it) || hangarWhy(f, id, curId);

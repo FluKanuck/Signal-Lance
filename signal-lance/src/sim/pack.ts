@@ -8,7 +8,7 @@ import { effEmit } from './zones.ts';
 import { partGone } from './combat.ts';
 
 // A field unit's OWN senses (a shared ALARM contact never raises a further alarm: no relay).
-const OWN = ['EYES', 'RADAR', 'PASSIVE', 'SOUND', 'FLASH'];
+const OWN = ['EYES', 'RADAR', 'PASSIVE', 'SOUND', 'FLASH', 'THERMAL']; // R18 cp3: a thermal sight's own fix alarms too
 
 // R15 Retrieve: once the cargo is picked up, the pack logic is on for this hunt whatever PACK_ENABLED says.
 export function packOn() { return TUNE.PACK_ENABLED || (!!G.mission && G.mission.type === 'RETRIEVE' && G.mission.flipped); }

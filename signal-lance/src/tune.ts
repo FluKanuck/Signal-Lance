@@ -166,6 +166,7 @@ export const TUNE = {
     sentry: 35,  // core 1, firm lock only
     hush: 45,    // core 1, firm lock; you barely hear it fire (hard to find)
     gun: 90,     // core 4, 30 rds, fires on looser locks: the most dangerous thing on the field
+    sniper: 70,  // R18: core 1, 12 rds, but hits from 20 tiles
     search: 60,  // core 4, 20 rds
     fire: 50,    // core 1, but fires on a 3-tile fix
     relay: 55,   // core 4, 10 rds
@@ -231,6 +232,8 @@ export const TUNE = {
   SEAM_BLOCK_CHANCE: 0.35, // R16 debrief: each stretch of street between two crossings gets a blocker with this chance (0 = the open grid)
   SEAM_BLOCK_KINDS: { RUBBLE: 0.4, BARRICADE: 0.3, CHOKE: 0.3 }, // weights: scrap across the street / a wall that shuts it / a wall over one lane
   FIELD_SHUFFLE: 1,   // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
+  // R18 checkpoint 3: THERMAL 1 = it carries a thermal sight (turrets: they wait and watch); IR = its steady heat on top of its
+  // frame's size (emplacements run generators, patrols engines; turrets sit cold).
   // R18: FRAME = its frame in src/sim/items.ts; the unit's fit is built from FRAME + the numbers below (kit.ts fieldFit).
   // Per type. ARMOUR plates (signature as SIG_ARMOUR; hits = BASE_HITS + ARMOUR × ARMOUR_HITS), AMMO rounds,
   // CELLS energy cells (+ENERGY_CELL each), MOBILE 0 = never moves, RADAR/PASSIVE 0|1,
@@ -238,9 +241,9 @@ export const TUNE = {
   // PATROL also takes the brain values the old bot used (copied from CAUTIOUS; see ROUND 7 ASSUMPTIONS):
   // PATIENCE_MIN/MAX s, CONFIDENT tiles, HOLD_DIST tiles, LEASH tiles (= GUARD_RADIUS × 1.5).
   FIELD_TYPES: {
-    TURRET:      { FRAME: 'f_turret', NAME: 'turret',      PLURAL: 'turrets',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 0, RADAR: 0, PASSIVE: 1, FIRE_UNC: 1.2 }, // hidden: silent until it fires; firm lock only (= PATIENT)
-    EMPLACEMENT: { FRAME: 'f_empl', NAME: 'emplacement', PLURAL: 'emplacements', ARMOUR: 2, BASE_HITS: 0, AMMO: 20, CELLS: 1, MOBILE: 0, RADAR: 1, PASSIVE: 0, FIRE_UNC: 2 },   // pulses radar on a timer, so it's findable
-    PATROL:      { FRAME: 'f_patrol', NAME: 'patrol',      PLURAL: 'patrols',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 1, RADAR: 0, PASSIVE: 1, FIRE_UNC: 2,
+    TURRET:      { FRAME: 'f_turret', THERMAL: 1, IR: 0, NAME: 'turret',      PLURAL: 'turrets',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 0, RADAR: 0, PASSIVE: 1, FIRE_UNC: 1.2 }, // hidden: silent until it fires; firm lock only (= PATIENT)
+    EMPLACEMENT: { FRAME: 'f_empl', THERMAL: 0, IR: 4, NAME: 'emplacement', PLURAL: 'emplacements', ARMOUR: 2, BASE_HITS: 0, AMMO: 20, CELLS: 1, MOBILE: 0, RADAR: 1, PASSIVE: 0, FIRE_UNC: 2 },   // pulses radar on a timer, so it's findable
+    PATROL:      { FRAME: 'f_patrol', THERMAL: 0, IR: 2, NAME: 'patrol',      PLURAL: 'patrols',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 1, RADAR: 0, PASSIVE: 1, FIRE_UNC: 2,
                    PATIENCE_MIN: 3, PATIENCE_MAX: 6, CONFIDENT: 2, HOLD_DIST: 8, LEASH: 9 },
   },
   // R13 test 2 (Jamie): field units carry comms, a steady electronic emission, so passive can find them. Emissions never
@@ -272,6 +275,11 @@ export const TUNE = {
     hush:   { TYPE: 'TURRET', COMMS: 0, PULSE: 0, SOUND: { SHOT: 5 },                              // suppressed: you barely hear it fire
               STATS: {},
               TRAITS: ['EMIT none · still'], TELL: 'muffled shot (≤6)', FIGHT: 'core 1 · firm lock only' },
+    // R18 (Jamie: "Add a sniper turret variant that can hit further"): a Long gun (src/sim/items.ts): range 20, loses only
+    // 1% a tile past HIT_RANGE_FREE, a loud crack. Firm lock only, so beyond eye range it needs its thermal sight (a hot suit).
+    sniper: { TYPE: 'TURRET', COMMS: 0, PULSE: 0, SOUND: {},
+              STATS: { GUN: 'longgun', AMMO: 12, FIRE_UNC: 1.2 },
+              TRAITS: ['EMIT none · still', 'shot 16'], TELL: 'very loud shot, from far off', FIGHT: 'core 1 · 12 rds · hits out to 20 tiles' },
     gun:    { TYPE: 'TURRET', COMMS: 10, PULSE: 0, SOUND: {},                                      // fire-director link: core 4, 30 rds, fires on looser locks
               STATS: { ARMOUR: 2, AMMO: 30, FIRE_UNC: 2 },
               TRAITS: ['still · no pulse', 'shot 12'], TELL: 'steady low EMIT', FIGHT: 'core 4 · 30 rds · looser lock' },
@@ -385,8 +393,17 @@ export const TUNE = {
   OVERLOAD_AP_FRAC: 0.5,   // A7: past this fraction of the way from rated to max load, every move costs +1 AP (toy placeholder)
   SIG_EM_PER_PT: 0.5,      // A8: standing EM signature per point of the fit's always-on EM emit + EM visibility (Warden 3 → 1.5 = the R17 default)
   HANGAR_FRAMES: ['wisp', 'warden', 'bulwark'], // A10: the cheap-test set, the only things the in-game hangar offers (build-toy.html keeps them all)
-  HANGAR_ITEMS: ['coldburn', 'hotcore', 'lamp', 'emarray', 'mask', 'ghost', 'autocannon', 'mortar', 'battery', 'm_cold'],
+  HANGAR_ITEMS: ['coldburn', 'hotcore', 'lamp', 'emarray', 'mask', 'ghost', 'autocannon', 'mortar', 'battery', 'm_cold', 'thermal'], // thermal optics only with THERMAL_ENABLED
   HANGAR_PLATES: ['p_steel'],
+  // --- R18 checkpoint 3: THERMAL (IR). Heat = a steady part (reactor IR emit + frame size) + heat that builds and cools ---
+  THERMAL_ENABLED: true,   // B1/B2 master switch: false = no heat is read by anyone and thermal optics leaves the hangar (checkpoint 2 on its own)
+  IR_FIRE: 3,              // heat added per gun shot or mortar lob (both sides)
+  IR_SPRINT: 2,            // heat added per sprint move
+  IR_COOL_PER_TURN: 2,     // heat lost at the start of each of the unit's own turns (heat persists, unlike Sound)
+  IR_TILES_PER_PT: 2.5,    // a thermal sight sees a target in line of sight (and its facing cone, like eyes) out to this × the target's IR...
+  IR_RANGE: 20,            // ...but never further than this (tiles)
+  IR_UNC: 1.0,             // tiles; uncertainty of a thermal fix (a heat blob: good enough to shoot at, but it doesn't show the variant)
+  IR_SIZE_PER_VIS: 1,      // a suit's steady IR from its size: × the frame's VIS visibility (Wisp 1, Warden 3, Bulwark 5)
   PART_MIN: { LEGS: 2 },       // R13 test 2 (Jamie): at least this many hits on a part (added on top of the pool): two legs
   LEGS_GONE_MULT: 0.5,         // R13 test 2: one leg gone = CREEP only; both gone = CREEP at this × distance per AP and speed
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---

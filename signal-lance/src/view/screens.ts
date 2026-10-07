@@ -20,7 +20,7 @@ import { fitHasGun, fitHasMortar } from '../sim/contract.ts';
 import { frameOf } from '../sim/fit.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r18-s2';  // R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
+export const BUILD = 'r18-s3';  // R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
@@ -79,6 +79,8 @@ export function listenIntel(C) {
   const L = ['SND: all ' + all + ' hear steps and shots (through walls)', 'eyes: all, ' + TUNE.EYES_RANGE + ' tiles in line of sight'];
   if (ears) L.push('EM: ' + ears + ' with passive ears (' + [n('PATROL') && 'patrols', n('TURRET') && 'turrets'].filter(Boolean).join(', ') + ')');
   if (radar) L.push('EM: ' + radar + ' radar (emplacements pulse; a pulse finds you through walls)');
+  const hot = Object.keys(TUNE.FIELD_TYPES).filter(k => TUNE.FIELD_TYPES[k].THERMAL).reduce((a, k) => a + n(k), 0); // R18 cp3
+  if (TUNE.THERMAL_ENABLED && hot) L.push('IR: ' + hot + ' with thermal sights (' + Object.keys(TUNE.FIELD_TYPES).filter(k => TUNE.FIELD_TYPES[k].THERMAL && n(k)).map(k => TUNE.FIELD_TYPES[k].PLURAL).join(', ') + '; see heat in line of sight, past eye range when you run hot)');
   return ' Listens on: ' + L.join(' · ') + '.';
 }
 // R10: " Quiet ground: rail cut (NW). Noise: sump (S), SE apron."
@@ -156,7 +158,7 @@ export function saveAndNext() {
 let ctN = store.get('signalLance.ctN', 0) | 0; // contract number for the log (C3)
 // " · +140 cr (bought A repair×2)" for this hunt's log line
 function huntCr() { const r = G.ct.results[G.ct.results.length - 1]; return r ? ' · +' + r.pay + ' cr' + (r.buys.length ? ' (bought ' + buysText(r.buys) + ')' : '') : ''; }
-function testerTag() { const t = store.get('signalLance.tester', ''); return (t ? '[' + t + '] ' : '') + (TUNE.PACK_ENABLED ? '[PACK] ' : '') + (TUNE.MAP_MODE === 'hive' ? '[HIVE] ' : ''); } // R13: pack runs are tagged (R16: so are old-map runs)
+function testerTag() { const t = store.get('signalLance.tester', ''); return (t ? '[' + t + '] ' : '') + (TUNE.PACK_ENABLED ? '[PACK] ' : '') + (TUNE.MAP_MODE === 'hive' ? '[HIVE] ' : '') + (TUNE.THERMAL_ENABLED ? '' : '[NO-IR] '); } // R18 cp3: runs with THERMAL off are tagged // R13: pack runs are tagged (R16: so are old-map runs)
 function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + G.ct.hunts + (G.ct.rerolls ? ' [DBG jobs rerolled ×' + G.ct.rerolls + ']' : '') + ' · ' : ''; }
 // "C3 COMPLETE 2/3 · lost B in H2"
 function contractLine() {
@@ -261,6 +263,10 @@ $('bQuick').addEventListener('click', () => { store.set('signalLance.quick', ctH
 function showPack() { $('bPack').textContent = 'THE PACK: ' + (TUNE.PACK_ENABLED ? 'ON' : 'OFF'); $('bPack').classList.toggle('on', TUNE.PACK_ENABLED); }
 setPack(!!store.get('signalLance.pack', false)); showPack();
 $('bPack').addEventListener('click', () => { setPack(!TUNE.PACK_ENABLED); store.set('signalLance.pack', TUNE.PACK_ENABLED); showPack(); });
+// R18 cp3: the THERMAL toggle (remembered; tags the log). ON by default; OFF plays checkpoint 2 on its own (no heat is read).
+function showHeat() { $('bHeat').textContent = 'THERMAL: ' + (TUNE.THERMAL_ENABLED ? 'ON' : 'OFF'); $('bHeat').classList.toggle('on', TUNE.THERMAL_ENABLED); }
+TUNE.THERMAL_ENABLED = store.get('signalLance.thermal', true) !== false; showHeat();
+$('bHeat').addEventListener('click', () => { TUNE.THERMAL_ENABLED = !TUNE.THERMAL_ENABLED; store.set('signalLance.thermal', TUNE.THERMAL_ENABLED); showHeat(); renderHangar(); });
 // R16: the map toggle (remembered; tags the log). NEW DISTRICTS by default; OLD HIVE is the R15 map, for comparison.
 function showMap() { $('bMap').textContent = 'MAP: ' + (TUNE.MAP_MODE === 'hive' ? 'OLD HIVE' : 'NEW DISTRICTS'); $('bMap').classList.toggle('on', TUNE.MAP_MODE !== 'hive'); }
 TUNE.MAP_MODE = store.get('signalLance.map', 'blocks') === 'hive' ? 'hive' : 'blocks'; showMap();

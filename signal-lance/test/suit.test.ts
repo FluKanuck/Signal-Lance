@@ -133,3 +133,45 @@ describe('A12: what found each suit first', () => {
     for (const l of L) expect(l).toMatch(/^[AB]: (first found on .+ at \d+ tiles by a .+ \(round \d+\)|never found)$/);
   });
 });
+
+describe('B1/B2: THERMAL', () => {
+  it('heat persists and cools: a shot and a sprint add heat that drops IR_COOL_PER_TURN each own turn', async () => {
+    const { addHeat, irOf } = await import('../src/sim/kit.ts');
+    startHunt(1); const A = G.lance[0], base = irOf(A);
+    addHeat(A, TUNE.IR_FIRE); addHeat(A, TUNE.IR_SPRINT); expect(irOf(A)).toBe(base + TUNE.IR_FIRE + TUNE.IR_SPRINT);
+    beginUnit(A); expect(irOf(A)).toBe(base + TUNE.IR_FIRE + TUNE.IR_SPRINT - TUNE.IR_COOL_PER_TURN);
+    for (let i = 0; i < 10; i++) beginUnit(A);
+    expect(irOf(A)).toBe(base); // never below the steady part
+  });
+  it('steady IR = the reactor\'s IR emit + the frame\'s size', () => {
+    expect(fitStats(DEFAULT_FIT).irBase).toBe(0 + 3);                // Cold-burn Warden
+    expect(fitStats(tpl('scout')).irBase).toBe(4 + 1);               // Hot core Wisp
+    expect(fitStats(tpl('brawler')).irBase).toBe(4 + 5);             // Hot core Bulwark
+  });
+  it('Warm core: the turret\'s thermal sight finds the Hot core Warden past eye range; a Cold-burn one it doesn\'t', async () => {
+    const { updateSensors } = await import('../src/sim/sensors.ts');
+    startScenario(scenarioByName('Warm core'));
+    const A = G.lance[0], u = G.units[0], d = Math.hypot(u.x - A.x, u.y - A.y) / T;
+    expect(d).toBeGreaterThan(TUNE.EYES_RANGE); expect(has(u, 'THERMAL')).toBe(true);
+    updateSensors(0); const c = u.ec.find((c: any) => c.on && c.id === A.id);
+    expect(c).toBeTruthy(); expect(G.firstLog.find((f: any) => f.tgt === A.id).src).toBe('THERMAL');
+    A.irBase = fitStats(DEFAULT_FIT).irBase; for (const k of u.ec) k.on = false; updateSensors(0);
+    expect(u.ec.some((c: any) => c.on && c.id === A.id)).toBe(false);
+  });
+  it('THERMAL_ENABLED false: nobody reads heat', async () => {
+    const { updateSensors } = await import('../src/sim/sensors.ts');
+    startScenario(scenarioByName('Warm core')); const was = TUNE.THERMAL_ENABLED; TUNE.THERMAL_ENABLED = false;
+    try { updateSensors(0); expect(G.units[0].ec.some((c: any) => c.on)).toBe(false); } finally { TUNE.THERMAL_ENABLED = was; }
+  });
+});
+
+describe('R18 (Jamie): the sniper turret', () => {
+  it('carries a Long gun: range 20, and loses 1% a tile past HIT_RANGE_FREE instead of HIT_RANGE_PER_TILE', async () => {
+    const { makeUnit } = await import('../src/sim/state.ts'); const { hitChance } = await import('../src/sim/combat.ts');
+    startHunt(1); const s = makeUnit('TURRET', 90, 'sniper'), g = makeUnit('TURRET', 91, 'sentry'), A = G.lance[0];
+    expect(fireRange(s)).toBe(20); expect(fireRange(g)).toBe(12); expect(has(s, 'THERMAL')).toBe(true);
+    for (const u of [s, g]) { u.x = A.x - 16 * T; u.y = A.y; }
+    const c = { tx: A.x, ty: A.y };
+    expect(hitChance(s, A, c).range).toBe(-12); expect(hitChance(g, A, c).range).toBe(-TUNE.HIT_RANGE_PER_TILE * 12);
+  });
+});

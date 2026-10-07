@@ -43,7 +43,7 @@ describe('parity: field units from FIELD_TYPES rows', () => {
       expect(u.enMax).toBe(TUNE.ENERGY_BASE + F.CELLS * 50);
       expect(has(u, 'RADAR')).toBe(V.PULSE > 0);
       expect(has(u, 'PASSIVE')).toBe(!!F.PASSIVE);
-      expect(u.snd.SHOT).toBe(V.SOUND.SHOT ?? 12);
+      expect(u.snd.SHOT).toBe(V.SOUND.SHOT ?? (V.STATS.GUN === 'longgun' ? 16 : 12)); // R18: the sniper's Long gun cracks at 16
     }
   });
   it('a turret or emplacement is a frame with no LEGS', () => {

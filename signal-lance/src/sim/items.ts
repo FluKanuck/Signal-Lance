@@ -26,7 +26,7 @@ export interface Frame {
 
 /** R18 (A3): what the hunt reads from a row. Each family has one stats shape. */
 export interface RadarStats { range: number; halfAng: number; ap: number; en: number; emit: number; sig: number }
-export interface GunStats { rounds: number; range: number; hit: number; snd: number }
+export interface GunStats { rounds: number; range: number; hit: number; snd: number; falloff?: number } // falloff: % lost per tile past HIT_RANGE_FREE (default HIT_RANGE_PER_TILE)
 export interface MortarStats { shells: number; ap: number; snd: number; min: number; max: number; scatter: number; perUnc: number }
 
 export interface Item {
@@ -116,7 +116,7 @@ export const ITEMS: Item[] = [
   I({ id: 'df', name: 'Direction-finder', family: 'Passive', hp: ['S'], size: 2, wt: 2, draw: 2, tags: ['SENSOR', 'EM'], effect: 'Bearings + type guess', trade: '2 hardpoints' }),
   I({ id: 'rwr', name: 'RWR', family: 'Passive', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'EM'], effect: 'Warns when painted, with bearing', trade: '—' }),
   I({ id: 'acoustic', name: 'Acoustic array', family: 'Passive', hp: ['S'], wt: 1, draw: 1, tags: ['SENSOR', 'ACOUSTIC'], effect: 'Hears SND at +50% radius', trade: 'Deaf inside NOISE' }),
-  I({ id: 'thermal', name: 'Thermal optics', family: 'Passive', hp: ['S'], wt: 1, draw: 2, tags: ['SENSOR', 'THERMAL'], effect: 'Sees IR through smoke and dark', trade: 'Washed out near fires' }),
+  I({ id: 'thermal', name: 'Thermal optics', family: 'Passive', hp: ['S'], wt: 1, draw: 2, tags: ['SENSOR', 'THERMAL'], effect: 'A heat sight: sees hot things in line of sight beyond your eyes (the hotter, the further)', trade: 'Draw 2; a MAST slot' }),
   I({ id: 'lidar', name: 'Lidar', family: 'Active', hp: ['S'], wt: 1, draw: 2, use: '1 AP', tags: ['SENSOR', 'VISUAL'], sig: { EM: { e: 1 }, VIS: { e: 3 } }, effect: 'Exact fix in LoS', trade: 'Laser-warning receivers see you' }),
   I({ id: 'longglass', name: 'Long glass', family: 'Visual', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'VISUAL'], effect: 'Eyes range +4', trade: 'Arc −30°' }),
   I({ id: 'magneto', name: 'Magnetometer', family: 'Field', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'MAGNETIC'], effect: 'Senses mass 3–5 tiles, through walls', trade: 'Blind in industrial terrain' }),
@@ -130,6 +130,9 @@ export const ITEMS: Item[] = [
   // §6 Weapons
   I({ id: 'autocannon', name: 'Autocannon', family: 'Weapon', hp: ['W'], wt: 2, draw: 0, use: '1 AP', tags: ['WEAPON', 'KINETIC', 'GUN'], sig: { SND: { e: 6 }, VIS: { e: 1 } }, effect: 'KIN (today’s gun)', trade: 'Ammo',
     gun: { rounds: 20, range: 12, hit: 75, snd: 12 } }), // R18: the old 2 × AMMO_PER_SLOT, PLAYER_FIRE_RANGE / ENEMY_FIRE_RANGE, HIT_BASE, SOUND_RANGE.SHOT
+  // R18 (Jamie): the sniper turret's gun. Field only for now (not in the hangar's cheap set).
+  I({ id: 'longgun', name: 'Long gun', family: 'Weapon', hp: ['W'], wt: 3, draw: 0, use: '1 AP', tags: ['WEAPON', 'KINETIC', 'GUN'], sig: { SND: { e: 8 }, VIS: { e: 2 } }, effect: 'KIN, long: range 20, little loss with range', trade: 'Loud crack; few rounds',
+    gun: { rounds: 12, range: 20, hit: 75, snd: 16, falloff: 1 } }),
   I({ id: 'carbine', name: 'Carbine', family: 'Weapon', hp: ['W'], wt: 1, draw: 0, use: '1 AP', tags: ['WEAPON', 'KINETIC'], sig: { SND: { e: 3 }, VIS: { e: 1 } }, effect: 'KIN light', trade: 'Weak vs plate' }),
   I({ id: 'carbinesup', name: 'Carbine (suppressed)', family: 'Weapon', hp: ['W'], wt: 1, draw: 0, use: '1 AP', tags: ['WEAPON', 'KINETIC'], sig: { SND: { e: 1 } }, effect: 'KIN light, quiet', trade: 'Weak vs plate' }),
   I({ id: 'marksman', name: 'Marksman rifle', family: 'Weapon', hp: ['W'], wt: 2, draw: 0, use: '1 AP', tags: ['WEAPON', 'KINETIC'], sig: { SND: { e: 7 }, VIS: { e: 1 } }, effect: 'KIN, long', trade: 'One shot per activation' }),

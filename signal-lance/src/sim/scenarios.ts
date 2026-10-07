@@ -38,6 +38,8 @@ const district = (cols: number, rows: number, cells: string[], mods: [number, nu
 // column 24 and south at columns 18 and 36.
 const D1701 = { seed: 1701, grid: '4x2' };
 // R18: a Bulwark with a plate on every location: load 20 / rated 18, so every move is OVERLOAD_SND_PER_PT × 2 louder
+// R18 cp3: the Line suit on a Hot core (IR 4 + Warden size 3 = 7: a thermal sight sees it at ~17 tiles)
+export const WARM_FIT = () => makeFit('warden', [['MAST', 'emarray'], ['MAST', 'mask'], ['ARMS', 'autocannon'], ['CORE', 'hotcore'], ['CORE', 'ghost']], ['CORE']);
 export const HEAVY_FIT = () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery'], ['BACK', 'mortar']], ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS']);
 export const SCENARIOS: Scenario[] = [
   // ---- Round 18 (fit for the job). Pack off. Same packed district as R17. ----
@@ -56,6 +58,14 @@ export const SCENARIOS: Scenario[] = [
     lance: [{ tile: [31, 13], face: [41, 13], fit: 'brawler' }, { tile: [33, 13], face: [41, 13] }],
     field: [{ type: 'PATROL', variant: 'line', tile: [22, 13], face: [31, 13], state: 'PATROL' }],
     question: { q: 'Did you turn to protect your BACK?', a: ['Yes, turned to face it', 'No, kept going', 'Didn’t know it was behind me', 'It hit my BACK first'] },
+  },
+  {
+    name: 'Warm core', round: 18, seed: 1803, mission: 'UPLINK', packed: D1701,
+    tryThis: 'A is a Warden on a Hot core: plenty of power, but it runs warm. A turret with a thermal sight watches the street from the east, past eye range. It can see your heat before it can see you. Walk to the uplink. Then RETRY: swap nothing, but creep along the wall, or wait and watch its contact.',
+    uplink: [41, 13],
+    lance: [{ tile: [14, 13], face: [41, 13], fit: 'WARM' }, { tile: [12, 12], face: [41, 13], lost: true }],
+    field: [{ type: 'TURRET', variant: 'sentry', tile: [30, 13], face: [14, 13] }],
+    question: { q: 'Did the heat find you before the noise did?', a: ['Yes, the heat did', 'No, it heard me first', 'It saw me (eyes)', 'Never found me'] },
   },
   // ---- Round 17 (eyes on the street). Pack off. ----
   {
@@ -272,7 +282,7 @@ export function startScenario(s: Scenario) {
   G.comp = { NAME: 'Test bed', staticPlacement: 'uplink' }; // no type counts: newHunt builds no field, prep below places it
   setZones(s.zones || []);
   G.mtype = s.mission || 'UPLINK'; // R15
-  const loads = s.lance.map(l => l.fit === 'HEAVY' ? HEAVY_FIT() : typeof l.fit === 'string' ? HANGAR_TEMPLATES.find(t => t.id === l.fit).fit() : l.fit || fitFromLoad({ ...LOAD_DEFAULTS, ...(l.load || {}) })); // R18: a template id, HEAVY, a fit, or the old load numbers
+  const loads = s.lance.map(l => l.fit === 'HEAVY' ? HEAVY_FIT() : l.fit === 'WARM' ? WARM_FIT() : typeof l.fit === 'string' ? HANGAR_TEMPLATES.find(t => t.id === l.fit).fit() : l.fit || fitFromLoad({ ...LOAD_DEFAULTS, ...(l.load || {}) })); // R18: a template id, HEAVY, a fit, or the old load numbers
   newHunt(loads, () => {
     G.lance.forEach((m, i) => {
       const L = s.lance[i], p = ctr(L.tile); m.x = p.x; m.y = p.y; face(m, L.face, up);

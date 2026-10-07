@@ -9,7 +9,7 @@ import { effEmit, zoneType } from './zones.ts';
 import { hitChance, rollPart, damagePart, partGone, partHurt, eyesRange, fromBehind } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
-import { has, fitted, gunOf, radarOf, mortarOf, offWhy } from './kit.ts';
+import { has, fitted, gunOf, radarOf, mortarOf, offWhy, addHeat } from './kit.ts';
 import { onKill, onAllOut, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
 // ============================ UPDATE ==================================
@@ -110,6 +110,7 @@ export function pay(m, ap, en) { m.ap -= ap; m.en -= en; }
 export function beginUnit(m) {
   m.ap = Math.min(TUNE.AP_BANK_MAX, m.ap + TUNE.AP_PER_TURN);
   m.en = Math.min(m.enMax, m.en + (m.regen ?? TUNE.ENERGY_REGEN)); // R18: a suit's reactor output − idle draw; field units the flat ENERGY_REGEN
+  m.heat = Math.max(0, (m.heat || 0) - TUNE.IR_COOL_PER_TURN); // R18 cp3: heat cools a little each own turn
   m.turnShots = 0; m.mUsed = 0; m.freeTurns = TUNE.FREE_TURNS; m.movedT = 0; // R12: "target moved" counts this activation's tiles
   if (m !== G.ally) { const es = G.emitStat[isMech(m) ? 'P' : 'E']; es.n++; es.sum += m.emit; } // R13: Emissions at activation start (runner)
   addEmit(m, -TUNE.SIGNAL_DECAY);
@@ -366,6 +367,7 @@ export function planDrawn(m, pts: { x: number; y: number }[], mode, wps: any[] =
   return { ...base, why: 'AP' };
 }
 export function doMove(m, pl) {
+  if (pl.mode === 'SPRINT') addHeat(m, TUNE.IR_SPRINT); // R18 cp3: sprinting runs hot
   pay(m, pl.ap, pl.en); makeSound(m, pl.mode, m.over ? m.over.snd : 0); // R18: + overload. R17: the clutter part of the sound waits until the mover actually steps into clutter
   const nw = (pl.wps || []).length, free0 = m.freeTurns || 0;
   if (nw) m.freeTurns = Math.max(0, free0 - nw);
@@ -449,7 +451,7 @@ export function shootBlock(m, c, uncMax, range) {
 // R12: the odds for m shooting at contact c (null if nothing behind it)
 export function shotOdds(m, c) { const u = c && c.on ? unitById(c.id) : null; return u && !u.dead ? hitChance(m, u, c) : null; }
 export function doShot(m, c) {
-  pay(m, TUNE.AP_SHOT, 0); m.turnShots++;
+  pay(m, TUNE.AP_SHOT, 0); m.turnShots++; addHeat(m, TUNE.IR_FIRE); // R18 cp3: a shot heats the gun
   faceTo(m, cx(c), cy(c));
   // R12: roll to hit at the trigger (seeded). A miss flies wide of the fix centre and damages nothing.
   const h = shotOdds(m, c), tgt = unitById(c.id);
@@ -503,7 +505,7 @@ export function doMortarBlind(m, x, y) { const M = mortarOf(m); m.mBlind++; lob(
 // one shell: aim point (ax, ay), scatter radius r. target = the unit whose contact was aimed at (gets the flash);
 // a blind lob has none, so every field unit the splash hits gets the flash instead.
 function lob(m, ax, ay, r, target) {
-  pay(m, mortarOf(m).ap, 0); m.mUsed++; m.shells--; m.mShots++;
+  pay(m, mortarOf(m).ap, 0); addHeat(m, TUNE.IR_FIRE); m.mUsed++; m.shells--; m.mShots++;
   makeSound(m, 'MORTAR'); m.fireT = TUNE.SIG_FIRE_TIME; // R13: loud as Sound (no Emissions); fireT is display only now
   const a = rand() * 6.2832, k = Math.sqrt(rand()) * r;
   const ix = ax + Math.cos(a) * k, iy = ay + Math.sin(a) * k, sp = TUNE.MORTAR_SPLASH * T, dmg = TUNE.MORTAR_DMG * TUNE.ARMOUR_HITS;

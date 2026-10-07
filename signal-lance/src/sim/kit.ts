@@ -36,6 +36,12 @@ export function radarOf(u): RadarStats | null {
 export function gunOf(u): GunStats | null { return first(u, i => i.gun); }
 export function mortarOf(u): MortarStats | null { return first(u, i => i.mortar); }
 
+// ---- R18 checkpoint 3: THERMAL. A unit's IR = its steady heat + the heat it has built up (u.heat; cools each own turn). ----
+export function irOf(u) { return (u.irBase || 0) + (u.heat || 0); }
+export function irRange(u) { return Math.min(TUNE.IR_RANGE, TUNE.IR_TILES_PER_PT * irOf(u)); } // tiles a thermal sight sees it at
+export function readsIR(u) { return TUNE.THERMAL_ENABLED && has(u, 'THERMAL'); }
+export function addHeat(u, n: number) { u.heat = (u.heat || 0) + n; }
+
 // ---- numbers a fresh unit starts with ----
 export function plateCount(fit: Fit | null) { return fit ? LOCS.filter(l => fit.plate[l]).length : 0; }
 export function fitHits(fit: Fit) { return (frameOf(fit).hits || 0) + LOCS.reduce((a, l) => a + (byId(PLATES, fit.plate[l])?.hits || 0), 0); }
@@ -49,7 +55,8 @@ export function fitPool(fit: Fit) { return TUNE.ENERGY_BASE + kitOf(fit).reduce(
 export function fitStats(fit: Fit) {
   const t = totals(fit), em = t.sig.EM;
   return { regen: t.net, pool: t.pool, load: t.load, rated: t.rated, max: t.max, over: { ap: t.penalty.moveAP, snd: t.penalty.servoSnd },
-    emBase: (em.e - em.u + em.v) * TUNE.SIG_EM_PER_PT, problems: t.problems, totals: t };
+    emBase: (em.e - em.u + em.v) * TUNE.SIG_EM_PER_PT, problems: t.problems, totals: t,
+    irBase: t.sig.IR.e - t.sig.IR.u + t.sig.IR.v + frameOf(fit).vis.VIS * TUNE.IR_SIZE_PER_VIS }; // R18 cp3: steady heat (reactor + size)
 }
 // Why this fit can't launch ('' = it can): no reactor, draw over output, or over its hard max load
 export function launchBlock(fit: Fit) { const p = totals(fit).problems; return p.length ? p[0] : ''; }
@@ -124,7 +131,8 @@ export function fieldFit(F): Fit {
   const rows: [Loc, string][] = [];
   if (F.RADAR) rows.push(['MAST', 'lamp']);
   if (F.PASSIVE) rows.push(['MAST', 'emarray']);
-  if (F.AMMO) rows.push(['ARMS', 'autocannon']);
+  if (F.AMMO) rows.push(['ARMS', F.GUN || 'autocannon']); // R18: a variant may carry another gun row (sniper: longgun)
+  if (F.THERMAL) rows.push(['MAST', 'thermal']); // R18 cp3
   for (let i = 0; i < (F.CELLS || 0); i++) rows.push(['CORE', 'battery']);
   return makeFit(F.FRAME, rows, PLATE_ORDER.slice(0, F.ARMOUR || 0), F.AMMO || 0);
 }

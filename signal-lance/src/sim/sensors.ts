@@ -6,7 +6,7 @@ import { emitUnc } from './turns.ts';
 import { effEmit, noiseUnc, zoneType } from './zones.ts';
 import { eyesRange } from './combat.ts';
 import { hearSounds } from './sound.ts';
-import { has, radarOf } from './kit.ts';
+import { has, radarOf, readsIR, irRange } from './kit.ts';
 import { raiseAlarm } from './pack.ts';
 import { noteEmit, notePulse, noteMoved, noteFired, reveal, emitBand, frozen } from './ids.ts';
 
@@ -37,6 +37,8 @@ export function canSee(o, m, rangeTiles) {
   if (d2 > rc * rc && (dx * o.fx + dy * o.fy) / Math.sqrt(d2) < EYES_COS) return false;
   return tilesCrossed(o.x, o.y, m.x, m.y, 1) === 0;
 }
+// R18 cp3 (B2): a thermal sight reads heat like eyes (line of sight, facing cone), out to the target's IR range.
+export function irSees(o, m) { return readsIR(o) && irRange(m) > 0 && canSee(o, m, irRange(m)); }
 // Returns building tiles between o and m if m is in o's radar cone and within
 // RADAR_MAX_WALLS, else -1. R18: range and cone from o's radar row.
 export function inRadar(o, m) {
@@ -165,6 +167,7 @@ export function updateSensors(dt) {
     const v = e.moving ? e.spd * T : 0;
     for (const p of mechs) {
       if (canSee(p, e, eyesRange(p))) { const c = observe(G.pc, e.id, e.x, e.y, TUNE.UNC_EYES * T, e.fx * v, e.fy * v, true, false, true, 'EYES'); if (c) reveal(e, c); } // R7 run1: eyes identify the type; R14: and the variant
+      else if (irSees(p, e)) observe(G.pc, e.id, e.x, e.y, TUNE.IR_UNC * T, e.fx * v, e.fy * v, true, true, true, 'THERMAL'); // R18 cp3: a heat blob (no ID)
       else if (p.radarOn) radarFix(p, e, G.pc, e.id, e.pjit, e.fx * v, e.fy * v, dt);
       if (p.tick) {
         const s = emitting(e) ? sig(e) : 0;
@@ -187,6 +190,7 @@ export function updateSensors(dt) {
     for (const p of them) {
       const pv = p.moving ? p.spd * T : 0;
       if (canSee(e, p, eyesRange(e))) observe(e.ec, p.id, p.x, p.y, TUNE.UNC_EYES * T, p.fx * pv, p.fy * pv, true, false, true, 'EYES');
+      else if (irSees(e, p)) observe(e.ec, p.id, p.x, p.y, TUNE.IR_UNC * T, p.fx * pv, p.fy * pv, true, true, true, 'THERMAL'); // R18 cp3
       else if (e.radarOn) radarFix(e, p, e.ec, p.id, e.ejit, p.fx * pv, p.fy * pv, dt);
       const radarNew = p.radarOn && !(e.heard && e.heard[p.id]);
       (e.heard || (e.heard = {}))[p.id] = p.radarOn;

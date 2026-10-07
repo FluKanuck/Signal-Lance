@@ -146,7 +146,7 @@ function sameCover(ax: number, ay: number, ix: number, iy: number) {
 export function hitChance(sh, tgt, c) {
   const rangeT = Math.hypot(c.tx - sh.x, c.ty - sh.y) / T;
   const sig = TUNE.HIT_SIG_MAX * effEmit(tgt) / TUNE.SIGNAL_MAX;
-  const range = -TUNE.HIT_RANGE_PER_TILE * Math.max(0, rangeT - TUNE.HIT_RANGE_FREE);
+  const range = -(gunOf(sh)?.falloff ?? TUNE.HIT_RANGE_PER_TILE) * Math.max(0, rangeT - TUNE.HIT_RANGE_FREE); // R18: a long gun loses less
   const moved = -Math.min(TUNE.HIT_MOVED_MAX, TUNE.HIT_MOVED_PER_TILE * (tgt.movedT || 0));
   const ck = coverKind(sh.x, sh.y, tgt.x, tgt.y), cover = ck === 'WALL' ? -TUNE.HIT_COVER : ck === 'LOW' ? -TUNE.HIT_COVER_LOW : 0; // R17: scrap is low cover
   const id = G.lance.includes(sh) ? idBonus(tgt) : 0; // R14: a right call before eyes (the lance only)
