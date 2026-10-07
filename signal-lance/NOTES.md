@@ -1486,5 +1486,6 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            use, less intrusive scans use less 'time' … like thermal vs radar, these return different fields of information". Symptom
            (confirmed): four fixed steps feel like a menu pick; he wants to spend scan time actively (start / stop, focus an area, pick
            the sensor) | no change this round: the dial stays for testing; the timer / area / sensor-type scan goes to the design lead
-           (Jamie's call). Parked: "pay out local sources for added info" | -
+           (Jamie's call). Parked: "pay out local sources for added info" (#88). RWR check (brief, cp3): "Heard while moving: could
+           you read where the radar was?" → "Yes, the wedge showed me" | -
 ```
