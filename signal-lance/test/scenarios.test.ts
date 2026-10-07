@@ -12,7 +12,14 @@ const tile = (u) => [Math.floor(u.x / T), Math.floor(u.y / T)];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) / T;
 
 describe('every scenario', () => {
-  for (const s of SCENARIOS) it(`${s.name}: loads its placements, on reachable tiles, outside any contract`, () => {
+  for (const s of SCENARIOS.filter(s => s.job)) it(`${s.name}: a rolled job through the forced scan, outside any contract`, () => { // R19
+    startScenario(s);
+    expect(G.tb).toBe(s); expect(G.ct).toBeNull();
+    expect(G.scan.lvl).toBe(s.job.listen);
+    expect(G.units.length).toBeGreaterThan(0);
+    for (const m of G.lance) expect(canReach(Math.floor(m.x / T), Math.floor(m.y / T))).toBe(true);
+  });
+  for (const s of SCENARIOS.filter(s => !s.job)) it(`${s.name}: loads its placements, on reachable tiles, outside any contract`, () => {
     startScenario(s);
     expect(G.tb).toBe(s);
     expect(G.ct).toBeNull();

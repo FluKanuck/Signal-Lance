@@ -416,6 +416,16 @@ export const TUNE = {
   IR_RANGE: 20,            // ...but never further than this (tiles)
   IR_UNC: 1.0,             // tiles; uncertainty of a thermal fix (a heat blob: good enough to shoot at, but it doesn't show the variant)
   IR_SIZE_PER_VIS: 1,      // a suit's steady IR from its size: × the frame's VIS visibility (Wisp 1, Warden 3, Bulwark 5)
+  // --- Round 19: listen before you land. The ship's pre-drop scan (src/sim/scan.ts): one listen dial, 0 SKIP / 1 SHORT /
+  // 2 MEDIUM / 3 LONG. Each step reveals everything below it plus: SHORT the field roster (types, variants, counts) and zone
+  // outlines; MEDIUM zone types and a choice of drop zones; LONG contact blips (emitters only: a silent unit gives the ship nothing) ---
+  SCAN_ENABLED: true,      // false = the R18 flow (no scan screen, one spawn, zones always drawn, the hangar before the contract)
+  SCAN_BLIP_UNC: 3,        // tiles; a LONG blip's fuzz (its circle; the centre is off the true spot by up to 0.7 × this)
+  SCAN_BLIP_KEEP: 30,      // seconds of sim time a blip lingers in the hunt as a stale contact, on top of CONTACT_LINGER
+  SCAN_DRIFT: 4,           // tiles; between the scan and the drop each patrol walks to a random reachable tile this close (blips go stale)
+  SCAN_STILL_ACTS: 4,      // a LONG listen watches each emitter this many of its rounds (a static reads "still"; outlasts a 3-round pulse)
+  DROP_ZONES: 3,           // drop zones offered at MEDIUM+ (west edge = the default spawn, then north and south edges; at most 3)
+  DROP_X: { N: 0.35, S: 0.55 }, // where along the edge each extra apron is wanted (fraction of the width); the most open spot near it wins
   PART_MIN: { LEGS: 2 },       // R13 test 2 (Jamie): at least this many hits on a part (added on top of the pool): two legs
   LEGS_GONE_MULT: 0.5,         // R13 test 2: one leg gone = CREEP only; both gone = CREEP at this × distance per AP and speed
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---

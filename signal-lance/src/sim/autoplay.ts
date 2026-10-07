@@ -14,6 +14,8 @@ import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist, ext
 import { radarOf } from './kit.ts';
 
 export const AUTO_DT = 0.05;
+// R19: the scripted lance never lobs at or chases a contact the ship's blip alone gave it (it reads them for Escort legs only)
+function target() { const c = playerTarget(); return c && c.src === 'SCAN' ? null : c; }
 export const AUTO = { loud: false, quiet: false }; // R13: --loud = SPRINT every move, pulse radar whenever it can. R14: --quiet = CREEP every move
 
 // run the current action (move / pulse / shot) to completion
@@ -40,7 +42,7 @@ function goal() {
     if (upDist(p) > 2) return G.up;
     siteAt.set(G.mission, G.turn);
   }
-  const c = playerTarget();                                // then whatever it can still hear, for BOT_HUNT_ROUNDS; nothing left = leave
+  const c = target();                                      // then whatever it can still hear, for BOT_HUNT_ROUNDS; nothing left = leave
   return c && G.turn - siteAt.get(G.mission) < BOT_HUNT_ROUNDS ? { x: cx(c), y: cy(c) } : out;
 }
 const far = g => Math.hypot(g.x - G.p.x, g.y - G.p.y) / T > (g === G.up ? TUNE.UPLINK_RADIUS + 0.5 : 1);
@@ -59,7 +61,7 @@ export function playerTurn() {
   idTick(); // R14: commit an ID once a contact's traits narrow it to one variant
   if (AUTO.loud && radarOf(G.p) && canPay(G.p, radarOf(G.p).ap, radarOf(G.p).en)) { cmdRadar(); runAct(); } // R13 --loud: pulse every activation it can
   for (let k = 0; k < 12 && G.mode === 'hunt'; k++) {
-    const c = playerTarget();
+    const c = target();
     if (c && G.sel !== c) cmdSelect(c); // select + turn to face it (free once a turn)
     if (mortarBlock(G.p, c) === '') { cmdMortar(); runAct(); continue; } // R9: lob at any contact that qualifies
     if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, fireRange(G.p)) === '') { cmdFire(); runAct(); continue; }

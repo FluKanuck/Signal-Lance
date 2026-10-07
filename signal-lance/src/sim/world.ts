@@ -104,7 +104,11 @@ export function loadMap(def: MapDef) {
   // spawn: the map's P, else the left edge, mid-height (nearest open tile)
   if (px < 0 && def.spawn) { px = def.spawn.x; py = def.spawn.y; } // R16: a packed district picks its own
   if (px < 0) { px = 0; py = H >> 1; for (let d = 0; d < H && isSolid(px, py); d++) { py = (H >> 1) + (d % 2 ? -1 : 1) * ((d + 1) >> 1); } }
-  spawnX = px; spawnY = py;
+  setSpawn(px, py);
+}
+// R19: the spawn moves to the chosen drop zone (a scan at MEDIUM+). Reachability is flooded from it again.
+export function setSpawn(px: number, py: number) {
+  spawnX = px; spawnY = py; reach.fill(0);
   const q = [spawnY * W + spawnX], DX4 = [1, -1, 0, 0], DY4 = [0, 0, 1, -1]; reach[q[0]] = 1;
   while (q.length) {
     const i = q.pop(), x = i % W, y = (i / W) | 0;

@@ -1,9 +1,10 @@
 // Round 10: signal terrain. Rolled QUIET / NOISE zones. A zone changes how a unit standing in it is
 // SEEN (never its own sensors), on both sides, under identical rules.
 import { TUNE } from '../tune.ts';
-import { W, H, N, T, spawnX, spawnY, canReach, MAP, anchors } from './world.ts';
+import { W, H, N, T, canReach, MAP, anchors } from './world.ts';
 import { rand } from './rng.ts';
 import { G } from './state.ts';
+import { dropPts } from './scan.ts';
 
 // G.zones: [{ x, y (tile centre), name, type 'QUIET'|'NOISE', tiles: [{x,y}] }]; G.zmap[tile] = zone index + 1 (0 = none)
 export let zmap = new Uint8Array(N);
@@ -13,7 +14,7 @@ export function zoneTiles(cxT, cyT) {
   const R = TUNE.ZONE_RADIUS, out = [];
   for (let y = cyT - R; y <= cyT + R; y++) for (let x = cxT - R; x <= cxT + R; x++) {
     if (Math.hypot(x - cxT, y - cyT) > R || !canReach(x, y) || x >= W - TUNE.EXTRACT_COLS) continue;
-    if (Math.hypot(x - spawnX, y - spawnY) <= TUNE.ZONE_SPAWN_CLEAR) continue;
+    if (dropPts().some(d => Math.hypot(x - d.x, y - d.y) <= TUNE.ZONE_SPAWN_CLEAR)) continue; // R19: clear of every drop zone
     out.push({ x, y });
   }
   return out;

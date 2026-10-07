@@ -21,6 +21,8 @@
 //   --item mortar.mortar.shells=8      R18: try an item row value for this run (row id, then a dotted path; repeatable)
 //   --from 61                          start the contract seeds at 61 instead of 1 (extends a batch without repeating seeds)
 //   --json                             print one '@@SL {...}' line per contract as it finishes (the Signal Lance mod reads these)
+//   --listen 2 [--drop 2|auto]         R19: the ship listens at this level before every hunt (0 SKIP, 1 SHORT, 2 MEDIUM, 3 LONG) and
+//                                      lands on drop zone N (1 = west edge; only offered at 2+; auto = nearest the objective). Default: no listen (= SKIP)
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
@@ -33,6 +35,10 @@ import { HANGAR_TEMPLATES, fitStats, fitText, launchBlock } from '../src/sim/kit
 import { fromCode } from '../src/sim/fit.ts';
 import { CHANNEL } from '../src/sim/found.ts';
 import { ITEMS } from '../src/sim/items.ts';
+import { listen, chooseDrop, offeredDrops } from '../src/sim/scan.ts';
+// R19 --drop auto: the scripted lance lands on the offered drop zone nearest the objective (straight line)
+const nearestDrop = () => { const D = offeredDrops(), ux = G.up.x / 32, uy = G.up.y / 32; let b = 0; D.forEach((d, i) => { if (Math.hypot(d.x - ux, d.y - uy) < Math.hypot(D[b].x - ux, D[b].y - uy)) b = i; }); return b; };
+import { previewJob } from '../src/sim/contract.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
@@ -70,6 +76,7 @@ argv.forEach((k, i) => {
   console.log(`  (--item ${path} = ${o[last]})`);
 });
 const JSON_OUT = argv.includes('--json'), FROM = arg('--from', 1);
+let LISTEN_LVL = arg('--listen', -1); const DROP = sarg('--drop') === 'auto' ? -1 : arg('--drop', 1) - 1; // R19: auto = the offered drop zone nearest the objective
 const MAX_TURNS = 80;
 // --check: remember every FLAG / WARNING line, exit 1 at the end if there were any
 const FLAGS: string[] = [], log0 = console.log;
@@ -163,6 +170,7 @@ function contracts(n: number) {
     while (G.ct.status === 'ACTIVE') {
       entering.push({ n: G.ct.hunt, carry: JSON.parse(JSON.stringify(G.ct.carry)) });
       if (MISSION) for (const j of G.ct.jobs) j.mission = MISSION; // R15 --mission
+      if (LISTEN_LVL >= 0 && TUNE.SCAN_ENABLED) { G.scan = null; previewJob(0); listen(LISTEN_LVL); chooseDrop(DROP >= 0 ? DROP : nearestDrop()); } // R19 --listen
       takeJob(0);
       const r = playOut(G.ct.huntSeed);
       shots.push(...G.shotLog); parts.push(...G.partLog); // R12

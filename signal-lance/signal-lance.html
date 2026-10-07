@@ -93,6 +93,20 @@ button.lockd{opacity:.35}
 #init span.done{opacity:.4}
 #lver{font-size:11px;opacity:.6}
 #jobs,#cres{justify-content:flex-start}
+/* R19: the pre-drop scan. Map on the left, the dial and what was heard on the right */
+#scan{flex-direction:row;align-items:flex-start;justify-content:flex-start;text-align:left;gap:12px}
+#smap{flex:1.8;min-width:0;display:flex;flex-direction:column;gap:6px}
+#scv{display:block;max-width:100%;border:1px solid #234;border-radius:4px;touch-action:manipulation}
+#sside{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;font-size:13px;line-height:1.35}
+#sHead{font-size:15px;font-weight:bold;color:#fc3}
+#sDial button,#sDrops button{flex:1;min-width:0;padding:0 4px}
+#sDial button.lockd{opacity:.3}
+#sWhat{border-left:3px solid var(--btnOn);padding-left:8px}
+#sIntel div{margin-bottom:3px}
+#bListen,#bScanGo{min-height:56px;font-size:16px;background:var(--btnOn)}
+#lpre{display:flex;flex-direction:column;gap:8px}
+#pintel{font-size:13px;line-height:1.35;border-left:3px solid #fc3;padding-left:8px}
+#bPreGo{min-height:64px;font-size:18px;background:var(--btnOn)}
 .jrow{display:flex;gap:12px;width:100%;max-width:900px;align-items:stretch}
 .job,.hunt{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;text-align:left;border:1px solid var(--line);border-radius:6px;padding:8px}
 .jintel{flex:1;font-size:13px;line-height:1.35;border-left:3px solid var(--btnOn);padding-left:8px}
@@ -174,6 +188,8 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
     <div id="hbody"><div id="hsuit"></div><div id="hside"><div id="hloc"></div><div id="hread"></div></div></div>
   </div>
   <div id="lside">
+    <div id="lpre" hidden><div id="pintel"></div><button id="bPreGo">LAUNCH HUNT 1</button><button id="bPreBack">BACK TO THE SCAN</button></div>
+    <div id="lnorm" style="display:contents">
     <div id="lver"></div>
     <div id="intel"></div>
     <div class="zrow"><button id="bQuick">LENGTH: 3 HUNTS</button><button id="bTB">TEST BED</button></div>
@@ -182,6 +198,19 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
     <div id="logv"></div>
     <div class="zrow"><button id="bSend">SEND LOG</button><button id="bCopy">COPY LOG</button><button id="bHelp">BASICS</button></div>
     <textarea id="logta" rows="4" readonly hidden></textarea>
+    </div>
+  </div>
+</div>
+<div id="scan" class="panel" hidden>
+  <div id="smap"><div id="sHead"></div><canvas id="scv"></canvas></div>
+  <div id="sside">
+    <div><b>THE SHIP LISTENS</b> <small style="opacity:.7">· longer = more intel</small></div>
+    <div class="zrow" id="sDial"></div>
+    <div id="sWhat"></div>
+    <button id="bListen">LISTEN</button>
+    <div id="sIntel"></div>
+    <div class="zrow" id="sDrops"></div>
+    <div class="zrow"><button id="bScanCard">CARD</button><button id="bScanGo">NEXT</button></div>
   </div>
 </div>
 <div id="hsheet" class="sheet" hidden><div id="hsbox"><div id="hshead"><span id="hstitle"></span><button id="hsclose">CLOSE</button></div><div id="hopts"></div></div></div>

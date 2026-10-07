@@ -14,6 +14,7 @@ import { traitLines, frozen, matchVariants, hasReading } from '../sim/ids.ts';
 import { isType, carrier } from '../sim/mission.ts';
 import { legButton, legPath, forksAhead, allyNextStop } from '../sim/escort.ts';
 import { anchors } from '../sim/world.ts';
+import { zoneKnow } from '../sim/scan.ts';
 import { pathLen } from '../sim/turns.ts';
 
 // R17 (parked #59): where a route button sits: along its leg, at the first spot (6 tiles in, then every 2) that isn't under
@@ -59,8 +60,8 @@ function soundRing(x, y, r, z, alpha, label?) {
 // one tag per sense that fixed it within TAG_KEEP s, stacked; gold = the sense behind the current fix, cyan = the rest.
 // R18 fix list 13 (Jamie: "Let's go to the industry standard"): EO electro-optical, ESM electronic support measures, ACO acoustic,
 // MZL muzzle flash, LINK a shared (datalink) track. The suit letters after it = which of your suits made that fix lately.
-const TAGS = { EYES: 'EO', RADAR: 'RDR', PASSIVE: 'ESM', THERMAL: 'IR', SOUND: 'ACO', FLASH: 'MZL', ALARM: 'LINK', GHOST: 'GHOST' };
-const TAG_ORDER = ['EYES', 'RADAR', 'THERMAL', 'PASSIVE', 'FLASH', 'SOUND', 'ALARM', 'GHOST'];
+const TAGS = { EYES: 'EO', RADAR: 'RDR', PASSIVE: 'ESM', THERMAL: 'IR', SOUND: 'ACO', FLASH: 'MZL', ALARM: 'LINK', GHOST: 'GHOST', SCAN: 'SHIP' }; // R19: SHIP = the pre-drop scan's blip
+const TAG_ORDER = ['EYES', 'RADAR', 'THERMAL', 'PASSIVE', 'FLASH', 'SOUND', 'ALARM', 'GHOST', 'SCAN'];
 export function sensorTags(c): { t: string; win: boolean; noise: boolean; none?: boolean }[] {
   const seen = c.seen || {}, out = [];
   for (const s of TAG_ORDER) {
@@ -113,6 +114,20 @@ function shield(x: number, y: number, s: number, col: string) {
   ctx.quadraticCurveTo(x + s * 0.75, y + s * 0.7, x, y + s); ctx.quadraticCurveTo(x - s * 0.75, y + s * 0.7, x - s * 0.8, y - s * 0.1); ctx.closePath();
   ctx.fillStyle = 'rgba(20,20,10,0.85)'; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = s * 0.28; ctx.stroke();
   ctx.beginPath(); ctx.moveTo(x, y - s * 0.6); ctx.lineTo(x, y + s * 0.55); ctx.stroke();
+}
+// R19: a zone the scan placed but couldn't name (SHORT): a grey dashed outline and "ZONE ?"
+function zoneOutline(zn, z: number) {
+  ctx.fillStyle = 'rgba(200,200,200,0.08)'; ctx.beginPath(); for (const t of zn.tiles) ctx.rect(t.x * T, t.y * T, T, T); ctx.fill();
+  ctx.strokeStyle = 'rgba(200,200,200,0.55)'; ctx.lineWidth = 2 / z; ctx.setLineDash([6 / z, 5 / z]); ctx.beginPath();
+  for (const t of zn.tiles) {
+    const x = t.x * T, y = t.y * T, me = (a: number, b: number) => zoneAtTile(a, b) === zn;
+    if (!me(t.x, t.y - 1)) { ctx.moveTo(x, y); ctx.lineTo(x + T, y); }
+    if (!me(t.x, t.y + 1)) { ctx.moveTo(x, y + T); ctx.lineTo(x + T, y + T); }
+    if (!me(t.x - 1, t.y)) { ctx.moveTo(x, y); ctx.lineTo(x, y + T); }
+    if (!me(t.x + 1, t.y)) { ctx.moveTo(x + T, y); ctx.lineTo(x + T, y + T); }
+  }
+  ctx.stroke(); ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(220,220,220,0.75)'; ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText('ZONE ?', (zn.x - 1.5) * T, (zn.y + 0.5) * T + 4 / z);
 }
 // R14: the contact's name on the map
 export function contactLabel(c) {
@@ -173,7 +188,9 @@ export function render() {
   ctx.fillStyle = 'rgba(60,200,90,0.25)'; ctx.fillRect((W - TUNE.EXTRACT_COLS) * T, 0, TUNE.EXTRACT_COLS * T, H * T);
   // R10: signal terrain (always known: it's terrain, not intel). QUIET = cool blue, dotted edge;
   // NOISE = amber, diagonal hatching + dashed edge. Faint, under everything else.
-  for (const zn of G.zones || []) {
+  const zk = zoneKnow(); // R19: what the scan told you: 0 nothing, 1 grey outlines (type unknown), 2 the zones as before
+  for (const zn of zk ? G.zones || [] : []) {
+    if (zk < 2) { zoneOutline(zn, z); continue; }
     const q = zn.type === 'QUIET';
     ctx.fillStyle = q ? 'rgba(90,150,255,0.24)' : 'rgba(255,200,70,0.12)';
     ctx.beginPath(); for (const t of zn.tiles) ctx.rect(t.x * T, t.y * T, T, T); ctx.fill();
@@ -426,7 +443,7 @@ export function render() {
   const labels: { c: any; x: number; y: number; a: number; lines: { t: string; col: string; font: string; h: number }[]; tags: { t: string; win: boolean; noise: boolean; none?: boolean }[]; old: boolean }[] = [];
   for (const c of G.pc) {
     if (!c.on) continue;
-    const lost = c.lost > c.gap, a = 1 - Math.max(0, c.lost - c.gap) / TUNE.CONTACT_LINGER, x = cx(c), y = cy(c);
+    const lost = c.lost > c.gap, a = 1 - Math.max(0, c.lost - c.gap) / (TUNE.CONTACT_LINGER + (c.keep || 0)), x = cx(c), y = cy(c); // R19: a ship's blip fades over its longer linger
     ctx.globalAlpha = Math.max(frozen(c.id) ? 0.55 : 0.1, a); // R14: a frozen (ID'd static) track stays readable
     ctx.strokeStyle = ctx.fillStyle = lost ? '#f90' : '#f33';
     ctx.lineWidth = 2 / z;

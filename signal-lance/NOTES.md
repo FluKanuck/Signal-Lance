@@ -915,6 +915,33 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      FIRE_UNC 1.2 (firm lock: past eyes it needs its thermal sight). BOUNTY 70. TELL "very loud shot, from far off" (its
      shot reads "loud" like the sentry's, so sound alone doesn't tell them apart). gun.falloff is new on GunStats. Every
      turret slot now rolls 1 in 4 (was 1 in 3), so fewer of the tough gun turrets: the runner's wins rose.
+   R19 (Listen before you land) ASSUMPTIONS, checkpoint 1 (the reveal ladder)
+   - Jamie (build chat): the hangar comes after hunt 1's scan, then the fits lock for the contract (relockLoads; hunts 2+ go
+     job → scan → drop). The start screen's hangar still sets the fits a contract starts with.
+   - The field is placed in rollEnemy (placeField, same RNG point as before) whenever SCAN_ENABLED, so the ship can hear it;
+     newHunt only places it when nothing did. Every unit starts ≥ UPLINK_MIN_DIST from EVERY drop zone, and so does the
+     objective; zones keep ZONE_SPAWN_CLEAR from every drop zone. Ambush turrets still face the west spawn.
+   - Drop zones (block maps only; the hive keeps one spawn): the west edge spawn, then an apron SPAWN_APRON turned to lie along
+     the north edge (9 wide × 4 deep), then the south edge, each where the most street opens within SPAWN_LOOK steps near
+     DROP_X, and only where it touches a street the lance can already reach. DROP_ZONES 3 = all three (at most 3). The aprons
+     are cleared whenever the scan is on, so a seed's map is the same at every listen level (but differs from R18's).
+   - The listen is once per job. The same job rolled again (previewed, then taken) keeps its listen and drop (G.scan keyed by
+     seed + mission); PLAY SEED and a new job start fresh. The log line carries "listen LONG drop 2" and PLAY SEED replays it.
+   - LONG blips are emitters only (radio or radar): a silent unit gives the ship nothing (the roster still counts it). Simplest
+     reading of "each field unit" that fits the sensor model (Jamie R18: what doesn't emit matters as much as what does).
+   - The ship's read uses the hunt's own trait words (ids.ts): radio = EMIT low; radar = EMIT high and a pulse rhythm (two
+     pulses before round 1); a patrol "moved"; a static watched SCAN_STILL_ACTS (4) rounds = "still". So emplacements and the
+     gun turret come out sure, patrols 1 of 3. The best guess is one of the matching variants (scan's own RNG): wrong when
+     more than one fits. It is shown as "line? 1 of 3"; no ID is committed for you.
+   - Blips use their own RNG (seed ^ 0x5CA9), so listening never moves the hunt's rolls. At the drop every patrol drifts to a
+     random free tile within SCAN_DRIFT (4) tiles, never within UPLINK_MIN_DIST of where you landed (every listen level, so
+     the same field lands). A blip becomes a stale contact (orange, tag SHIP) at its scan position with the ship's notes in
+     G.obs; it lingers SCAN_BLIP_KEEP (30) s of sim time on top of CONTACT_LINGER; a real fix replaces it (normal linger).
+   - Zones are view knowledge now: SKIP shows none (the rules still apply), SHORT grey outlines ("ZONE ?"), MEDIUM+ as before.
+     The INTEL, the tooltips and the map follow it. Hand-placed test-bed scenarios still show every zone.
+   - Runner: --listen N [--drop N|auto] (auto = the offered drop zone nearest the objective). The scripted lance never lobs at or
+     chases a SHIP-only contact (it lobbed its shells at stale blips on turn 1); it does read blips for Escort legs.
+     With SCAN_ENABLED false the runner is byte-identical to R18 (60 contracts). The rule tests start hunts with the scan off.
 ```
 
 ## TWEAK LOG
@@ -1401,4 +1428,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round18 wrap | last change (OVERLOAD_EN_PER_TILE 0.5, r18-s4): "Helped". Read-and-connect check: "My build showed up". Biggest
            missing: "A sense of ownership and progression". Round 18 moved to the splash HISTORY. Runner 60 contracts: hunt wins
            54%; sweep (40 each): wisp 21%, warden 39%, bulwark 75%; Cold-burn 51% / Hot core 51%. BUILD r18-s13 | -
+   round19 build chat (Jamie) | "Build after hunt 1's scan" (the hangar after the scan, then the fits lock); RWR "heard moving" =
+           heard on a tile you have since left (radar only pulses on its own turn) | decisions | -
+   round19 cp1 (r19-s1) | the reveal ladder | NEW SCAN_ENABLED true, SCAN_BLIP_UNC 3, SCAN_BLIP_KEEP 30, SCAN_DRIFT 4,
+           SCAN_STILL_ACTS 4, DROP_ZONES 3, DROP_X N 0.35 / S 0.55. Runner 60 contracts (no costs yet; --drop auto):
+           SKIP 15, SHORT 15, MEDIUM 23, LONG 19 complete. BUILD r19-s1 | -
 ```

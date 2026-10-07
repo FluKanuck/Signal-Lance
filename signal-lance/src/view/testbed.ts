@@ -1,7 +1,9 @@
 // Round 14 part 0: the TEST BED screens. List (current round first) → one hunt → tap question → RETRY / BACK.
 // A scenario hunt never touches a contract; it logs one [TESTBED <name>] line with the tap answer.
 import { G } from '../sim/state.ts';
-import { scenarioList, startScenario, leaveScenario } from '../sim/scenarios.ts';
+import { scenarioList, startScenario, leaveScenario, launchJobScenario } from '../sim/scenarios.ts';
+import { showScan } from './scan.ts';
+import { LISTEN } from '../sim/scan.ts';
 import { V } from './state.ts';
 import { $, fmtTime } from './hud.ts';
 import { killText, dmgSummary, loadSummary, logLine, showLoadout } from './screens.ts';
@@ -17,7 +19,11 @@ export function showTestBed() {
 }
 function play(s) {
   $('tb').hidden = $('tbres').hidden = true;
+  if (s.job) { startScenario(s, false); showScan('TEST BED · ' + s.name + ' · listen forced: ' + LISTEN[s.job.listen], () => { launchJobScenario(); camera(); }, 'DROP', s.job.listen); return; } // R19
   startScenario(s);
+  camera();
+}
+function camera() {
   V.follow = true; V.camX = G.p.x; V.camY = G.p.y; V.ghostArm = V.faceArm = V.mortarArm = false; V.hitFlash = 0;
 }
 // hooks.end while G.tb is set

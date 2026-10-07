@@ -22,7 +22,7 @@ export function showCard(from = '') {
     return '<div class="cv"><b class="n">' + esc(k) + '</b> <span class="t">' + (TUNE.BOUNTY[k] || 0) + ' cr</span><br>' + V.TRAITS.map(esc).join('<br>') + '<br><span class="t">' + esc(V.TELL) + '</span><br><span class="f">' + esc(V.FIGHT) + '</span></div>'; });
   $('card').hidden = false; $('card').scrollTop = 0;
 }
-function closeCard() { $('card').hidden = true; if (back === 'idp') showPicker(); }
+function closeCard() { $('card').hidden = true; if (back === 'idp') showPicker(); if (back === 'scan') $('scan').hidden = false; } // R19: back to the scan screen
 
 // ID picker for the selected contact (only before eyes: a seen contact already shows its variant)
 export function idTarget() { const c = G.sel; return G.mode === 'hunt' && c && c.on && !revealed(c.id) ? c : null; }

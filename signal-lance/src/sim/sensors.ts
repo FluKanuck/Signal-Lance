@@ -87,7 +87,7 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, 
     if ((list === G.pc && frozen(id)) || (src !== 'SOUND' && src !== 'ALARM' && src !== 'GHOST')) c.lost = Math.min(c.lost, c.gap);
     return c;
   }
-  c.fresh = false;
+  c.fresh = false; c.keep = 0; // R19: a real fix replaces a ship's blip (normal linger from now on)
   c.src = src; c.walls = 0; c.q = q; c.noisy = noisy; // R18 fix list 10: trust, and whether NOISE is still blurring it // R18 fix list 6: which sense holds the latest fix (radarFix adds the walls it went through)
   c.snd = src === 'SOUND'; // R13: true while the latest fix is sound only (never a lock; "SOUND" label)
   c.shr = src === 'ALARM';  // R13 s2: true while the latest fix is a shared alarm contact (never a lock)
@@ -109,7 +109,7 @@ export function ageContacts(list, dt) {
     const hold = list === G.pc && frozen(c.id); // R14: an ID'd static: the track freezes (no growth, no fading)
     if (hold) continue;
     if (!TUNE.UNC_GROW_OWN_TURN || !mine || actor === mine) c.unc += TUNE.UNC_GROW * T * dt;
-    if (c.lost - c.gap > TUNE.CONTACT_LINGER) { c.on = false; if (G.sel === c) G.sel = null; }
+    if (c.lost - c.gap > TUNE.CONTACT_LINGER + (c.keep || 0)) { c.on = false; if (G.sel === c) G.sel = null; }
   }
 }
 export function cx(c) { return c.tx; }

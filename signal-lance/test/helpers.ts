@@ -9,9 +9,10 @@ export const LOAD_A = { ...LOAD, mortar: 1 };
 
 // A fresh hunt from a seed (optionally forcing a composition by NAME). Leaves the first activation started.
 // R16: map = 'hive' (default: the rule tests use the fixed map's geometry) or 'blocks' (a rolled district).
-export function startHunt(seed = 1, comp?: string, map = 'hive', mission = 'UPLINK') {
-  const mode = TUNE.MAP_MODE; TUNE.MAP_MODE = map;
-  try { rollEnemy(seed, comp, mission); } finally { TUNE.MAP_MODE = mode; }
+// R19: the rule tests keep the R18 field (no pre-drop scan: no drift, no drop aprons); scan = true turns it on (scan tests).
+export function startHunt(seed = 1, comp?: string, map = 'hive', mission = 'UPLINK', scan = false) {
+  const mode = TUNE.MAP_MODE, sc = TUNE.SCAN_ENABLED; TUNE.MAP_MODE = map; TUNE.SCAN_ENABLED = scan;
+  try { rollEnemy(seed, comp, mission); } finally { TUNE.MAP_MODE = mode; TUNE.SCAN_ENABLED = sc; }
   newHunt([{ ...LOAD_A }, { ...LOAD }]);
   return G;
 }

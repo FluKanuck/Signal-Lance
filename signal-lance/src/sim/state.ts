@@ -1,5 +1,6 @@
 import { TUNE } from '../tune.ts';
-import { W, H, T, spawnX, spawnY, canReach, isSolid, DX, DY, tilesCrossed, anchors, loadMap, HIVE } from './world.ts';
+import { W, H, T, spawnX, spawnY, canReach, isSolid, DX, DY, tilesCrossed, anchors, loadMap, HIVE, setSpawn } from './world.ts';
+import { addDropZones, dropPts, freshScan, applyScan } from './scan.ts';
 import { rollDistrict } from './blocks.ts';
 import { rand, setSeed } from './rng.ts';
 import { startRound } from './turns.ts';
@@ -118,7 +119,7 @@ export function fieldCount(C, type: string) {
 // tile next to a building with clear LOS to the point. Patrols: anywhere reachable. Nothing within
 // UPLINK_MIN_DIST of the player, never in extraction, never two on one tile.
 function tileFree(x, y, taken) { return !taken.some(t => t.x === x && t.y === y); }
-function farFromPlayer(x, y) { return Math.hypot(x - spawnX, y - spawnY) >= TUNE.UPLINK_MIN_DIST; }
+function farFromPlayer(x, y) { return dropPts().every(d => Math.hypot(x - d.x, y - d.y) >= TUNE.UPLINK_MIN_DIST); } // R19: from every drop zone (the scan shows the field before you pick one)
 // B spawns on the nearest reachable tile next to A (8 neighbours, then a ring further out).
 function nextTo(x, y) {
   for (let r = 1; r <= 3; r++) for (let oy = -r; oy <= r; oy++) for (let ox = -r; ox <= r; ox++)
@@ -168,22 +169,11 @@ export function rollVariant(type: string) {
   const keys = Object.keys(TUNE.FIELD_VARIANTS).filter(k => TUNE.FIELD_VARIANTS[k].TYPE === type), r = rand();
   return TUNE.VARIANTS_ENABLED ? keys[Math.floor(r * keys.length)] : TUNE.FIELD_VARIANT_DEFAULT[type];
 }
-// R7 s2: loads = [A's loadout, B's loadout] (one loadout = both mechs the same). R18: each is a fit (kit.ts).
-// R11: prep (optional) runs after the lance and field are built, before round 1 (the contract's carry-over).
-export function newHunt(loads?, prep?: () => void) {
-  if (loads && !Array.isArray(loads)) loads = [loads, loads];
-  if (!loads) loads = G.lance.length ? G.lance.map(m => m.fit) : [DEFAULT_FIT, DEFAULT_FIT];
-  loads = loads.map(toFit); // R18: old load numbers still work (runner, tests)
-  const A = makeMech('A', loads[0]), B = makeMech('B', loads[1]), b = nextTo(spawnX, spawnY);
-  A.x = (spawnX + 0.5) * T; A.y = (spawnY + 0.5) * T;
-  B.x = (b.x + 0.5) * T; B.y = (b.y + 0.5) * T;
-  G.lance = [A, B]; setActive(A);
-  G.ghost.on = false; G.ghost.owner = null;
-  for (const bb of G.pb) bb.on = false;
-  // R7: build and place the field (seeded: same seed, same positions)
-  const U = G.up; U.prog = 0; U.used = false; G.winBy = '';
+// R7: build and place the field (seeded: same seed, same positions). R19: its own step, so rollEnemy can run it before the
+// scan (the field must exist for the ship to hear it); newHunt runs it only when nothing placed it yet.
+export function placeField() {
+  const U = G.up;
   G.units = []; G.kills = 0; G.ei = 0;
-  G.ally = null;
   const taken = [];
   const legT = G.mtype === 'ESCORT' ? nearLegTiles() : null; // R15 s3: an Escort field waits near the route legs
   let i = 0;
@@ -213,6 +203,29 @@ export function newHunt(loads?, prep?: () => void) {
     if (has(u, 'RADAR')) u.pulseCD = u.pulseN;
     G.units.push(u);
   }
+}
+// R19: a free tile for an added unit (extra units, the ambush): reachable, out of extraction, off every other unit
+export function freeTile(x: number, y: number) { return canReach(x, y) && x < W - TUNE.EXTRACT_COLS && !G.units.some(u => Math.floor(u.x / T) === x && Math.floor(u.y / T) === y); }
+export { anyTile };
+// R7 s2: loads = [A's loadout, B's loadout] (one loadout = both mechs the same). R18: each is a fit (kit.ts).
+// R11: prep (optional) runs after the lance and field are built, before round 1 (the contract's carry-over).
+export function newHunt(loads?, prep?: () => void) {
+  if (loads && !Array.isArray(loads)) loads = [loads, loads];
+  if (!loads) loads = G.lance.length ? G.lance.map(m => m.fit) : [DEFAULT_FIT, DEFAULT_FIT];
+  loads = loads.map(toFit); // R18: old load numbers still work (runner, tests)
+  const D = G.scan && G.drops && G.drops[G.scan.drop]; // R19: land on the drop zone the scan picked (MEDIUM+)
+  if (D && (D.x !== spawnX || D.y !== spawnY)) setSpawn(D.x, D.y);
+  const A = makeMech('A', loads[0]), B = makeMech('B', loads[1]), b = nextTo(spawnX, spawnY);
+  A.x = (spawnX + 0.5) * T; A.y = (spawnY + 0.5) * T;
+  B.x = (b.x + 0.5) * T; B.y = (b.y + 0.5) * T;
+  G.lance = [A, B]; setActive(A);
+  G.ghost.on = false; G.ghost.owner = null;
+  for (const bb of G.pb) bb.on = false;
+  // R7: build and place the field (seeded: same seed, same positions)
+  const U = G.up; U.prog = 0; U.used = false; G.winBy = '';
+  G.ally = null;
+  if (!G.fieldReady) placeField(); // R19: with the scan on, rollEnemy placed it already (the scan shows it before you land)
+  G.fieldReady = false; G.kills = 0; G.ei = 0;
   newMission(G.mtype); G.pop = null; // R15
   if (G.mtype === 'ESCORT') G.ally = makeAlly(); // R15 s3: the transport starts on the route's first node
   for (const c of G.pc) c.on = false;
@@ -225,6 +238,7 @@ export function newHunt(loads?, prep?: () => void) {
   G.moveStat = { n: 0, c: 0, tap: 0, drawn: 0, wp: 0, intr: [] }; // R16; R17
   G.shotLog = []; G.partLog = []; G.firstLog = []; G.alarmLog = []; G.emitStat = { P: { n: 0, sum: 0 }, E: { n: 0, sum: 0 } }; G.lastShot = { P: null, E: null };
   G.mode = 'hunt';
+  if (G.scan) applyScan(); // R19: what the ship heard (stale blips, notes), the patrols' drift and the listen's costs
   if (prep) prep();
   startRound();
 }
@@ -237,9 +251,10 @@ export function newHunt(loads?, prep?: () => void) {
 export function rollEnemy(seed: number, force?: string, mtype = 'UPLINK') {
   setSeed(seed); G.seed = seed; G.mtype = mtype;
   if (TUNE.MAP_MODE === 'blocks') rollDistrict(seed, undefined, mtype === 'ESCORT'); else loadMap(HIVE); // R16: only an Escort needs a convoy route // R16: the hunt's district first (same seed, same map)
+  addDropZones(); // R19: the drop zones (G.drops; the west edge spawn only, with the scan off)
   const X = anchors(), site = X.waypoints[X.escortSite];
   const A = mtype === 'ESCORT' ? [site] : mtype === 'RETRIEVE' && X.cargo.length ? X.cargo : X.uplinks; // R15 s3: Escort's site = the centre fork // R15: from the per-map anchors table (cargo reuses the uplink tiles while its list is empty)
-  let c = A.filter(u => canReach(u.x, u.y) && Math.hypot(u.x - spawnX, u.y - spawnY) >= TUNE.UPLINK_MIN_DIST);
+  let c = A.filter(u => canReach(u.x, u.y) && dropPts().every(d => Math.hypot(u.x - d.x, u.y - d.y) >= TUNE.UPLINK_MIN_DIST)); // R19: far from every drop zone
   if (!c.length) c = A;
   const u = c[Math.floor(rand() * c.length)];
   G.up.x = (u.x + 0.5) * T; G.up.y = (u.y + 0.5) * T; G.up.name = u.name;
@@ -249,6 +264,9 @@ export function rollEnemy(seed: number, force?: string, mtype = 'UPLINK') {
   if (force) pick = P.find(c => c.NAME.toLowerCase() === force.toLowerCase()) || pick;
   G.comp = pick;
   rollZones(); // R10: then the signal terrain (named in INTEL, so it's rolled before the loadout)
+  G.fieldReady = false;
+  if (TUNE.SCAN_ENABLED) { placeField(); G.fieldReady = true; freshScan(seed, mtype); } // R19: the field is out there before the ship listens
+  else G.scan = null;
 }
 // Loadout screen open: back to 'loadout' and roll the next setup.
 export function enterLoadout(seed: number, force?: string) { G.mode = 'loadout'; G.ally = null; rollEnemy(seed, force); } // R18 fix: an Escort transport from a quit hunt pointed at the old map's route legs // R8: force = the view's shuffled-set pick

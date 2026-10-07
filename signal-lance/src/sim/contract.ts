@@ -49,6 +49,14 @@ export function newContract(seed: number, loads, hunts = TUNE.CONTRACT_HUNTS) {
   };
   rollJobs();
 }
+// R19 (Jamie: build after hunt 1's scan): before hunt 1 starts, the hangar may change the fits; they lock from here on.
+// Does nothing once a hunt has been played (the fits are locked).
+export function relockLoads(loads) {
+  const C = G.ct; if (!C || C.results.length) return false;
+  loads = loads.map(toFit); C.loads = loads.map(l => structuredClone(l)); C.carry = { A: fresh(loads[0]), B: fresh(loads[1]) };
+  return true;
+}
+export function fitsOpen() { return !!G.ct && G.ct.status === 'ACTIVE' && !G.ct.results.length; } // R19: hunt 1 not played yet
 // Roll the next hunt's 2 jobs: different compositions (by weight, from the playtest pool if it has 2+ names), own seeds.
 export function rollJobs() {
   const C = G.ct; C.hunt++;

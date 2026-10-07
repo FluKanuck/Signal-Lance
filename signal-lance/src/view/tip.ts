@@ -6,6 +6,7 @@ import { G } from '../sim/state.ts';
 import { T, W, H, MAP, isSolid, isClutter, canReach, solid } from '../sim/world.ts';
 import { cx, cy } from '../sim/sensors.ts';
 import { zoneAtTile } from '../sim/zones.ts';
+import { zoneKnow } from '../sim/scan.ts';
 import { partsRead } from '../sim/combat.ts';
 import { isType, carrier } from '../sim/mission.ts';
 import { forksAhead, allyNextStop } from '../sim/escort.ts';
@@ -44,7 +45,7 @@ export function tipAt(wx: number, wy: number): [string, string[]] | null {
 }
 function groundAt(tx: number, ty: number): [string, string[]] | null {
   if (tx < 0 || ty < 0 || tx >= W || ty >= H) return null;
-  const out: string[] = [], zn = zoneAtTile(tx, ty);
+  const out: string[] = [], zn = zoneKnow() >= 2 ? zoneAtTile(tx, ty) : null; // R19: only zones the scan named
   if (zn && zn.type === 'QUIET') out.push('QUIET ground (' + zn.name + '): anything standing here is read at ' + Math.round(TUNE.ZONE_TYPES.QUIET.SIG_MULT * 100) + '% of its EMIT and sound.');
   if (zn && zn.type === 'NOISE') out.push('NOISE zone (' + zn.name + '): radio fixes on anything here are blurred (×' + TUNE.ZONE_TYPES.NOISE.UNC_MULT + ', at least ±' + TUNE.ZONE_TYPES.NOISE.UNC_FLOOR + '). Eyes and radar still work.');
   const ext = tx >= W - TUNE.EXTRACT_COLS;

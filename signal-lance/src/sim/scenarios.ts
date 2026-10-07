@@ -6,7 +6,8 @@ import { T, loadMap, HIVE } from './world.ts';
 import { buildDistrict, type DistrictSpec } from './blocks.ts';
 import { rollPacked } from './packed.ts';
 import { setSeed } from './rng.ts';
-import { G, newHunt, makeUnit, setActive } from './state.ts';
+import { G, newHunt, makeUnit, setActive, rollEnemy } from './state.ts';
+import { listen } from './scan.ts';
 import { LOAD_DEFAULTS, fitFromLoad, has, makeFit, HANGAR_TEMPLATES } from './kit.ts';
 import { setZones, zoneAtTile } from './zones.ts';
 import { syncHits } from './combat.ts';
@@ -28,6 +29,7 @@ export type Scenario = {
   earned?: number | 'quota';             // R15 Bounty: credits already banked at the start ('quota' = exactly BOUNTY_QUOTA)
   map?: DistrictSpec;                    // R16: a fixed block district (no roll); none = the hive map
   packed?: { seed: number; grid: string }; // R17 (parked #65): a packed district rolled from this seed and grid (the same map every time)
+  job?: { seed: number; comp: string; listen: number }; // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen
 };
 
 // R16 test-bed districts (fixed: no roll, no rotation). cells are row-major block names.
@@ -42,6 +44,20 @@ const D1701 = { seed: 1701, grid: '4x2' };
 export const WARM_FIT = () => makeFit('warden', [['MAST', 'emarray'], ['MAST', 'mask'], ['ARMS', 'autocannon'], ['CORE', 'hotcore'], ['CORE', 'ghost']], ['CORE']);
 export const HEAVY_FIT = () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery'], ['BACK', 'mortar']], ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS']);
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 19 (listen before you land): a real rolled job on seed 1909 (4×2 packed district, Mixed field: a silent sentry, a
+  // fire-control emplacement, two patrols), through the scan screen with the dial forced. Same seed both times. ----
+  {
+    name: 'Long listen', round: 19, seed: 1909, mission: 'UPLINK', job: { seed: 1909, comp: 'Mixed', listen: 3 },
+    tryThis: 'The ship listens LONG: the roster, the zones, three drop zones and blips for everything that emits. Read the map, pick where to land, then take the uplink. Then try Quiet drop: the same job with no scan.',
+    uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
+    question: { q: 'Did what you heard change where you landed?', a: ['Yes, I picked another drop zone', 'Yes, it changed my route', 'No, I’d have done the same', 'Not sure'] },
+  },
+  {
+    name: 'Quiet drop', round: 19, seed: 1909, mission: 'UPLINK', job: { seed: 1909, comp: 'Mixed', listen: 0 },
+    tryThis: 'The same job as Long listen, but the ship skips the scan: no roster, no zones, no blips, and you land on the west edge. Take the uplink.',
+    uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
+    question: { q: 'Did you miss the intel?', a: ['Yes, I felt blind', 'A little', 'No, I managed fine', 'Not sure'] },
+  },
   // ---- Round 18 (fit for the job). Pack off. Same packed district as R17. ----
   {
     name: 'Heavy load', round: 18, seed: 1801, mission: 'UPLINK', packed: D1701,
@@ -272,9 +288,17 @@ const ctr = (t: Tile) => ({ x: (t[0] + 0.5) * T, y: (t[1] + 0.5) * T });
 function face(u, t: Tile | undefined, dflt) { const p = t ? ctr(t) : dflt, dx = p.x - u.x, dy = p.y - u.y, d = Math.hypot(dx, dy); if (d > 0) { u.fx = dx / d; u.fy = dy / d; } }
 
 // Start scenario s as one hunt. Same seed = same hunt (RETRY). Leaves G.tb = the scenario (the view and the log read it).
-export function startScenario(s: Scenario) {
+export function startScenario(s: Scenario, launch = true) {
   applyTune(s.tune);
   G.ct = null; // never inside a contract
+  G.scan = null; G.drops = null; G.fieldReady = false; // R19: no pre-drop scan, one spawn
+  if (s.job) { // R19: a rolled job through the scan (the view shows the scan screen and launches it; the runner / tests go straight on)
+    const m = TUNE.MAP_MODE, sc = TUNE.SCAN_ENABLED; TUNE.MAP_MODE = 'blocks'; TUNE.SCAN_ENABLED = true;
+    try { rollEnemy(s.job.seed, s.job.comp, s.mission || 'UPLINK'); } finally { TUNE.MAP_MODE = m; TUNE.SCAN_ENABLED = sc; }
+    listen(s.job.listen); G.tb = s;
+    if (launch) launchJobScenario();
+    return;
+  }
   setSeed(s.seed); G.seed = s.seed;
   if (s.packed) { setSeed(s.packed.seed); rollPacked(s.packed.seed, s.packed.grid, s.mission === 'ESCORT'); setSeed(s.seed); } // R17: same seed, same district
   else if (s.map) { if (!buildDistrict(s.map)) throw new Error('scenario ' + s.name + ': district not reachable'); } else loadMap(HIVE); // R16
@@ -304,5 +328,7 @@ export function startScenario(s: Scenario) {
   });
   G.tb = s;
 }
+// R19: drop into a job scenario (after its scan); the lance from the scenario's fits
+export function launchJobScenario() { const s = G.tb; newHunt(s.lance.map(l => HANGAR_TEMPLATES.find(t => t.id === l.fit).fit())); G.tb = s; }
 // The test bed is over (BACK): forget the scenario and put TUNE back.
 export function leaveScenario() { G.tb = null; restoreTune(); }

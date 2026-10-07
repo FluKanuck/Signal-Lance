@@ -19,9 +19,12 @@ import { buildHangar, renderHangar, currentFits, hangarBlock } from './hangar.ts
 import { foundLines, foundText } from '../sim/found.ts';
 import { fitHasGun, fitHasMortar } from '../sim/contract.ts';
 import { frameOf } from '../sim/fit.ts';
+import { relockLoads, fitsOpen } from '../sim/contract.ts';
+import { LISTEN, listen, chooseDrop, zoneKnow, offeredDrops } from '../sim/scan.ts';
+import { showScan } from './scan.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r18-s13';  // R18 wrap: Round 18 on the splash round history. r18-s12: R18 fix list 17: a thermal look with no heat marks the contact (struck IR tag, 'no heat at N' trait). r18-s11: R18 fix list 14-16: cover shield, NEW BUILD works on iPad, NOISE never moves a passive centre. r18-s10: R18 fix list 11-13: vague fixes keep good tracks, blind lob scales with range, EO/ESM/ACO/MZL tags + suit letters. r18-s9: R18 fix list 10: passive fixes = best fit of every bearing, weighted by trust; trusted crossings beat NOISE. r18-s8: R18 fix list 5-9: stacked contact labels, sensor tags, cover pieces by kind, interrupt only on new contacts, PLAY SEED + seed in the log. r18-s7: R18 fix list 1-4: clear hangar highlight, autoscale to the window (iPad split screen), top buffer, sheet acts on touch; new-build check; quit-Escort crash. r18-s6: R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
+export const BUILD = 'r19-s1';  // r19-s1: R19 checkpoint 1: the pre-drop scan (listen dial, roster, zones, drop zones, blips), hunt 1 builds after its scan. r18-s13: R18 wrap: Round 18 on the splash round history. r18-s12: R18 fix list 17: a thermal look with no heat marks the contact (struck IR tag, 'no heat at N' trait). r18-s11: R18 fix list 14-16: cover shield, NEW BUILD works on iPad, NOISE never moves a passive centre. r18-s10: R18 fix list 11-13: vague fixes keep good tracks, blind lob scales with range, EO/ESM/ACO/MZL tags + suit letters. r18-s9: R18 fix list 10: passive fixes = best fit of every bearing, weighted by trust; trusted crossings beat NOISE. r18-s8: R18 fix list 5-9: stacked contact labels, sensor tags, cover pieces by kind, interrupt only on new contacts, PLAY SEED + seed in the log. r18-s7: R18 fix list 1-4: clear hangar highlight, autoscale to the window (iPad split screen), top buffer, sheet acts on touch; new-build check; quit-Escort crash. r18-s6: R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
 declare const __BUILT__: string;
 declare const __MARK__: string;
 // R18 fix (Jamie's iPad kept an old build): fetch the published page fresh; if its build stamp differs, offer a reload.
@@ -100,6 +103,7 @@ export function listenIntel(C) {
 // R10: " Quiet ground: rail cut (NW). Noise: sump (S), SE apron."
 function zoneIntel() {
   let s = '';
+  if (zoneKnow() < 2) return zoneKnow() ? ' Zones: ' + G.zones.length + ' heard, type unknown.' : ''; // R19: the scan tells you the zones
   for (const k of ['QUIET', 'NOISE']) { const zs = G.zones.filter(z => z.type === k); if (zs.length) s += ' ' + TUNE.ZONE_TYPES[k].NAME + ': ' + zs.map(z => z.name).join(', ') + '.'; }
   return s;
 }
@@ -130,7 +134,7 @@ function showIntel() {
   $('intel').textContent = 'CONTRACT: ' + ctHunts() + (ctHunts() > 1 ? ' hunts, win ' + Math.min(TUNE.CONTRACT_WINS_NEEDED, ctHunts()) : ' hunt (quick test)') + '. Loadouts lock for the whole contract. Damage, rounds, shells and lost mechs carry over. Jobs are briefed after you start.';
 }
 export function showLoadout() {
-  G.replay = 0; // R18: a replayed hunt is over once you're back in the hangar
+  G.replay = 0; G.scan = null; preMode(false); // R19 // R18: a replayed hunt is over once you're back in the hangar
   enterLoadout((Math.random() * 4294967296) >>> 0); // R11: sets loadout mode; the jobs are rolled once the contract starts
   $('res').hidden = $('jobs').hidden = $('cres').hidden = true; $('load').hidden = false;
   showIntel();
@@ -219,11 +223,34 @@ export function showJobs() {
   for (let i = 0; i < 2; i++) { previewJob(i); const [job, intel] = intelText().split('\n'); $('j' + i).innerHTML = '<b style="color:#fc3">' + esc(job) + '</b><br>' + esc(intel); } // R15: the job type on top
   $('jobs').hidden = false; $('jobs').scrollTop = 0;
 }
+// R19: take job i → the pre-drop scan (with the scan on) → the hangar before hunt 1 (Jamie: build after hunt 1's scan, then the
+// fits lock) → the drop. Hunts 2+ go straight from the scan to the drop.
+let scanJob = 0;
 function pickJob(i) {
   $('jobs').hidden = true;
+  if (!TUNE.SCAN_ENABLED) { goJob(i); return; }
+  scanJob = i; G.scan = null; previewJob(i);
+  openScan();
+}
+function openScan() {
+  showScan('HUNT ' + G.ct.hunt + ' · ' + MISSION_INFO[G.mtype].name + ' · ' + (MAP.info.grid || '').replace('x', '×') + ' district', () => (fitsOpen() ? showPreHangar() : goJob(scanJob)), fitsOpen() ? 'TO THE HANGAR' : 'DROP');
+}
+function goJob(i) {
+  $('jobs').hidden = true; preMode(false); $('load').hidden = true;
   takeJob(i);
   V.follow = true; V.camX = G.p.x; V.camY = G.p.y; V.ghostArm = V.faceArm = V.mortarArm = false; V.hitFlash = 0;
 }
+// R19: the hangar as the last step before hunt 1: the fits are still open; LAUNCH locks them for the contract
+function preMode(on: boolean) { $('lpre').hidden = !on; $('lnorm').hidden = on; }
+function showPreHangar() {
+  preMode(true);
+  const [job, intel] = intelText().split('\n'), S = G.scan, D = offeredDrops()[S.drop] || offeredDrops()[0];
+  $('pintel').innerHTML = '<b style="color:#fc3">' + escH(job) + '</b><br>' + escH(intel) + '<br><b>Scan: ' + LISTEN[S.lvl] + ' · drop: ' + escH(D.name || 'west edge') + '</b><br>Build both ExoS for what you heard. The fits lock when you launch.';
+  $('load').hidden = false; renderHangar();
+}
+const escH = (t: string) => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
+$('bPreGo').addEventListener('click', () => { const w = hangarBlock(); if (w) { $('pintel').innerHTML += '<br><span class="badt">Can’t launch: ' + escH(w) + '.</span>'; return; } relockLoads(currentLoads()); goJob(scanJob); });
+$('bPreBack').addEventListener('click', () => { $('load').hidden = true; preMode(false); openScan(); });
 function showContractResult() {
   const C = G.ct;
   $('res').hidden = $('jobs').hidden = true;
@@ -239,7 +266,7 @@ export function quitToStart() {
   if (G.tb) { leaveScenario(); G.tb = null; }
   else if (G.mode === 'hunt') logLine(ctTag() + 'QUIT · ' + (G.comp ? G.comp.NAME : '') + ' · ' + seedText() + ' · round ' + G.turn + ' · ' + loadSummary());
   G.ct = null; G.act = null;
-  for (const id of ['res', 'jobs', 'cres', 'tb', 'tbres', 'card', 'idp', 'hsheet']) { const e = document.getElementById(id); if (e) e.hidden = true; }
+  for (const id of ['res', 'jobs', 'cres', 'tb', 'tbres', 'card', 'idp', 'hsheet', 'scan']) { const e = document.getElementById(id); if (e) e.hidden = true; }
   showLoadout();
 }
 // R14: one extra log line (the test bed's), stamped and tagged like a hunt's.
@@ -265,7 +292,7 @@ export function copyLog() {
 // every log line carries "seed N <MISSION>"; PLAY SEED takes a seed or a pasted log line and starts that same hunt (same
 // district, field, placements, job type) with the current fits, outside any contract. The RNG is seeded, so the same moves
 // replay the same hunt. The line's [PACK] / [NO-IR] / [HIVE] tags set those toggles for the replay.
-export function seedText() { return 'seed ' + G.seed + ' ' + G.mtype; }
+export function seedText() { return 'seed ' + G.seed + ' ' + G.mtype + (G.scan && G.scan.lvl >= 0 ? ' listen ' + LISTEN[G.scan.lvl] + ' drop ' + (G.scan.drop + 1) : ''); } // R19: the scan's choices replay too
 export function parseSeed(text: string) {
   const t = text.trim(), m = /seed (\d+)/.exec(t) || /^(\d+)$/.exec(t) || /\b(\d{6,})\b/.exec(t);
   if (!m) return null;
@@ -273,16 +300,20 @@ export function parseSeed(text: string) {
   const comp = TUNE.FIELD_COMPOSITIONS.map(c => c.NAME).find(n => has(n)); // none named = the seed's own roll
   const mission = [...TUNE.MISSION_TYPES, 'UPLINK'].find(k => has(k)) || 'UPLINK';
   const up = t.toUpperCase(), tags = /\[(PACK|NO-IR|HIVE)\]/.test(up);
-  return { seed: Number(m[1]) >>> 0, comp, mission, pack: up.includes('[PACK]'), noIr: up.includes('[NO-IR]'), hive: up.includes('[HIVE]'), line: /\|/.test(t) || tags };
+  const li = /LISTEN (SKIP|SHORT|MEDIUM|LONG)/.exec(up), dr = /DROP (\d)/.exec(up); // R19
+  return { seed: Number(m[1]) >>> 0, comp, mission, pack: up.includes('[PACK]'), noIr: up.includes('[NO-IR]'), hive: up.includes('[HIVE]'), line: /\|/.test(t) || tags,
+    listen: li ? LISTEN.indexOf(li[1]) : -1, drop: dr ? Number(dr[1]) - 1 : 0 };
 }
 function playSeed() {
   const P = parseSeed(($('seedIn') as HTMLInputElement).value);
   if (!P) { $('intel').textContent = 'PLAY SEED: type a seed number, or paste a log line with "seed N" in it.'; return; }
   const w = hangarBlock(); if (w) { $('intel').textContent = 'Can’t launch: ' + w + '.'; return; }
   if (P.line) { setPack(P.pack); TUNE.THERMAL_ENABLED = !P.noIr; TUNE.MAP_MODE = P.hive ? 'hive' : 'blocks'; showPack(); showHeat(); showMap(); }
-  G.ct = null; G.replay = P.seed;
+  G.ct = null; G.replay = P.seed; G.scan = null;
   rollEnemy(P.seed, P.comp, P.mission);
   $('load').hidden = true;
+  if (G.scan && P.listen >= 0) { listen(P.listen); chooseDrop(P.drop); } // R19: a log line replays its scan choices
+  else if (G.scan) { showScan('PLAY SEED ' + P.seed + ' · ' + P.mission, () => launch(), 'DROP'); return; } // a bare seed: listen again
   launch();
 }
 export function launch() {
