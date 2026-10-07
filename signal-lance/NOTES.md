@@ -1474,4 +1474,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            fixed at min(330 px, 42%), the map takes the rest and the full height, the reveal/risk text hides after listening, shorter
            blip line, blip labels stack with a dark backing. Now 844×390: hangar / jobs 0.92 (12 px), scan 1.0 (13 px); 667×375:
            0.85 everywhere (11 px). BUILD r19-s4 | -
+   round19 fix list 2 (Jamie: "ugly stretch on desktop on the sigint map") | r19-s4 sized the canvas before the panel zoom settled; max-width
+           then clamped its width but not its height | canvas height auto (aspect from its own pixels), re-sized two frames after
+           opening, drawn at the panel's zoom (sharp on big screens). BUILD r19-s5 | -
 ```

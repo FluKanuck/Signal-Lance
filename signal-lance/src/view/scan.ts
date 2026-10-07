@@ -29,6 +29,7 @@ export function showScan(title: string, go: () => void, label: string, force = -
   for (const id of ['load', 'jobs', 'res', 'tb', 'tbres']) $(id).hidden = true;
   $('scan').hidden = false; $('scan').scrollTop = 0;
   renderScan();
+  requestAnimationFrame(() => requestAnimationFrame(() => { if (!$('scan').hidden) drawMap(); })); // R19 fix: size the map again once the panel's scale has settled
 }
 export function renderScan() {
   const S = G.scan, done = S.lvl >= 0;
@@ -68,8 +69,8 @@ function drawMap() {
   const cv = $('scv') as HTMLCanvasElement, S = G.scan, dpr = Math.min(2, window.devicePixelRatio || 1);
   const box = cv.parentElement.getBoundingClientRect(), zm = parseFloat(($('scan').style as any).zoom || '1') || 1, maxH = Math.max(140, (window.innerHeight - 70) / zm); // R19 readability: the map takes the height it can
   const k = Math.max(2, Math.min(box.width / zm / W, maxH / H)); // CSS px per tile
-  cv.style.width = W * k + 'px'; cv.style.height = H * k + 'px'; cv.width = Math.round(W * k * dpr); cv.height = Math.round(H * k * dpr);
-  const c = cv.getContext('2d'), z = k / T; c.setTransform(dpr * z, 0, 0, dpr * z, 0, 0);
+  cv.style.width = W * k + 'px'; cv.style.height = 'auto'; cv.width = Math.round(W * k * dpr * zm); cv.height = Math.round(H * k * dpr * zm); // R19 fix: height follows the width (max-width can never stretch the map)
+  const c = cv.getContext('2d'), z = k / T; c.setTransform(dpr * zm * z, 0, 0, dpr * zm * z, 0, 0); // drawn at the panel's scale: sharp
   c.fillStyle = '#2c2d30'; c.fillRect(0, 0, W * T, H * T);
   c.fillStyle = '#4a4033'; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (clutter[y * W + x]) c.fillRect(x * T, y * T, T, T);
   c.fillStyle = 'rgba(60,200,90,0.3)'; c.fillRect((W - TUNE.EXTRACT_COLS) * T, 0, TUNE.EXTRACT_COLS * T, H * T);
