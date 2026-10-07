@@ -92,6 +92,14 @@ describe('the line', () => {
     expect(text).toContain('Opus 5.5 · medium')
     expect(text).toContain('47m $1.23')
   })
+  test('names from disk cannot inject terminal escapes', async () => {
+    const evil = { ...g, repo: 'x\x1b]0;pwned\x07y', branch: 'main\x1b[2J' }
+    const out = ansi(rows({ git: evil, usage: null, model: '', cwd: 'Q:/a\x1bb', now: NOW, columns: 120 }), 120)
+    // every escape left is one of our own colour codes (ESC [ digits ; m); the BEL is gone too
+    expect(out.replace(/\x1b\[[0-9;]*m/g, '')).not.toMatch(/[\x00-\x1f\x7f]/)
+    expect(out).not.toContain('\x1b[2J')
+    expect(out).toContain('x]0;pwnedy')
+  })
   test('neighbouring blocks never share a background', async () => {
     for (const row of at(120)) for (let i = 1; i < row.length; i++) expect(row[i]!.bg).not.toBe(row[i - 1]!.bg)
   })

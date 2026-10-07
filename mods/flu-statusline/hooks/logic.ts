@@ -244,12 +244,14 @@ export function ansi(rs: Block[][], columns: number): string {
   const bg = (h?: string) => (h ? `\x1b[48;2;${rgb(h)}m` : '\x1b[49m')
   const fg = (h: string) => `\x1b[38;2;${rgb(h)}m`
   const R = '\x1b[0m'
+  // folder and repo names come from disk: drop control characters so none can smuggle in escape sequences
+  const safe = (t: string) => t.replace(/[\u0000-\u001f\u007f-\u009f]/g, '')
   return rs.map(row => {
     // keep the row's own colour pair (row 1 can be first when there are no meters yet)
     const pair = row.some(b => b.bg === PAL.bg[2] || b.bg === PAL.bg[3]) ? 1 : 0
     const kept = shade(fit(row, columns), pair)
     return kept.map((b, i) =>
-      bg(b.bg) + ' ' + b.cells.map(c => fg(c.fg ?? PAL.fg) + (c.bold ? '\x1b[1m' : '') + c.text + '\x1b[22m').join('') + ' '
+      bg(b.bg) + ' ' + b.cells.map(c => fg(c.fg ?? PAL.fg) + (c.bold ? '\x1b[1m' : '') + safe(c.text) + '\x1b[22m').join('') + ' '
       + fg(b.bg) + bg(kept[i + 1]?.bg) + G.sep,
     ).join('') + R
   }).join('\n')
