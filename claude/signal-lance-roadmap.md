@@ -1,6 +1,6 @@
 # Signal Lance Roadmap
 
-**Updated:** 2026-10-06 after Round 17 (Eyes on the street: drawn routes, look markers, interrupt; "moving became part of the hunt"; no fun test, by slice design). The full map of the game lives in `claude/signal-lance-game-shape.md`.
+**Updated:** 2026-10-07 after Round 18 (Fit for the job: hangar in the hunt, power, weight, BACK, THERMAL; "my build showed up"; Jamie: "best one yet"; no fun test, by slice design). The full map of the game lives in `claude/signal-lance-game-shape.md`.
 
 ## North star
 Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, then learn why.
@@ -14,7 +14,7 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | Enemy behaviour | Does an enemy that hunts you and presses an advantage make fights feel alive? | R13 built (pack behind a toggle). One pack-on contract: "came for me, fair", 8 alarms, no loss. **Still unproven by play: did being loud cost anything?** "Earshot" not played in R14. Runner says yes (creep found round 2.1 by eyes; sprint round 1.0 by sound). R15 Retrieve flip reuses it: "enemy aimed for the mech with the cargo", felt good | 1 (R13, partial; R15 reuse) |
 | Resource pools | Do separate pools (AP, Energy, Signal, Heat) create real trade-offs? | AP + Energy banked on purpose. Jamie R12: "no risk in having high signal"; sprint noise wrongly stacks. R13 split Signal into EMIT + SOUND: read **"at a glance"**; a SOUND contact helped find something; crept instead of sprinting once. Heat untested | 2 (R4, R13) |
 | SIGINT: signature matching | Does reading a signature and matching it against a reference manual (Cold Waters style) make identifying contacts a skill? | **R14: legible, but decides nothing.** 9 variants, card, ID; runner 27% ID'd before eyes, no flags. Jamie: "irregardless of the enemy type, if around an uplink, I'm going to have to fight it"; eyes win the race; `ID_SHOW_FITS` helped partly. **R15: the missions gave it the "and".** Bounty, Retrieve, Escort all "the read changed my plan"; Escort fork called from "a mix of all scan results… gut feeling". Later also pre-drop from the ship, plus faction intel | 2 (R14 flat, R15 yes) |
-| Suit building | Do frame (weight), reactor (power) and signature budgets force a real sacrifice, shaped by the INTEL? | Hangar toy built on `build-toy` (fitting fun on its own). **R18 brief out:** equipment plan A + B in 3 checkpoints, cheap set only | 0 (R18 in progress) |
+| Suit building | Do frame (weight), reactor (power) and signature budgets force a real sacrifice, shaped by the INTEL? | **Reads and connects (R18): "my build showed up"**, "best one yet". All 3 checkpoints + 17 fixes. Weight → Energy "helped". Open balance: heavy kit dominates (Bulwark 75%, plates + mortar); reactor never decides a hunt (Cold-burn = Hot core 51%) | 1 (R18) |
 | Combat controls | Can you fire and manoeuvre as a tactical choice? | Passed (R4). R10 noise ended "stand off and pummel". **R17: drawn routes + look markers (Door Kickers style), interrupt "saved me", facing free (man-sized units)** | 4 |
 | Replay pull | Does the next run ask a new question? | Reframed into Company after R10 | 5 (reframed) |
 | Scale | Does a lance hunting a mixed field turn a duel into a plan? | Yes (R7). Split moved with mortar (R9), steady since | 3 |
@@ -38,8 +38,8 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 |---|---|---|---|
 | 1 | Hunt | Sensors, EMIT/SOUND, pack, to-hit + parts, mortar, zones, card + ID | Built (R1–R14) |
 | 2 | Missions | Uplink + Bounty + Retrieve + Escort, rolled per job | **Built (R15).** 3/3 new types "read changed my plan"; Uplink "not sure" (now the plain baseline). Bounty greed at quota not biting yet |
-| 3 | Suit building | Sharpened test in `signal-lance-construction.md` (3 frames, 2 reactors, ~7 modules, 1 mod, + THERMAL) | **R18 "Fit for the job" (brief out).** Merge hangar toy; plan Part A + B; checkpoints parity → budget → THERMAL; Wisp/Warden/Bulwark, Cold-burn vs Hot core |
-| 4 | Pre-drop intel (ship) | Ship SIGINT scan with a risk dial; 3 ship slots, fit 2 | Mapped |
+| 3 | Suit building | Sharpened test in `signal-lance-construction.md` (3 frames, 2 reactors, ~7 modules, 1 mod, + THERMAL) | **Built (R18).** "My build showed up". Hangar on Jamie's wireframe, power/weight/BACK/EM, THERMAL + sniper turret, sense tags, PLAY SEED. Missing next: **"a sense of ownership and progression"** |
+| 4 | Pre-drop intel (ship) | Ship SIGINT scan with a risk dial; 3 ship slots, fit 2 | **R19 "Listen before you land" (brief out).** Listen dial: reveal ladder (roster + zone extents → zone types + drop zone pick → contact blips) vs cost ladder (field alert, extra units, painted ship → ambush at the drop); RWR scope. Ship slots moved to the company layer |
 | 5 | Operators | One per suit, one skill, Standard (critical + extract), injuries bench, 2 recruits | Mapped |
 | 2c | Draw your route | Door Kickers–style drawn path (tap-to-move kept), facing waypoints to look down alleys, movement interrupt (parked #10). Builds on `FREE_TURNS` / `AP_TURN` | **Built (R17).** "Moving became part of the hunt". Controls reworked 3× in-round to Door Kickers style (freehand line, end handle, tap line → tap where to look, draggable eye). Interrupt "saved me" (runner: +9 pts win). `AP_TURN` 1→0. Big districts "about right" |
 | 6 | After the drop | Payout, salvage capped by the hold, repair with parts, medbay time | Partly (R11–R12) |
@@ -47,7 +47,7 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | 2b | Block maps | ~6 interlocking 10×10 blocks, 3×3 grid rolled per hunt (parked #33), each block carrying its mission anchors. Timing set by Escort: pull forward if routes feel solved on one map | **Built (R16).** "The map changed my plan". Grid of blocks read "too much like a grid"; became **packed irregular districts** cropped at the edge (`MAP_LAYOUT` packed). Clutter a real choice ("went round it"). Escort got HOLD / HURRY / fork levers; per-mech EXTRACT. Big grids brutal in runner (4×4 17%, 5×3 0%) |
 | 8 | Campaign map | 5–6 districts, 2 factions, fuel per jump, upkeep, standing, 3 contracts on offer, faction intel | Mapped |
 
-Build order (lean, revisable at each scoping chat): Missions (R15) → Block maps (R16) → Draw your route (R17) → **Suit building (R18)** → Pre-drop intel → Operators + After → Learn why → Campaign map → slice fun test.
+Build order (lean, revisable at each scoping chat): Missions (R15) → Block maps (R16) → Draw your route (R17) → Suit building (R18) → **Pre-drop intel** → Operators + After → Learn why → Campaign map → slice fun test.
 
 ## Decisions
 | Round | Decision | Why |
@@ -79,6 +79,8 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 | 17 | "Eyes on the street": drag-drawn path for this turn only (tap kept), up to 3 facing waypoints (`FREE_TURNS` / `AP_TURN`), eyes checked every step, new contact or LoS stops the move with unspent AP kept, stop-here marker (#20). Side: scrap = low cover `HIT_COVER_LOW` 15 (#62), cover source shown (#18), packed-layout scenarios (#65), escort button (#59). No fun test | R16 "best round in a while" (Jamie). Jamie: "shape the turn for that ExoS and look as you go to aim sensors down alleys"; interrupt = stop, keep AP. Multi-turn walk not picked |
 | 17 (result) | Drawn routes read and connect: "moving became part of the hunt"; interrupts "saved me"; weakest moment "felt fine". Spec overrides: freehand line, end handle, tap-to-look eye marker, stop ring removed; facing free (`AP_TURN` 0). Low cover 15 in. Runner 37% → 49%, mostly the interrupt. No fun test (slice) | Jamie: "facings shouldnt cost AP at all" (man-sized units). Next: "whatevers next in the plan" = suit building |
 | 18 | "Fit for the job": merge `build-toy`; equipment plan **full Part A + B** (Jamie), built as 3 shippable checkpoints (parity by runner → suit budget played → THERMAL played); only the cheap set fittable (Wisp / Warden / Bulwark, Cold-burn vs Hot core, today's kit + thermal optics + cold processor); INTEL lists field sensors per channel. No fun test | Hangar toy fun on its own but not connected to the hunt. Thin bridge offered; Jamie picked the full foundation. Checkpoints cap the stall risk |
+| 18 (result) | Suit building reads and connects: "my build showed up"; weight → Energy per tile (`OVERLOAD_EN_PER_TILE` 0.5) helped; parity byte-identical; runner 54%. Item rows keep today's values (balancing system later). No fun test (slice) | Jamie: "best one yet". Biggest missing piece: "a sense of ownership and progression". Wants RWR next (#74) |
+| 19 | "Listen before you land": pre-drop scan with one listen dial, 3 checkpoints (reveal ladder → cost ladder → RWR). RWR scope (Jamie's spec): close / medium / far rings, spoke + type icon + best-guess ID, ±10° (ESM 3°); heard standing = solid spoke; heard moving = heard-here tick + world line, and on the scope **both** a frozen spoke and a re-aimed wedge over the guessed strip (parallax, no per-tile knob), stale once walked past. No fun test | Jamie kept the build order over pulling the company layer forward (he wants the MekHQ-style merc management next). Jamie: "both by listen time… more potential drop zones"; costs "a mix" |
 | note | **Lance size: 1–4 ExoS deployed per mission** (Jamie, 2026-10-05; "ExoS", pronounced Ex-Oss, is his placeholder term for the exosuits). Today's builds use 2 | Jamie, during the R14 debrief |
 
 ## Parked ideas (by gate)
@@ -168,3 +170,16 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 72. **Build on the ship, deploy prebuilt (Jamie, R18 scoping):** the hangar is separate from the mission; ExoS are built aboard the ship and deploy as built. Changing a suit takes time, and mission parameters may change while you refit — ship / campaign (Gate 2)
 73. A trigram that shows your suit's emission and its ability to see that type of emission on the same bar (Jamie, R18 play) — strand: hunt · parked 2026-10-06
 74. Roll the RWR (radar warning receiver) in for the next session: warns when painted, with a bearing (catalogue row `rwr`, S hardpoint, draw 0) (Jamie, R18 wrap) — strand: hunt · parked 2026-10-06
+75. A cold (thermally shielded) field variant, so "no heat" narrows the CARD (R18) — SIGINT
+76. Equipment balancing system for all item stats (Jamie, R18: "down the road") — suit building
+77. Heavy kit dominance (Bulwark 75%; plates + mortar carry it): plate weight, mortar access, more energy cost (R18) — suit building / balance
+78. Make the reactor bite: patrols or a variant reading IR, thermal contacts alarming the pack (R18) — suit building / enemy behaviour
+79. Field fits: the field still uses the R17 standing signature and flat regen (R18) — suit building
+80. Unhide rows: skins, other frames, alloy / composite; LEGS hardpoints; more than one gun per suit (R18) — suit building (Gate 3)
+81. Frame size → move sound (a Bulwark walks as quietly as a Wisp) (R18) — suit building
+82. Heavy load scenario rework so being heard costs something (R18) — tooling
+83. Scripted lance never fits for the job or uses thermal (folds into #42) (R18) — tooling
+84. The pre-drop scan finds extra objectives or opportunities in the area (Jamie, R19 scoping) — missions
+85. A long listen runs the mission clock on timed objectives (needs timed missions first) (Jamie, R19 scoping) — missions
+86. A painted ship raises heat / notoriety in the area and draws threats aimed at the ship (Jamie, R19 scoping) — campaign
+87. **Company layer = MegaMek / MekHQ-style merc management** in a thin cut: company building, hiring, crew management, parts economy (Jamie, R19 chat: the "ownership and progression" he wants). Next component after pre-drop intel — company
