@@ -11,6 +11,7 @@
 | 3 | "add a bit of a buffer from the top of the screen just for easy reading" (all screens; the iPad status bar also sat over the ExoS A / B buttons full screen) | fixed r18-s7: 14 px + safe area |
 | 4 | "close button still not working" (iPad) | fixed r18-s7: the sheet acts on the touch itself; NEW BUILD reload button for stale pages |
 | 5 | Overlapping contact labels: two contacts close together (here a TURRET sentry and an unknown emplacement in the NOISE yard) print their labels and trait lines on top of each other, so neither reads. Jamie: "Yes add it" | to fix |
+| 6 | Show which sensor holds each track's current fix. Jamie: "we almost need graphic beside on the track saying what sensor are responsible for its current fix". Seen after a radar pulse through the container stack (walls) left the emplacement's circle big with nothing saying why (through-wall radar is fuzzy and only shrinks while tracked) | to fix |
 
 ## Agent notes (not on the fix list unless Jamie adds them)
 ### From Jamie's play
