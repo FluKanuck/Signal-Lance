@@ -28,7 +28,7 @@ describe('districts', () => {
       expect(routeOk()).toBe(true);
     }
     expect(rr).toBeLessThanOrEqual(4); // 5%
-  });
+  }, 20000); // R22: 80 districts run ~5 s on a busy machine (was the 5 s default)
   it('a set piece never cuts a street tile off from the spawn', () => {
     for (let s = 1; s <= 40; s++) {
       const spec = rollSpec(); spec.mods = spec.cells.flatMap((c, i) => BLOCKS.find(b => b.name === c.b).mods.map((_, k) => [i, k] as [number, number])); // every slot spawns

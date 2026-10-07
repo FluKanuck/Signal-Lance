@@ -8,7 +8,7 @@
 import { TUNE } from '../tune.ts';
 import { T } from './world.ts';
 import { G, unitById, isMech } from './state.ts';
-import { partsPerRepair, rebuildParts, fateOf } from './company.ts';
+import { partsPerRepair, fateOf, suitCost } from './company.ts';
 
 export type AarEv = {
   n: number; turn: number;
@@ -254,7 +254,8 @@ export function costLines(shown: { turn: number; sub: string; a?: string; b?: st
     if (m.op && f === 'KIA') out.push({ text: m.op.name + ' (' + m.id + ') KIA' + (co ? ': on the memorial' : ''), ref: ref(x => (x.sub === 'KIA' || x.sub === 'DOWN') && x.b === m.id) });
     else if (m.op && f === 'SAVED') out.push({ text: m.op.name + ' (' + m.id + ') CRITICAL, lives: benched ' + (co ? benchOf(m) : TUNE.OP_BENCH) + ' contract' + (benchOf(m) === 1 ? '' : 's'), ref: ref(x => (x.sub === 'DOWN' || x.sub === 'CARRY') && x.b === m.id) });
     const lost = Math.max(0, (m.hits0 ?? m.maxHits) - Math.max(0, m.hits));
-    if (m.dead && !(m.hits0 === 0)) out.push({ text: nm + ' LOST: rebuild ' + (co ? rebuildParts() + ' parts + ' + TUNE.REBUILD_CR + ' cr' : TUNE.COST_REBUILD + ' cr'), ref: ref(x => x.sub === 'DOWN' && x.b === m.id) });
+    const rb = co ? suitCost('rebuild', m.id) : null, rec = !!(ct && ct.carry && ct.carry[m.id] && ct.carry[m.id].recovered);
+    if (m.dead && !(m.hits0 === 0)) out.push({ text: nm + (rec ? ' recovered from the field: rebuild ' : ' LOST' + (co && TUNE.RECOVER_HELD ? ' (field lost, wreck left)' : '') + ': rebuild ') + (rb ? rb.parts + ' parts + ' + rb.cr + ' cr' : TUNE.COST_REBUILD + ' cr'), ref: ref(x => x.sub === 'DOWN' && x.b === m.id) });
     else if (lost > 0) {
       const wrecked = (m.partsLost || []).filter(p => p !== 'CORE').map(partName);
       out.push({ text: nm + ': ' + lost + ' hit' + (lost > 1 ? 's' : '') + ' to repair' + (wrecked.length ? ' (' + wrecked.join(', ') + ' wrecked)' : '') + (co ? ', ' + lost * partsPerRepair() + ' parts + ' + lost * TUNE.REPAIR_CR + ' cr' : ''),

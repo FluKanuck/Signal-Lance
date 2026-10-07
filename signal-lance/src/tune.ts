@@ -512,7 +512,7 @@ export const TUNE = {
   COST_HIRE: 60,               // R21: credits to hire a recruit (cp1-2: free; cp3: the books)
   // --- R21 cp3: the books (credits, fuel, contracts on offer, wages, parts, the market). Placeholder numbers ---
   START_CREDITS: 300,          // R21 cp3: a new company's credits
-  START_FUEL: 6,               // R21 cp3: a new company's fuel (jumps' worth)
+  START_FUEL: 8,               // R21 cp3: a new company's fuel (jumps' worth). R22 headless (Jamie: go): 6 → 8 (companies last longer with recovery)
   FUEL_MAX: 10,                // R21 cp3: fuel the ship holds (cp4 FUEL TANKS + MOD_FUEL)
   START_PARTS: 6,              // R21 cp3: parts in the hold at the start
   CONTRACTS_OFFERED: 3,        // R21 cp3: contracts on offer between contracts
@@ -529,6 +529,8 @@ export const TUNE = {
   PARTS_PER_REPAIR: 2,         // R21 cp3: parts per hit repaired (company mode; cp4 REPAIR BAY −MOD_REPAIR_PARTS)
   REPAIR_CR: 10,               // R21 cp3: credits per hit repaired, on top of the parts
   REBUILD_PARTS: 8,            // R21 cp3: parts to rebuild a destroyed suit (REPAIR BAY halves it)
+  RECOVER_HELD: true,          // R22 (Jamie: "retrieve the suit from the field if we hold the field, cheaper to repair"): a suit downed in a hunt that held the field comes home recovered
+  RECOVER_MULT: 0.5,           // R22: a recovered suit's rebuild costs this share of the parts and credits (rounded up)
   REBUILD_CR: 100,             // R21 cp3: credits to rebuild a destroyed suit
   HOLD_CAP: 16,                // R21 cp3: parts the hold carries (salvage and bought); cp4 SALVAGE HOLD + MOD_HOLD
   SALVAGE_PER_KILL: 2,         // R21 cp3: parts salvaged per field unit destroyed (into the hold, up to HOLD_CAP)

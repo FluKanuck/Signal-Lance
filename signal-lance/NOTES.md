@@ -1118,6 +1118,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      bed's after-action scenarios use the same page with their own question and RETRY / BACK.
    - Held the field / Bailed: one hand-placed hunt (seed 2204) played by the scripted lance; Bailed turns the WIN into a BAIL
      at the moment it ends (TB endAs), so both have the same events.
+   - Recovery (r22-s4): "held the field" = the hunt's outcome is a WIN, as for the after-action page. Every suit destroyed in
+     that hunt is marked recovered on its carry; its REBUILD costs RECOVER_MULT of the parts and credits (rounded up; with a
+     REPAIR BAY, of the bay's halved parts). The mark goes when it is rebuilt. A suit destroyed in a hunt that wasn't won
+     needs the full rebuild. The fold check counts the cheapest rebuild among the company's wrecks.
 ```
 
 ## TWEAK LOG
@@ -1672,6 +1676,14 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            should be alive" (the pulse sat on the end-of-hunt wreck ✕) | view only: a tapped moment draws each unit as it was at
            that turn (a dark disc over the spot, its marker, "T1 · patrol (line)"), hides the wreck of a field unit it shows, and
            zooms out when the moment is wider than the map strip. Not held: still no field unit drawn. BUILD r22-s3 | -
+   round22 headless 2 (r22-s3 numbers, --company 10 --companies 20) | Jamie picked "fuel strands too often" (7 of 16 folds:
+           no fuel and no credits for it; debt folds 1) and asked mid-tuning: "maybe we need an option to retrieve the suit from the
+           field if we hold the field, cheaper to repair" | tried and reverted: FUEL_PRICE 30 → 20 (strands 7 → 5), FUEL_PER_JUMP
+           max 4 → 3 (→ 3), fuel on credit into the debt allowance (→ 3, then suit losses), always one 1-fuel offer (→ 3-4).
+           Jamie "go": NEW RECOVER_HELD true + RECOVER_MULT 0.5 (held the field: downed suits come home recovered, rebuild 4 parts
+           + 50 cr instead of 8 + 100; lost: the wreck stays, full rebuild), START_FUEL 6 → 8. After: contracts played 62 → 84,
+           complete 27 → 37, folds 16 → 16 (every ExoS lost 8 → 8, stranded 7 → 6), KIA 92 → 118 (more contracts played).
+           Also: test/map.test.ts's district test gets a 20 s timeout (5.4 s on this machine). BUILD r22-s4 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

@@ -99,7 +99,7 @@ export function recordHunt() {
   const C = G.ct; if (!C || C.status !== 'ACTIVE' || C.results.length >= C.hunt) return; // once per hunt
   const before = C.carry;
   C.carry = { ...before }; // R21 cp2: suits that stayed aboard keep theirs
-  for (const m of G.lance) C.carry[m.id] = { hits: Math.max(0, m.hits), maxHits: m.maxHits, parts: { ...m.parts }, pmax: { ...m.pmax }, ammo: m.ammo, shells: m.shells, dead: m.dead };
+  for (const m of G.lance) C.carry[m.id] = { hits: Math.max(0, m.hits), maxHits: m.maxHits, parts: { ...m.parts }, pmax: { ...m.pmax }, ammo: m.ammo, shells: m.shells, dead: m.dead, recovered: m.dead && TUNE.RECOVER_HELD && G.outcome.startsWith('WIN') };
   const kind = G.outcome.split(' ')[0];
   const won = kind === 'WIN';
   if (won) C.wins++;

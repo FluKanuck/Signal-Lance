@@ -291,7 +291,7 @@ function companyRun(n: number, seed = FROM) {
   const C = G.co, buyFirst = (k: string, max = 99) => { let got = 0; const i = C.market.findIndex((l: any) => l.k === k); while (i >= 0 && got < max && buy(i)) got++; return got; };
   // repair everything it can afford: buy parts as the repairs need them (rebuild first, then hits, then reloads)
   const repairAll = () => { for (const what of ['rebuild', 'repair', 'rounds', 'shell']) for (let k = 0; k < 60; k++) { let any = false;
-    for (const s of C.suits) { if (suitRefit(s.id, what)) { any = true; continue; } if (suitRefitBlock(s.id, what) === 'PARTS' && buyFirst('parts', suitCost(what).parts - C.parts) && suitRefit(s.id, what)) any = true; }
+    for (const s of C.suits) { if (suitRefit(s.id, what)) { any = true; continue; } if (suitRefitBlock(s.id, what) === 'PARTS' && buyFirst('parts', suitCost(what, s.id).parts - C.parts) && suitRefit(s.id, what)) any = true; }
     if (!any) break; } };
   for (let c = 0; c < n && !C.folded; c++) {
     while (hireBlock(0) === '' && C.ops.length < C.suits.length + 1) { hire(0); hired++; } // keeps one spare operator, no more

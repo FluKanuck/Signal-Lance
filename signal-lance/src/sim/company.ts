@@ -228,7 +228,7 @@ function fold(why: string) { const C = G.co; C.folded = why; C.news.push('THE CO
 // (cp3) no contract it can reach and no way to buy the fuel. cp3: that folds it.
 export function stuck() {
   const C = G.co; if (C.folded) return C.folded;
-  const rebuild = C.parts >= rebuildParts() && C.credits >= TUNE.REBUILD_CR, suits = C.suits.some(s => !s.carry.dead) || rebuild; // a fit that can't launch can be fixed in the hangar: not stuck
+  const rebuild = C.suits.some(s => s.carry.dead && C.parts >= suitCost('rebuild', s.id).parts && C.credits >= suitCost('rebuild', s.id).cr), suits = C.suits.some(s => !s.carry.dead) || rebuild; // a fit that can't launch can be fixed in the hangar: not stuck
   const ops = C.ops.some(canDrop) || C.ops.some(o => o.status === 'BENCH') || (C.recruits.length > 0 && C.credits >= TUNE.COST_HIRE);
   const fuelLine = (C.market || []).find(l => l.k === 'fuel'), canBuy = fuelLine ? Math.min(fuelLine.qty, Math.floor(Math.max(0, C.credits) / fuelLine.price)) : 0;
   const reach = !C.offers || C.offers.some(o => fuelCost(o) <= C.fuel + canBuy);
@@ -255,7 +255,7 @@ export function pullContract() {
 export function setSuitFit(i: number, fit) {
   const s = G.co.suits[i]; if (!s) return;
   const old = s.carry, nf = structuredClone(toFit(fit)), c = fresh(nf);
-  if (old.dead) { c.dead = true; for (const p of Object.keys(c.parts)) c.parts[p] = 0; }
+  if (old.dead) { c.dead = true; (c as any).recovered = !!(old as any).recovered; for (const p of Object.keys(c.parts)) c.parts[p] = 0; } // R22: a recovered wreck stays recovered
   else for (const p of Object.keys(c.parts)) { const miss = old.pmax[p] !== undefined ? old.pmax[p] - old.parts[p] : 0; c.parts[p] = Math.max(p === 'CORE' ? 1 : 0, c.pmax[p] - miss); }
   syncHits(c); if (c.dead) c.hits = 0;
   c.ammo = Math.min(old.ammo, fitRounds(nf)); c.shells = Math.min(old.shells, fitShells(nf));
@@ -263,8 +263,9 @@ export function setSuitFit(i: number, fit) {
 }
 // The refit on the company's own suits (between hunts on the job screen, between contracts on the SUITS tab), up to full.
 // cp3: a repair takes parts + credits, a rebuild parts + credits; reloads take credits (cp4 ARMOURY: 1 part instead).
-export function suitCost(what: string) {
+export function suitCost(what: string, id?: string) {
   const arm = hasMod('ARMOURY');
+  if (what === 'rebuild' && id && suitNow(id).c?.recovered) return { parts: Math.ceil(rebuildParts() * TUNE.RECOVER_MULT), cr: Math.ceil(TUNE.REBUILD_CR * TUNE.RECOVER_MULT) }; // R22: brought home from a held field
   return { repair: { parts: partsPerRepair(), cr: TUNE.REPAIR_CR }, rounds: arm ? { parts: 1, cr: 0 } : { parts: 0, cr: TUNE.COST_ROUNDS },
     shell: arm ? { parts: 1, cr: 0 } : { parts: 0, cr: TUNE.COST_SHELL }, rebuild: { parts: rebuildParts(), cr: TUNE.REBUILD_CR } }[what];
 }
@@ -277,18 +278,18 @@ export function suitRefitBlock(id: string, what: string) {
   if (what === 'repair' && c.hits >= c.maxHits) return 'CAP';
   if (what === 'rounds' && (!gun || c.ammo >= fitRounds(f))) return gun ? 'CAP' : 'NONE';
   if (what === 'shell' && (!mortar || c.shells >= fitShells(f))) return mortar ? 'CAP' : 'NONE';
-  const k = suitCost(what);
+  const k = suitCost(what, id);
   if (G.co.parts < k.parts) return 'PARTS';
   if (G.co.credits < k.cr) return 'CR';
   return '';
 }
 export function suitRefit(id: string, what: string) {
   if (suitRefitBlock(id, what) !== '') return false;
-  const { c, f } = suitNow(id), k = suitCost(what);
+  const { c, f } = suitNow(id), k = suitCost(what, id);
   if (what === 'repair') repairWorst(c);
   if (what === 'rounds') c.ammo = Math.min(fitRounds(f), c.ammo + 10);
   if (what === 'shell') c.shells++;
-  if (what === 'rebuild') { c.dead = false; c.parts = { ...c.pmax }; syncHits(c); c.ammo = fitRounds(f); c.shells = fitShells(f); }
+  if (what === 'rebuild') { c.dead = false; c.recovered = false; c.parts = { ...c.pmax }; syncHits(c); c.ammo = fitRounds(f); c.shells = fitShells(f); }
   G.co.parts -= k.parts; spend(k.cr);
   if (G.ct && G.ct.status === 'ACTIVE' && G.ct.ids) { G.ct.buys.push(id + ' ' + what); pullContract(); }
   return true;

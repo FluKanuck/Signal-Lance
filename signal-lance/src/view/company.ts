@@ -112,7 +112,7 @@ function suits() {
   const RF: [string, string][] = [['repair', 'REPAIR'], ['rounds', '+10 RDS'], ['shell', '+1 SHELL'], ['rebuild', 'REBUILD']];
   return C.suits.map(s => {
     const c = s.carry, o = opById(C.crew[s.id]);
-    const btns = active() ? '' : RF.map(([k, n]) => { const b = suitRefitBlock(s.id, k); return b === 'NONE' || b === 'LOST' || b === 'CAP' ? '' : '<button class="corf' + (b ? ' lockd' : '') + '" data-s="' + s.id + '" data-k="' + k + '">' + n + '<br><small>' + costTxt(suitCost(k)) + (b ? ' · ' + why[b] : '') + '</small></button>'; }).join('');
+    const btns = active() ? '' : RF.map(([k, n]) => { const b = suitRefitBlock(s.id, k); return b === 'NONE' || b === 'LOST' || b === 'CAP' ? '' : '<button class="corf' + (b ? ' lockd' : '') + '" data-s="' + s.id + '" data-k="' + k + '">' + n + '<br><small>' + costTxt(suitCost(k, s.id)) + (b ? ' · ' + why[b] : '') + '</small></button>'; }).join('');
     return '<div class="opc' + (c.dead ? ' bench' : '') + '"><b>ExoS ' + s.id + ' · ' + frameOf(s.fit).name + '</b>' +
       '<span class="' + (c.dead ? 'badt' : c.hits < c.maxHits ? 'warnt' : 'okt') + '">' + (c.dead ? 'DESTROYED: can’t drop until rebuilt' : dmgWord(c) + ' · ' + c.hits + '/' + c.maxHits + ' hits') + '</span>' +
       (c.dead ? '' : '<span>' + partsRead(c) + '</span>') +

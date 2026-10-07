@@ -7,7 +7,7 @@ import { G, finishHunt } from '../src/sim/state.ts';
 import { T } from '../src/sim/world.ts';
 import { pickMoments, momentLine, aarLines, aarLogLines, costLines, highlight, heldField, compass, type AarEv } from '../src/sim/aar.ts';
 import { scenarioByName, startScenario, leaveScenario, autoScenario } from '../src/sim/scenarios.ts';
-import { startCompanyContract, newCompany } from '../src/sim/company.ts';
+import { startCompanyContract, newCompany, suitCost } from '../src/sim/company.ts';
 import { takeJob, rollJobs } from '../src/sim/contract.ts';
 import { playOut } from '../src/sim/autoplay.ts';
 import { startHunt } from './helpers.ts';
@@ -87,6 +87,22 @@ describe('the after-action record (R22)', () => {
     // played: no hunt has both a DOWN and a KIA line for the same suit
     for (let s = 1; s <= 8; s++) { startHunt(s, undefined, 'blocks'); for (const m of G.lance) m.op = { id: 'o' + m.id, name: 'Op ' + m.id, skill: 'AIM', lvl: 1 }; playOut(80);
       for (const k of G.aar.filter((e: AarEv) => e.sub === 'KIA')) expect(G.aar.some((e: AarEv) => e.sub === 'DOWN' && e.b === k.b)).toBe(false); }
+  });
+  it('held the field: a downed suit comes home recovered and rebuilds for RECOVER_MULT of the cost; lost: the full rebuild', () => {
+    const full = { parts: 8, cr: 100 };
+    for (const [outcome, rec] of [['WIN UPLINK', true], ['BAIL', false]] as [string, boolean][]) {
+      newCompany(2211); startCompanyContract(2211); takeJob(0);
+      const B = G.lance[1]; B.parts.CORE = 0; B.hits = 0; B.dead = true;
+      finishHunt(outcome.split(' ')[0]);
+      if (outcome.startsWith('WIN')) expect(G.outcome.startsWith('WIN')).toBe(true);
+      const c = G.ct.carry[B.id] || G.co.suits.find((s: any) => s.id === B.id).carry;
+      expect(!!c.recovered).toBe(rec);
+      const k = suitCost('rebuild', B.id);
+      expect(k.parts).toBe(rec ? Math.ceil(full.parts * TUNE.RECOVER_MULT) : full.parts);
+      expect(k.cr).toBe(rec ? Math.ceil(full.cr * TUNE.RECOVER_MULT) : full.cr);
+      expect(costLines([]).some(l => l.text.includes(rec ? 'recovered from the field' : 'wreck left'))).toBe(true);
+      G.co = null; G.ct = null;
+    }
   });
   it('bearings round to AAR_REDACT_BEARING compass points', () => {
     expect(compass(0, 0, 0, -10)).toBe('N'); expect(compass(0, 0, 10, 0)).toBe('E'); expect(compass(0, 0, -10, 10)).toBe('SW');
