@@ -1663,6 +1663,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            (6 fold, 18 played, 7 complete, 32 KIA, 76 cr); AAR 49 hunts, 31.1 events, cap 100%, 6 always-in dropped (3 hunts with
            more than 6). NEW runner --pick low: 12 companies, 30 LOW played, 21 complete, 18 paid their way (complete avg +153 cr).
            The pre-existing sound FLAG (field first contacts > 50% sound) fails --check on main before this round too. BUILD r22-s1 | -
+   round22 headless 1 (r22-s1 numbers) | escort lists: 2 of 6 lines were "route picked" filler; a wiped lance showed "went down" and
+           "KIA" for the same suit (6 always-in dropped in 3 company hunts) | Jamie "go for both": NEW AAR_WEIGHT_ROUTE 2 (was
+           AAR_WEIGHT_OBJ 5); a KIA folds into its suit's DOWN line ("…; left behind: KIA", weighted as a KIA). After: --contracts 20
+           ROUTE 21 → 0 moments, HIT 46% → 52%, OBJ 32% → 24%; --company 10 --companies 6 always-in dropped 6 → 0, redacted when
+           not held 46% → 63%; cap still 98-100%, thin 0. Game unchanged (6 fold, 18 played, 7 complete, 32 KIA). BUILD r22-s2 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

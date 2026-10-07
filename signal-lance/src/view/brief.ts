@@ -8,6 +8,7 @@ export const TEST = {
   title: 'Round 22 test: What happened',
   question: 'Does a short after-action list of turning points, with what each one cost the company, tell you why a drop went the way it did and change how you plan the next one?',
   newThings: [
+    'TUNED (r22-s2): Escort route picks no longer crowd out the fights in WHAT HAPPENED, and a suit lost with its operator left behind is one line (“went down … left behind: KIA”).',
     'NEW (r22-s1): THE AFTER-ACTION PAGE replaces the old result panels. WHAT HAPPENED lists up to ' + TUNE.AAR_MAX_MOMENTS + ' turning points of the hunt, each starting with its turn: who found whom first (and how), hits that mattered (parts wrecked, kills, a suit down, a carry, a KIA), and how the job swung (uplink started, cargo grabbed or lost, a route picked, the quota, the end).',
     'WHAT IT COST: who got hurt, benched, KIA or levelled; each suit’s repairs or rebuild; the pay; salvage; a hull hit; and at a contract’s end the wages, upkeep and balance. A line with ← T7 points back to the moment that caused it.',
     'Tap a moment and it pulses on the map (the map stays live on the left; Z+ / Z− zoom it). Not a replay: just who and where.',

@@ -78,6 +78,16 @@ describe('the after-action record (R22)', () => {
     expect(momentLine(p, true).text).toContain('patrol (heavy)');
     expect(heldField('WIN UPLINK')).toBe(true); expect(heldField('BAIL')).toBe(false); expect(heldField('LOSS')).toBe(false); expect(heldField('FAIL')).toBe(false);
   });
+  it('a KIA folds into its suit-down line (one line per suit); route picks rank below hits', () => {
+    const down = ev({ kind: 'HIT', sub: 'DOWN', side: 'E', a: 'U1', b: 'B', aName: 'turret (gun)', bName: 'B Jok', what: 'CRITICAL', kia: true, turn: 4 }, [12, 10], [10, 10]);
+    expect(momentLine(down, false).text).toBe('B Jok went down: CRITICAL, hit from the E, shooter unseen; left behind: KIA');
+    const route = ev({ kind: 'OBJ', sub: 'ROUTE', side: 'P', what: 'NORTH at J1' }), part = ev({ kind: 'HIT', sub: 'PART', side: 'P', what: 'LEGS' });
+    const M = pickMoments([route, part, down], 2);
+    expect(M.some(m => m.n === down.n) && M.some(m => m.n === part.n)).toBe(true);
+    // played: no hunt has both a DOWN and a KIA line for the same suit
+    for (let s = 1; s <= 8; s++) { startHunt(s, undefined, 'blocks'); for (const m of G.lance) m.op = { id: 'o' + m.id, name: 'Op ' + m.id, skill: 'AIM', lvl: 1 }; playOut(80);
+      for (const k of G.aar.filter((e: AarEv) => e.sub === 'KIA')) expect(G.aar.some((e: AarEv) => e.sub === 'DOWN' && e.b === k.b)).toBe(false); }
+  });
   it('bearings round to AAR_REDACT_BEARING compass points', () => {
     expect(compass(0, 0, 0, -10)).toBe('N'); expect(compass(0, 0, 10, 0)).toBe('E'); expect(compass(0, 0, -10, 10)).toBe('SW');
     expect(compass(0, 0, 10, -4)).toBe('E'); // 68° → E on 8 points

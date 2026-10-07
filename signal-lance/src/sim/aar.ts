@@ -22,6 +22,7 @@ export type AarEv = {
   what: string;     // SOUND: what made it (SPRINT NORMAL CREEP SHOT MORTAR); PART: the part; OBJ: details
   rear: boolean;    // a hit from behind the target's facing
   known: boolean;   // the lance had eyes on the field unit involved (its type was known to you at the time)
+  kia?: boolean;    // DOWN: its operator was left behind (the KIA folded into this line, R22 tuning)
 };
 export type Moment = AarEv & { w: number; must: boolean };
 export type Hl = { own: { x: number; y: number }[]; foe: { x: number; y: number }[]; line: number[] | null; bearing: { x: number; y: number; ang: number } | null; spot: { x: number; y: number } | null };
@@ -116,7 +117,11 @@ export function aarEnd() {
     : k === 'FAIL' ? (M.result || 'the job failed') : k === 'LOSS' ? 'the lance was wiped out' : o.toLowerCase();
   if (!once('END')) return;
   push({ kind: 'OBJ', sub: 'END', side: 'P', what: o + ': ' + what }, null, null);
-  for (const m of G.lance) if (m.op && m.crit && fateOf(m) === 'KIA') push({ kind: 'HIT', sub: 'KIA', side: 'P', what: m.op ? m.op.name.split(' ')[0] : '' }, null, m);
+  for (const m of G.lance) if (m.op && m.crit && fateOf(m) === 'KIA') {
+    const d = G.aar.find((e: AarEv) => e.sub === 'DOWN' && e.b === m.id); // R22 tuning (Jamie: go): one line per suit, "went down … left behind: KIA"
+    if (d) { d.kia = true; continue; }
+    push({ kind: 'HIT', sub: 'KIA', side: 'P', what: m.op ? m.op.name.split(' ')[0] : '' }, null, m);
+  }
 }
 
 // ============================ THE MOMENTS =============================
@@ -124,14 +129,14 @@ export function aarEnd() {
 export function heldField(outcome = G.outcome || '') { return String(outcome).startsWith('WIN'); }
 export function weightOf(e: AarEv) {
   const W = { DETECT: TUNE.AAR_WEIGHT_SEEN, ALARM: TUNE.AAR_WEIGHT_ALARM, PACK: TUNE.AAR_WEIGHT_ALARM, PART: TUNE.AAR_WEIGHT_PART, KILL: TUNE.AAR_WEIGHT_KILL,
-    DOWN: TUNE.AAR_WEIGHT_DOWN, CARRY: TUNE.AAR_WEIGHT_CARRY, KIA: TUNE.AAR_WEIGHT_KIA, OUT: TUNE.AAR_WEIGHT_OUT }[e.sub] ?? TUNE.AAR_WEIGHT_OBJ;
+    DOWN: e.kia ? TUNE.AAR_WEIGHT_KIA : TUNE.AAR_WEIGHT_DOWN, ROUTE: TUNE.AAR_WEIGHT_ROUTE, CARRY: TUNE.AAR_WEIGHT_CARRY, KIA: TUNE.AAR_WEIGHT_KIA, OUT: TUNE.AAR_WEIGHT_OUT }[e.sub] ?? TUNE.AAR_WEIGHT_OBJ;
   return W + (e.side === 'E' ? TUNE.AAR_ENEMY_FIRST : 0);
 }
 // Always in: the end, every KIA and suit down (CRITICAL), and the first time the field found the lance.
 export function pickMoments(ev: AarEv[] = G.aar || [], max = TUNE.AAR_MAX_MOMENTS): Moment[] {
   const firstFound = ev.find(e => e.sub === 'DETECT' && e.side === 'E');
   const must = (e: AarEv) => e.sub === 'END' || e.sub === 'KIA' || e.sub === 'DOWN' || e === firstFound;
-  const rank = (e: AarEv) => e.sub === 'END' ? 0 : e.sub === 'KIA' ? 1 : e === firstFound ? 2 : 3; // if the always-in alone pass the cap
+  const rank = (e: AarEv) => e.sub === 'END' ? 0 : e.sub === 'KIA' || e.kia ? 1 : e === firstFound ? 2 : 3; // if the always-in alone pass the cap
   const all: Moment[] = ev.map(e => ({ ...e, w: weightOf(e), must: must(e) }));
   const keep = all.filter(m => m.must).sort((a, b) => rank(a) - rank(b) || a.n - b.n).slice(0, max);
   const rest = all.filter(m => !m.must).sort((a, b) => b.w - a.w || a.n - b.n);
@@ -200,6 +205,7 @@ export function momentLine(e: AarEv, held = heldField()): MomentLine {
     const what = e.what === 'CRITICAL' ? ' went down: CRITICAL' : ' destroyed';
     if (e.side === 'E') text = redacted ? B + what + (dirFoe ? ', hit from the ' + dirFoe : '') + (e.rear ? ' (from behind)' : '') + ', shooter unseen' : B + what + (A ? ', shot by ' + A + ', ' + tiles(e) + ' ' + dirFoe + (e.rear ? ' (from behind)' : '') + weapon(e) : '');
     else text = B + what + (A && A !== B ? ' (' + A + '’s' + (e.how === 'MORTAR' ? ' mortar' : ' fire') + ')' : '');
+    if (e.kia) text += '; left behind: KIA';
   } else if (e.sub === 'CARRY') text = A + ' picked up ' + (e.what || 'the operator') + ' (' + e.b + ')';
   else if (e.sub === 'KIA') text = (e.what || B) + ' (' + e.b + ') left behind: KIA';
   else if (e.sub === 'UPLINK') text = A + ' started the uplink';

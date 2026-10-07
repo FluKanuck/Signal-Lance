@@ -581,6 +581,7 @@ export const TUNE = {
   AAR_WEIGHT_CARRY: 5,         // R22: a CRITICAL operator picked up
   AAR_WEIGHT_KIA: 8,           // R22: an operator left behind (KIA)
   AAR_WEIGHT_OBJ: 5,           // R22: an objective swing (uplink started, cargo grabbed / dropped, a route picked, quota reached, a suit out)
+  AAR_WEIGHT_ROUTE: 2,         // R22 tuning (Jamie: go): an Escort route picked (was AAR_WEIGHT_OBJ 5: two forks crowded out the fights)
   AAR_WEIGHT_OUT: 1,           // R22: a suit extracting (the hunt's end says how it ended; this is filler)
   AAR_ENEMY_FIRST: 1,          // R22: added to an enemy-side event's weight (the field's side is what you can't see during the hunt)
   AAR_REDACT_BEARING: 8,       // R22: compass points a redacted bearing is rounded to (8 = N, NE, E ...)
