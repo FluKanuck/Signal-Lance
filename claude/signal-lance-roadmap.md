@@ -167,3 +167,4 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 71. Facing is free for man-sized ExoS; frame size could later bring turn cost and size-based cover back (R17; feeds suit building) — suit building
 72. **Build on the ship, deploy prebuilt (Jamie, R18 scoping):** the hangar is separate from the mission; ExoS are built aboard the ship and deploy as built. Changing a suit takes time, and mission parameters may change while you refit — ship / campaign (Gate 2)
 73. A trigram that shows your suit's emission and its ability to see that type of emission on the same bar (Jamie, R18 play) — strand: hunt · parked 2026-10-06
+74. Roll the RWR (radar warning receiver) in for the next session: warns when painted, with a bearing (catalogue row `rwr`, S hardpoint, draw 0) (Jamie, R18 wrap) — strand: hunt · parked 2026-10-06
