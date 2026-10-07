@@ -1341,4 +1341,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round18 request | Jamie: "we need a button in game to get back to start screen" | NEW QUIT (next to CTR, two taps within
            3 s): drops the hunt and its contract (or the test-bed scenario) and opens the hangar; logged as a QUIT line, never
            as a result. BUILD r18-s5 | -
+   round18 bug (iPad) | Jamie: "hit legs, now cant hit close or anything, on previous attempt to change a slot the load out menu
+           I couldn't close out of after selecting an item" | the document touchstart guard (noTouch) blocked every touch
+           outside a .panel, and the pick sheet sits outside one, so iOS never made the click. Touches inside .sheet keep
+           their default now. A hardpoint nothing in the set fits (LEGS: MOBILITY) says so in the sheet. BUILD r18-s6 | -
 ```

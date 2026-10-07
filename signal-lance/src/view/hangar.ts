@@ -129,6 +129,7 @@ function openPick(idx: number) {
     rows.push('<button class="hopt"' + (why ? ' disabled' : '') + ' data-pick="' + id + '"><b>' + esc(it.name) + (id === curId ? ' (fitted)' : '') + '</b> <small>' + esc(meta) + '</small><br><small>' + esc(it.effect + (it.trade !== '—' ? ' · ' + it.trade : '')) + '</small><br><small>' +
       (why ? '<span class="badt">' + esc(why) + '</span>' : delta(mount(f, sel, idx, it))) + '</small></button>');
   }
+  if (!rows.length) rows.push('<div class="hopt">Nothing in this round’s set fits a ' + SLOT_WORD[slot].toLowerCase() + ' hardpoint yet' + (slot === 'M' ? ' (moving is the frame’s own legs; mobility modules come later)' : '') + '.</div>');
   $('hopts').innerHTML = rows.join('');
   $('hsheet').hidden = false; $('hopts').scrollTop = 0;
 }

@@ -190,7 +190,8 @@ export function onTap(sx, sy) {
 
 // Block page scroll / pinch / double-tap zoom (but let text fields work).
 // (menus/panels are exempt so their buttons, text field and scrolling work)
-export function noTouch(e) { if (!e.target.closest || !e.target.closest('.panel')) e.preventDefault(); }
+// R18 fix (Jamie, iPad: the hangar's pick sheet ignored taps): touches inside a .panel or a .sheet keep their default, so iOS still makes the click
+export function noTouch(e) { if (!e.target.closest || !e.target.closest('.panel, .sheet')) e.preventDefault(); }
 document.addEventListener('touchstart', noTouch, { passive: false });
 document.addEventListener('touchmove', noTouch, { passive: false });
 document.addEventListener('gesturestart', e => e.preventDefault());
