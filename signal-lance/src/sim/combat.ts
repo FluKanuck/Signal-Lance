@@ -1,6 +1,6 @@
 // Round 12 step 1: to-hit roll and hit locations. Both sides, same rules.
 import { TUNE } from '../tune.ts';
-import { T, isSolid, isClutter } from './world.ts';
+import { T, isSolid, isClutter, coverKindAt } from './world.ts';
 import { rand } from './rng.ts';
 import { G } from './state.ts';
 import { effEmit } from './zones.ts';
@@ -114,8 +114,9 @@ export function coverInfo(sx, sy, tx, ty): { kind: '' | 'WALL' | 'LOW'; give: nu
   return out;
 }
 // The piece of cover a tile belongs to: it and every wall / clutter tile joined to it within COVER_ITEM_RADIUS (as sameCover walks it).
+// R18 fix list 7 (Jamie: "the grey and brown parts of the terrain are not shared cover"): only tiles of the same kind join a piece.
 export function coverPiece(ix: number, iy: number) {
-  const R = TUNE.COVER_ITEM_RADIUS, cov = (x, y) => isSolid(x, y) || isClutter(x, y), seen = new Set<number>([iy * 100000 + ix]), q = [[ix, iy]], out = [[ix, iy]];
+  const R = TUNE.COVER_ITEM_RADIUS, k = coverKindAt(ix, iy), cov = (x, y) => coverKindAt(x, y) === k, seen = new Set<number>([iy * 100000 + ix]), q = [[ix, iy]], out = [[ix, iy]];
   while (q.length) {
     const [x, y] = q.pop();
     for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
@@ -129,8 +130,8 @@ export function coverPiece(ix: number, iy: number) {
 // R16 (Jamie: "if the target is sharing the same cover item as the ExoS the cover doesnt apply … two people on either side
 // of the same fence … I couldn't just lean out to shoot"): the cover piece = the grazed tile and every wall / clutter tile
 // joined to it within COVER_ITEM_RADIUS; if the shooter (tile coords ax, ay) is within COVER_ADJ of any of it, it gives no cover.
-function sameCover(ax: number, ay: number, ix: number, iy: number) {
-  const R = TUNE.COVER_ITEM_RADIUS, cov = (x, y) => isSolid(x, y) || isClutter(x, y), seen = new Set<number>([iy * 100000 + ix]), q = [[ix, iy]];
+function sameCover(ax: number, ay: number, ix: number, iy: number) { // R18: same kind of cover only
+  const R = TUNE.COVER_ITEM_RADIUS, k = coverKindAt(ix, iy), cov = (x, y) => coverKindAt(x, y) === k, seen = new Set<number>([iy * 100000 + ix]), q = [[ix, iy]];
   while (q.length) {
     const [x, y] = q.pop();
     if (dRect(ax, ay, x, y) <= TUNE.COVER_ADJ) return true;

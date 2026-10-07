@@ -116,6 +116,8 @@ export function loadMap(def: MapDef) {
 }
 export const HIVE: MapDef = { id: 'hive', rows: MAP_SRC, anchors: MAP_ANCHORS.hive, info: { grid: 'hive' } };
 export function isSolid(tx, ty) { return tx < 0 || ty < 0 || tx >= W || ty >= H || solid[ty * W + tx] !== 0; }
+// R18 fix list 7: what kind of cover a tile is: 1 building, 2 set piece, 3 ground clutter, 0 none (off the map counts as building)
+export function coverKindAt(tx, ty) { if (tx < 0 || ty < 0 || tx >= W || ty >= H) return 1; const s = solid[ty * W + tx]; return s ? s : clutter[ty * W + tx] === 1 ? 3 : 0; }
 export function isClutter(tx, ty) { return tx >= 0 && ty >= 0 && tx < W && ty < H && clutter[ty * W + tx] === 1; }
 export function canReach(tx, ty) { return !isSolid(tx, ty) && reach[ty * W + tx] === 1; }
 // random reachable street tile (outside extraction) within r tiles of (cxT, cyT); r = 0 → anywhere

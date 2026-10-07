@@ -4,7 +4,7 @@ import { TUNE } from '../src/tune.ts';
 import { G } from '../src/sim/state.ts';
 import { T } from '../src/sim/world.ts';
 import { damagePart, rollPart, fromBehind } from '../src/sim/combat.ts';
-import { shootBlock, mortarBlock, planMove, fireRange, beginUnit } from '../src/sim/turns.ts';
+import { shootBlock, mortarBlock, planMove, fireRange, beginUnit, doMove } from '../src/sim/turns.ts';
 import { observe } from '../src/sim/sensors.ts';
 import { setSeed } from '../src/sim/rng.ts';
 import { has, fitStats, launchBlock, makeFit, radarOf, HANGAR_TEMPLATES, DEFAULT_FIT, hangarWhy, kitOf } from '../src/sim/kit.ts';
@@ -175,5 +175,41 @@ describe('R18 (Jamie): the sniper turret', () => {
     for (const u of [s, g]) { u.x = A.x - 16 * T; u.y = A.y; }
     const c = { tx: A.x, ty: A.y };
     expect(hitChance(s, A, c).range).toBe(-12); expect(hitChance(g, A, c).range).toBe(-TUNE.HIT_RANGE_PER_TILE * 12);
+  });
+});
+
+describe('R18 fix list', () => {
+  it('7: a cover piece joins tiles of one kind only (a set piece never joins the building beside it)', async () => {
+    const { coverPiece } = await import('../src/sim/combat.ts'); const { coverKindAt, W, H } = await import('../src/sim/world.ts');
+    const { rollEnemy, newHunt } = await import('../src/sim/state.ts');
+    let checked = 0;
+    for (const seed of [835900613, 1701, 7, 42]) {
+      rollEnemy(seed, 'Mixed', 'BOUNTY'); newHunt([{}, {}]);
+      for (let y = 0; y < H && checked < 30; y++) for (let x = 0; x < W && checked < 30; x++) {
+        const k = coverKindAt(x, y); if (!k) continue;
+        const near = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => { const j = coverKindAt(x + dx, y + dy); return j && j !== k; });
+        if (!near) continue;
+        for (const [px, py] of coverPiece(x, y)) expect(coverKindAt(px, py)).toBe(k);
+        checked++;
+      }
+    }
+    expect(checked).toBeGreaterThan(0);
+  });
+  it('8: a move is not stopped by eyes landing on a contact you already had', async () => {
+    const { runAct } = await import('../src/sim/autoplay.ts'); const { observe } = await import('../src/sim/sensors.ts');
+    startScenario(scenarioByName('Trip wire'));
+    const A = G.p, u = G.units[0];
+    observe(G.pc, u.id, u.x, u.y, 2 * T, 0, 0, true, true, false, 'PASSIVE'); // already on the picture before the move
+    doMove(A, planMove(A, G.up.x, G.up.y, 'NORMAL')); runAct();
+    expect(G.moveStat.intr.length).toBe(0);
+  });
+  it('6: each fix records the sense that made it; radar through walls records how many', async () => {
+    const { observe, radarFix } = await import('../src/sim/sensors.ts');
+    startScenario(scenarioByName('Warm core'));
+    const A = G.lance[0], u = G.units[0];
+    expect(observe(G.pc, u.id, u.x, u.y, T, 0, 0, true, false, true, 'EYES').src).toBe('EYES');
+    A.items.push({ item: byId(ITEMS, 'lamp'), loc: 'MAST' }); A.fx = 1; A.fy = 0;
+    radarFix(A, u, G.pc, u.id, { x: 0, y: 0, t: 0 }, 0, 0, 0);
+    const c = G.pc.find((c: any) => c.on && c.id === u.id); expect(c.src).toBe('RADAR'); expect(c.walls).toBe(0); // clear street
   });
 });

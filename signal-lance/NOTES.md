@@ -1356,4 +1356,15 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            12 px), not on iOS's synthesised click; plus a NEW BUILD · TAP TO RELOAD button when the published page's build
            stamp differs (fetched fresh at start and every 5 min). Also fixed: quitting an Escort hunt crashed the map drawing
            (the old transport kept the old route legs; enterLoadout clears G.ally). BUILD r18-s7 | -
+   round18 fix list 5-9 (Jamie: "build the lists fixes") | 5 overlapping contact labels; 6 "a graphic beside the track saying
+           what sensor is responsible for its current fix"; 7 "the grey and brown parts of the terrain are not shared cover";
+           8 "I already knew they were there, so the contact should not have triggered"; 9 "a way … to load a specific seed" |
+           5: labels collected and laid out top to bottom, a clashing one moves below with a leader line. 6: observe records
+           c.src (+ c.walls for radar through walls); a coloured tag per contact (EYE, RDR, RDR nW, EM, IR, SND, FLASH, ALARM;
+           "old" + dim when stale). 7: coverKindAt (1 building, 2 set piece, 3 clutter); a cover piece joins one kind only.
+           8: the interrupt fires only for a contact not on the picture when the move began. Runner 60 contracts: interrupts
+           23% → 13% of lance moves, hunt wins 58% → 50% (R17 measured the stops at ~9 points). 9: every log line and the QUIT
+           line carry "seed N MISSION"; PLAY SEED (hangar) takes a seed or a log line (comp, mission and [PACK] / [NO-IR] /
+           [HIVE] read from it), plays it outside a contract with the current fits, logged [REPLAY]. Jamie's run =
+           "835900613 Mixed BOUNTY [PACK]". BUILD r18-s8 | -
 ```

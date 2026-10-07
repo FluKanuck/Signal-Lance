@@ -75,6 +75,7 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, 
     G.firstLog.push({ side: list === G.pc ? 'P' : 'E', src, turn: G.turn, tgt: id, by: by ? by.id : '', byType: by ? by.variant : '',
       d: by && tgt ? Math.hypot(by.x - tgt.x, by.y - tgt.y) / T : 0 }); // R13: every new contact and the sense that made it (runner)
   }
+  c.src = src; c.walls = 0; // R18 fix list 6: which sense holds the latest fix (radarFix adds the walls it went through)
   c.snd = src === 'SOUND'; // R13: true while the latest fix is sound only (never a lock; "SOUND" label)
   c.shr = src === 'ALARM';  // R13 s2: true while the latest fix is a shared alarm contact (never a lock)
   if (exact) { c.unc = measU; c.tx = x; c.ty = y; }
@@ -148,7 +149,7 @@ export function radarFix(o, m, list, id, jit, vx, vy, dt) {
       jit.x = Math.cos(a) * r; jit.y = Math.sin(a) * r; jit.t = TUNE.RADAR_JIT_TIME;
     }
     const u = (TUNE.RADAR_UNC + w * TUNE.RADAR_WALL_UNC) * T;
-    observe(list, id, m.x + jit.x * u, m.y + jit.y * u, u, vx, vy, false, false, false, 'RADAR');
+    const c = observe(list, id, m.x + jit.x * u, m.y + jit.y * u, u, vx, vy, false, false, false, 'RADAR'); if (c) c.walls = w; // R18: fuzzy through w walls
   }
 }
 // R7: the player senses every living field unit; every field unit senses the player (+ ghost) on its own.

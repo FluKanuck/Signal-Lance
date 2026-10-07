@@ -382,7 +382,6 @@ export function doMove(m, pl) {
   };
   if (isMech(m) && TUNE.MOVE_INTERRUPT) { // R17: what the suit already had at the start of the move (anything else is new)
     a.known = new Set(G.pc.filter(c => c.on).map(c => c.id));
-    a.seen = new Set(G.units.filter(u => !u.dead && canSee(m, u, eyesRange(m))).map(u => u.id));
   }
   startAct(a);
 }
@@ -401,8 +400,9 @@ function moveTick(a) {
     if (!c.on) continue;
     const u = unitById(c.id);
     if (!u || u.dead || isFriend(u)) continue;
-    const eyes = !a.seen.has(u.id) && canSee(m, u, eyesRange(m));
-    if (eyes || !a.known.has(c.id)) { interruptMove(a, u, eyes ? 'eyes' : c.snd ? 'sound' : c.shr ? 'alarm' : 'sensors'); return; }
+    // R18 fix list 8 (Jamie: "i already knew they were there … they weren't a new contact"): only a contact that wasn't on your
+    // picture when the move began stops it (eyes landing on a known one no longer does)
+    if (!a.known.has(c.id)) { const eyes = canSee(m, u, eyesRange(m)); interruptMove(a, u, eyes ? 'eyes' : c.snd ? 'sound' : c.shr ? 'alarm' : 'sensors'); return; }
   }
 }
 // R17: stop the move here. AP / EN are charged only for what was walked (and the waypoints reached); the rest goes back.

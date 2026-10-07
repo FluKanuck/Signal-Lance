@@ -53,6 +53,41 @@ function soundRing(x, y, r, z, alpha, label?) {
   if (label) { ctx.fillStyle = 'rgba(232,244,255,' + Math.min(1, alpha + 0.3) + ')'; ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText(label, x + r * 0.71 + 4 / z, y - r * 0.71 - 4 / z); }
 }
 
+// R18 fix list 6 (Jamie: "a graphic beside the track saying what sensor is responsible for its current fix"): the sense behind
+// the latest fix, as a short coloured tag. RDR through walls says how many ("RDR 2W": fuzzy, shrinks only while tracked).
+const TAGS = { EYES: ['EYE', '#fff'], RADAR: ['RDR', '#6af'], PASSIVE: ['EM', '#3dd'], THERMAL: ['IR', '#ff7043'], SOUND: ['SND', '#ddd'], FLASH: ['FLASH', '#fc6'], ALARM: ['ALARM', '#f9a'], GHOST: ['GHOST', '#b6f'] };
+export function sensorTag(c): [string, string] {
+  const T0 = TAGS[c.src] || ['?', '#aaa'];
+  return [T0[0] + (c.src === 'RADAR' && c.walls ? ' ' + c.walls + 'W' : '') + (c.lost > c.gap ? ' old' : ''), T0[1]];
+}
+// R18 fix list 5: lay the labels out top to bottom; one that would overlap a label already placed moves down past it, and a
+// moved label gets a thin line back to its contact.
+function drawLabels(labels, z) {
+  const placed: { x0: number; y0: number; x1: number; y1: number }[] = [], pad = 3 / z;
+  labels.sort((a, b) => a.y - b.y || a.x - b.x);
+  for (const L of labels) {
+    ctx.font = 'bold ' + (10 / z) + 'px monospace';
+    const tw = ctx.measureText(L.tag).width + 6 / z;
+    let w = 0, h = 0; for (const l of L.lines) { ctx.font = l.font; w = Math.max(w, ctx.measureText(l.t).width); h += l.h; }
+    const x0 = L.x + 14, wTot = tw + 4 / z + w;
+    let y0 = L.y + 4 - 11 / z;
+    for (let guard = 0; guard < 40; guard++) {
+      const hit = placed.find(p => x0 < p.x1 + pad && x0 + wTot > p.x0 - pad && y0 < p.y1 + pad && y0 + h > p.y0 - pad);
+      if (!hit) break; y0 = hit.y1 + pad;
+    }
+    placed.push({ x0, y0, x1: x0 + wTot, y1: y0 + h });
+    ctx.globalAlpha = L.a;
+    if (y0 > L.y + 4 - 11 / z + 1e-6) { ctx.strokeStyle = '#e8f4ff'; ctx.lineWidth = 1 / z; ctx.beginPath(); ctx.moveTo(L.x + 6, L.y); ctx.lineTo(x0 - 2 / z, y0 + 6 / z); ctx.stroke(); }
+    const old = / old$/.test(L.tag); // a stale track's tag dims
+    ctx.globalAlpha = L.a * (old ? 0.55 : 1);
+    ctx.strokeStyle = ctx.fillStyle = L.tagCol; ctx.lineWidth = 1.5 / z; ctx.strokeRect(x0, y0 + 1 / z, tw, 12 / z);
+    ctx.font = 'bold ' + (10 / z) + 'px monospace'; ctx.fillText(L.tag, x0 + 3 / z, y0 + 10.5 / z);
+    ctx.globalAlpha = L.a;
+    let ly = y0 + 11 / z;
+    for (const l of L.lines) { ctx.fillStyle = l.col; ctx.font = l.font; ctx.fillText(l.t, x0 + tw + 4 / z, ly); ly += l.h; }
+  }
+  ctx.globalAlpha = 1;
+}
 // R14: the contact's name on the map
 export function contactLabel(c) {
   const o = G.obs[c.id], d = G.ids[c.id], u = unitById(c.id);
@@ -360,7 +395,9 @@ export function render() {
     const g = G.ghost; ctx.strokeStyle = '#b6f'; ctx.lineWidth = 2 / z; ctx.beginPath();
     ctx.moveTo(g.x, g.y - 10); ctx.lineTo(g.x + 10, g.y); ctx.lineTo(g.x, g.y + 10); ctx.lineTo(g.x - 10, g.y); ctx.closePath(); ctx.stroke();
   }
-  // contacts (red = tracked now, orange = lost/fading)
+  // contacts (red = tracked now, orange = lost/fading). R18 fix list 5: labels are collected here and laid out afterwards, so
+  // contacts close together stack their labels instead of printing on top of each other.
+  const labels: { c: any; x: number; y: number; a: number; lines: { t: string; col: string; font: string; h: number }[]; tag: string; tagCol: string }[] = [];
   for (const c of G.pc) {
     if (!c.on) continue;
     const lost = c.lost > c.gap, a = 1 - Math.max(0, c.lost - c.gap) / TUNE.CONTACT_LINGER, x = cx(c), y = cy(c);
@@ -376,19 +413,20 @@ export function render() {
       if (seen) d = partsRead(u); // R12: per-part read while seen
       const lab = contactLabel(c); // R14: UNKNOWN / SOUND / "scout?" (your call) / "PATROL scout" (eyes)
       const conf = !!(G.obs[c.id] && G.obs[c.id].var);
-      ctx.fillStyle = conf ? '#fff' : G.ids[c.id] ? '#ffd27a' : '#e8f4ff'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText(lab, x + 14, y + 4);
-      let ly = y + 4 + 13 / z;
-      if (d) { ctx.fillStyle = '#fff'; ctx.font = (11 / z) + 'px monospace'; ctx.fillText(d, x + 14, ly); ly += 13 / z; }
+      const L = [{ t: lab, col: conf ? '#fff' : G.ids[c.id] ? '#ffd27a' : '#e8f4ff', font: 'bold ' + (12 / z) + 'px monospace', h: 13 / z }];
+      if (d) L.push({ t: d, col: '#fff', font: (11 / z) + 'px monospace', h: 13 / z });
       if (G.sel === c && !conf) { // R14: the selected contact's observed traits, one line each
-        ctx.fillStyle = '#cfe6ff'; ctx.font = (11 / z) + 'px monospace';
-        const L = traitLines(G.obs[c.id]); if (!L.length) L.push('no traits yet');
-        if (V.dbg && u) L.push('DBG true: ' + u.variant);
-        for (const t of L) { ctx.fillText(t, x + 14, ly); ly += 12 / z; }
+        const TL = traitLines(G.obs[c.id]); if (!TL.length) TL.push('no traits yet');
+        if (V.dbg && u) TL.push('DBG true: ' + u.variant);
+        for (const t of TL) L.push({ t, col: '#cfe6ff', font: (11 / z) + 'px monospace', h: 12 / z });
       }
+      const [tag, tagCol] = sensorTag(c);
+      labels.push({ c, x, y, a: ctx.globalAlpha, lines: L, tag, tagCol });
     }
     if (G.sel === c) { ctx.strokeStyle = '#ff0'; ctx.lineWidth = 3 / z; ctx.strokeRect(x - 12, y - 12, 24, 24); }
     ctx.globalAlpha = 1;
   }
+  drawLabels(labels, z);
   // R9 mortar: scatter preview on the target (orange dashed = where the shell can land, solid when you can fire),
   // and the last splash (splash circle, red = hit something, grey = miss)
   if (G.mode === 'hunt' && G.phase === 'PLAYER' && !G.act && has(p, 'MORTAR') && p.shells > 0) {

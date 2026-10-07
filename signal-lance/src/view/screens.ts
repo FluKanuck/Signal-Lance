@@ -1,5 +1,5 @@
 import { TUNE } from '../tune.ts';
-import { G, newHunt, enterLoadout } from '../sim/state.ts';
+import { G, newHunt, enterLoadout, rollEnemy } from '../sim/state.ts';
 import { newContract, previewJob, takeJob, rollJobs, rerollJobs, dmgWord, lanceText, contractActive, refit, refitBlock, refitCap, buysText } from '../sim/contract.ts';
 import { V } from './state.ts';
 import { $, fmtTime } from './hud.ts';
@@ -21,7 +21,7 @@ import { fitHasGun, fitHasMortar } from '../sim/contract.ts';
 import { frameOf } from '../sim/fit.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r18-s7';  // R18 fix list 1-4: clear hangar highlight, autoscale to the window (iPad split screen), top buffer, sheet acts on touch; new-build check; quit-Escort crash. r18-s6: R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
+export const BUILD = 'r18-s8';  // R18 fix list 5-9: stacked contact labels, sensor tags, cover pieces by kind, interrupt only on new contacts, PLAY SEED + seed in the log. r18-s7: R18 fix list 1-4: clear hangar highlight, autoscale to the window (iPad split screen), top buffer, sheet acts on touch; new-build check; quit-Escort crash. r18-s6: R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
 declare const __BUILT__: string;
 declare const __MARK__: string;
 // R18 fix (Jamie's iPad kept an old build): fetch the published page fresh; if its build stamp differs, offer a reload.
@@ -130,6 +130,7 @@ function showIntel() {
   $('intel').textContent = 'CONTRACT: ' + ctHunts() + (ctHunts() > 1 ? ' hunts, win ' + Math.min(TUNE.CONTRACT_WINS_NEEDED, ctHunts()) : ' hunt (quick test)') + '. Loadouts lock for the whole contract. Damage, rounds, shells and lost mechs carry over. Jobs are briefed after you start.';
 }
 export function showLoadout() {
+  G.replay = 0; // R18: a replayed hunt is over once you're back in the hangar
   enterLoadout((Math.random() * 4294967296) >>> 0); // R11: sets loadout mode; the jobs are rolled once the contract starts
   $('res').hidden = $('jobs').hidden = $('cres').hidden = true; $('load').hidden = false;
   showIntel();
@@ -162,7 +163,7 @@ export function saveAndNext() {
   const stamp = d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
   const note = $('note').value.replace(/[\r\n|]+/g, ' ').replace(/\s+/g, ' ').trim();
   const ans = answersText();
-  LOG.push(stamp + ' | ' + testerTag() + loadSummary() + ' | vs ' + enemySummary() + ' | ' + ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + mapText(G.zones.length) + ' · ' + killText() + (G.ct ? ' · ' + lanceText() + huntCr() : '') + (isType('UPLINK') ? ' uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' @' + G.up.name : '') + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + dmgSummary() + ' | ' + (ans ? ans + ' | ' : '') + note);
+  LOG.push(stamp + ' | ' + testerTag() + loadSummary() + ' | vs ' + enemySummary() + ' | ' + ctTag() + G.outcome + ' · ' + G.comp.NAME + ' · ' + seedText() + ' · ' + mapText(G.zones.length) + ' · ' + killText() + (G.ct ? ' · ' + lanceText() + huntCr() : '') + (isType('UPLINK') ? ' uplink ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' @' + G.up.name : '') + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + dmgSummary() + ' | ' + (ans ? ans + ' | ' : '') + note);
   if (G.ct && G.ct.status !== 'ACTIVE') LOG.push(stamp + ' | ' + testerTag() + contractLine());
   store.set('signalLance.log', LOG);
   $('note').blur();
@@ -172,7 +173,8 @@ export function saveAndNext() {
 let ctN = store.get('signalLance.ctN', 0) | 0; // contract number for the log (C3)
 // " · +140 cr (bought A repair×2)" for this hunt's log line
 function huntCr() { const r = G.ct.results[G.ct.results.length - 1]; return r ? ' · +' + r.pay + ' cr' + (r.buys.length ? ' (bought ' + buysText(r.buys) + ')' : '') : ''; }
-function testerTag() { const t = store.get('signalLance.tester', ''); return (t ? '[' + t + '] ' : '') + (TUNE.PACK_ENABLED ? '[PACK] ' : '') + (TUNE.MAP_MODE === 'hive' ? '[HIVE] ' : '') + (TUNE.THERMAL_ENABLED ? '' : '[NO-IR] '); } // R18 cp3: runs with THERMAL off are tagged // R13: pack runs are tagged (R16: so are old-map runs)
+function tagsOnly() { return (TUNE.PACK_ENABLED ? '[PACK] ' : '') + (TUNE.MAP_MODE === 'hive' ? '[HIVE] ' : '') + (TUNE.THERMAL_ENABLED ? '' : '[NO-IR] '); }
+function testerTag() { const t = store.get('signalLance.tester', ''); if (G.replay && G.mode !== 'loadout') return (t ? '[' + t + '] ' : '') + '[REPLAY] ' + tagsOnly(); return (t ? '[' + t + '] ' : '') + (TUNE.PACK_ENABLED ? '[PACK] ' : '') + (TUNE.MAP_MODE === 'hive' ? '[HIVE] ' : '') + (TUNE.THERMAL_ENABLED ? '' : '[NO-IR] '); } // R18 cp3: runs with THERMAL off are tagged // R13: pack runs are tagged (R16: so are old-map runs)
 function ctTag() { return G.ct ? 'C' + ctN + ' H' + G.ct.hunt + '/' + G.ct.hunts + (G.ct.rerolls ? ' [DBG jobs rerolled ×' + G.ct.rerolls + ']' : '') + ' · ' : ''; }
 // "C3 COMPLETE 2/3 · lost B in H2"
 function contractLine() {
@@ -180,6 +182,7 @@ function contractLine() {
   return 'C' + ctN + ' ' + C.status + ' ' + C.wins + '/' + C.results.length + (lost.length ? ' · lost ' + lost.join(', ') : ' · no mechs lost') + ' · ' + C.results.map(r => r.mission + ' ' + r.comp).join(' > ') + ' · cr earned ' + C.earned + ' spent ' + C.spent;
 }
 function startContract() {
+  G.replay = 0;
   ctN++; store.set('signalLance.ctN', ctN);
   newContract((Math.random() * 4294967296) >>> 0, currentLoads(), ctHunts());
   showJobs();
@@ -234,7 +237,7 @@ function showContractResult() {
 // test-bed scenario) and goes back to the hangar. A contract hunt quit part-way is logged as QUIT, never as a result.
 export function quitToStart() {
   if (G.tb) { leaveScenario(); G.tb = null; }
-  else if (G.mode === 'hunt') logLine(ctTag() + 'QUIT · ' + (G.comp ? G.comp.NAME : '') + ' · ' + G.mtype + ' · round ' + G.turn + ' · ' + loadSummary());
+  else if (G.mode === 'hunt') logLine(ctTag() + 'QUIT · ' + (G.comp ? G.comp.NAME : '') + ' · ' + seedText() + ' · round ' + G.turn + ' · ' + loadSummary());
   G.ct = null; G.act = null;
   for (const id of ['res', 'jobs', 'cres', 'tb', 'tbres', 'card', 'idp', 'hsheet']) { const e = document.getElementById(id); if (e) e.hidden = true; }
   showLoadout();
@@ -258,11 +261,37 @@ export function copyLog() {
   setTimeout(() => { $('bCopy').textContent = 'COPY LOG'; }, 2500);
 }
 // Start a hunt with the current loadout, and reset the view (camera on the player, nothing armed).
+// R18 fix list 9 (Jamie: "a way for after, me load a specific seed so i can test that exact same situation against the fix"):
+// every log line carries "seed N <MISSION>"; PLAY SEED takes a seed or a pasted log line and starts that same hunt (same
+// district, field, placements, job type) with the current fits, outside any contract. The RNG is seeded, so the same moves
+// replay the same hunt. The line's [PACK] / [NO-IR] / [HIVE] tags set those toggles for the replay.
+export function seedText() { return 'seed ' + G.seed + ' ' + G.mtype; }
+export function parseSeed(text: string) {
+  const t = text.trim(), m = /seed (\d+)/.exec(t) || /^(\d+)$/.exec(t) || /\b(\d{6,})\b/.exec(t);
+  if (!m) return null;
+  const low = t.toLowerCase(), has = (w: string) => new RegExp('(^|[^a-z])' + w.toLowerCase() + '([^a-z]|$)').test(low); // a whole word, any case
+  const comp = TUNE.FIELD_COMPOSITIONS.map(c => c.NAME).find(n => has(n)); // none named = the seed's own roll
+  const mission = [...TUNE.MISSION_TYPES, 'UPLINK'].find(k => has(k)) || 'UPLINK';
+  const up = t.toUpperCase(), tags = /\[(PACK|NO-IR|HIVE)\]/.test(up);
+  return { seed: Number(m[1]) >>> 0, comp, mission, pack: up.includes('[PACK]'), noIr: up.includes('[NO-IR]'), hive: up.includes('[HIVE]'), line: /\|/.test(t) || tags };
+}
+function playSeed() {
+  const P = parseSeed(($('seedIn') as HTMLInputElement).value);
+  if (!P) { $('intel').textContent = 'PLAY SEED: type a seed number, or paste a log line with "seed N" in it.'; return; }
+  const w = hangarBlock(); if (w) { $('intel').textContent = 'Can’t launch: ' + w + '.'; return; }
+  if (P.line) { setPack(P.pack); TUNE.THERMAL_ENABLED = !P.noIr; TUNE.MAP_MODE = P.hive ? 'hive' : 'blocks'; showPack(); showHeat(); showMap(); }
+  G.ct = null; G.replay = P.seed;
+  rollEnemy(P.seed, P.comp, P.mission);
+  $('load').hidden = true;
+  launch();
+}
 export function launch() {
   newHunt(currentLoads());
   V.follow = true; V.camX = G.p.x; V.camY = G.p.y; V.ghostArm = V.faceArm = false; V.hitFlash = 0;
   $('res').hidden = true;
 }
+$('bSeed').addEventListener('click', playSeed);
+$('seedIn').addEventListener('keydown', e => { if (e.key === 'Enter') playSeed(); });
 $('bLaunch').addEventListener('click', () => { const w = hangarBlock(); if (w) { $('intel').textContent = 'Can’t launch: ' + w + '.'; return; } $('load').hidden = true; startContract(); }); // R11: locks the fits, opens the job pick. R18: only fits that launch
 $('bJ0').addEventListener('click', () => pickJob(0));
 $('jlance').addEventListener('click', ev => { const b = (ev.target as any).closest('.rf'); if (!b) return; if (refit(b.dataset.id, b.dataset.k)) renderLance(); }); // R11 s2
