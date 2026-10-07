@@ -7,6 +7,6 @@ export type Usage = {
 
 declare module 'claude-code' {
   interface PluginState {
-    'flu-statusline': { git: GitInfo | null; usage: Usage | null; model: string; now: number }
+    'flu-statusline': { git: GitInfo | null; usage: Usage | null; model: string; cwd: string; now: number }
   }
 }

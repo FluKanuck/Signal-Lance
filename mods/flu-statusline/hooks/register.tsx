@@ -1,21 +1,24 @@
 import { atom, read, update } from 'claude-code'
 import type { Register } from 'claude-code'
 
-import { fit, parseGit, plain, segments, usageFrom } from './logic.ts'
+import { G, PAL, fit, parseGit, pillWidth, plain, rows, usageFrom } from './logic.ts'
+import type { Block } from './logic.ts'
 
 const git = atom({ plugin: 'flu-statusline', key: 'git' } as const, null)
 const usage = atom({ plugin: 'flu-statusline', key: 'usage' } as const, null)
 const model = atom({ plugin: 'flu-statusline', key: 'model' } as const, '')
+const cwd = atom({ plugin: 'flu-statusline', key: 'cwd' } as const, '')
 const now = atom({ plugin: 'flu-statusline', key: 'now' } as const, 0)
 
 const TICK_MS = 30_000   // countdowns and git refresh
 
 async function refreshGit($: any) {
   try {
-    const cwd = await $.session.cwd()
-    const top = await $.process.run(['git', '-C', cwd, 'rev-parse', '--show-toplevel'], { timeoutMs: 4000 })
+    const dir = await $.session.cwd()
+    await update($, cwd, () => String(dir ?? ''))
+    const top = await $.process.run(['git', '-C', dir, 'rev-parse', '--show-toplevel'], { timeoutMs: 4000 })
     if (top.exitCode !== 0) { await update($, git, () => null); return }
-    const st = await $.process.run(['git', '-C', cwd, 'status', '--porcelain=v2', '--branch'], { timeoutMs: 4000 })
+    const st = await $.process.run(['git', '-C', dir, 'status', '--porcelain=v2', '--branch'], { timeoutMs: 4000 })
     const info = parseGit(st.stdout, top.stdout.trim())
     await update($, git, () => info)
   } catch { /* not a repo, or git missing: leave the segment out */ }
@@ -30,12 +33,18 @@ async function refreshUsage($: any) {
   } catch { /* keep the last reading */ }
 }
 
+async function current($: any, columns: number) {
+  return rows({
+    git: await read($, git), usage: await read($, usage), model: await read($, model),
+    cwd: await read($, cwd), now: (await read($, now)) || Date.now(), columns,
+  })
+}
+
 /** Surfaces without a drawable hint row (VS Code's panel, mobile) get the plain-text status entry instead. */
 async function mirrorPlain($: any) {
   const surface = await $.ui.surface().catch(() => null)
   if (surface === 'terminal' || surface === 'desktop' || surface == null) return
-  const segs = segments(await read($, git), await read($, usage), await read($, model), await $.clock.now())
-  $.ui.status(plain(segs))
+  $.ui.status(plain(await current($, 120)))
 }
 
 async function tick($: any) {
@@ -69,24 +78,37 @@ export const register: Register = on => {
 
   on('ui.render', { component: 'PromptHint' }, async ($, e, next) => {
     const { Box, Text } = $.ui.resolve(e)
-    const t = (await read($, now)) || Date.now()
-    const all = segments(await read($, git), await read($, usage), await read($, model), t)
+    // the engine draws the mode pill ("⏵⏵ bypass permissions on ·") to our left, in the same row
+    const cols = (e.viewport?.columns ?? 120) - 2 - pillWidth(e.props.hint)
+    const all = await current($, cols)
     if (!all.length) return next(e)
-    const cols = (e.viewport?.columns ?? 120) - 2
-    const hint = e.props.isWorking || e.props.isDraft ? e.props.hint : ''
-    const room = hint ? cols - hint.length - 3 : cols
-    const shown = fit(all, Math.max(20, room))
-    return (
-      <Box flexDirection="row">
-        {shown.map((s, i) => (
-          <Box key={s.key} flexDirection="row">
-            {i > 0 ? <Text dimColor> │ </Text> : null}
-            {s.parts.map((p, k) => (
-              <Text key={`${s.key}${k}`} color={p.color} dimColor={p.dim} bold={p.bold}>{p.text}</Text>
-            ))}
-          </Box>
+    // only the hint worth a column while Claude works; the shift+tab reminder is noise here
+    const hint = e.props.isWorking ? /esc to interrupt/.exec(e.props.hint)?.[0] ?? '' : ''
+
+    // a block never breaks: a row too narrow moves whole blocks down instead of splitting words
+    const block = (b: Block, nextBg?: string) => (
+      <Box key={b.key} flexDirection="row" flexShrink={0}>
+        <Text backgroundColor={b.bg}> </Text>
+        {b.cells.map((c, k) => (
+          <Text key={String(k)} backgroundColor={b.bg} color={c.fg ?? PAL.fg} bold={c.bold} wrap="truncate-end">{c.text}</Text>
         ))}
-        {hint ? <Text dimColor wrap="truncate-end">{'   '}{hint}</Text> : null}
+        <Text backgroundColor={b.bg}> </Text>
+        <Text color={b.bg} backgroundColor={nextBg}>{G.sep}</Text>
+      </Box>
+    )
+
+    return (
+      <Box flexDirection="column" flexShrink={1}>
+        {all.map((row, r) => {
+          const last = r === all.length - 1
+          const kept = fit(row, Math.max(20, last && hint ? cols - hint.length - 2 : cols))
+          return (
+            <Box key={`row${r}`} flexDirection="row" flexWrap="wrap">
+              {kept.map((b, i) => block(b, kept[i + 1]?.bg))}
+              {last && hint ? <Text dimColor wrap="truncate-end">{'  '}{hint}</Text> : null}
+            </Box>
+          )
+        })}
       </Box>
     )
   })

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { bar, fit, fmtLeft, hitsCapIn, pace, parseGit, plain, segments, shortModel, toneFor, usageFrom } from '../hooks/logic.ts'
+import { G, bar, pillWidth, blockWidth, fit, fmtLeft, hitsCapIn, pace, parseGit, plain, rows, shortModel, shortPath, toneFor, usageFrom } from '../hooks/logic.ts'
 
 const H = 3_600_000
 const NOW = Date.parse('2026-10-06T19:00:00Z')
@@ -14,10 +14,13 @@ describe('pieces', () => {
     expect(toneFor(20)).toBe('success')
     expect(toneFor(65)).toBe('warning')
     expect(toneFor(90)).toBe('error')
-    expect(bar(40)).toBe('▰▰▱▱▱')
+    expect(bar(40)).toBe('██░░░')
+    expect(shortPath('Q:\\Code\\Signal Lance\\src')).toBe('…\\Signal Lance\\src')
     expect(fmtLeft(2 * H + 14 * 60_000)).toBe('2h14m')
     expect(fmtLeft(76 * H)).toBe('3d4h')
     expect(fmtLeft(30_000)).toBe('<1m')
+    expect(pillWidth('bypass permissions on (shift+tab to cycle)')).toBe(27)
+    expect(pillWidth('? for shortcuts')).toBe(0)
     expect(shortModel('claude-opus-5-5')).toBe('Opus 5.5')
     expect(shortModel('Sonnet 5.5 (1M context)')).toBe('Sonnet 5.5')
   })
@@ -42,21 +45,33 @@ describe('the line', () => {
   })
   const g = { repo: 'Signal-Lance', branch: 'main', dirty: 0, ahead: 0, behind: 0 }
 
-  test('reads like the ccstatusline one', async () => {
-    const line = plain(segments(g, u, 'claude-opus-5-5', NOW))
-    expect(line).toBe('⎇ Signal-Lance:main ✓ │ ◆ Opus 5.5 │ ctx ▰▰▱▱▱ 42% 84k/200k │ 5h ▰▰▱▱▱ 37% ⟳2h00m │ wk ▰▰▰▱▱ 61% ⟳3d4h ⚠cap in 2d10h │ $1.23 · ⏱ 47m')
+  const at = (columns: number) => rows({ git: g, usage: u, model: 'claude-opus-5-5', cwd: 'Q:\\Signal Lance', now: NOW, columns })
+
+  test('two rows: the meters, then where you are', async () => {
+    const [meters, place] = at(120)
+    expect(meters!.map(b => b.key)).toEqual(['ctx', 'five_hour', 'seven_day'])
+    expect(place!.map(b => b.key)).toEqual(['git', 'model', 'session', 'cwd'])
+    expect(plain([meters!])).toBe(`ctx █████░░░░░░░ 42% 84k/200k │ 5h ████░░░░░░░░ 37% ${G.reset} 2h00m │ wk ███████░░░░░ 61% ${G.reset} 3d4h ⚠ cap in 2d10h`)
+    expect(plain([place!])).toBe(`${G.branch} Signal-Lance · main ✓ │ ${G.chip} Opus 5.5 │ ${G.clock} 47m $1.23 │ ${G.folder} Q:\\Signal Lance`)
   })
-  test('drops the least important segments first when narrow', async () => {
-    const all = segments(g, u, 'claude-opus-5-5', NOW)
-    const segs = fit(all, 60)
-    expect(plain(segs).length).toBeLessThanOrEqual(60)
-    expect(segs[0]?.key).toBe('git')
-    const lowestKept = Math.min(...segs.map(s => s.priority))
-    for (const s of all) if (!segs.includes(s)) expect(s.priority).toBeLessThanOrEqual(lowestKept)
+  test('no cap alarm from one busy half-hour at the start of a window', async () => {
+    const early = usageFrom({ startedAt: NOW, context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 11, resetsAt: new Date(NOW + 4.5 * H).toISOString() }] })
+    expect(plain(rows({ git: null, usage: early, model: '', cwd: '', now: NOW, columns: 120 }))).not.toContain('cap')
   })
-  test('no rate limits off a subscription: those segments just leave', async () => {
-    const line = plain(segments(null, usageFrom({ startedAt: NOW, context: { window: 200_000 }, rateLimits: [] }), '', NOW))
-    expect(line).toBe('⏱ 0m')
+  test('neighbouring blocks never share a background', async () => {
+    for (const row of at(120)) for (let i = 1; i < row.length; i++) expect(row[i]!.bg).not.toBe(row[i - 1]!.bg)
+  })
+  test('drops the least important blocks first when narrow', async () => {
+    const [, place] = at(60)
+    const kept = fit(place!, 40)
+    expect(kept.reduce((a, b) => a + blockWidth(b), 0)).toBeLessThanOrEqual(40)
+    expect(kept[0]?.key).toBe('git')
+    const lowestKept = Math.min(...kept.map(b => b.priority))
+    for (const b of place!) if (!kept.includes(b)) expect(b.priority).toBeLessThanOrEqual(lowestKept)
+  })
+  test('no rate limits off a subscription: those blocks just leave', async () => {
+    const r = rows({ git: null, usage: usageFrom({ startedAt: NOW, context: { window: 200_000 }, rateLimits: [] }), model: '', cwd: '', now: NOW, columns: 120 })
+    expect(plain(r)).toBe(`${G.clock} 0m`)
   })
 })
 

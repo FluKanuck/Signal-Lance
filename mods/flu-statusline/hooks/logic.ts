@@ -2,7 +2,18 @@
 import type { GitInfo, Usage } from '../types'
 
 export type Tone = 'success' | 'warning' | 'error' | 'inactive'
-export type Seg = { key: string; parts: { text: string; color?: string; dim?: boolean; bold?: boolean }[]; priority: number }
+export type Cell = { text: string; fg?: string; bold?: boolean }
+/** One powerline block: a background and the coloured runs on it. `priority` decides what drops first (lowest first). */
+export type Block = { key: string; bg: string; cells: Cell[]; priority: number }
+
+/** The colours: blocks in the teal/blue family ccstatusline had, fills that still read on them. Tune here. */
+export const PAL = {
+  bg: ['#0f4c5c', '#16687c', '#1f3f6e', '#2a5a96'],
+  fg: '#eaf7fb', mute: '#a9cfd9', track: '#5f8f9c',
+  success: '#7fe08e', warning: '#ffc857', error: '#ff6b6b', inactive: '#a9cfd9',
+}
+/** Glyphs: Nerd Font (JetBrainsMono Nerd Font has them all). */
+export const G = { sep: '', branch: '', chip: '', clock: '', reset: '', folder: '', full: '█', empty: '░' }
 
 const HOUR = 3_600_000
 export const WINDOW_MS: Record<string, number> = { five_hour: 5 * HOUR, seven_day: 7 * 24 * HOUR }
@@ -29,7 +40,12 @@ export function toneFor(pct: number, warn = 50, bad = 80): Tone {
 
 export function bar(pct: number, width = 5) {
   const n = Math.max(0, Math.min(width, Math.round((pct / 100) * width)))
-  return '▰'.repeat(n) + '▱'.repeat(width - n)
+  return G.full.repeat(n) + G.empty.repeat(width - n)
+}
+
+/** Bar width for the terminal: wider meters on wider screens. */
+export function barWidth(columns: number) {
+  return columns >= 150 ? 16 : columns >= 120 ? 12 : columns >= 95 ? 8 : 5
 }
 
 /** 2h14m, 3d4h, 9m, <1m. */
@@ -76,70 +92,102 @@ export function shortModel(m: string) {
   return s
 }
 
-/** The segments, left to right; `priority` decides what drops first on a narrow screen (lowest first). */
-export function segments(git: GitInfo | null, usage: Usage | null, model: string, now: number): Seg[] {
-  const out: Seg[] = []
-  if (git) {
-    const parts: Seg['parts'] = [
-      { text: '⎇ ', color: 'suggestion' }, { text: git.repo, color: 'suggestion', bold: true },
-      { text: ':', dim: true }, { text: git.branch, color: 'permission' },
-    ]
-    parts.push(git.dirty ? { text: ` ±${git.dirty}`, color: 'warning' } : { text: ' ✓', color: 'success' })
-    if (git.ahead) parts.push({ text: ` ↑${git.ahead}`, color: 'warning' })
-    if (git.behind) parts.push({ text: ` ↓${git.behind}`, color: 'error' })
-    out.push({ key: 'git', parts, priority: 9 })
-  }
-  if (model) out.push({ key: 'model', parts: [{ text: '◆ ', color: 'claude' }, { text: shortModel(model), color: 'claude' }], priority: 3 })
+/** The last `n` parts of a path, Windows or POSIX, as written. */
+export function shortPath(p: string, n = 2) {
+  const sep = p.includes('\\') ? '\\' : '/'
+  const parts = p.replace(/[\\/]+$/, '').split(/[\\/]/)
+  return parts.length <= n ? parts.join(sep) : '…' + sep + parts.slice(-n).join(sep)
+}
+
+export type Input = { git: GitInfo | null; usage: Usage | null; model: string; cwd: string; now: number; columns: number }
+
+/**
+ * Two powerline rows.
+ * Row 1, the meters: context, 5-hour, weekly, each with its bar, % and reset.
+ * Row 2, where you are: branch and changes, model, session time and cost, folder.
+ */
+export function rows({ git, usage, model, cwd, now, columns }: Input): Block[][] {
+  const w = barWidth(columns)
+  const meters: Block[] = []
+  const place: Block[] = []
+
   if (usage && usage.ctxPct != null) {
-    const t = toneFor(usage.ctxPct, 50, 80)
-    out.push({ key: 'ctx', priority: 8, parts: [
-      { text: 'ctx ', dim: true }, { text: bar(usage.ctxPct), color: t }, { text: ` ${Math.round(usage.ctxPct)}%`, color: t, bold: true },
-      ...(usage.ctxTokens != null ? [{ text: ` ${fmtTokens(usage.ctxTokens)}/${fmtTokens(usage.ctxWindow)}`, dim: true }] : []),
+    const c = PAL[toneFor(usage.ctxPct, 50, 80)]
+    meters.push({ key: 'ctx', bg: PAL.bg[0]!, priority: 9, cells: [
+      { text: 'ctx ', fg: PAL.mute }, { text: bar(usage.ctxPct, w), fg: c },
+      { text: ` ${Math.round(usage.ctxPct)}%`, fg: c, bold: true },
+      ...(usage.ctxTokens != null ? [{ text: ` ${fmtTokens(usage.ctxTokens)}/${fmtTokens(usage.ctxWindow)}`, fg: PAL.mute }] : []),
     ] })
   }
   for (const l of usage?.limits ?? []) {
-    const label = LABEL[l.kind] ?? l.kind
     const p = pace(l.kind, l.pct, l.resetsAt, now)
-    const cap = hitsCapIn(l.kind, l.pct, l.resetsAt, now)
-    // colour by how full, bumped up a level when you're burning well ahead of pace
+    // early in a window one busy half-hour extrapolates to "cap"; only warn once there's real usage behind it
+    const cap = l.pct >= 30 ? hitsCapIn(l.kind, l.pct, l.resetsAt, now) : null
+    // colour by how full, bumped a level when you're burning well ahead of pace
     let t = toneFor(l.pct, 50, 80)
     if (p != null && p > 15 && t === 'success') t = 'warning'
-    if (cap != null && t !== 'error') t = 'error'
-    const parts: Seg['parts'] = [
-      { text: `${label} `, dim: true }, { text: bar(l.pct), color: t }, { text: ` ${Math.round(l.pct)}%`, color: t, bold: true },
+    if (cap != null) t = 'error'
+    const cells: Cell[] = [
+      { text: `${LABEL[l.kind] ?? l.kind} `, fg: PAL.mute }, { text: bar(l.pct, w), fg: PAL[t] },
+      { text: ` ${Math.round(l.pct)}%`, fg: PAL[t], bold: true },
     ]
-    if (l.resetsAt != null) parts.push({ text: ` ⟳${fmtLeft(l.resetsAt - now)}`, dim: true })
-    if (cap != null) parts.push({ text: ` ⚠cap in ${fmtLeft(cap)}`, color: 'error' })
-    else if (p != null && p > 15) parts.push({ text: ` ↯+${p}`, color: 'warning' })
-    out.push({ key: l.kind, parts, priority: l.kind === 'five_hour' ? 7 : 6 })
+    if (l.resetsAt != null) cells.push({ text: ` ${G.reset} ${fmtLeft(l.resetsAt - now)}`, fg: PAL.mute })
+    if (cap != null) cells.push({ text: ` ⚠ cap in ${fmtLeft(cap)}`, fg: PAL.error, bold: true })
+    else if (p != null && p > 15) cells.push({ text: ` ↑${p} ahead`, fg: PAL.warning })
+    const i = meters.length
+    meters.push({ key: l.kind, bg: PAL.bg[i % 2]!, priority: l.kind === 'five_hour' ? 8 : 6, cells })
   }
+
+  if (git) {
+    const cells: Cell[] = [
+      { text: `${G.branch} `, fg: PAL.mute }, { text: git.repo, fg: PAL.fg, bold: true },
+      { text: ' · ', fg: PAL.mute }, { text: git.branch, fg: PAL.fg, bold: true },
+      git.dirty ? { text: ` ±${git.dirty}`, fg: PAL.warning, bold: true } : { text: ' ✓', fg: PAL.success, bold: true },
+    ]
+    if (git.ahead) cells.push({ text: ` ↑${git.ahead}`, fg: PAL.warning })
+    if (git.behind) cells.push({ text: ` ↓${git.behind}`, fg: PAL.error })
+    place.push({ key: 'git', bg: PAL.bg[2]!, priority: 7, cells })
+  }
+  if (model) place.push({ key: 'model', bg: PAL.bg[3]!, priority: 4, cells: [{ text: `${G.chip} `, fg: PAL.mute }, { text: shortModel(model), fg: PAL.fg, bold: true }] })
   if (usage) {
     const mins = Math.max(0, Math.floor((now - usage.startedAt) / 60_000))
     const time = mins >= 60 ? `${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, '0')}m` : `${mins}m`
-    const parts: Seg['parts'] = []
-    if (usage.usd != null) parts.push({ text: `$${usage.usd.toFixed(2)}`, color: usage.usd >= 10 ? 'warning' : 'success' }, { text: ' · ', dim: true })
-    parts.push({ text: `⏱ ${time}`, dim: true })
-    out.push({ key: 'session', parts, priority: 2 })
+    const cells: Cell[] = [{ text: `${G.clock} `, fg: PAL.mute }, { text: time, fg: PAL.fg, bold: true }]
+    if (usage.usd != null) cells.push({ text: ` $${usage.usd.toFixed(2)}`, fg: usage.usd >= 10 ? PAL.warning : PAL.mute })
+    place.push({ key: 'session', bg: PAL.bg[place.length % 2 ? 3 : 2]!, priority: 3, cells })
   }
-  return out
+  if (cwd) place.push({ key: 'cwd', bg: PAL.bg[place.length % 2 ? 3 : 2]!, priority: 2, cells: [{ text: `${G.folder} `, fg: PAL.mute }, { text: shortPath(cwd), fg: PAL.fg }] })
+
+  return [meters, place].filter(r => r.length)
 }
 
-export const SEP = ' │ '
-export const segWidth = (s: Seg) => s.parts.reduce((a, p) => a + [...p.text].length, 0)
+/**
+ * Columns the engine's mode pill takes to the left of the hint row ("⏵⏵ bypass permissions on · ").
+ * Read off the hint text, which names the mode; a shift+tab reminder with no readable label still means a pill.
+ */
+export function pillWidth(hint: string) {
+  const m = /(bypass permissions|accept edits|plan mode|auto[- ]mode|auto-accept edits)( on)?/i.exec(hint)
+  if (m) return [...m[0]].length + 6
+  return /shift\+tab/i.test(hint) ? 26 : 0
+}
 
-/** Drop the lowest-priority segments until the line fits `columns`. */
-export function fit(segs: Seg[], columns: number): Seg[] {
-  const kept = [...segs]
-  const width = () => kept.reduce((a, s) => a + segWidth(s), 0) + SEP.length * Math.max(0, kept.length - 1)
+/** A block's drawn width: a space each side of its text, then its arrow. */
+export const blockWidth = (b: Block) => 2 + b.cells.reduce((a, c) => a + [...c.text].length, 0) + 1
+
+/** Drop the lowest-priority blocks until the row fits `columns`. */
+export function fit(row: Block[], columns: number): Block[] {
+  const kept = [...row]
+  const width = () => kept.reduce((a, b) => a + blockWidth(b), 0)
   while (kept.length > 1 && width() > columns) {
     let lo = 0
-    kept.forEach((s, i) => { if (s.priority < kept[lo]!.priority) lo = i })
+    kept.forEach((b, i) => { if (b.priority < kept[lo]!.priority) lo = i })
     kept.splice(lo, 1)
   }
   return kept
 }
 
-export const plain = (segs: Seg[]) => segs.map(s => s.parts.map(p => p.text).join('')).join(SEP)
+/** Plain text, for surfaces that only take a status string. */
+export const plain = (rs: Block[][]) => rs.map(r => r.map(b => b.cells.map(c => c.text).join('')).join(' │ ')).join(' │ ')
 
 export function usageFrom(u: any): Usage {
   return {
