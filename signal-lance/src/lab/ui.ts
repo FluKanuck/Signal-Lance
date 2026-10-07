@@ -9,11 +9,12 @@ import { MISSION_INFO } from '../sim/mission.ts';
 import { look } from './looks.ts';
 // R16-era loadout numbers (R18 moved them onto item rows). The old LOADOUT mock-up keeps them; HANGAR uses the rows.
 const OLD = { SLOTS: 10, AMMO_PER_SLOT: 10, ARMOUR_HITS: 3, AP_RADAR: 2, ENERGY_BASE: 100, ENERGY_CELL: 50, RADAR_EN: 25, SHOT: 12, MORTAR_SHELLS: 6 };
+import { sigint, sigintOpened, sigAct, company, coAct, hangar, hgAct, city, cyAct, setWorldHold } from './ui2.ts';
 import { UIK, frameAll, redrawFrames, playIn, glyph, GLYPHS, dots, seg, cells, matrix, eq, bars, dial, gauge, ringed, bracket, pad } from './kit.ts';
 
 const $ = (id: string) => document.getElementById(id)!;
-export const SCREENS = ['TITLE', 'LOADOUT', 'JOBS', 'ID DIAL', 'DEBRIEF', 'CONTRACT', 'KIT'];
-const JP: Record<string, string> = { TITLE: 'シグナル・ランス', LOADOUT: '装備', JOBS: '契約掲示板', 'ID DIAL': '識別', DEBRIEF: '報告', CONTRACT: '契約', KIT: '部品' };
+export const SCREENS = ['TITLE', 'COMPANY', 'CITY', 'JOBS', 'SIGINT', 'HANGAR', 'ID DIAL', 'DEBRIEF', 'CONTRACT', 'LOADOUT', 'KIT'];
+const JP: Record<string, string> = { COMPANY: '会社', CITY: '都市図', SIGINT: '信号情報', HANGAR: '格納庫', TITLE: 'シグナル・ランス', LOADOUT: '装備', JOBS: '契約掲示板', 'ID DIAL': '識別', DEBRIEF: '報告', CONTRACT: '契約', KIT: '部品' };
 let cur = 'TITLE', onLeave = () => {};
 
 export function applyUiCss() {
@@ -24,12 +25,12 @@ export function applyUiCss() {
 }
 
 // ---------------------------------------------------------------- shared bits
-const fx = (shape: string, inner: string, o: { treat?: string; marks?: string; cls?: string; attrs?: string; tag?: string } = {}) =>
+export const fx = (shape: string, inner: string, o: { treat?: string; marks?: string; cls?: string; attrs?: string; tag?: string } = {}) =>
   `<${o.tag || 'div'} class="fx ${o.cls || ''}" data-frame="${shape}"${o.treat ? ` data-treat="${o.treat}"` : ''}${o.marks ? ` data-marks="${o.marks}"` : ''} ${o.attrs || ''}><div class="in">${inner}</div></${o.tag || 'div'}>`;
-const btn = (label: string, o: { sub?: string; go?: string; act?: string; solid?: boolean; cls?: string; shape?: string; marks?: string; icon?: string } = {}) =>
+export const btn = (label: string, o: { sub?: string; go?: string; act?: string; solid?: boolean; cls?: string; shape?: string; marks?: string; icon?: string } = {}) =>
   fx(o.shape || (o.solid ? 'key' : 'btn'), `<span>${o.icon ? glyph(o.icon, 14) : ''}<span>${label}${o.sub ? `<small>${o.sub}</small>` : ''}</span></span>`,
     { tag: 'button', cls: 'ub ' + (o.cls || ''), treat: o.solid ? 'solid' : '', marks: o.marks || (o.solid ? 'dots' : ''), attrs: (o.go ? `data-go="${o.go}" ` : '') + (o.act ? `data-act="${o.act}"` : '') }).replace('<div class="in">', '').replace(/<\/div><\/button>$/, '</button>');
-const cap = (t: string, cls = '') => `<div class="cap ${cls}">${t}</div>`;
+export const cap = (t: string, cls = '') => `<div class="cap ${cls}">${t}</div>`;
 const sec = (n: string, title: string, data: string) => `<div class="sec"><span class="dim">${n} //</span><b data-decode>${title}</b><span class="data">${data}</span>${matrix(10, 2, n.charCodeAt(1), 0.45)}</div>`;
 
 // ---------------------------------------------------------------- KIT
@@ -93,15 +94,17 @@ function title() {
     <div class="row" style="gap:18px;align-items:flex-start"><div class="bootlog" id="boot"></div>${matrix(8, 8, 3, 0.5)}</div>
   </div>
   <div class="menu">
-    ${cap('MAIN // 01–07')}
-    ${menuItem('01', 'NEW CONTRACT', S.hunts + ' HUNTS · WIN ' + Math.min(2, S.hunts), false, 'LOADOUT', true)}
-    ${menuItem('02', 'LOADOUT', 'A ' + used(L[0]) + '/10 · B ' + used(L[1]) + '/10', false, 'LOADOUT')}
+    ${cap('MAIN // 01–09')}
+    ${menuItem('01', 'THE COMPANY', '412 CR · CONTRACT 4', false, 'COMPANY', true)}
+    ${menuItem('02', 'CITY MAP', 'PUMPHOUSE 4 · FUEL 7', false, 'CITY')}
     ${menuItem('03', 'JOBS BOARD', '2 POSTED', false, 'JOBS')}
-    ${menuItem('04', 'FIELD ID', '9 VARIANTS', false, 'ID DIAL')}
+    ${menuItem('04', 'SIGINT', 'LIVE SCAN', false, 'SIGINT')}
+    ${menuItem('05', 'HANGAR', 'EXOS A · B · C', false, 'HANGAR')}
+    ${menuItem('06', 'FIELD ID', '9 VARIANTS', false, 'ID DIAL')}
     <div class="row" style="padding:8px 4px;gap:18px"><span class="dim" style="font-size:9px">LENGTH</span><div class="segsel" data-act="hunts">${[1, 3, 5].map(n => `<button class="${n === S.hunts ? 'on' : ''}" data-n="${n}">${n} HUNT${n > 1 ? 'S' : ''}</button>`).join('')}</div><span class="toggle${S.pack ? ' on' : ''}" data-act="pack"><span class="tr"></span>THE PACK</span></div>
-    ${menuItem('05', 'LAST DEBRIEF', 'HUNT WON', false, 'DEBRIEF')}
-    ${menuItem('06', 'CONTRACT LOG', 'C04 COMPLETE', false, 'CONTRACT')}
-    ${menuItem('07', 'COMPONENT KIT', 'LAB', false, 'KIT')}
+    ${menuItem('07', 'LAST DEBRIEF', 'HUNT WON', false, 'DEBRIEF')}
+    ${menuItem('08', 'CONTRACT LOG', 'C04 COMPLETE', false, 'CONTRACT')}
+    ${menuItem('09', 'COMPONENT KIT', 'LAB · OLD LOADOUT', false, 'KIT')}
     <div class="data" style="margin-top:8px;display:flex;justify-content:space-between"><span>TESTER: — // CONTRACTS RUN 004</span><span class="jp">オンライン</span></div>
   </div></div>`;
 }
@@ -388,19 +391,21 @@ function wireDial(root: HTMLElement) {
 }
 
 // ---------------------------------------------------------------- shell: chrome, nav, events
-const RENDER: Record<string, () => string> = { KIT: kit, TITLE: title, LOADOUT: loadout, JOBS: jobs, 'ID DIAL': idDial, DEBRIEF: debrief, CONTRACT: contract };
+const RENDER: Record<string, () => string> = { SIGINT: sigint, COMPANY: company, HANGAR: hangar, CITY: city, KIT: kit, TITLE: title, LOADOUT: loadout, JOBS: jobs, 'ID DIAL': idDial, DEBRIEF: debrief, CONTRACT: contract };
 function render(anim = true) {
   const el = $('uiScreen'); el.innerHTML = RENDER[cur]();
   frameAll(el); if (anim) { playIn(el); el.scrollTop = 0; }
   $('uiCrumb').textContent = 'SIGNAL LANCE // ' + cur; $('uiJp').textContent = JP[cur] || '';
   if (cur === 'TITLE' && anim) bootLog();
+  if (cur === 'SIGINT') sigintOpened();
   if (cur === 'ID DIAL' && anim) setTimeout(() => { if (cur === 'ID DIAL' && !D.open) openDial(1); }, UIK.drawOn ? 700 : 50);
   for (const b of document.querySelectorAll<HTMLElement>('#lScreens button')) b.classList.toggle('on', b.dataset.s === cur);
 }
+export function rerender(anim = false) { const el = $('uiScreen'), y = el.scrollTop; render(anim); if (!anim) el.scrollTop = y; }
 export function showScreen(name: string) { closeDial(); cur = name; render(true); }
 export function currentScreen() { return cur; }
-export function initUi(leave: () => void) {
-  onLeave = leave;
+export function initUi(leave: () => void, hold: (on: boolean) => void = () => {}) {
+  onLeave = leave; setWorldHold(hold);
   const tick = 'CONTRACT BOARD // 2 JOBS POSTED ◆ SECTOR 9 GRID BLACKOUT 02:00–04:00 ◆ ACID RAIN 80% ◆ CURFEW 01:00 KESSLER SPRAWL ◆ LANCE INSURANCE PREMIUM +4% ◆ オンライン ◆ FREIGHT YARD 9 // CARGO MANIFEST SEALED ◆ PUMPHOUSE 4 // UPLINK BEACON LIVE ◆ ';
   $('ui').innerHTML = `<div class="scrim"></div><i class="reg a"></i><i class="reg b"></i><i class="reg c"></i><i class="reg d"></i>
   <div id="uiTop"><span class="crumb" id="uiCrumb"></span><span class="jp dim" id="uiJp"></span><span class="sp"></span><span class="meta data" id="uiClock"></span>${matrix(6, 2, 5, 0.5)}</div>
@@ -410,7 +415,11 @@ export function initUi(leave: () => void) {
   sc.addEventListener('click', e => {
     const t = e.target as HTMLElement, go = t.closest('[data-go]') as HTMLElement;
     if (go) { showScreen(go.dataset.go!); return; }
+    const sg = t.closest('[data-sg]') as HTMLElement; if (sg) { sigAct(sg.dataset.sg!, sg, t); return; }
     const a = t.closest('[data-act]') as HTMLElement; if (!a) return; const act = a.dataset.act!;
+    if (act.startsWith('sg:')) { sigAct(act, a, t); return; }
+    if (act.startsWith('co:hangar:')) { coAct(act); showScreen('HANGAR'); return; }
+    if (coAct(act) || hgAct(act) || cyAct(act)) return;
     if (act === 'tog') a.classList.toggle('on');
     if (act === 'pack') { S.pack = !S.pack; a.classList.toggle('on', S.pack); }
     if (act === 'seg' || act === 'hunts' || act === 'layout') { const b = t.closest('button'); if (!b) return; for (const o of a.querySelectorAll('button')) o.classList.toggle('on', o === b);

@@ -20,7 +20,7 @@ import { initUi, showScreen, SCREENS, applyUiCss, currentScreen } from './ui.ts'
 const $ = (id: string) => document.getElementById(id)!;
 const gl = $('gl') as HTMLCanvasElement, marks = document.createElement('canvas');
 const S = { run: true, sim: true, speed: 1, // run = everything moves (full freeze when off); sim = units/turns move (effects carry on when off)
-   zoom: 0.9, camX: 0, camY: 0, follow: true, scen: 0, endT: 0, lookI: 0 };
+   zoom: 0.9, camX: 0, camY: 0, follow: true, scen: 0, endT: 0, lookI: 0, hold: false };
 let vw = 0, vh = 0, dpr = 1;
 
 // ---- real-time bot: one action at a time, so the sim animates between them (autoplay.ts runs them all instantly)
@@ -50,7 +50,7 @@ function botAct() {
 
 function start(i: number) {
   if (G.tb) leaveScenario();
-  S.scen = i; const s = scenarioList()[i]; startScenario(s);
+  S.scen = i; S.hold = false; const s = scenarioList()[i]; startScenario(s);
   resetFog(); resetScanDots(); updateFog(0, true); S.follow = true; S.camX = G.p.x; S.camY = G.p.y; S.endT = 0;
   $('lScen').textContent = s.name + ' · R' + s.round;
   $('lTry').textContent = s.tryThis;
@@ -65,7 +65,8 @@ let last = performance.now(), clock = 0;
 function frame(now: number) {
   // paused = a full freeze (sim, rings, sweep, flicker, spinners, fog fades); drawing carries on so pan/zoom/TUNE still show
   const dt = S.run ? Math.min(0.05, (now - last) / 1000) : 0; last = now; clock += dt;
-  if (S.run && S.sim && G.mode === 'hunt') {
+  if (S.hold) { /* SIGINT has the world (it re-rolled the district): the field waits */ }
+  else if (S.run && S.sim && G.mode === 'hunt') {
     for (let k = 0; k < S.speed; k++) { if (G.phase === 'PLAYER' && !G.act) botAct(); step(dt); }
   } else if (S.run && S.sim && G.mode !== 'hunt' && (S.endT += dt) > 3) start(S.scen); // hunt over: replay it
   updateFog(dt);
@@ -178,6 +179,7 @@ function setMode(ui: boolean) {
   document.body.classList.toggle('ui-on', ui);
   $('lMode').textContent = ui ? '◂ BACK TO FIELD' : 'UI SCREENS ▸'; $('lScreens').hidden = !ui;
   if (ui) showScreen(currentScreen());
+  else if (S.hold) { S.hold = false; start(S.scen); } // back from SIGINT: the field's own scenario again
 }
 $('lMode').addEventListener('click', () => setMode(!document.body.classList.contains('ui-on')));
 $('lScreens').innerHTML = SCREENS.map(n => `<button data-s="${n}">${n}</button>`).join('');
@@ -189,6 +191,6 @@ initHud(); buildTape();
 addEventListener('resize', resize); resize();
 lookTo(0);
 start(0);
-initUi(() => setMode(false));
+initUi(() => setMode(false), on => { S.hold = on; if (on && G.tb) leaveScenario(); });
 if (/[?&#]ui(?![a-z])/.test(location.search + location.hash)) setMode(true);
 requestAnimationFrame(frame);

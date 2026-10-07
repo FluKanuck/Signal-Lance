@@ -20,10 +20,12 @@ export const UIK = {
   scrim: 0.6,    // how much the menus dim the live field behind them
   glow: 0.35,    // soft glow on primary/active elements
   drawOn: 1,     // 1 = frames trace themselves in and headings decode when a screen opens
+  sensTrue: 1,   // SIGINT: 1 = the game's sensor colours (radar teal, thermal orange, EM violet), 0 = everything in the look's ink
+  mapDot: 0.5,   // SIGINT: dot screen on the buildings (0 = plain blueprint massing)
 };
 export const UIK_KNOBS: Record<string, [number, number, number]> = {
   cut: [0, 2.5, 0.05], round: [0, 14, 0.5], stroke: [0.5, 2.5, 0.25], accW: [1, 10, 0.5], gap: [2, 10, 0.5],
-  fillA: [0, 1, 0.02], scrim: [0, 1, 0.05], glow: [0, 1.5, 0.05], drawOn: [0, 1, 1],
+  fillA: [0, 1, 0.02], scrim: [0, 1, 0.05], glow: [0, 1.5, 0.05], drawOn: [0, 1, 1], sensTrue: [0, 1, 0.05], mapDot: [0, 1, 0.05],
 };
 export const UIK_TIPS: Record<string, string> = {
   cut: 'How deep the 45° corner cuts and edge steps are on every frame and button. 0 = plain boxes.',
@@ -34,6 +36,8 @@ export const UIK_TIPS: Record<string, string> = {
   fillA: 'How solid the panel backgrounds are (the look’s bg colour). Low = the field shows through.',
   scrim: 'How much the menu screens dim the live field behind them.',
   glow: 'Soft glow on the primary button, active tabs and filled meters.',
+  sensTrue: 'SIGINT map + sensor keys: 1 = each sensor in its own true colour (radar teal, thermal orange, EM violet), 0 = all in the look’s one ink.',
+  mapDot: 'SIGINT map: a dot screen over the buildings. 0 = plain blueprint massing (light fill, street-edge outline).',
   drawOn: 'On: frames trace themselves in and headings decode when a screen opens. Off: everything is just there.',
 };
 
