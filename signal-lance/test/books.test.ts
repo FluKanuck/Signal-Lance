@@ -19,6 +19,13 @@ describe('the books (R21 cp3)', () => {
     for (const o of G.co.offers) { expect(o.hunts).toBeGreaterThanOrEqual(TUNE.CONTRACT_HUNTS_RANGE[0]); expect(o.hunts).toBeLessThanOrEqual(TUNE.CONTRACT_HUNTS_RANGE[1]); expect(o.fee).toBe(TUNE.CONTRACT_FEE[o.tier] * o.hunts); }
     expect(freeItem('autocannon')).toBe(0); expect(G.co.stores.autocannon).toBeGreaterThanOrEqual(3);
   });
+  it('fix list 1: the offers are never all one danger', () => {
+    for (let seed = 1; seed <= 300; seed++) {
+      newCompany(seed); const t = G.co.offers.map((o: any) => o.tier);
+      expect(new Set(t).size).toBeGreaterThan(1);
+      for (const o of G.co.offers) expect(o.fee).toBe(TUNE.CONTRACT_FEE[o.tier] * o.hunts);
+    }
+  });
   it('can’t take a contract without the fuel; taking one burns it and sets length, wins needed and danger', () => {
     newCompany(32); const o = G.co.offers[0];
     G.co.fuel = fuelCost(o) - 1; expect(offerBlock(0)).toBe('FUEL'); expect(takeOffer(0)).toBe(false);

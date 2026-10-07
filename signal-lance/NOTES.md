@@ -1634,6 +1634,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            stranded), 19 contracts played, 9 complete, 31 KIA; complete contracts leave 600-970 cr. The scripted lance drops
            every suit, never carries, buys no modules (#42). Plain --contracts 20 byte-identical. BUILD r21-s4 | -
    round21 debrief 1 (r21-s4) | first company contract: a MEDIUM (no LOW on offer, fix list 1), a suit lost. Jamie: "the bill definitely took a squeeze, especially with having a suit loss"; taps: "Tight but fair", next move "Rebuild now" (8 parts + 100 cr). Parked: rep raises fees, friendly factions pay bonuses (roadmap #47) | no change | -
+   round21 fix list 1 + wrap (r21-s5) | Jamie: "never 3 of the same" (not one of each) | rollOffers: all three one danger = the last rerolls to another (vitest 300 seeds). Read-and-connect: "Changed my plan". Carry them out: "Yes, went back". Jamie stopped after one company contract ("happy as is right now for this round"). Runner --company 10 --companies 6: 6 fold (4 every ExoS lost, 2 stranded), 18 played, 7 complete, 32 KIA. Round 21 moved to the splash HISTORY. BUILD r21-s5 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

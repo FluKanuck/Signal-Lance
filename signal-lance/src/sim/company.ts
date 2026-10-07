@@ -172,6 +172,11 @@ export function rollOffers() {
     const hunts = h0 + Math.floor(corand() * (h1 - h0 + 1)), tier = Math.floor(corand() * TUNE.DANGER_NAMES.length), fuel = f0 + Math.floor(corand() * (f1 - f0 + 1));
     C.offers.push({ seed: (corand() * 4294967296) >>> 0, hunts, tier, fuel, fee: TUNE.CONTRACT_FEE[tier] * hunts });
   }
+  // R21 fix list 1 (Jamie: "never 3 of the same"): if every offer rolled one danger, the last takes another
+  const O = C.offers, N = TUNE.DANGER_NAMES.length;
+  if (O.length > 2 && O.every((o: any) => o.tier === O[0].tier)) {
+    const o = O[O.length - 1]; o.tier = (o.tier + 1 + Math.floor(corand() * (N - 1))) % N; o.fee = TUNE.CONTRACT_FEE[o.tier] * o.hunts;
+  }
 }
 export function offerBlock(i: number) { const o = G.co.offers[i]; if (!o) return 'NONE'; if (G.ct && G.ct.status === 'ACTIVE') return 'BUSY'; if (G.co.fuel < fuelCost(o)) return 'FUEL'; if (!lanceSize()) return 'LANCE'; return ''; }
 // Take offer i: burn the fuel, start the contract on the company's suits (its danger scales the field, its length sets the wins needed)
