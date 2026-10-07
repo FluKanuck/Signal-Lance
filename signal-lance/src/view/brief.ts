@@ -61,6 +61,12 @@ const R17_NEW = [
 ]; void R17_NEW; // R18: Round 17's build notes (its HISTORY page is the condensed version)
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
+  { round: 20, title: 'Round 20: Eyes from the ship', lines: [
+    'The ship’s scan is live: START CLOCK / PAUSE, no time cap. RADAR = where (pings everything, even silent units; outlines zones; opens the north and south drop zones). THERMAL = what’s alive (zone types, warm units and their size). EM LISTEN = who (only transmitters: a count, then a fix and the CARD’s best guess).',
+    'Run any mix of sensors at once, each with its own ring (drag near one to move it) or FULL MAP. ALT HIGH / MID / LOW: high = big weak fuzzy rings, quiet; low = small strong sharp rings (thermal most), loud. Contacts carry three bars for how hard each sensor has looked.',
+    'The RISK meter climbs while sensors are on and cools with them all off. New steps may call units in; the step you drop at wakes part of the field and (step 2+) may paint the ship. Patrols walk and new ones arrive while you wait. Some jobs have a SCAN WINDOW, shown first on the job card.',
+    'After the hunt, THE SCAN on the result screen gives a line per stretch of your scan (set-up, minutes, what came back, risk added) and what the drop rolled; SEND LOG carries them as [SCAN].',
+  ] },
   { round: 19, title: 'Round 19: Listen before you land', lines: [
     'After the job pick the ship can LISTEN: SKIP / SHORT / MEDIUM / LONG. SHORT = the roster and zone outlines; MEDIUM = zone types and a choice of 3 drop zones; LONG = blips for everything that emits, with the CARD’s best guess. Blips start the hunt as stale SHIP contacts. Zones are only known through the scan.',
     'Listening costs: extra enemy units (any level), part of the field awake with a rough fix on your drop zone (MEDIUM+), and at LONG maybe a painted ship: 2 patrols waiting near where you land. The dial shows the risk; the result screen shows what happened.',

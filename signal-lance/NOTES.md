@@ -1579,3 +1579,6 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            mixed 47% 14 (9.8 min, risk 2.8, window closed 17%); loud 28% 2 (9.8 min, risk 12.2, step 3, painted 49%, 5.7 awake,
            1.65 joined). None of the brief's four presets reaches step 1; the long ones lose to time (patrols walk, arrivals,
            deadlines) since the scripted lance can't use the intel (#92). BUILD r20-s4 | -
+   round20 debrief 3 / wrap (r20-s4) | weakest moment: "It felt fine"; risk meter: "A real trade-off"; ~10 hunts, some job types.
+           Read-and-connect check: "Yes" (the scan changed my plan). Biggest missing: "the company layer, owning and upgrading the
+           ship, or whatever is on the roadmap next". Round 20 moved to the splash HISTORY. BUILD r20-s5 | -
