@@ -1,6 +1,6 @@
 # Signal Lance Roadmap
 
-**Updated:** 2026-10-07 after Round 18 (Fit for the job: hangar in the hunt, power, weight, BACK, THERMAL; "my build showed up"; Jamie: "best one yet"; no fun test, by slice design). The full map of the game lives in `claude/signal-lance-game-shape.md`.
+**Updated:** 2026-10-07 after Round 19 (Listen before you land: scan dial, cost ladder, RWR; RWR "the wedge showed me"; scan choice "not sure": the dial felt like a menu pick, Jamie wants an **active scan**; no fun test, by slice design). The full map of the game lives in `claude/signal-lance-game-shape.md`.
 
 ## North star
 Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, then learn why.
@@ -39,7 +39,7 @@ Prepare in depth, deploy under pressure, watch your plan succeed or fall apart, 
 | 1 | Hunt | Sensors, EMIT/SOUND, pack, to-hit + parts, mortar, zones, card + ID | Built (R1–R14) |
 | 2 | Missions | Uplink + Bounty + Retrieve + Escort, rolled per job | **Built (R15).** 3/3 new types "read changed my plan"; Uplink "not sure" (now the plain baseline). Bounty greed at quota not biting yet |
 | 3 | Suit building | Sharpened test in `signal-lance-construction.md` (3 frames, 2 reactors, ~7 modules, 1 mod, + THERMAL) | **Built (R18).** "My build showed up". Hangar on Jamie's wireframe, power/weight/BACK/EM, THERMAL + sniper turret, sense tags, PLAY SEED. Missing next: **"a sense of ownership and progression"** |
-| 4 | Pre-drop intel (ship) | Ship SIGINT scan with a risk dial; 3 ship slots, fit 2 | **R19 "Listen before you land" (brief out).** Listen dial: reveal ladder (roster + zone extents → zone types + drop zone pick → contact blips) vs cost ladder (field alert, extra units, painted ship → ambush at the drop); RWR scope. Ship slots moved to the company layer |
+| 4 | Pre-drop intel (ship) | Ship SIGINT scan with a risk dial; 3 ship slots, fit 2 | **Built (R19), choice not landing.** RWR reads ("the wedge showed me"); costs bite (painted ship: wins 66% → 40%); but the dial read "not sure" and was the weakest moment: "a menu pick". Jamie wants an active scan (timer, area focus, sensor type). Was: Listen dial: reveal ladder (roster + zone extents → zone types + drop zone pick → contact blips) vs cost ladder (field alert, extra units, painted ship → ambush at the drop); RWR scope. Ship slots moved to the company layer |
 | 5 | Operators | One per suit, one skill, Standard (critical + extract), injuries bench, 2 recruits | Mapped |
 | 2c | Draw your route | Door Kickers–style drawn path (tap-to-move kept), facing waypoints to look down alleys, movement interrupt (parked #10). Builds on `FREE_TURNS` / `AP_TURN` | **Built (R17).** "Moving became part of the hunt". Controls reworked 3× in-round to Door Kickers style (freehand line, end handle, tap line → tap where to look, draggable eye). Interrupt "saved me" (runner: +9 pts win). `AP_TURN` 1→0. Big districts "about right" |
 | 6 | After the drop | Payout, salvage capped by the hold, repair with parts, medbay time | Partly (R11–R12) |
@@ -81,6 +81,7 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 | 18 | "Fit for the job": merge `build-toy`; equipment plan **full Part A + B** (Jamie), built as 3 shippable checkpoints (parity by runner → suit budget played → THERMAL played); only the cheap set fittable (Wisp / Warden / Bulwark, Cold-burn vs Hot core, today's kit + thermal optics + cold processor); INTEL lists field sensors per channel. No fun test | Hangar toy fun on its own but not connected to the hunt. Thin bridge offered; Jamie picked the full foundation. Checkpoints cap the stall risk |
 | 18 (result) | Suit building reads and connects: "my build showed up"; weight → Energy per tile (`OVERLOAD_EN_PER_TILE` 0.5) helped; parity byte-identical; runner 54%. Item rows keep today's values (balancing system later). No fun test (slice) | Jamie: "best one yet". Biggest missing piece: "a sense of ownership and progression". Wants RWR next (#74) |
 | 19 | "Listen before you land": pre-drop scan with one listen dial, 3 checkpoints (reveal ladder → cost ladder → RWR). RWR scope (Jamie's spec): close / medium / far rings, spoke + type icon + best-guess ID, ±10° (ESM 3°); heard standing = solid spoke; heard moving = heard-here tick + world line, and on the scope **both** a frozen spoke and a re-aimed wedge over the guessed strip (parallax, no per-tile knob), stale once walked past. No fun test | Jamie kept the build order over pulling the company layer forward (he wants the MekHQ-style merc management next). Jamie: "both by listen time… more potential drop zones"; costs "a mix" |
+| 19 (result) | Pre-drop intel reads partly: RWR "the wedge showed me", built-in PAINTED ring on every suit (Jamie); costs bite (LONG 41% vs SKIP 54% in runner, mostly the painted ship); scan choice "not sure". Readability pass (UI floor 0.85). No change in debrief 1: the active scan goes to the design lead. No fun test (slice) | Jamie: four fixed steps feel like a menu pick; "start stop timer… area selection… select what types of scan… thermal vs radar return different fields of information". Called the wrap after 2 plays |
 | note | **Lance size: 1–4 ExoS deployed per mission** (Jamie, 2026-10-05; "ExoS", pronounced Ex-Oss, is his placeholder term for the exosuits). Today's builds use 2 | Jamie, during the R14 debrief |
 
 ## Parked ideas (by gate)
@@ -169,7 +170,7 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 71. Facing is free for man-sized ExoS; frame size could later bring turn cost and size-based cover back (R17; feeds suit building) — suit building
 72. **Build on the ship, deploy prebuilt (Jamie, R18 scoping):** the hangar is separate from the mission; ExoS are built aboard the ship and deploy as built. Changing a suit takes time, and mission parameters may change while you refit — ship / campaign (Gate 2)
 73. A trigram that shows your suit's emission and its ability to see that type of emission on the same bar (Jamie, R18 play) — strand: hunt · parked 2026-10-06
-74. Roll the RWR (radar warning receiver) in for the next session: warns when painted, with a bearing (catalogue row `rwr`, S hardpoint, draw 0) (Jamie, R18 wrap) — strand: hunt · parked 2026-10-06
+74. ~~Done R19~~ (RWR module + built-in PAINTED ring). Roll the RWR (radar warning receiver) in for the next session: warns when painted, with a bearing (catalogue row `rwr`, S hardpoint, draw 0) (Jamie, R18 wrap) — strand: hunt · parked 2026-10-06
 75. A cold (thermally shielded) field variant, so "no heat" narrows the CARD (R18) — SIGINT
 76. Equipment balancing system for all item stats (Jamie, R18: "down the road") — suit building
 77. Heavy kit dominance (Bulwark 75%; plates + mortar carry it): plate weight, mortar access, more energy cost (R18) — suit building / balance
@@ -184,3 +185,8 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 86. A painted ship raises heat / notoriety in the area and draws threats aimed at the ship (Jamie, R19 scoping) — campaign
 87. **Company layer = MegaMek / MekHQ-style merc management** in a thin cut: company building, hiring, crew management, parts economy (Jamie, R19 chat: the "ownership and progression" he wants). Next component after pre-drop intel — company
 88. Pay out local sources for added info (Jamie, R19 debrief 1) — hunt · parked 2026-10-07
+89. **The active scan (Jamie, R19 debrief 1):** start / stop scan timer; focus on an area for more detail; choose the sensor (less intrusive = less time; thermal vs radar return different intel); returns run up into bands like today's ladder — pre-drop intel
+90. HUD on the smallest phones: A/B parts line under the turn strip; in-hunt sub-labels ~9.5 px at 85% (R19) — tooling
+91. Camera framing on north / south drops: the suit lands at the screen edge under the HUD (R19) — tooling
+92. Scripted lance can't use scan intel (roster, blips, painted risk), so the runner undervalues listening (folds into #42) (R19) — tooling
+93. Only emplacements carry radar, so the RWR is silent against some fields; field radar fits (R19) — content / hunt
