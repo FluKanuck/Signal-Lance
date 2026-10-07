@@ -1,3 +1,4 @@
+import { quitToStart } from './screens.ts';
 import { TUNE } from '../tune.ts';
 import { W, H, T } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
@@ -28,6 +29,13 @@ order('bMortar', () => { V.mortarWhy = ''; V.mortarArm = !V.mortarArm && mortarB
 btn('bZin', () => { V.zoomI = 0; });
 btn('bZout', () => { V.zoomI = 1; });
 btn('bCtr', () => { V.follow = true; });
+// R18 (Jamie): back to the start (hangar) screen. Two taps: the first arms it for 3 s ("SURE?"), the second quits.
+let quitT: any = 0;
+btn('bQuit', () => {
+  const b = $('bQuit');
+  if (!quitT) { b.textContent = 'SURE?'; b.classList.add('on'); quitT = setTimeout(() => { quitT = 0; b.textContent = 'QUIT'; b.classList.remove('on'); }, 3000); return; }
+  clearTimeout(quitT); quitT = 0; b.textContent = 'QUIT'; b.classList.remove('on'); quitToStart();
+});
 btn('bDbg', () => { V.dbg = !V.dbg; $('bDbg').classList.toggle('on', V.dbg); refreshHud(); });
 
 export const ROUTE_BTN_PX = 30; // R15 Escort: route button radius on screen (60 px across)

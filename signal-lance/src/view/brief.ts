@@ -16,6 +16,7 @@ export const TEST = {
     'NEW (r18-s3): THERMAL. Every ExoS gives off heat: its reactor (Hot core 4, Cold-burn 0) plus its size (Wisp 1, Warden 3, Bulwark 5). Firing (+' + TUNE.IR_FIRE + ') and sprinting (+' + TUNE.IR_SPRINT + ') add heat that lingers and cools ' + TUNE.IR_COOL_PER_TURN + ' a turn. Turrets carry thermal sights: they see heat in line of sight, further the hotter you run (the HUD shows IR and how far). Fit Thermal optics on your mast to see heat too.',
     'NEW (Jamie’s ask): a SNIPER turret. Its Long gun hits out to 20 tiles and barely loses accuracy with range, with a very loud crack. It still needs a firm lock: past eye range that means its thermal sight, so a hot suit is the one it can reach. It’s on the CARD (10 variants now).',
     'NEW (r18-s4): weight costs Energy too. Every point over your rated load adds +' + TUNE.OVERLOAD_EN_PER_TILE + ' Energy to every tile you move, creeping included (on top of the louder moves). A heavy suit drains its battery just walking; a Hot core’s extra output can pay for it.',
+    'NEW (r18-s5): QUIT, next to CTR: tap it twice to drop the hunt (and its contract) and go back to the hangar.',
     'TEST BED: "Heavy load", "Back door" and "Warm core".',
   ],
   round: 18,
@@ -89,7 +90,7 @@ const BASICS = [
   ['Ground', 'Every hunt is a new district (the job card gives its size), packed from irregular city pieces, so streets jog, narrow and dead-end. Blue dotted areas are quiet ground: you are harder to hear there. Amber hatched areas are noise: fixes on anything inside are blurry. Brown speckled scrap is slow (2 tiles of movement a tile) and loud (+3 sound), but it is low cover (−' + TUNE.HIT_COVER_LOW + '% to hit). Rusty outlined shapes are walls: set pieces in the blocks, and barricades that shut a street. A chicane (walls on alternate lanes) can be weaved through but not seen past.'],
   ['ID', 'Enemies come in 10 variants (4 of them turrets, including the sniper: a Long gun that hits out to 20 tiles, but only on a firm lock). Tap a contact to see what your sensors have picked up about it, open the CARD to compare, then tap ID to call it. A turret or emplacement call freezes its track; a right call before eyes adds +10% to hit.'],
   ['ECM', 'ECM masks you each turn it is on. GHOST places a fake contact for enemies.'],
-  ['Camera', 'Drag to pan. Z+ / Z− zoom. CTR recentres.'],
+  ['Camera', 'Drag to pan. Z+ / Z− zoom. CTR recentres. QUIT (tap twice) drops the hunt and its contract and goes back to the hangar.'],
   ['Tips', 'Hover the mouse over anything on the map, or hold a finger on it, to see what it is and what it does.'],
   ['Debug', 'DEBUG: REROLL JOBS (job screen) rolls two new jobs for the same hunt, e.g. to get the job type you want to test. The log line notes it.'],
 ];

@@ -8,6 +8,7 @@ import { moveText } from '../sim/turns.ts';
 import { soundText } from '../sim/sound.ts';
 import { idText } from '../sim/ids.ts';
 import { setPack } from '../sim/pack.ts';
+import { leaveScenario } from '../sim/scenarios.ts';
 import { buildBrief, buildQuestions, resetAnswers, answersText } from './brief.ts';
 import { MISSION_INFO, missionText, isType, escortBonus } from '../sim/mission.ts';
 import { anchors, MAP, W, H } from '../sim/world.ts';
@@ -20,7 +21,7 @@ import { fitHasGun, fitHasMortar } from '../sim/contract.ts';
 import { frameOf } from '../sim/fit.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r18-s4';  // R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
+export const BUILD = 'r18-s5';  // R18 (Jamie): QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
 declare const __BUILT__: string;
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
@@ -215,6 +216,15 @@ function showContractResult() {
   $('cHunts').innerHTML = C.results.map(r => '<div class="hunt"><b>Hunt ' + r.n + ' · job ' + r.job + ' · ' + r.mission + '</b>' + r.comp + ' @ ' + r.up + '<br><b>' + r.outcome + '</b> · kills ' + r.kills + '/' + r.total +
     '<br>Mechs lost: ' + (r.lost.length ? r.lost.join(', ') : 'none') + '<br>Carried out: ' + r.out.join(', ') + '<br>Paid ' + r.pay + ' cr' + (r.buys.length ? '<br>Bought before: ' + buysText(r.buys) : '') + '</div>').join('');
   $('cres').hidden = false; $('cres').scrollTop = 0;
+}
+// R18 (Jamie: "we need a button in game to get back to start screen"): QUIT drops the hunt (and its contract, or the
+// test-bed scenario) and goes back to the hangar. A contract hunt quit part-way is logged as QUIT, never as a result.
+export function quitToStart() {
+  if (G.tb) { leaveScenario(); G.tb = null; }
+  else if (G.mode === 'hunt') logLine(ctTag() + 'QUIT · ' + (G.comp ? G.comp.NAME : '') + ' · ' + G.mtype + ' · round ' + G.turn + ' · ' + loadSummary());
+  G.ct = null; G.act = null;
+  for (const id of ['res', 'jobs', 'cres', 'tb', 'tbres', 'card', 'idp', 'hsheet']) { const e = document.getElementById(id); if (e) e.hidden = true; }
+  showLoadout();
 }
 // R14: one extra log line (the test bed's), stamped and tagged like a hunt's.
 export function logLine(text: string) { const d = new Date(); LOG.push(d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ' | ' + testerTag() + text); store.set('signalLance.log', LOG); }

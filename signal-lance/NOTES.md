@@ -1338,4 +1338,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            reactor). Templates are under rated, so the sweep is unchanged (bulwark 79%). Overloaded Warden (17/14, +1.5 EN a
            tile), 40 contracts: walking 22/40 complete either way (the scripted walk never runs dry); sprinting every move
            22 → 18. BUILD r18-s4 | -
+   round18 request | Jamie: "we need a button in game to get back to start screen" | NEW QUIT (next to CTR, two taps within
+           3 s): drops the hunt and its contract (or the test-bed scenario) and opens the hangar; logged as a QUIT line, never
+           as a result. BUILD r18-s5 | -
 ```
