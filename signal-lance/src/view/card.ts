@@ -11,7 +11,8 @@ const byType = (t: string) => Object.keys(TUNE.FIELD_VARIANTS).filter(k => TUNE.
 // grid order: row = variant slot, column = type (so it reads as three columns)
 function grid(cell: (k: string) => string) {
   let h = TYPES.map(t => '<h4>' + t + '</h4>').join('');
-  for (let i = 0; i < 3; i++) for (const t of TYPES) { const k = byType(t)[i]; h += k ? cell(k) : '<div></div>'; }
+  const rows = Math.max(...TYPES.map(t => byType(t).length)); // R18: a type may have 4 (the sniper turret)
+  for (let i = 0; i < rows; i++) for (const t of TYPES) { const k = byType(t)[i]; h += k ? cell(k) : '<div></div>'; }
   return h;
 }
 let back = '';
@@ -21,7 +22,7 @@ export function showCard(from = '') {
     return '<div class="cv"><b class="n">' + esc(k) + '</b> <span class="t">' + (TUNE.BOUNTY[k] || 0) + ' cr</span><br>' + V.TRAITS.map(esc).join('<br>') + '<br><span class="t">' + esc(V.TELL) + '</span><br><span class="f">' + esc(V.FIGHT) + '</span></div>'; });
   $('card').hidden = false; $('card').scrollTop = 0;
 }
-function closeCard() { $('card').hidden = true; if (back === 'idp') showPicker(); }
+function closeCard() { $('card').hidden = true; if (back === 'idp') showPicker(); if (back === 'scan') $('scan').hidden = false; } // R19: back to the scan screen
 
 // ID picker for the selected contact (only before eyes: a seen contact already shows its variant)
 export function idTarget() { const c = G.sel; return G.mode === 'hunt' && c && c.on && !revealed(c.id) ? c : null; }

@@ -84,4 +84,4 @@ Replaces the game-shape version. **Wisp, Warden and Bulwark** frames with locati
 7. **Makers:** Corporate security, Foundry clans, Undercity syndicates, **Old Army** (the company's own origin) and the neutral broker (catalogue §13).
 
 ## Open questions
-- None yet. New ones get added here as they come up.
+- The hangar toy (branch `build-toy`) turned up a list: overload shape, per-use vs always-on signature, how skins treat movement, drones. They're in `claude/signal-lance-hangar-toy.md` until we settle them here.

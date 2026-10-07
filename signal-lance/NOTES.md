@@ -15,7 +15,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
   `brief.ts` (tester splash, basics, end-of-hunt questions: update TEST + QUESTIONS every round).
 - R14: `src/sim/scenarios.ts` (the test bed), `src/sim/ids.ts` (observed traits, matcher, IDs), `src/view/testbed.ts`,
   `src/view/card.ts` (CARD and ID picker).
-- R15: `src/sim/mission.ts` (mission types: the hunt's goal, Bounty pay, extract / clear rules). Map anchors: `MAP_ANCHORS` in `world.ts`.
+- R16: `src/sim/blocks.ts` (the block library, district roll / build, the seam-built escort route, mapText). The map
+  itself is per-hunt state in `world.ts` (loadMap).
+- R15: `src/sim/mission.ts` (mission types: the hunt's goal, Bounty pay, Retrieve cargo, extract / clear rules), `src/sim/escort.ts`
+  (the Escort transport and its route). Map anchors (uplinks, cargo, escort route): `MAP_ANCHORS` in `world.ts`.
 - R13: `src/sim/sound.ts` (Sound), `src/sim/pack.ts` (alarm, pack target), `src/sim/autoplay.ts` (the scripted
   player, shared by the runner and the tests). `test/` holds the Vitest tests (`npm test`).
 - `src/main.ts`: wiring and the frame loop.
@@ -602,6 +605,498 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      hands off when the carrier is at half hits or worse and the mech beside it is healthier. Runner: a RETRIEVE info line
      (picked up, carried out, cargo lost, hand-offs, rounds from pickup to the end). The brief sets no Retrieve flags.
    - BUILD r15-s2.
+   R15 step 3 (ESCORT) ASSUMPTIONS
+   - Route data lives in MAP_ANCHORS.hive: `waypoints` (named nodes S, J1, A, B, J2, C, D, X), `legs` ({from, to, via
+     tiles, name}), `junctions` (J1, J2: 2 onward legs each) and `escortSite` (J2: the field's leash point, G.up). A leg
+     walks A* from node to node through its via tiles (sim/escort.ts legPath, cached). NORTH / SOUTH at both forks.
+   - The transport (G.ally, sim/escort.ts): unarmed, no sensors, one part (TUNE.PARTS.ALLY = CORE, ESCORT_HITS),
+     ESCORT_ARMOUR plates for its signature, comms EMIT ESCORT_EMIT (like a patrol), NORMAL move sound. It joins the
+     initiative order (ESCORT_INIT + the usual roll) and its activation is one MOVE action of up to ESCORT_MOVE tiles at
+     PLAYER_SPEED along its leg. Holding at a junction (no leg picked) = its activation passes.
+   - "The field can detect and fire on it like any lance unit": state.ts friends() = lance + ally. The field's sensing loop,
+     field shells, sound, the pack's targets (isFriend) and alarms all use it. isMech still means "a mech you control"
+     (initiative ties, HUD, LOSS). The lance's guns never hit it (shells hit the other side only); a mortar splash does.
+     A muzzle flash on it does nothing (it has no sensors). The lance gets no contact on it: you always see it.
+   - Leg pick: cmdLeg(i) on your turn (no AP), only while it holds at a junction. View: a 60 px round button per leg,
+     6 tiles along it, drawn on the map; tapping it comes before contact selection.
+   - Placement: every field unit in an Escort job goes on a legal tile within ESCORT_AMBUSH_RANGE of any leg ('anywhere'
+     near the legs, statics and patrols alike). Statics face the site (J2); patrols leash to it as usual.
+   - End: transport destroyed = FAIL (hunt failed, pays 0, contract goes on). Transport reaches extraction = WIN ESCORT,
+     pay PAY_WIN + round(ESCORT_BONUS × hits left / max) + kills × PAY_KILL. A mech reaching extraction first still pulls
+     the lance out (BAIL), as before (the HUD says so). Clearing the field does NOT end an Escort (only walking out wins).
+   - ESCORT_HITS 5 (brief named no value; 8 let the scripted lance win 93%, 5 → 68%, close to Uplink).
+   - Scenario data gains `ally` (the node the transport starts on; a junction = holding). Fork: gun turret on the north
+     street at (15,7), behind 5 walls from the fork, its steady comms audible there (strength ≈ 0.35 vs 0.25 needed).
+   - Scripted player: both mechs shadow the transport 2 path points ahead (never into extraction); at a fork it picks the
+     leg with the fewest known contacts near it (ties: NORTH). Runner ESCORT info line: shot at, heard, destroyed, hits
+     left, legs picked.
+   - End-of-hunt questions now ask the round's "read and connect" check per hunt (read: changed my plan / didn't / not
+     sure), logged next to the job type. BUILD r15-s3.
+   R16 (Rolled ground) ASSUMPTIONS
+   - The map is per-hunt state (sim/world.ts loadMap): W, H, N, walls, clutter, spawn, reach and the anchors table are
+     `export let` live bindings, so every reader (sim, runner, view, camera) sees the current map. Path buffers are sized
+     to the biggest map loaded so far. MAP_MODE 'hive' loads MAP_SRC (no random draws: hive hunts replay R15 exactly);
+     'blocks' rolls a district in rollEnemy right after setSeed, before the site / composition / zones (so a seed's
+     other rolls differ from hive). The splash MAP button sets MAP_MODE (remembered; '[HIVE]' tags the log).
+   - Blocks (sim/blocks.ts): 8 hand-drawn 12×12 blocks (plaza, alleys, yard, avenue, lot, warren, towers, depot), each with
+     a full 1-tile street ring. Spots = uplink AND cargo tiles (cargo reuses them; no separate cargo spots), named
+     "<spot> <cell>" with cells A1, B2... (column letter, row number). Rotation (0–270) and mirroring are on (MAP_ROTATE).
+   - Grid: even seeded pick from MAP_GRIDS with ≥ MAP_MIN_BLOCKS blocks. Blocks: even pick, never the same as the left or
+     upper neighbour. Extraction = the rightmost EXTRACT_COLS columns of the last block column, forced open (as hive).
+     Spawn = left edge, mid-height (nearest open tile).
+   - Each modifier slot has ONE kind, chosen by hand per block (so pieces fit), and rolls MOD_SPAWN_CHANCE. Clutter =
+     a rect painted on street tiles only. A clutter slot touching a block edge spills one tile over into the next
+     block's ring, so it spans the whole seam street ("rubble across the street"). Set piece = a rect drawn '%' (a wall,
+     drawn rust): kept only if no street tile loses its way to the spawn. Zone slot = a centre for rollZones.
+   - Reachability: after building, every spot, every route node and the right edge must be reachable, else reroll (fresh
+     draws, up to MAP_REROLL_MAX). The blocks have no walled pockets, so 0 rerolls in 300+ runner hunts.
+   - Block density: the first draw was 30% walls (hive 42%) with 30% of nearby tiles in sight (hive 19%), and the scripted
+     lance lost far more. Redrawn denser (36–38% walls, ~22% in sight); the plaza and the lot stay the open ones.
+   - Zones: on block maps rollZones draws from the zone slots that spawned (not ZONE_CANDIDATES), with ZONE_COUNT_MIN/MAX
+     × area / FIELD_BASE_AREA (ZONE_SCALE_BY_AREA), rounded. The near-uplink rule is unchanged.
+   - Field scale: per type, max(count, round(count × area / 1728)); INTEL shows the scaled counts. Bounty extras unscaled.
+     4×3 = the hive's area (no change); 4×4 ×1.33, 5×3 ×1.25; smaller grids never drop below the composition.
+   - Clutter cost is per distance: a straight stretch inside a clutter tile costs CLUTTER_TILE_COST × its length (sampled
+     every 1/8 tile), which is ≈ COST per tile crossed. planMove's length, AP, Energy and clipping all use it; A* weights
+     entering a clutter tile × COST; path smoothing only shortcuts when the shortcut costs no more. Units also walk
+     slower on screen in clutter (speed ÷ COST). The "target moved" to-hit term still counts real tiles.
+   - Clutter Sound: if a move's (clipped) path enters any clutter tile, its sound radius = the mode's radius (the unit's
+     own, for variants) + CLUTTER_SOUND, once. The Escort transport pays both too. A crunching scout can read "loud
+     steps" on the ID card: that's the real sound.
+   - Clutter cover: clutter tiles count as walls for inCover only. Standing ON clutter also counts as cover (your own
+     tile is within COVER_RANGE). LoS, radar walls and shells ignore clutter.
+   - Escort on blocks: seam lines are the rows y = 0, 12, 24, …, H−1 and columns x = 0, 12, …, W−1 (always street).
+     Forks J1..Jn (n = min(ESCORT_FORKS, cols−1)) sit on column lines spread evenly, each on a seeded interior seam row.
+     From each fork: NORTH runs the seam row one block up, SOUTH one block down, both rejoining at the next fork, the last
+     pair running out the right edge. S = left edge on J1's row; escortSite = the last fork. Node names "fork at C2".
+   - INTEL: "<C>×<R> district, <W>×<H>." before the composition ("The old hive map." on hive). Log line and DBG carry
+     mapText ("MAP 4x3 seed 1234 · blocks: … · mods: 3 clutter, 1 set piece, 2 zones"; zones = the ones rolled in).
+   - Test bed: Scenario gains `map` (a fixed DistrictSpec: no roll, no rotation) and lance `lost` (one suit). Specs can
+     carry `paint` (hand-placed tiles, test bed only): Crunch's clutter band across the street. Old scenarios load hive.
+     "Two districts" is two entries (strip 6×2, square 3×3) rather than one rerun with --grid.
+   - Tests: rule tests (helpers.startHunt) default to the hive map, since they place units by its geometry. The R13
+     "turrets stay silent" test now picks a radio-silent turret (seeds roll gun turrets differently now).
+   - Scripted lance (bot only): the Escort shadow goal stays 5 columns short of extraction (was 2), because A*'s
+     nearest-free snap could land it in extraction on a block map (a BAIL). BUILD r16-s1.
+   R16 debrief changes (r16-s3) ASSUMPTIONS
+   - Street blockers: a "stretch" = one block-length of seam street between two crossings (crossing tiles never get one),
+     on interior seams (2 lanes) and the top, bottom and left map edges (1 lane); never in extraction. Each rolls
+     SEAM_BLOCK_CHANCE in rollSpec (so a seed still fixes the whole map). RUBBLE 2-3 long across all lanes (clutter: always
+     goes in). BARRICADE 1-2 long across all lanes (wall). CHOKE = a chicane, 2 tiles of wall on one lane then 2 on the
+     other lane one tile further on (weave through, no straight sightline); on a one-lane edge street it becomes RUBBLE.
+     Walls (barricades, chicanes, set pieces) go in only if no street tile loses its way to the spawn. Walls drawn rust.
+   - A district whose Escort route fails (a fork left with fewer than 2 open legs, or the start row shut) is rescued by
+     turning its barricades to rubble one at a time (last rolled first) before any reroll: 23% of districts needed a
+     reroll before this rescue, 0% after.
+   - Escort route on the network: fork columns as before; for each fork row (rolled first, then every other combination)
+     a leg NORTH / AHEAD / SOUTH exists if every stretch on its way is open: down its own column to the leg's row, along
+     that row to the next fork's column, then along that column to the next fork. The last fork's legs exit on their own
+     row (end nodes X = AHEAD, XN, XS). Legs walk A* through their corner points, so rubble on a leg is walked through
+     (or round, if a cheap way exists).
+   - The choke as briefed (one lane) left long views down the streets 100% clear; the chicane takes them to ~80% (scratch
+     measure: points 9-24 tiles apart on the same street). Values as agreed (0.35; 0.4 / 0.3 / 0.3).
+   - Tooltips (view/tip.ts, Jamie): mouse hover shows at once; touch = hold a still finger TIP_HOLD_MS (450 ms). A hold
+     never taps, selects or pans; sliding the held finger reads other things; the tip hides 1.5 s after the finger lifts.
+     Priority: route button, your mechs, transport, contacts, wrecks, ghost, uplink / cargo ring, then the ground (zone,
+     extraction, wall, clutter, closed yard, street). Set pieces and street walls share one label ("Wreck / barricade").
+   - Round history (Jamie): the splash's "new in this build" pages back through earlier rounds (‹ OLDER / NEWER ›, or a
+     swipe) from HISTORY in brief.ts (R15 → R12, condensed from each round's tester text). The last round opened on this
+     device is remembered (localStorage signalLance.seenRound); a returning tester gets "Welcome back, last time you played
+     Round N: tap ‹ for the M rounds since". First-time testers (nothing stored) see no welcome line.
+   - Bug fix (r16-s2): the HUD's last-shot line crashed the frame loop the first time the field shot the Escort transport.
+   R16 debrief 2 (r16-s5) ASSUMPTIONS: packed districts (sim/packed.ts)
+   - Cells are half a block (6 tiles). The packing grid is the map + one cell on every side, offset by a seeded 0-5 tiles
+     (MAP_EDGE_CROP), so pieces run off the map edge and are cut there. Scan order row-major; at each empty cell, shapes
+     in a weighted random order (SHAPE_WEIGHTS), each shape's rotations / mirrors in random order; the first that fits
+     with its first cell there is placed (1x1 always fits). Library: 1x1, 1x2, 1x3, L3, L4, 2x2, 2x3 (in cells).
+   - 2x2 pieces are the 8 hand-drawn blocks (rotation / mirror, spots, mod slots as before). Others are generated: a
+     building mass inside a 1-tile street ring; LOT_CHANCE turns a 1x1 into an open lot (spot + zone slot, maybe scrap);
+     YARD_CHANCE gives a 3+ cell piece a courtyard (one cell opened up, an alley out, spot + zone slot, maybe a set
+     piece); 0..ALLEY_MAX one-tile alleys cut straight across (maybe with scrap).
+   - Each piece rolls STREET_KEEP per side (N/E/S/W): a dropped side runs its building to the edge (a hand-drawn block:
+     ring tiles become building where the tile inside is building). Where both neighbours drop, the street closes.
+   - The left map edge is always a road (the way in; walls never go on it). If the right edge is walled off, a street is
+     cut through to it. Open pockets the streets can't reach become building. Fewer than 3 objective spots: street
+     crossings at least 8 apart, in the right 70% of the map, are added ("crossing").
+   - Street blockers: about SEAM_BLOCK_CHANCE x 4 per block-area, each on a random street tile whose street runs 6+ tiles
+     one way and is at most 3 wide across (rubble / barricade / chicane across that width, as before).
+   - Escort: forks on reachable tiles about evenly across (a junction preferred), at a seeded height. Legs between forks
+     (or out the right edge): the shortest path, then shortest with a penalty (ESCORT_LEG_SPREAD, x1 / x3 / x8) on and
+     next to earlier legs; a leg sharing more than half of its middle (ESCORT_SHARED tiles at each end excluded) with an
+     earlier one is dropped. 2-3 legs named NORTH / (AHEAD) / SOUTH by average height. Each leg stores its walk (legPath
+     returns it). No 2 legs: other fork heights (8 tries), then street walls softened to rubble one at a time, then reroll
+     (3% of districts over 300 seeds).
+   - MAP_LAYOUT 'grid' keeps the r16-s3 block grid (and the test bed's fixed districts still use it).
+   - Measure (12 seeds, from random street tiles): longest straight open run 14.8 tiles (grid 23.7, hive 27.6); walls 54%
+     (grid 36%, hive 42%); far tiles (9-12) in sight 8% (grid 10%, hive 7%).
+   R16 debrief 3 (r16-s6) ASSUMPTIONS
+   - Start zone (Jamie: spawning boxed in = rounds of boring travel): the spawn is the left-edge row (2..H-3) with the most
+     street within SPAWN_LOOK steps, minus 0.5 per row off mid-height; a SPAWN_APRON (4 deep × 9 tall) is cleared there.
+     The Escort transport starts on that row (S). The old grid layout keeps its mid-height spawn.
+   - Convoy orders (Jamie): HOLD and HURRY, on your turn, no AP, one pending at a time; the same order again cancels and
+     refunds; giving the other swaps (refunding the first). HOLD: its next activation does nothing (not allowed while it
+     already waits at a fork). HURRY: its next move covers ESCORT_SPRINT (12) tiles at SPRINT speed with SPRINT sound.
+     Jamie said "3 times" for the pause; HURRY got 3 as well (ESCORT_HURRIES). Buttons sit in the bottom row (Escort only).
+   - Escort legs (Jamie: routes "progress and then back track"): a leg may travel at most ESCORT_BACKTRACK (4) tiles west in
+     all and be at most ESCORT_DETOUR (1.8) × the shortest leg between the same places; the start leg too. The last fork's
+     legs aim at three stretches of the right edge (its own row, 20% and 80% of the height). Forks get 12 tries (later
+     ones also slide sideways) before walls are softened. Only Escort jobs need a route: other jobs never reroll for it,
+     so a seed's district depends on the job type (job card and hunt roll the same type). Escort districts reroll ~5%.
+   R16 debrief 4 (r16-s7) ASSUMPTIONS
+   - Railway levers (Jamie): every fork the transport hasn't left shows its route buttons. Tap = set that fork's lever
+     (lit ✓), tap again = clear. At the fork it waits at, a tap sends it (as before). A move now runs through: at a leg's
+     end, a single onward leg or a set lever carries it on with the movement it has left; an unset fork or the route's end
+     stops it. One shared planner (planAllyMove) drives both the move and the preview. Legs are logged as they are taken.
+   - Next-move marker: a dashed gold ring where the next move ends ("waits at fork" / "out" / HOLD on the spot), worked out
+     with the same planner (clutter cost, HURRY, levers). Not shown while it waits at an unset fork.
+   - Initiative strip: the transport shows as a green T in its slot (always: you never need a contact on it).
+   - Shared cover (Jamie: "if the target is sharing the same cover item as the ExoS the cover doesnt apply"): for each
+     grazed cover tile, the piece = it plus every wall / clutter tile joined to it (4-way) within COVER_ITEM_RADIUS (3).
+     If the shooter is within COVER_ADJ (0.75 tiles: next to it, diagonals included) of any tile of that piece, that tile
+     gives no cover. Both sides. This replaced the point-blank idea (not built).
+   R16 extraction (r16-s8) ASSUMPTIONS
+   - Escort / Retrieve (Jamie's log: the lance BAILed with the transport one step behind): a mech in the extraction columns
+     waits there; the hunt does not end. It ends WIN when the transport walks out / the carrier carries the cargo out, and
+     BAIL once every living mech is in extraction. Uplink and Bounty keep "one mech out = the lance leaves". (Parked R15 #5.)
+   R16 individual extraction (r16-s9) ASSUMPTIONS (replaces the r16-s8 rule)
+   - Jamie: "ExoS should extract individually using a new extract button that pops up when zone is entered, only when all
+     friendlies are extracted does the mission end". Entering the extraction columns ends nothing. While the active mech
+     stands there, EXTRACT shows: no AP, the mech leaves the map (m.out; moved off-map, out of the order, the field drops
+     its contacts on it, it can't be shot or heard) and its turn ends. The transport is out as soon as it walks in.
+   - The hunt ends when every living mech is out (onAllOut): Bounty WIN at quota, else BAIL; Retrieve WIN if the carrier
+     extracted with the cargo, else BAIL; Escort WIN if the transport is out, else BAIL ("left the transport"); Uplink BAIL.
+     Still immediate: the uplink completing, the field cleared (not Escort), transport / carrier destroyed (FAIL), every
+     mech destroyed (LOSS). One mech destroyed and the other extracted = everyone living is out.
+   - Judgement: Escort with every mech out but the transport still in = BAIL (else it would walk on alone and could wait
+     at an unset fork for ever).
+   - Scripted lance: extracts when it stands in the zone and its goal is to leave; follows the transport / cargo out.
+   R17 (Eyes on the street) ASSUMPTIONS
+   - Drawn path (sim/turns.ts drawnTiles / planDrawn): the view samples the stroke in quarter-tile steps and sends tiles;
+     the rules start from the mover's own tile, drop tiles that aren't reachable street (walls, set pieces, pockets), join
+     any gap (or a diagonal that would cut a wall corner) with A* tile centres, and fold an L-step into a diagonal when the
+     diagonal is legal and the corner tile isn't clutter (so a hand-drawn slope costs what A* would, and drawn clutter is
+     never skipped). The walk runs tile centre to tile centre (no smoothing): clutter on the path is taken on purpose.
+   - Cost is planMove's: pathCost (clutter-weighted), MOVE_TILES_PER_AP / MOVE_ENERGY_PER_TILE for the mode, cut where AP
+     or EN runs out (clipPathCost). The preview keeps the whole stroke (red dashed past the cut). Legs / cargo blocks as tap.
+   - A drawn path lives only for this activation (G.planD; cleared on activation and after the move). No multi-turn paths.
+     A tap on the map replaces it with a tap move; tapping a waypoint (no drag) removes it.
+   - Waypoints: on the first visit to a path tile (never the start tile: turn there with a tap). Each is one change of
+     facing, even if it happens to match the walking direction. Cost: m.freeTurns first, then AP_TURN each, added to the
+     move's AP. If the AP can't reach a waypoint it is dropped (shown grey "past stop") and costs nothing. The suit stops
+     that frame's step on the waypoint tile, turns, looks (zero-time sensor update), and holds the facing (m.holdFace)
+     until the next waypoint or the end of the move. Without waypoints facing follows travel as before.
+   - Eyes on every step: the real-time sensors already ran every frame of a move with the current facing; R17 adds an
+     explicit zero-time look on each new tile entered (and at each waypoint). The passive suite and hearing already run on
+     the shared real-time clock during a move, so nothing else needed adding.
+   - Interrupt (player suits only, tap and drawn moves alike; MOVE_INTERRUPT): checked every frame of the move. "New" =
+     a contact id the lance had no contact on at the start of the move (any sense: eyes, sound, passive, alarm), or this
+     suit's eyes on a unit it couldn't see at the start. The move stops where the suit is (on that tile). AP charged =
+     ceil(tiles walked / tiles per AP) + the reached waypoints' turn cost; EN = ceil(tiles walked × EN per tile); the rest
+     is refunded, and unused free turns come back. The log tag says what showed it: eyes / sound / sensors / alarm.
+   - Clutter sound now lands when the mover first steps into a clutter tile (it used to be added at the start of the move),
+     so an interrupted move that never reached the scrap makes only its mode's sound. Same for everyone.
+   - The scripted lance: after an interrupt it may move again in the same activation (it shoots first if it can).
+   - Scrap = low cover: coverInfo returns WALL if any grazed (non-shared) tile is a building / set piece, else LOW if only
+     clutter grazes. HIT_COVER (25) vs HIT_COVER_LOW (15); the odds line reads "low cover −15". Unit sizes don't exist
+     yet; when they do, larger units are meant to get only −5% from low cover (Jamie, R16). Sizes not built.
+   - Cover source (parked #18): drawn while FIRE is allowed on the selected / best contact, from the true target position
+     (the same one the odds use): the cover piece (coverPiece: the grazed tile + joined wall / clutter within
+     COVER_ITEM_RADIUS) in yellow (wall) or tan (scrap), and the shooter's shared piece in green.
+   - Escort button (parked #59): placed along its leg at the first spot (6 tiles in, then every 2) whose screen position
+     is clear of the HUD text box and the turn strip (view only: render.ts routeBtn); it can shift as the camera pans.
+   - Test bed: Scenario.packed = { seed, grid } rolls a packed district (seed 1701, 4×2 for all three). Lance and field
+     tiles were picked from that map by hand (checked in test/route.test.ts).
+   R17 r17-s2 ASSUMPTIONS (spec override, Jamie's go: freehand, Door Kickers style controls)
+   - The stroke is world points, kept every DRAW_SAMPLE tiles by the view (plus the lift point). The rules drop points not
+     on reachable street, keep a straight stretch when it is clear of walls with the SMOOTH_PAD margin (clearWide), and
+     otherwise join it with A* (smoothed, as a tap move). Then wobbles under DRAW_SIMPLIFY tiles are straightened, but
+     only where the straight line is clear and crosses no less clutter. The suit walks the line exactly.
+   - Waypoints are stored by distance along the path (tiles, plain length) and become path vertices when planned. Two
+     within 0.6 tiles are the same one.
+   - Gestures: drag from your ExoS = a new path; drag the end handle (DRAW_END_GRAB_PX) = carry on; drag from the path
+     (within WAYPOINT_GRAB_PX) = redraw from that point (the rest and its waypoints are thrown away). Tap the path or the
+     end handle = LOOK / ✕ menu; LOOK, then the next tap (or a drag) sets where that point looks. A press while the menu
+     is open only closes it. A tap on the ExoS still arms a face change.
+   - Jamie: "get rid of the stop circle, its not needed". The gold ring is gone; the cyan / red dashed split shows where
+     the AP runs out, and the cost label sits at that point.
+   R17 r17-s3 ASSUMPTIONS (Jamie: no LOOK button; tap where to look, then drag the marker)
+   - Tap the path (or its end handle): that point is picked and pulses; the next tap anywhere places its look marker there
+     (the facing = from the point to the marker). A tap on the same spot (under 0.4 tiles away) cancels. A look marker can
+     be dragged (live re-aim) or tapped (picks its point again; a "✕ LOOK" button then removes it). The marker is view
+     data on the waypoint (lx, ly); the rules use only the facing.
+   R18 (Fit for the job) ASSUMPTIONS, checkpoint 1 (parity)
+   - Step 0: build-toy merged as is. Its rows (data.ts) and rules (rules.ts) moved to src/sim/items.ts and src/sim/fit.ts;
+     src/build/data.ts and rules.ts re-export them, so the toy and `npm run build:toy` are unchanged.
+   - A2: unit.fit is the toy's Build (frame, chassis, mounts by location, plate, skin) + `rounds` (gun rounds loaded).
+     unit.items = the fitted rows with their location, worked out once at build time. has(u, tag), active(u, id),
+     itemsAt(u, loc), radarOf / gunOf / mortarOf(u) ask it. New tags so a check reads one tag: PASSIVE (EM array),
+     MASK, GHOST, GUN (autocannon), MORTAR, BATTERY. `online(u, loc)` is always true at checkpoint 1 (parts come at 2).
+   - The R17 DEFAULT_LOAD is a steel Warden on a Cold-burn: MAST EM array + mask, ARMS autocannon (20 rds), CORE
+     Cold-burn + ghost (in the OPEN hardpoint), steel plate on CORE. Warden has only 2 MAST hardpoints, so a third sensor
+     spills to the CORE's OPEN one. The reactor does nothing yet (power is checkpoint 2).
+   - The old loadout picker stays for checkpoint 1 and its numbers become a fit (kit.ts fitFromLoad): sensors on the
+     MAST then the CORE's OPEN hardpoint, mortar and batteries in BACK / CORE, plates CORE → ARMS → LEGS → MAST → BACK,
+     rounds = ammo × 10. A picker load that doesn't fit a Warden (radar + passive + ECM all at once, or many cells with
+     a mortar) drops what has no room. The hangar replaces the picker at checkpoint 2. newHunt / newContract still take
+     old load numbers (the runner's and tests' shorthand) and turn them into fits.
+   - FIELD_TYPES rows get FRAME (f_patrol, f_turret, f_empl: roomy field-only frames, never in a hangar; the turret and
+     emplacement have no LEGS hardpoints). The unit's fit is built from FRAME + RADAR / PASSIVE / ARMOUR / AMMO / CELLS
+     (+ the variant's STATS), as before. The field's ECM was never fitted (hasEcm 0): no MASK row.
+   - A3: radar range / cone / AP / EN / EMIT / signature, gun rounds / range / base to-hit / shot sound, and mortar shells
+     / AP / launch sound / min / max range / scatter now read from the row (TUNE keys removed, each with a comment where
+     it was). They keep R17's values, so the Lamp says range 18 (the catalogue's 8 was a guess), and the steel plate is
+     3 hits (the toy's guess was 2; ARMOUR_HITS 3 stays for the mortar's damage). A variant's own SOUND.SHOT (hush 5)
+     still overrides its gun's. The shared rules stay in TUNE (lock rule FIRE_UNC, shots per turn, radar walls / unc,
+     mortar splash / damage / blind lob).
+   - Jamie (after r18-s1): "for the autocannon stats, use what we have now, we will find a system to balance and tune all
+     the stats of all equipment down the road". So the sim keeps today's numbers wherever a toy row disagrees (the
+     autocannon's shot is heard 12 tiles, not the toy's SND 6). The toy's sig values stay as they are for the hangar bars.
+   - Small fix found on the way (equipment plan): cmdEcm and canGhost now check the fit has a mask / ghost (before, only
+     the HUD hid the buttons).
+   - Parity: `npm run sim` (50 games), `--contracts 60`, `--contracts 30 --loud`, `--contracts 20 --pack` and
+     `--scenario earshot` give byte-identical output to R17 (bd91ae8).
+   R18 checkpoint 2 (the suit budget) ASSUMPTIONS
+   - A4: part = location (SENSORS = MAST, WEAPON = ARMS, CORE, LEGS, new BACK). BACK has PART_SHARE 0 and PART_WEIGHTS 0, so
+     it takes its 1 hit on top of the R17 pool (every suit and field unit gets +1 hit; CORE unchanged) and is only rolled from
+     behind. A module is offline while its location's part is at 0 (kit.ts online). The hard-coded "SENSORS gone = no radar /
+     ECM / ghost" became "that module's own part": the default fit's mask and EM array are on the MAST (offline with it),
+     its ghost on the CORE's OPEN hardpoint (stays up). Passive is now lost with the MAST (R17: passive survived). Eyes still
+     halve with SENSORS, and LEGS still limit moves (frame rules, not modules). Regen and pool are fixed at the hunt's start
+     (a lost part's draw isn't refunded). Buttons say which part is gone: SNS, WPN, BCK.
+   - A5: "outside the facing arc" = outside FRONT_ARC_HALF 90° either side of the target's facing (the front half), from
+     where the shell was fired. Gun shots only; a mortar splash rolls as before. Both sides; turrets and emplacements have a
+     BACK too.
+   - A6: a suit's regen = totals(fit).net (reactor output − idle draw, mods' drawAdd included), pool = ENERGY_BASE +
+     batteries. Field units keep the flat ENERGY_REGEN (their fits have no reactor rows yet). Can't launch: no reactor,
+     draw over output, or load over max (the hangar disables START CONTRACT and says why).
+   - A7: overloadPenalty from the toy with TUNE knobs (OVERLOAD_SND_PER_PT 1, OVERLOAD_AP_FRAC 0.5). The +AP is added once
+     per move (it shortens how far the AP takes you) and is kept if the move is interrupted; the +Sound goes on every move
+     and on the clutter crunch.
+   - A8: the standing EM signature of a suit = (fit always-on EM emit + EM visibility) × SIG_EM_PER_PT 0.5: Wisp 0.5, Warden
+     1.5 (= the R17 default's 0.5 + 1 plate), Bulwark 2.0. Plates no longer add EM (in the rows they add MAG, not modelled
+     yet). The radar's per-pulse EMIT and signature are its row's, times a mod's EM multiplier in the same location. Sound
+     per event: the gun's and mortar's rows (12, 14, per Jamie: today's values), moves = SOUND_RANGE by mode (the legs; the
+     cheap set has no servo rows) + overload. The field keeps the R17 standing signature (SIG_STILL + plates × SIG_ARMOUR):
+     moving it to the frame alone made the plated gun turret 40% quieter and broke the R14 look-alike scenario; field fits
+     get designed later (equipment plan C7).
+   - A9: mods from fit.ts totals (one per location, matching tags). Only the Cold processor is in the cheap set.
+   - A10: the hangar (view/hangar.ts) replaces the slot picker. Jamie's ExoS wireframe (Downloads/ExoS Wireframe.svg) is the
+     location picker: its C2PA stamp stripped (145 KB → 18 KB), outlines and panels split by position into MAST / ARMS /
+     CORE / LEGS (view/exos.ts, generated); BACK is a dashed pack behind the right shoulder. Panels tint teal when the
+     location carries something, bright when selected. Steel plate per location is a toggle. Hangar-only rules while a suit
+     has one gun button: one of each module row (batteries excepted) and one reactor. Changing frame keeps what still fits.
+     Fits saved per suit as build codes (signalLance.fitA / fitB; codes from the toy work, non-cheap rows are dropped).
+     The old picker and MODS table are gone.
+   - Frame base hits: 3 for all three (= PLAYER_HITS). A first guess of Wisp 2 / Bulwark 5 made the Bulwark win 83% in the
+     sweep; with 3 each, frames differ by hardpoints, rated / max load and EM visibility, and plates are the hits.
+   - Templates: Scout = Wisp (Lamp, EM array, mask, autocannon, Hot core, battery; no plate, no BACK hardpoints), Line =
+     the R17 default (Warden), Brawler = Bulwark (EM array, autocannon, Hot core, battery, mortar; plates ARMS, CORE, LEGS).
+     The Wisp has a BACK part (it can be hit there) but no BACK hardpoints.
+   - A11: runner `--fit` (template id or build code, A,B) and `--sweep N` (3 frames × 2 reactors, both suits the same fit).
+   - A12: the result screen and the log line say what found each suit first (G.firstLog now records who and how far):
+     channel = SND (sound), EM (passive), EM (radar), eyes, muzzle flash, alarm.
+   - C7: INTEL adds "Listens on": SND and eyes for all, EM passive ears (patrols, turrets), radar (emplacements). Counts are
+     the briefed field's; a Bounty's extra units are not listed (as before).
+   - Thermal optics is held back until checkpoint 3 (it has nothing to read yet).
+   R18 checkpoint 3 (THERMAL) ASSUMPTIONS
+   - B1: IR = steady + heat. Steady = the fit's always-on IR emit (Hot core 4, Cold-burn 0) + frame size (the frame's VIS
+     visibility × IR_SIZE_PER_VIS: Wisp 1, Warden 3, Bulwark 5). Heat (u.heat) builds: +IR_FIRE per gun shot or mortar lob,
+     +IR_SPRINT per sprint move; it cools IR_COOL_PER_TURN at the start of the unit's own turn, never below 0. Field units:
+     frame size 3 + FIELD_TYPES.IR (patrol engines 2, emplacement generators 4, turrets 0). The Escort transport has no IR.
+   - B2: a thermal sight reads IR like eyes: line of sight and the eyes' facing cone (EYES_CLOSE all round), out to
+     IR_TILES_PER_PT × the target's IR, at most IR_RANGE. It gives a fix of IR_UNC (lockable; NOISE doesn't blur it; no
+     Signal tightening) but no variant reveal. It is checked after eyes and before radar. Readers: every turret
+     (FIELD_TYPES.TURRET.THERMAL, a Thermal optics row on its MAST) and a suit with Thermal optics (MAST, draw 2). A
+     thermal fix alarms the pack like any own fix. The R17 scripted lance never carries optics.
+   - Only turrets read IR: they watch and wait, so the heat question is "do I pass a turret's line of sight running hot".
+     Splash toggle THERMAL ON/OFF (remembered; [NO-IR] in the log) plays checkpoint 2 on its own.
+   - Jamie mid-round: "Add a sniper turret variant that can hit further". A 4th turret variant, sniper: COMMS 0, no pulse,
+     a Long gun row (field only: range 20, falloff 1% a tile past HIT_RANGE_FREE instead of 3, 12 rounds, shot Sound 16),
+     FIRE_UNC 1.2 (firm lock: past eyes it needs its thermal sight). BOUNTY 70. TELL "very loud shot, from far off" (its
+     shot reads "loud" like the sentry's, so sound alone doesn't tell them apart). gun.falloff is new on GunStats. Every
+     turret slot now rolls 1 in 4 (was 1 in 3), so fewer of the tough gun turrets: the runner's wins rose.
+   R19 (Listen before you land) ASSUMPTIONS, checkpoint 1 (the reveal ladder)
+   - Jamie (build chat): the hangar comes after hunt 1's scan, then the fits lock for the contract (relockLoads; hunts 2+ go
+     job → scan → drop). The start screen's hangar still sets the fits a contract starts with.
+   - The field is placed in rollEnemy (placeField, same RNG point as before) whenever SCAN_ENABLED, so the ship can hear it;
+     newHunt only places it when nothing did. Every unit starts ≥ UPLINK_MIN_DIST from EVERY drop zone, and so does the
+     objective; zones keep ZONE_SPAWN_CLEAR from every drop zone. Ambush turrets still face the west spawn.
+   - Drop zones (block maps only; the hive keeps one spawn): the west edge spawn, then an apron SPAWN_APRON turned to lie along
+     the north edge (9 wide × 4 deep), then the south edge, each where the most street opens within SPAWN_LOOK steps near
+     DROP_X, and only where it touches a street the lance can already reach. DROP_ZONES 3 = all three (at most 3). The aprons
+     are cleared whenever the scan is on, so a seed's map is the same at every listen level (but differs from R18's).
+   - The listen is once per job. The same job rolled again (previewed, then taken) keeps its listen and drop (G.scan keyed by
+     seed + mission); PLAY SEED and a new job start fresh. The log line carries "listen LONG drop 2" and PLAY SEED replays it.
+   - LONG blips are emitters only (radio or radar): a silent unit gives the ship nothing (the roster still counts it). Simplest
+     reading of "each field unit" that fits the sensor model (Jamie R18: what doesn't emit matters as much as what does).
+   - The ship's read uses the hunt's own trait words (ids.ts): radio = EMIT low; radar = EMIT high and a pulse rhythm (two
+     pulses before round 1); a patrol "moved"; a static watched SCAN_STILL_ACTS (4) rounds = "still". So emplacements and the
+     gun turret come out sure, patrols 1 of 3. The best guess is one of the matching variants (scan's own RNG): wrong when
+     more than one fits. It is shown as "line? 1 of 3"; no ID is committed for you.
+   - Blips use their own RNG (seed ^ 0x5CA9), so listening never moves the hunt's rolls. At the drop every patrol drifts to a
+     random free tile within SCAN_DRIFT (4) tiles, never within UPLINK_MIN_DIST of where you landed (every listen level, so
+     the same field lands). A blip becomes a stale contact (orange, tag SHIP) at its scan position with the ship's notes in
+     G.obs; it lingers SCAN_BLIP_KEEP (30) s of sim time on top of CONTACT_LINGER; a real fix replaces it (normal linger).
+   - Zones are view knowledge now: SKIP shows none (the rules still apply), SHORT grey outlines ("ZONE ?"), MEDIUM+ as before.
+     The INTEL, the tooltips and the map follow it. Hand-placed test-bed scenarios still show every zone.
+   - Runner: --listen N [--drop N|auto] (auto = the offered drop zone nearest the objective). The scripted lance never lobs at or
+     chases a SHIP-only contact (it lobbed its shells at stale blips on turn 1); it does read blips for Escort legs.
+     With SCAN_ENABLED false the runner is byte-identical to R18 (60 contracts). The rule tests start hunts with the scan off.
+   R19 checkpoint 2 (the cost ladder) ASSUMPTIONS
+   - Rolled at the drop (applyScan, after the patrols drift) with the hunt's RNG, in order: extra units (one SCAN_EXTRA_CHANCE roll
+     per step up to the level; variant from all 10, placed like the field, far from every drop zone, facing the objective), then
+     painted (LONG only, SCAN_PAINT_CHANCE: SCAN_AMBUSH patrols, variant rolled among the 3, on free tiles SCAN_AMBUSH_DIST from
+     where you landed), then the alert share (round(SCAN_ALERT_SHARE × every unit on the map, extras included); an ambush is always
+     alert and counts toward it; the rest picked at random).
+   - "Alert" = an ALARM contact on each suit at your drop zone, SCAN_ALERT_UNC (5) tiles fuzzy (never a lock), and the unit faces
+     the drop ("dug in" for a static = watching your drop zone; no other bonus). Any alert unit turns the pack logic on for the
+     hunt (packOn, like a Retrieve after the pick-up): alarms spread, patrols drop the leash and hunt.
+   - The costs never show before you land: the dial says the odds in plain words (scanRisk); the result screen and log line say
+     what was rolled ("scan LONG: +1 unit, 4 alert, painted (ambush 2)").
+   - Runner --listensweep N: N contracts per level, same seeds, drop auto. The scripted lance can't read the roster or blips, so
+     the sweep shows the costs fully and the benefits barely (only the drop zone and Escort leg choice).
+   R19 checkpoint 3 (the RWR) ASSUMPTIONS
+   - Jamie (build chat): "heard moving" = heard on a tile you have since left. Radar only pulses on the emitter's own turn, so a
+     paint always lands while the suit stands; the warning records that spot (P0). Still within 0.5 tile of P0 = heard standing.
+   - A paint = a field unit's radar on and inRadar() covering the suit (cone, range, ≤ RADAR_MAX_WALLS), the suit carrying a working
+     'rwr' (active(): its MAST part up). One warning per emitter, refreshed by each new pulse (pulseSeq) with a new P0, bearing and
+     band; the bearing error (± RWR_BEARING_ERR) is rolled once per pulse (hunt RNG; only with an RWR fitted, so runs without one
+     don't change). LOCK = at paint time the emitter holds a live fix on that suit at least as tight as its own FIRE_UNC; else SEARCH.
+   - Band from strength: the RWR assumes the radar is RWR_REF_SIG (16, an emplacement mid-pulse) and solves the detection falloff for
+     a distance; the band whose span is nearest wins. Louder = reads closer; walls (DET_WALL) = reads further.
+   - The wedge (checked against the brief's worked case): from P1, the angles to the strip's near and far ends along θ, then ± the
+     bearing error; centre = the strip's middle. Stale = P1's distance along θ from P0 ≥ the band's near edge.
+   - The scope is a fixed size on screen (far ring 70 px × UI scale) round the selected suit; spoke length = its band's ring. The
+     "heard here" tick and bearing line (dashed, strip thicker) are on the map, shown once moving or when tapped. Warnings age out
+     after RWR_LIFE rounds (fading). Log: " · RWR n" = warnings received. The scripted lance never fits it.
+   - Scenario "Painted on the move": packed 4×2 (seed 1701), A on the street at [20,13], a search emplacement out of sight at [11,16]
+     (3 walls, ~9.5 tiles), its sweep set so the first pulse (round 2) covers A.
+ - Round 20 (eyes from the ship), the live scan (src/sim/livescan.ts):
+   - SCAN_MODE 'active' is the default; 'dial' keeps R19 (Long listen / Quiet drop pin it; the runner's --listen / --listensweep
+     switch to it). Dial runs are byte-identical to r19-s7.
+   - Commands, not time: the view sends start / stop / sensor / wide / aim and turns real seconds × SCAN_TIME_RATE into SCAN_TICK
+     steps. Each command is logged with its tick; the log line carries them ("scan 0R_3a20.9_3G_40S drop 2"), PLAY SEED replays
+     them. A drag records at most one aim per tick. The scan has its own RNG (state in the scan), so it never moves the hunt's rolls.
+   - One fused mark per unit (the ship merges its own sensors), not one contact per sensor. Its position = the latest look for a
+     patrol, the tightest for a static, offset by a fixed seeded fraction (≤0.7) of its fuzz so it doesn't flicker.
+   - Dwell gathers at a unit's current spot (a patrol's scan-time walk), a zone's centre and a drop zone's spawn tile. The map's
+     tint is a per-tile dwell grid for each sensor (also the "rubble" reveal: radar band 1 on the tile).
+   - Layers: RADAR band 1/2/3 = a ping with fuzz SCAN_PING_UNC (no type); THERMAL only units with IR ≥ SCAN_HOT_IR (patrols 5,
+     emplacements 7; turrets 3 stay cold): band 1 a heat blob, band 2 its size (LARGE at IR ≥ SCAN_IR_LARGE), band 3 tighter;
+     EM only emitters: band 1 counted, no fix; band 2 a fix (SCAN_BLIP_UNC) with emit + moves, band 3 adds pulse rhythm / stillness,
+     the fuzz shrinking to SCAN_BLIP_FLOOR. The CARD guess is the R19 matcher on those notes (a fixed seeded pick among the fits).
+   - Zones: radar band 1 = outline, thermal band 1 = type (either order); the hunt map, tips and INTEL learn zone by zone.
+   - The aim mark is a tile; strength from tile centre to tile centre. Drag is relative (the ring moves with the finger, wherever
+     you touch); a tap jumps it (or picks an offered drop zone within 3 tiles). Touching the map turns WIDE off.
+   - Patrols walk 4-way along streets at SCAN_DRIFT_PER_MIN to seeded goals within SCAN_DRIFT_LEASH of home, never onto another
+     unit or within UPLINK_MIN_DIST of a drop zone; at the drop they walk SCAN_DROP_DELAY more (on a copy: RETRY lands the same).
+     Statics never move. The R19 SCAN_DRIFT is the dial's only.
+   - Drop zones: the west edge always; an apron once RADAR band 1 at its spawn tile. A drop zone index is now its dropPts index.
+   - Checkpoint 1 has no costs (SCAN_COSTS false): the result line says " · scan N min: pings, heat, EM fixes, zones".
+   - Scenario "Where first": seed 2025, Ambush (sentry + hush: silent and cold; heavy + line patrols), 4×2 packed.
+ - Round 20 fix list 1–4 + checkpoint 2 (r20-s2):
+   - Sensors at once (fix 1, Jamie's call over the brief's NOT IN list): S.on per sensor, each with its own ring (S.aims) and FULL
+     MAP flag (S.wide). The view's "selected" sensor (outlined) is what a tap moves and FULL MAP acts on: the last turned on or
+     dragged. A sensor button: off → on (and selected); on → selected; selected → off. A drag grabs the ring whose centre is
+     nearest the touch (the selected one wins a tie). Commands: R/T/E 1|0, W sensor 1|0, a x.y.sensor, G, S.
+   - No clock cap (fix 3): START CLOCK / PAUSE / RESUME. Paused = nothing happens (a think pause, no cooling). Running with every
+     sensor off = waiting: the meter cools by SCAN_COOL. Opening the CARD or dropping pauses it.
+   - The risk meter (cp2, keyed as fix 3 asked): + Σ SCAN_LOUD of the sensors on, per ship-minute. Steps at SCAN_RISK_STEPS, then
+     one every SCAN_RISK_MORE (no ceiling). New keys (SCAN_RISK_EXTRA / _ALERT / _PAINT) rather than re-keying the dial's arrays,
+     so the dial still replays byte-identical.
+   - Reaching a step for the first time (S.peak) rolls SCAN_RISK_EXTRA: a unit "called in" (any variant), right then, on the scan
+     map (it can be scanned). Cooling and climbing back doesn't roll again; each new higher step does. The step at the DROP sets
+     the alert share and the painted chance (hunt RNG, as R19; no roll when the chance is 0 or nobody wakes, so an unscanned drop
+     plays as before). Radar-fitted units head the wake-up list when radar was used at all ("notice radar early").
+   - "Some things change as time goes on": patrols walk (r20-s1) and SCAN_ARRIVE_PER_MIN rolls each tick for a new patrol. Both
+     kinds of added unit are kept in S.adds with their id, re-spawned at the drop (takeJob rolls the field again).
+   - The side panel says the field has grown ("N called in by your scanning, M arrived"): simplest way to make the cost visible.
+   - Deadlines (fix 4, scan screen only): jobDeadline(seed, mission) = SCAN_DEADLINE_CHANCE of jobs get SCAN_DEADLINE_MIN ship-
+     minutes; shown on the job card and the clock; at the deadline the clock stops for good (S.over) and you drop. No in-hunt effect
+     (the mission clock stays parked #85).
+   - FULL MAP (fix 2): the WIDE button is now "FULL MAP · <sensor>" (dashed) beside the sensors; the selected sensor's frame is
+     drawn round the map; it reads RING to switch back.
+   - Phone layout: START / CARD / DROP and the drop zones sit right under the sensors; clock, risk and intel below (they scroll).
+   - Altitude (fix 5, r20-s3; Jamie: "do a high mid low alts"): S.alt, command 'H' 0/1/2. SCAN_ALT per height: RING scales both
+     radii, SPEED multiplies dwell per sensor (FULL MAP too), UNC multiplies the fuzz of a new fix (an old fix keeps its own), LOUD
+     multiplies risk; cooling is the same at every height. Zones and drop zones gather at the same speed as units. Default MID.
+   - Scan log (cp3, r20-s4): a stretch = the clock running with one set-up: the sensors on, where each looks (FULL MAP, or the
+     map area its ring is in: the map cut 3 × 3 into NW … SE, the brief's "named block", simplest), and the altitude. A new set-up
+     starts a stretch; a drag inside one area doesn't; a pause ends one and resuming unchanged carries it on; waiting (no sensor on)
+     is its own stretch. Each line: minutes, set-up, what came back (pings, heat blobs, EM fixes, emitters heard, zone outlines /
+     types, drop zones), risk added, units that joined. Then one drop line. Result screen ("THE SCAN"), test-bed result, and the
+     log as [SCAN] lines after the hunt line.
+   - Runner presets (cp3): none, quiet (EM on the objective 8 min), fast (radar full map 2 min), mixed (radar full map 2 → thermal
+     on the objective 3 → EM there 5) as the brief, plus loud (all three on the full map 10 min) so the sweep shows the cost
+     ladder biting. Drop zone nearest the objective. --scansweep N runs all five on the same contract seeds.
+   - Scenario "Loud and fast": the Where first job with "0W0.1_0G_11S" pre-run (radar full map 2.75 min: risk 2.75, step 1 at 3),
+     deadlines off.
+   R21 cp1 (the company: people)
+   - One company, one localStorage slot (view side, try/catch + memory fallback): { co, ct }. The running contract is saved
+     with it, so a reload goes back to that contract's job pick (a hunt in progress is not saved: a reload replays its
+     hunt from the job pick). A save whose shape doesn't match CO_VERSION offers only NEW COMPANY (no migrations).
+   - The company code is its seed in base 36 (on the company screen and in every [COMPANY] log line). Each hunt still
+     logs its own seed, so any one hunt replays with PLAY SEED; rebuilding a whole company from its code is not built.
+   - Carry rule (simplest): a lancemate that ENDS ITS TURN (or extracts) within OP_CARRY_RANGE (1.5 tiles: adjacent,
+     diagonals included) of a CRITICAL suit carries its operator. No AP cost, no slowdown, any number at once. If the
+     carrier goes down, whoever it carried is dropped (uncarried again).
+   - Fate at the hunt's end: carried by a lancemate still standing (extracted, or on the map when an uplink win / job
+     fail ends the hunt at once) = lives, benched OP_BENCH contracts; the whole field destroyed = everyone lives (the
+     ground is yours); otherwise KIA. A LOSS (every suit down) = every CRITICAL operator KIA.
+   - XP goes only to operators who came back without going CRITICAL. The bench ticks down at the end of each contract,
+     except the contract it was earned in.
+   - In cp1 a suit lost in a contract stays lost for that contract (R11 rules; REBUILD still works). Seats refill before
+     every hunt: an operator that can't drop (benched / KIA) gives up its seat to the first free reserve. A suit with no
+     operator free to drive it stays aboard for that hunt (its carry is untouched). If no seat can be filled, the
+     contract fails.
+   - QUIT during a company contract ends that contract (counted as failed); nobody is hurt by a quit.
+   - Hiring is free until cp3 (COST_HIRE 0) and only between contracts. Recruits not hired are replaced after each
+     contract. No dismissing operators (not in the brief).
+   - SENSOR TECH's hook is the ID trait counter: each watched enemy activation counts × SKILL_TECH toward "still" and
+     "no pulse", for the whole lance while the tech's suit is on the map (best tech counts, not stacked).
+   - QUIET MOVER scales creep / walk / sprint sound (and clutter crunch on those moves), never shots or mortar.
+   - COMPANY_MODE is also a splash toggle (COMPANY: ON / OFF, remembered). Off = the R11 contract flow with no operators.
+     The runner and the old scenarios never make a company, so their numbers are byte-identical (checked r21-s1).
+   R21 cp2 (the company: roster)
+   - The company owns START_SUITS (3) suits, A B C. A and B start from the player's saved hangar fits, C from the default
+     fit. Each suit's damage (per part), rounds and shells live on the suit and carry between hunts and contracts.
+   - Who drops is picked on the job screen before every hunt: each suit's button steps through STAYS ABOARD and the free
+     operators. Seats are never filled automatically after cp2's new company (a lost or benched operator leaves the seat
+     empty). A destroyed suit (CORE gone) can't take an operator until REBUILT.
+   - Credits belong to the company in cp2 (pay in, refit out); the contract's credits start from them and go back after
+     every hunt / refit. In company mode the R11 REFIT_CAP is dropped: repairs and reloads go to full, a rebuild comes back
+     at full. Cp3 replaces this with parts.
+   - A new fit (hangar) keeps the suit's damage part by part (hits missing stay missing; CORE stays at least 1 on a
+     standing suit); rounds / shells are kept up to the new fit's full load. A destroyed suit stays destroyed.
+   - A 3rd / 4th suit lands on the next free tile beside the drop point (nextTo, skipping taken tiles).
+   - If every suit is destroyed and a rebuild can't be afforded (or no operator is left and none can be hired), the
+     company screen says it can't field a lance: NEW COMPANY. Debt and the fold are cp3.
+   - The HUD lists every other suit (hits left, short, when there are 2+ others).
+   R21 cp3 + cp4 (the books, the ship; built together as r21-s4 at Jamie's call, no separate r21-s3 build)
+   - An offer's danger scales the field: every type's count × DANGER_FIELD (rounded, at least 1 of any type it fields), on
+     top of the district-size scaling. Hunt pay is unchanged; the fee (CONTRACT_FEE per hunt × hunts) comes on COMPLETE
+     only. Wins needed = ceil(hunts × CONTRACT_WIN_SHARE). The 1-hunt quick toggle still shortens a company contract.
+   - Wages are for every operator on the roster (benched too), paid with the upkeep and any hull repairs when a contract
+     ends, failed or quit (a QUIT is the bail). Debt: below 0 once is allowed down to −DEBT_LIMIT; still below 0 at the
+     next contract's end, or deeper than the limit, folds the company. Also folds (checked on the company screen between
+     contracts): every ExoS destroyed with no parts + credits to rebuild one, no operator to drop or hire, or no offer in
+     reach even buying fuel with everything. A fit that can't launch doesn't count as stranded (fix it in the hangar).
+   - Salvage IS parts: each kill puts SALVAGE_PER_KILL parts in the hold, up to the hold cap; spare parts sell at PART_SELL.
+     No separate salvage good, no machine shop. Rounds and shells are still credits (cp4 ARMOURY: 1 part instead); there is
+     no ammo line on the market.
+   - Hangar stores: the items fitted on a new company's suits are owned; the market adds more. In company mode the hangar
+     only fits an item with a spare one in the stores, the templates and copy-fit buttons are hidden, frames and steel
+     plates stay free. A bought ExoS comes as a Warden with the standard kit (its items join the stores).
+   - The ship shop is a fixed list (all 13 modules, any time between contracts); a module bought with no free hardpoint
+     goes to storage. One of each, except SUIT BAY. The hull carries 2 ExoS; a new company starts with one SUIT BAY fitted
+     so its 3 suits fit (6 hardpoints left). Taking a module off is free; a SUIT BAY can't come off while its suit is aboard.
+   - The brief listed 12 modules for 13: ARMOURY (catalogue: "ammo restock from parts") is the 13th: reloads cost 1 part.
+   - MEDBAY's "better critical odds": carried operators always lived already, so the MEDBAY gives one left behind a
+     MEDBAY_SAVE chance to be pulled out anyway (company RNG, rolled once at the hunt's end), plus bench −1.
+   - The scan modules and QUIET DROP RIG act only inside a company contract (never the test bed or PLAY SEED). A painted
+     ship's hull roll uses the company RNG (the hunt's RNG is untouched); HULL ARMOUR soaks the first hit per contract.
+   - Thin books is a company-screen scenario: the real company is set aside (not saved over), a test company in debt is
+     shown, TAKE IT asks the question instead of starting the contract, BACK restores the real one.
 ```
 
 ## TWEAK LOG
@@ -911,4 +1406,262 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            first in pickPackTarget. Scenarios Grab and go, Hot potato. Runner (20 contracts, forced Retrieve): win 41%,
            picked up 38/46, cargo lost 10, pickup → end 3.7 rounds. Mixed check: same 2 known flags (sound share, gun 0%).
            BUILD r15-s2 | -
+   round15 step 2 debrief | "felt good, enemy aimed for the mech with the cargo"; weakest: "It felt fine". Reading the guards:
+           "really only one sensible route, and the guards there were unavoidable, but if I had the chance, I would have
+           changed route" | no change (map, not a knob). Counts as the Step 3 check-in: build Escort as briefed | -
+   round15 step 3 | Escort as briefed | NEW ESCORT (MISSION_TYPES + 'ESCORT', ESCORT_HITS 5 (build: 8 → 5, runner 93% →
+           68% wins), ESCORT_MOVE 8, ESCORT_EMIT 10, ESCORT_ARMOUR 1, ESCORT_INIT 4, ESCORT_BONUS 60, ESCORT_AMBUSH_RANGE 4,
+           PARTS.ALLY), route graph in MAP_ANCHORS, friends() / isFriend() for the field's targets. Scenarios Fork, Shadow.
+           Runner (20 contracts, forced Escort): win 68%, transport shot at in 85% of hunts, destroyed 18/60. Mixed check:
+           sound-share flag only. BUILD r15-s3 | -
+   round15 step 3 debrief | weakest: "It felt fine". Fork call decided by "a mix of all scan results, as well as gut feeling,
+           looking forward to the final route, trying to keep options open". Escort vs Uplink: "its own thing" | no change | -
+   round16 | build as briefed | NEW block districts (MAP_MODE 'blocks', BLOCK_SIZE 12, MAP_GRIDS, MAP_MIN_BLOCKS 8, MAP_ROTATE,
+           MAP_REROLL_MAX 20, FIELD_SCALE_BY_AREA, FIELD_BASE_AREA 1728, ZONE_SCALE_BY_AREA, MOD_SPAWN_CHANCE 0.5), clutter
+           (CLUTTER_TILE_COST 2, CLUTTER_SOUND 3), ESCORT_FORKS 2. Scenarios Long way round, Two districts (strip / square),
+           Crunch. Build: blocks redrawn denser (first draw 30% walls: blocks won 34% vs hive 57%) and edge clutter slots
+           that span the seam street (clutter on 4–5% of lance moves → 7–9%). Runner, 60 contracts: blocks win 50% of hunts
+           (hive 58%): Escort 71% (85), Uplink 54% (77), Retrieve 30% (42), Bounty 33% (24); grids 26–67%, no grid flag;
+           0 rerolls. --check: sound-share flag gone on blocks (46%); Bounty "sentry killed 0%" fires (hive 3/9). BUILD r16-s1 | -
+   round16 bug | "enemy turn, nothing happening" (Escort, transport holding at a fork) | the HUD's last-shot line read the
+           transport's field type (it has none) the first time the field shot it, which killed the frame loop. An R15 bug,
+           hit more often now that the transport is shot more on block maps. Fixed (who() names it "transport"). Checked
+           with 160 random-input hunts in the browser (blocks + hive) running the real HUD and renderer: no errors. BUILD r16-s2 | -
+   round16 debrief 1 | Jamie: "for the blocks, they cant always have a full path grid system … no reason to not allow me to
+           take the centre road all the way … some sort of system to add randomised blockers, debris, buildings etc along grids
+           to deny access and provide LoS blockers down long stretches" | NEW SEAM_BLOCK_CHANCE 0.35, SEAM_BLOCK_KINDS RUBBLE 0.4 /
+           BARRICADE 0.3 / CHOKE (chicane) 0.3; Escort forks offer NORTH / AHEAD / SOUTH where the streets are open (2-3 legs).
+           Also (Jamie): map tooltips (hover / hold) and round history on the splash. Runner 60 contracts: wins 48% (was 50%),
+           Escort 53%, Uplink 51%, Retrieve 45%, Bounty 41%; clutter on 17% of lance moves (was 7-9%); 0 rerolls. BUILD r16-s3 | -
+   round16 debug | Jamie: "add a debug contract reroll button so we can make sure we get the mission type we want" | job
+           screen DEBUG: REROLL JOBS: rolls the hunt's 2 jobs again (same hunt number; the contract RNG moves on). The hunt's log
+           line carries "[DBG jobs rerolled ×N]". BUILD r16-s4 | -
+   round16 debrief 2 | Jamie: "still feels too much like a grid … irregular shape library of tiles, like 0.5 wide, 2 wide,
+           1.5 wide, L shape tiles … randomly placed to fit in the map footprint"; "shapes can extend past the map edge, they
+           are just cut off by the map boundary" | NEW MAP_LAYOUT 'packed' (default; 'grid' = s3), MAP_EDGE_CROP, SHAPE_WEIGHTS,
+           STREET_KEEP 0.6, LOT_CHANCE 0.3, YARD_CHANCE 0.4, ALLEY_MAX 2, ESCORT_LEG_SPREAD 6, ESCORT_SHARED 5. Runner 60
+           contracts: wins 47%; Escort 55%, Uplink 65%, Retrieve 25%, Bounty 29%; hunts longer (Escort 14.4 rounds); clutter on
+           25% of lance moves; rerolls 3%. Flags: 6x2 82% (11 hunts), sound share (inherited). BUILD r16-s5 | -
+   round16 debrief 3 | Jamie: spawned boxed in ("im going to have to take multiple rounds just to get out of this cramped
+           area"); "an order to pause the convoy … say 3 times … increase speed … a sprint for 1 turn"; routes "progress and then
+           back track" | NEW SPAWN_APRON 4×9, SPAWN_LOOK 12; ESCORT_HOLDS 3, ESCORT_HURRIES 3, ESCORT_SPRINT 12; ESCORT_BACKTRACK
+           4, ESCORT_DETOUR 1.8. No leg now travels more than 4 tiles west (300 seeds). Runner 60 contracts: wins 41% (was 47%);
+           big grids hardest (4x4 forced, 40 contracts: 36%); rerolls 1%. Flags: hush 0% (Bounty), 4x4 10% (20 hunts; 36% when
+           forced), sound share (inherited). BUILD r16-s6 | -
+   round16 debrief 4 | Jamie: "1. icon along route to show how far transport will move in its next move. 2. transport to show
+           in initiative, 3. railway style direction lever"; 51% / 55% on an emplacement next to a barricade "felt really low and
+           annoying" … "if the target is sharing the same cover item as the ExoS the cover doesnt apply" | NEW forks-ahead levers,
+           next-move marker, T in the strip; COVER_ADJ 0.75, COVER_ITEM_RADIUS 3. Runner 60 contracts: hit 57% (cover 29%, open
+           62%), wins ~40%; Escort forced (30): 60%. BUILD r16-s7 | -
+   round16 bug | Jamie's log (r16-s6, Escort 6x2): "i made it to the end, the escort 1 step behind me, but because i entered
+           extract before the transport it counted as bailed" | Escort / Retrieve: a mech in extraction waits; BAIL only when all
+           living mechs are out (turns.ts extractEnds). Runner 40 contracts: no stalls. BUILD r16-s8 | -
+   round16 rule | Jamie: "for other extracts/bails, ExoS should extract individually using a new extract button that pops
+           up when zone is entered, only when all friendlies are extracted does the mission end" | NEW EXTRACT button, m.out,
+           onAllOut (replaces s8). Runner 60 contracts: wins 37% (the lance must walk out after the objective; more exposure);
+           no stalls. Browser fuzz 60 hunts with extracts: no errors. BUILD r16-s9 | -
+   round16 debrief (r16-s9) | last changes (packed districts, start zones, HOLD / HURRY, levers + next-move ring, shared
+           cover, EXTRACT per mech): "Helped". Weakest: "It felt fine". Read-and-connect check: "the map changed my plan". Log
+           answers (r16-s6 Escort): map "Changed my plan", clutter "Went round it", tap-to-move "Did what I wanted" | no change | -
+   round17 | build as briefed | NEW drawn paths (DRAW_PATH_ENABLED true, DRAW_GRAB_PX 26), facing waypoints
+           (FACE_WAYPOINTS_MAX 3, WAYPOINT_GRAB_PX 22), eyes on every step + move interrupt (MOVE_INTERRUPT true,
+           INTERRUPT_CUE_TIME 2.5), scrap = low cover (HIT_COVER_LOW 15; walls stay HIT_COVER 25), cover source outline, Escort
+           button clear of the HUD. Scenarios Side street, Trip wire, Scrap line (packed district 1701). Runner 60 contracts
+           (scripted lance taps only): wins 49% (R16 37%); with MOVE_INTERRUPT off 40%, and with HIT_COVER_LOW 25 as well 39%,
+           so low cover is worth ~1 point and the interrupt ~9 (the bot stops on new contacts and shoots). Interrupts on 23%
+           of lance moves, in 94% of hunts (eyes 520, sensors 138, sound 44). Hit into clutter cover 37% (avg shown 41%),
+           into wall cover 36% (avg shown 34%). BUILD r17-s1 | -
+   round17 feedback (r17-s1) | Jamie: "need to free hand path the line, not have it snapping, also, its hard to accurately
+           grab the point to keep going, it keeps doing facing instead, need a better design"; "how does door kickers
+           handle the ui/control aspect"; "get rid of the stop circle, its not needed" | SPEC OVERRIDE (go): freehand path
+           (DRAW_SAMPLE 0.35, DRAW_SIMPLIFY 0.25), end handle to carry on (DRAW_END_GRAB_PX 34), drag mid-path = redraw from
+           there, tap path = LOOK / ✕ menu then tap where to look; stop ring removed. Rules, costs and runner unchanged
+           (the scripted lance taps). BUILD r17-s2 | -
+   round17 feedback (r17-s2) | Jamie: "i click the path, i see look flashing, then i have to tap look and then click my
+           look direction, instead … i should just be able to tap somewhere, that leaves a look marker, i can then click
+           and drag that mark to maneuver it" | LOOK button removed: tap the path, then tap where to look (eye marker,
+           draggable); ✕ LOOK shows on a point that has one. BUILD r17-s3 | -
+   round17 feedback (r17-s3) | Jamie: "we no longer need 1 free facing change and then paid by AP, being that now we are a
+           smaller man sized unit, facings shouldnt cost AP at all" | SPEC CHANGE (his call): AP_TURN 1 → 0, both sides
+           (turn on the spot, select-to-face, look points). FREE_TURNS kept (harmless at 0 cost). FACE_WAYPOINTS_MAX 3
+           kept. Runner 60 contracts: wins 49% (s3 49%). BUILD r17-s4 | -
+   round17 debrief 1 (r17-s4) | last changes (look markers, free facing): "Helped". Weakest: "It felt fine". Move
+           stops: "Saved me" | no change | -
+   round18 s0 | brief: bring the hangar toy in | merged build-toy into main; rows + rules moved into src/sim (the toy
+           re-exports them) | -
+   round18 s1 | brief checkpoint 1 (parity): A1 item table, A2 one fit for both sides, A3 stats from the row | load.* /
+           hasRadar / passive / hasEcm → unit.fit + has(); RADAR_RANGE, RADAR_HALF_ANG, AP_RADAR, RADAR_EN, SIGNAL_RADAR,
+           SIG_RADAR, PLAYER_FIRE_RANGE, ENEMY_FIRE_RANGE, HIT_BASE, SOUND_RANGE.SHOT / MORTAR, MORTAR_SHELLS, AP_MORTAR,
+           MORTAR_MIN / MAX_RANGE, MORTAR_SCATTER_BASE / PER_UNC, AMMO_PER_SLOT, ENERGY_CELL → item rows (same values).
+           Runner 60 contracts: wins 49% (R17 49%), output byte-identical to R17 on every runner mode tried. BUILD r18-s1 | -
+   round18 decision | Jamie: "for the autocannon stats, use what we have now, we will find a system to balance and tune all
+           the stats of all equipment down the road" | item rows keep today's hunt values (shot heard 12 tiles, not the toy's
+           6) | -
+   round18 s2 | brief checkpoint 2: A4 parts, A5 rear arc, A6 power, A7 weight, A8 EM + SND from items, A9 mods, A10 hangar
+           (Jamie: "use mine" = his ExoS wireframe), cheap set, templates, A11 sweeps, A12 found-by, C7 INTEL listens | NEW
+           REAR_ARC true, FRONT_ARC_HALF 90, OVERLOAD_SND_PER_PT 1, OVERLOAD_AP_FRAC 0.5, SIG_EM_PER_PT 0.5, HANGAR_FRAMES /
+           ITEMS / PLATES; PARTS + BACK. Runner 60 contracts (scripted R17 lance): hunt wins 52% (s1 49%: +1 BACK hit, regen 12
+           not 10); 26% of gun hits come from behind. Sweep (40 contracts each, both suits one fit): wisp 21%, warden 35%,
+           bulwark 80%; Cold-burn = Hot core exactly (Energy never runs short; the reactor choice waits for THERMAL). A Warden
+           with the Brawler's plates + mortar (16/14, +2 sound a move) wins ~81%: plates + mortar carry it, not the frame. First
+           found by: muzzle flash 32%, SND 30% (at ~5 tiles), eyes 27%, radar 3%. BUILD r18-s2 | -
+   round18 s3 | brief checkpoint 3: B1 THERMAL, B2 readers, THERMAL_ENABLED; Jamie's ask: a sniper turret | NEW
+           THERMAL_ENABLED true, IR_FIRE 3, IR_SPRINT 2, IR_COOL_PER_TURN 2, IR_TILES_PER_PT 2.5, IR_RANGE 20, IR_UNC 1,
+           IR_SIZE_PER_VIS 1; FIELD_TYPES THERMAL / IR; variant sniper (Long gun). Runner 60 contracts: hunt wins 58% (s2 52%,
+           the sniper replaces some gun turrets); the default Warden (cold) is never found on IR. Sweep: Hot core now found
+           first on IR in 5-7 of 62-119 hunts at 12-16 tiles (Cold-burn: 0-2), but wins by reactor are still equal (52% /
+           52%): a turret that sees heat early can't shoot past 12 (20 for a sniper, which needs the lock) and can't move.
+           BUILD r18-s3 | -
+   round18 debrief 1 (r18-s3) | Jamie (Heavy load): "I didn't really notice the weight as i was passed the mouth entrance
+           before it had a chance to shoot me"; "just not a telling test of the system"; confirmed: the scenario can't show
+           what weight costs. "it'll need a game to show what that weight carries. It should carry not only sound, but also
+           either, less distance travelled, or more energy cost to move, even creep" | SPEC CHANGE (go): NEW
+           OVERLOAD_EN_PER_TILE 0 → 0.5 (Energy per tile per point over rated, every mode incl. CREEP; ties weight to the
+           reactor). Templates are under rated, so the sweep is unchanged (bulwark 79%). Overloaded Warden (17/14, +1.5 EN a
+           tile), 40 contracts: walking 22/40 complete either way (the scripted walk never runs dry); sprinting every move
+           22 → 18. BUILD r18-s4 | Helped (wrap)
+   round18 request | Jamie: "we need a button in game to get back to start screen" | NEW QUIT (next to CTR, two taps within
+           3 s): drops the hunt and its contract (or the test-bed scenario) and opens the hangar; logged as a QUIT line, never
+           as a result. BUILD r18-s5 | -
+   round18 bug (iPad) | Jamie: "hit legs, now cant hit close or anything, on previous attempt to change a slot the load out menu
+           I couldn't close out of after selecting an item" | the document touchstart guard (noTouch) blocked every touch
+           outside a .panel, and the pick sheet sits outside one, so iOS never made the click. Touches inside .sheet keep
+           their default now. A hardpoint nothing in the set fits (LEGS: MOBILITY) says so in the sheet. BUILD r18-s6 | -
+   round18 fix list 1-4 (Jamie: "lets roll these fixes") | 1 "The highlighted body part isn't obvious enough … not the mast";
+           2 iPad Pro split screen, "have the game in correct aspect … autoscale correctly"; 3 "a bit of a buffer from the top of
+           the screen"; 4 "close button still not working" (his iPad was still on r18-s4: the page was cached) | 1: the selected
+           location is outlined (white dashed box) and named on the wireframe, its panels bright cyan. 2: NEW UI_REF_W 844,
+           UI_REF_H 390, UI_MIN 0.7, UI_MAX 1.6: in-hunt controls zoom by window ÷ phone (split ≈ 0.95, iPad Pro full 1.6), the
+           map zoom scales the same way, every open panel is zoomed to fit the window height (re-fitted when any panel opens
+           and when the hangar re-renders), the right column wraps into a 2nd column when short. 3: --top 14 px outside the
+           Claude viewer (was 0) + the safe-area inset on panels. 4: the sheet acts on pointerup (a tap that didn't move
+           12 px), not on iOS's synthesised click; plus a NEW BUILD · TAP TO RELOAD button when the published page's build
+           stamp differs (fetched fresh at start and every 5 min). Also fixed: quitting an Escort hunt crashed the map drawing
+           (the old transport kept the old route legs; enterLoadout clears G.ally). BUILD r18-s7 | -
+   round18 fix list 5-9 (Jamie: "build the lists fixes") | 5 overlapping contact labels; 6 "a graphic beside the track saying
+           what sensor is responsible for its current fix"; 7 "the grey and brown parts of the terrain are not shared cover";
+           8 "I already knew they were there, so the contact should not have triggered"; 9 "a way … to load a specific seed" |
+           5: labels collected and laid out top to bottom, a clashing one moves below with a leader line. 6: observe records
+           c.src (+ c.walls for radar through walls); a coloured tag per contact (EYE, RDR, RDR nW, EM, IR, SND, FLASH, ALARM;
+           "old" + dim when stale). 7: coverKindAt (1 building, 2 set piece, 3 clutter); a cover piece joins one kind only.
+           8: the interrupt fires only for a contact not on the picture when the move began. Runner 60 contracts: interrupts
+           23% → 13% of lance moves, hunt wins 58% → 50% (R17 measured the stops at ~9 points). 9: every log line and the QUIT
+           line carry "seed N MISSION"; PLAY SEED (hangar) takes a seed or a log line (comp, mission and [PACK] / [NO-IR] /
+           [HIVE] read from it), plays it outside a contract with the current fits, logged [REPLAY]. Jamie's run =
+           "835900613 Mixed BOUNTY [PACK]". BUILD r18-s8 | -
+   round18 fix list 10 (Jamie: "how off the suggested best guess can be … anything but that perfect cross over"; "that many
+           em signals … should trump the noise … There needs to be a weighting applied"; "Moved forward slightly and the track
+           moved even further") | a passive fix = the least-squares point of every live bearing on the unit (was the widest
+           pair, blended 50%). Trust q = (listening spots − 1) / (TRI_TRUST_N 4 − 1) × min(1, widest crossing / TRI_TRUST_ANG
+           60°). The blend rises from TRI_BLEND to 1 with q; NOISE's circle and floor shrink toward the clean fix by q, and its
+           re-rolled error by (1 − q); the circle × sqrt(2 / spots). Tag EM·NOISE while NOISE blurs it and q < 0.5. Both sides.
+           Runner 60 contracts: hunt wins 49% (s8 50%). BUILD r18-s9 | -
+   round18 request (r18-s9) | Jamie: "change eye to vis. Also have the types stack, all in cyan, and the one that's winning is
+           highlighted gold" | EYE → VIS; one tag per sense that fixed the contact within NEW TAG_KEEP 6 s (c.seen), stacked,
+           cyan; the sense behind the current fix (c.src) gold, on top. Contact labels and tags also scale with the window
+           (V.uiS), like the rest of the UI. BUILD r18-s9 | -
+   round18 fix list 11-13 (Jamie: "the noise jumps the signal to a completely new position, despite having a definitive track
+           on a stationary target"; "Blind lob is too inaccurate … needs to be less punishing"; "Let's go to the industry
+           standard" + "how do I know which is supplying") | 11: observe ignores a fix clearly vaguer than the contact's circle
+           (> 1.5× + 0.25 t) while they overlap ("still there"; it keeps a lockable track live), and a known static (seen or
+           ID'd) only moves for a better fix. 12: NEW MORTAR_BLIND_UNC_PER_TILE 0.25, MORTAR_BLIND_UNC_MIN 1.5 (cap stays
+           MORTAR_BLIND_UNC 6): blind scatter at 7 tiles 4.1 → 1.6 tiles. 13: tags EO / RDR / ESM / IR / ACO / MZL / LINK, each
+           with the suit letter(s) that made it within TAG_KEEP (c.by; bearings carry their suit); noise = amber dashed box,
+           not a word; the result screen and hangar use the same names. Runner 60 contracts: hunt wins 52% (s9 49%).
+           BUILD r18-s10 | -
+   round18 fix list 14-16 (Jamie: "a little symbol to show it has cover, but not its amount"; "Tap to reload button isn't
+           tapping"; "the position is still off from where it should triangulate to") | 14: the COVER −N% / LOW COVER / SHARED
+           labels are gone; a small yellow shield sits left of the targeted contact when cover applies (XCOM's convention;
+           the outline stays, ODDS keeps the number). 15: NEW BUILD acts on pointerdown. 16: NOISE no longer moves a fix's
+           centre (no re-rolled offset), it only widens the circle (by 1 − trust); a passive fix is taken whole (it is already
+           the best fit of every live bearing). Runner 60 contracts: hunt wins 54% (s10 52%). BUILD r18-s11 | -
+   round18 fix list 17 (Jamie: "on a contact marked by other things … not seeing it with thermal … would also possibly indicate a
+           variant") | a suit with Thermal optics that has the contact in its sight cone and line of sight within IR_RANGE but
+           reads no heat marks it: c.irNone (a grey struck IR tag for TAG_KEEP) and obs.irNone = the nearest such range ("no
+           heat at Nt (IR under N ÷ IR_TILES_PER_PT)"). No variant runs cold yet, so it doesn't narrow the CARD: a cold
+           (thermally shielded) variant is new content for the design lead. BUILD r18-s12 | -
+   round18 wrap | last change (OVERLOAD_EN_PER_TILE 0.5, r18-s4): "Helped". Read-and-connect check: "My build showed up". Biggest
+           missing: "A sense of ownership and progression". Round 18 moved to the splash HISTORY. Runner 60 contracts: hunt wins
+           54%; sweep (40 each): wisp 21%, warden 39%, bulwark 75%; Cold-burn 51% / Hot core 51%. BUILD r18-s13 | -
+   round19 build chat (Jamie) | "Build after hunt 1's scan" (the hangar after the scan, then the fits lock); RWR "heard moving" =
+           heard on a tile you have since left (radar only pulses on its own turn) | decisions | -
+   round19 cp1 (r19-s1) | the reveal ladder | NEW SCAN_ENABLED true, SCAN_BLIP_UNC 3, SCAN_BLIP_KEEP 30, SCAN_DRIFT 4,
+           SCAN_STILL_ACTS 4, DROP_ZONES 3, DROP_X N 0.35 / S 0.55. Runner 60 contracts (no costs yet; --drop auto):
+           SKIP 15, SHORT 15, MEDIUM 23, LONG 19 complete. BUILD r19-s1 | -
+   round19 cp2 (r19-s2) | the cost ladder | NEW SCAN_ALERT_SHARE [0, 0, 0.25, 0.5], SCAN_ALERT_UNC 5, SCAN_EXTRA_CHANCE [0, 0.25, 0.35,
+           0.5], SCAN_PAINT_CHANCE 0.5, SCAN_AMBUSH 2, SCAN_AMBUSH_DIST [6, 10]. Runner --listensweep 60 (hunt wins / contracts
+           complete): SKIP 54% 15, SHORT 50% 10, MEDIUM 54% 15, LONG 41% 6; LONG costs per hunt: +1.1 units, 3.6 alert, painted
+           44% (SKIP draws no cost rolls: same as r19-s1). No level dominates; LONG costs the scripted lance most (it can't use the intel). BUILD r19-s2 | -
+   round19 cp3 (r19-s3) | the RWR | NEW RWR_ENABLED true, RWR_BEARING_ERR 10, RWR_BANDS close 3–6 / medium 9–15 / far 15–25, RWR_REF_SIG
+           16, RWR_LIFE 3; 'rwr' added to HANGAR_ITEMS. BUILD r19-s3 | -
+   round19 readability pass (Jamie, iPhone screenshot: "At iPhone scale this is very hard to read, as is some other text on various UIs") |
+           measured at 844×390: hangar 0.83 (10.8 px body, 8.3 px small), scan after LONG 0.70 (9.1 px) | UI_MIN 0.7 → 0.85; NEW
+           UI_PANEL_MIN 0.92 (a panel shrinks to fit the height only to here, then scrolls); button small 10 → 11 px; scan: side column
+           fixed at min(330 px, 42%), the map takes the rest and the full height, the reveal/risk text hides after listening, shorter
+           blip line, blip labels stack with a dark backing. Now 844×390: hangar / jobs 0.92 (12 px), scan 1.0 (13 px); 667×375:
+           0.85 everywhere (11 px). BUILD r19-s4 | -
+   round19 fix list 2 (Jamie: "ugly stretch on desktop on the sigint map") | r19-s4 sized the canvas before the panel zoom settled; max-width
+           then clamped its width but not its height | canvas height auto (aspect from its own pixels), re-sized two frames after
+           opening, drawn at the panel's zoom (sharp on big screens). BUILD r19-s5 | -
+   round19 fix list 1 (Jamie: "module rwr vs free rwr. All mechs have a baseline RWR, that shows only they been hit with radar. You need the
+           module to have the readout info.") | NEW RWR_BASELINE true: any paint sets m.paintTurn (no RNG, so runs stay the same); a red dashed
+           ring "PAINTED · round N" on every suit, fading over RWR_LIFE; log " · painted n". The 'rwr' module's readout unchanged.
+           Details picked as the simplest (Jamie left them open): the map ring, and the round. BUILD r19-s6 | -
+   round19 debrief 1 | weakest moment: picking a listen level. Jamie: "i think id like it a start stop timer, and even an area selection,
+           you an try and focus your scan time on a single area rhather than the whole map … you can even slect what types of scan to
+           use, less intrusive scans use less 'time' … like thermal vs radar, these return different fields of information". Symptom
+           (confirmed): four fixed steps feel like a menu pick; he wants to spend scan time actively (start / stop, focus an area, pick
+           the sensor) | no change this round: the dial stays for testing; the timer / area / sensor-type scan goes to the design lead
+           (Jamie's call). Parked: "pay out local sources for added info" (#88). RWR check (brief, cp3): "Heard while moving: could
+           you read where the radar was?" → "Yes, the wedge showed me" | -
+   round19 wrap | read-and-connect check: "Not sure". Biggest missing: "The active scan" (timer, area focus, sensor type). Round 19 moved
+           to the splash HISTORY. BUILD r19-s7 | -
+   round21 cp1 (r21-s1) | brief: the company, checkpoint 1 (people) | named operators (OP_SKILLS AIM / QUIET / EARS / TECH,
+           SKILL_* per level), XP (OP_XP_HUNT 1, OP_XP_WIN 1, OP_LEVELS [3, 7]), CRITICAL + carry (OP_CARRY_RANGE 1.5),
+           bench (OP_BENCH 2), KIA + memorial (OP_MEMORIAL 8), recruits (RECRUITS_OFFERED 2, COST_HIRE 0), START_OPS 4,
+           OP_CAP 4; the company screen + one save slot; test bed Carry them out. Runner --company 10 (seeds 1-3): complete
+           2 / 3 / 0 of 10, KIA 14 / 14 / 18, CRITICAL carried out 0 / 3 / 2 (the scripted lance never goes back, #42).
+           BUILD r21-s1 | -
+   round21 cp2 (r21-s2) | brief: the company, checkpoint 2 (roster) | START_SUITS 3, per-suit fits + damage carried between
+           contracts, lance 1-3 picked per hunt, company credits + SUITS tab refit. Runner --company 10 (seeds 1-5): the
+           scripted lance drops every suit and is wiped in 2-4 contracts (1/1/0/2/0 complete; 3 KIA each; stopped with
+           every suit lost, 15-133 cr). Plain --contracts 20 byte-identical. BUILD r21-s2 | -
+   round21 cp3+cp4 (r21-s4) | Jamie: "do both checkpoints now, I'll do a thorough test afterwards" | the books (START_CREDITS 300,
+           START_FUEL 6, offers 3 × 2-4 hunts × LOW/MED/HIGH (DANGER_FIELD 0.75/1/1.35, CONTRACT_FEE 60/100/160 per hunt),
+           FUEL_PER_JUMP 1-4, WAGE_OP 30 (+50%/level), UPKEEP_SHIP 60, DEBT_LIMIT 300, parts (PARTS_PER_REPAIR 2 + REPAIR_CR 10,
+           REBUILD 8 parts + 100 cr, HOLD_CAP 16, SALVAGE_PER_KILL 2), market, hangar stores) and the ship (7 hardpoints, 13
+           modules, SHIP_HIT_CHANCE 0.5 × 80 cr). Runner --company 10 --companies 6: all 6 fold (5 by every ExoS lost, 1
+           stranded), 19 contracts played, 9 complete, 31 KIA; complete contracts leave 600-970 cr. The scripted lance drops
+           every suit, never carries, buys no modules (#42). Plain --contracts 20 byte-identical. BUILD r21-s4 | -
 ```
+   round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
+           SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,
+           SCAN_WIDE_STRENGTH 0.25, SCAN_DRIFT_PER_MIN 0.5, SCAN_DRIFT_LEASH 8, SCAN_DROP_DELAY 2, SCAN_PING_UNC [3, 2, 1],
+           SCAN_HEAT_UNC [3, 2, 1.5], SCAN_HOT_IR 4, SCAN_IR_LARGE 6, SCAN_BLIP_FLOOR 1, SCAN_COSTS false. Radar on the ring hits
+           band 3 in 2 min, thermal 4, EM 8; wide radar band 1 in 1.3 min, wide EM never passes band 2 (aim it). BUILD r20-s1 | -
+   round20 fix list 1–4 (Jamie: "be able to pick certain types, aim independently, and run at the same time"; "cant see where to
+           scan full map instead of circle"; "the clock time, should be infinite, it just keeps adding threats … a cool down, that can
+           lower with no scanning … with the risk that some things may change as time goes on"; "some missions may have a time
+           restraint" → "just have it for in the SIGINT layer") + checkpoint 2 | sensors at once with their own rings; FULL MAP
+           button; SCAN_TIME_MAX 20 → none; NEW SCAN_COSTS true, SCAN_LOUD radar 1 / thermal 0.2 / EM 0.05, SCAN_COOL 0.5,
+           SCAN_RISK_STEPS [3, 6, 10], SCAN_RISK_MORE 5, SCAN_RISK_EXTRA [0, 0.35, 0.5, 0.5], SCAN_RISK_ALERT [0, 0.25, 0.5, 0.75],
+           SCAN_RISK_PAINT [0, 0, 0.25, 0.5], SCAN_ARRIVE_PER_MIN 0.02, SCAN_DEADLINE_CHANCE 0.5, SCAN_DEADLINE_MIN [8, 16].
+           Radar alone reaches step 1 in 3 min; all three sensors 1.25/min; cooling from step 1 to 0 takes 6 min. Runner (no scan):
+           same as r20-s1. BUILD r20-s2 | -
+   round20 debrief 1 (r20-s2) | weakest moment: Jamie: "scan time felt limited, need it to be more obvious when picking a job about time
+           available for scanning"; narrowed: "Missed it on the job card". Symptom (confirmed): he didn't notice a job had a deadline
+           until he was already scanning | the job card's top line starts with a tag: SCAN WINDOW N MIN (amber) or NO TIME LIMIT
+           (green); the old last-line DEADLINE goes (view only, no TUNE). BUILD r20-s3 | helped (debrief 2)
+   round20 fix list 5 (Jamie: "a ship height function, you can set you altitude whick changes the functionality of the scans" → "do a
+           high mid low alts") | NEW SCAN_ALT HIGH RING 1.6 / SPEED radar 0.7 thermal 0.4 EM 0.8 / UNC 1.5 / LOUD 0.6; MID all 1;
+           LOW RING 0.6 / SPEED radar 1.4 thermal 1.8 EM 1.2 / UNC 0.7 / LOUD 1.6. BUILD r20-s3 | -
+   round20 debrief 2 (r20-s3) | job-card tag rated "helped"; weakest moment: "It felt fine"; job type changed how he scanned: "A little"
+           (debrief focus 2) | no change | -
+   round20 cp3 (r20-s4) | the scan log + runner presets (brief) | no TUNE changes. --scansweep 60 (hunt wins / contracts complete;
+           at the drop): none 52% 17 (0 min, risk 0); quiet 45% 9 (8 min, risk 0.4, window closed 7%); fast 57% 21 (2 min, risk 2.0);
+           mixed 47% 14 (9.8 min, risk 2.8, window closed 17%); loud 28% 2 (9.8 min, risk 12.2, step 3, painted 49%, 5.7 awake,
+           1.65 joined). None of the brief's four presets reaches step 1; the long ones lose to time (patrols walk, arrivals,
+           deadlines) since the scripted lance can't use the intel (#92). BUILD r20-s4 | -
+   round20 debrief 3 / wrap (r20-s4) | weakest moment: "It felt fine"; risk meter: "A real trade-off"; ~10 hunts, some job types.
+           Read-and-connect check: "Yes" (the scan changed my plan). Biggest missing: "the company layer, owning and upgrading the
+           ship, or whatever is on the roadmap next". Round 20 moved to the splash HISTORY. BUILD r20-s5 | -

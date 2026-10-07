@@ -3,8 +3,10 @@
 import { TUNE } from '../tune.ts';
 import { G } from '../sim/state.ts';
 import { W, T } from '../sim/world.ts';
-import { scenarioList, startScenario, leaveScenario } from '../sim/scenarios.ts';
-import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, mortarBlock, cmdSelect, cmdFire, cmdMortar, cmdUplink, cmdObjective, cmdMoveMode, cmdTarget, cmdMove } from '../sim/turns.ts';
+import { scenarioList as allScenarios, startScenario, leaveScenario } from '../sim/scenarios.ts';
+// R21's books scenarios open the company screen, not a hunt: the field can't play them
+const scenarioList = () => allScenarios().filter(s => !(s as any).books);
+import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, mortarBlock, cmdSelect, cmdFire, cmdMortar, cmdUplink, cmdObjective, cmdMoveMode, cmdTarget, cmdMove, fireRange } from '../sim/turns.ts';
 import { isType, carrier, isCarrier, pickupBlock } from '../sim/mission.ts';
 import { idTick } from '../sim/ids.ts';
 import { LOOKS, FX, KNOBS, FONTS, TIPS, look, setLook } from './looks.ts';
@@ -35,7 +37,7 @@ function botAct() {
   const c = playerTarget();
   if (c && G.sel !== c) cmdSelect(c);
   if (mortarBlock(G.p, c) === '') return cmdMortar();
-  if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE) === '') return cmdFire();
+  if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, fireRange(G.p)) === '') return cmdFire();
   if (uplinkBlock() === '') return cmdUplink();
   if (pickupBlock(G.p) === '') return cmdObjective();
   const g = goal();

@@ -7,7 +7,9 @@ import { G } from '../sim/state.ts';
 import { heardRange, cx, cy } from '../sim/sensors.ts';
 import { soundRadius } from '../sim/sound.ts';
 import { isType, carrier } from '../sim/mission.ts';
+import { ITEMS, byId } from '../sim/items.ts';
 import { contactLabel } from './label.ts';
+const RADAR_ROW = byId(ITEMS, 'lamp')!.radar!; // R18 moved RADAR_RANGE / RADAR_HALF_ANG onto the radar's row
 import { look } from './looks.ts';
 
 let ctx: CanvasRenderingContext2D, z = 1, ox = 0, oy = 0, k = 1; // k = dpr
@@ -94,7 +96,7 @@ export function drawMarks(c: HTMLCanvasElement, vw: number, vh: number, dpr: num
   }
   // radar cone: two hairline edges + a range arc with ticks
   for (const m of G.lance) if (m.radarOn) {
-    const [x, y] = S(m.x, m.y), a0 = Math.atan2(m.fy, m.fx), h = TUNE.RADAR_HALF_ANG * Math.PI / 180, r = R(TUNE.RADAR_RANGE * T);
+    const [x, y] = S(m.x, m.y), a0 = Math.atan2(m.fy, m.fx), h = RADAR_ROW.halfAng * Math.PI / 180, r = R(RADAR_ROW.range * T);
     ctx.strokeStyle = alpha(L.bearing, 0.6); ctx.lineWidth = 1; ctx.beginPath(); ctx.moveTo(x, y); ctx.arc(x, y, r, a0 - h, a0 + h); ctx.closePath(); ctx.stroke();
     ctx.fillStyle = alpha(L.bearing, 0.06); ctx.fill();
   }

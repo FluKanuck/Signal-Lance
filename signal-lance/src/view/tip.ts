@@ -1,0 +1,74 @@
+// R16 debrief (Jamie): every map item says what it is and what it does. Mouse: hover. Touch: hold a finger still for
+// TIP_HOLD_MS (a hold never moves, selects or pans). View only: reads sim state, changes nothing.
+import { TUNE } from '../tune.ts';
+import { fireRange } from '../sim/turns.ts';
+import { G } from '../sim/state.ts';
+import { T, W, H, MAP, isSolid, isClutter, canReach, solid } from '../sim/world.ts';
+import { cx, cy } from '../sim/sensors.ts';
+import { zoneAtTile } from '../sim/zones.ts';
+import { zoneKnowOf } from '../sim/scan.ts';
+import { partsRead } from '../sim/combat.ts';
+import { isType, carrier } from '../sim/mission.ts';
+import { forksAhead, allyNextStop } from '../sim/escort.ts';
+import { contactLabel, routeBtn } from './render.ts';
+import { V, camZ } from './state.ts';
+import { $ } from './hud.ts';
+
+export const TIP_HOLD_MS = 450; // touch: how long a still finger waits before the tip shows
+const near = (wx, wy, x, y, r) => Math.hypot(wx - x, wy - y) <= r;
+const tiles = (u) => (u / T).toFixed(1);
+
+// What is at world point (wx, wy)? [title, effect lines], or null. Things first, then the ground under them.
+export function tipAt(wx: number, wy: number): [string, string[]] | null {
+  const z = camZ(), R = 18 / z;
+  for (const f of forksAhead()) for (const l of f.legs) { const b = routeBtn(l.i); if (near(wx, wy, b.x, b.y, 30 / z)) return [l.name + ' route' + (f.set === l.i ? ' (set)' : ''), [
+    G.ally.leg < 0 && G.ally.node === f.node ? 'The transport is waiting here: tap to send it this way.' : 'A lever for a fork ahead: tap to set it (tap again to clear). Reaching a set fork, the transport carries straight on, even mid-move; an unset fork stops it until you choose.',
+    'It walks ' + TUNE.ESCORT_MOVE + ' tiles a round (' + TUNE.ESCORT_SPRINT + ' on a HURRY).']]; }
+  const nx = allyNextStop(); if (nx && near(wx, wy, nx.x, nx.y, R)) return ['Next move ends here', [nx.why === 'HOLD' ? 'It holds this round (HOLD order).' : nx.why === 'FORK' ? 'It will stop at this fork: no lever set.' : 'Where the transport\'s next move takes it.']];
+  for (const m of G.lance) if (!m.dead && near(wx, wy, m.x, m.y, R)) return ['Your mech ' + m.id, [partsRead(m), 'AP ' + m.ap + ' · EN ' + Math.round(m.en) + ' · EMIT ' + Math.round(m.emit) + ' · ammo ' + m.ammo, 'Tap it on its turn to turn and face somewhere.']];
+  const a = G.ally;
+  if (a && near(wx, wy, a.x, a.y, R)) return a.dead ? ['Transport (destroyed)', ['The escort failed.']] : ['Transport', [a.hits + '/' + a.maxHits + ' hits. Unarmed. The field can see, hear and shoot it like your mechs.', 'Win: it walks out the right edge. Lose it and the hunt fails.', 'Orders (your turn, no AP): HOLD = skip its next move (' + a.holdsLeft + ' left); HURRY = sprint its next move, ' + TUNE.ESCORT_SPRINT + ' tiles, louder (' + a.hurriesLeft + ' left).' + (a.order ? ' Pending: ' + a.order + '.' : '')]];
+  for (const c of G.pc) {
+    if (!c.on || !near(wx, wy, cx(c), cy(c), Math.max(R, Math.min(c.unc, 40 / z)))) continue;
+    const lost = c.lost > c.gap;
+    return ['Contact: ' + contactLabel(c), [
+      c.snd ? 'Heard only (a sound): something is roughly here. Never enough to shoot at.' : c.shr ? 'Shared alarm contact. Never a lock.' : 'A fix from your sensors.',
+      'Circle = how unsure you are: ±' + tiles(c.unc) + ' tiles' + (lost ? ' (lost track: it grows while that unit acts)' : '') + '.',
+      'FIRE needs ±' + TUNE.PLAYER_FIRE_UNC + ' or better, range ' + (fireRange(G.p) || '—') + ' and line of sight. Tap it to select.']];
+  }
+  for (const u of G.units) if (u.dead && near(wx, wy, u.x, u.y, R)) return ['Wreck: ' + u.type.toLowerCase() + ' ' + u.variant, ['Destroyed.']];
+  if (G.ghost.on && near(wx, wy, G.ghost.x, G.ghost.y, R)) return ['Ghost (your decoy)', ['Enemies see a fake contact here for ' + G.ghost.turns + ' more of its owner\'s turns.']];
+  const U = G.up, ring = (TUNE.UPLINK_RADIUS + 0.5) * T;
+  if (isType('UPLINK') && near(wx, wy, U.x, U.y, ring)) return ['Uplink: ' + U.name, ['Stand in the ring and tap UPLINK (' + TUNE.AP_UPLINK + ' AP, loud: +' + TUNE.SIG_UPLINK + ' EMIT). ' + TUNE.UPLINK_TURNS + ' uplinks win. Done ' + U.prog + '/' + TUNE.UPLINK_TURNS + '.']];
+  if (isType('RETRIEVE') && !carrier() && near(wx, wy, U.x, U.y, ring)) return ['Cargo: ' + U.name, ['Stand on it and PICK UP (' + TUNE.RETRIEVE_PICKUP_AP + ' AP). The whole field is alerted and hunts the carrier, who can\'t sprint. Carry it out the right edge.']];
+  return groundAt(Math.floor(wx / T), Math.floor(wy / T));
+}
+function groundAt(tx: number, ty: number): [string, string[]] | null {
+  if (tx < 0 || ty < 0 || tx >= W || ty >= H) return null;
+  const out: string[] = [], zn0 = zoneAtTile(tx, ty), zn = zn0 && zoneKnowOf(zn0) >= 2 ? zn0 : null; // R19: only zones the scan named (R20: zone by zone)
+  if (zn && zn.type === 'QUIET') out.push('QUIET ground (' + zn.name + '): anything standing here is read at ' + Math.round(TUNE.ZONE_TYPES.QUIET.SIG_MULT * 100) + '% of its EMIT and sound.');
+  if (zn && zn.type === 'NOISE') out.push('NOISE zone (' + zn.name + '): radio fixes on anything here are blurred (×' + TUNE.ZONE_TYPES.NOISE.UNC_MULT + ', at least ±' + TUNE.ZONE_TYPES.NOISE.UNC_FLOOR + '). Eyes and radar still work.');
+  const ext = tx >= W - TUNE.EXTRACT_COLS;
+  if (ext) return ['Extraction', ['Stand in here and tap EXTRACT to take that mech off the map (no AP; its turn ends). The hunt ends once all your living mechs are out' + (isType('ESCORT') ? ': a WIN if the transport walked out first, else you left it.' : isType('RETRIEVE') ? ': a WIN if the carrier extracted with the cargo.' : isType('BOUNTY') ? ': a WIN at or over the quota.' : '.'), ...out]];
+  if (isSolid(tx, ty)) {
+    const piece = solid[ty * W + tx] === 2;
+    return [piece ? 'Wreck / barricade' : 'Building', [piece ? 'A set piece or street blocker (fallen gantry, containers, a collapsed front).' : 'A city block.', 'Blocks movement, sight and shots. Radar sees through up to ' + TUNE.RADAR_MAX_WALLS + ' wall tiles.', 'Cover: −' + TUNE.HIT_COVER + '% to hit a unit just behind it, unless the shooter is up against the same piece.']];
+  }
+  if (isClutter(tx, ty)) return ['Scrap and rubble', ['Slow: each tile costs ' + TUNE.CLUTTER_TILE_COST + ' tiles of movement (same for enemies).', 'Loud: a move into it adds ' + TUNE.CLUTTER_SOUND + ' to that move\'s sound.', 'Low cover: shots at a unit in or just behind it get −' + TUNE.HIT_COVER + '% (not if the shooter is up against the same patch).', ...out]];
+  if (!canReach(tx, ty)) return ['Closed yard', ['No way in from the streets.']];
+  return out.length ? [zn.type === 'QUIET' ? 'Quiet ground' : 'Noise zone', out] : (MAP.id === 'hive' ? null : ['Street', ['Open ground: no cover, clear sightlines. Tap to plan a move here.']]);
+}
+
+// ---- showing it ----
+let shown = false;
+export function showTip(sx: number, sy: number, wx: number, wy: number) {
+  const t = tipAt(wx, wy), el = $('tip');
+  if (!t) { hideTip(); return; }
+  el.innerHTML = '<b>' + esc(t[0]) + '</b>' + t[1].filter(Boolean).map(l => '<br>' + esc(l)).join('');
+  el.hidden = false; shown = true;
+  const w = el.offsetWidth, h = el.offsetHeight, vw = window.innerWidth, vh = window.innerHeight;
+  el.style.left = Math.max(4, Math.min(vw - w - 4, sx + 14)) + 'px';
+  el.style.top = Math.max(4, Math.min(vh - h - 4, sy - h - 14 < 4 ? sy + 18 : sy - h - 14)) + 'px';
+}
+export function hideTip() { if (shown) { $('tip').hidden = true; shown = false; } }
+function esc(s) { return String(s).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c])); }

@@ -7,6 +7,8 @@ import './ui.css';
 import { TUNE } from '../tune.ts';
 import { MISSION_INFO } from '../sim/mission.ts';
 import { look } from './looks.ts';
+// R16-era loadout numbers (R18 moved them onto item rows). The old LOADOUT mock-up keeps them; HANGAR uses the rows.
+const OLD = { SLOTS: 10, AMMO_PER_SLOT: 10, ARMOUR_HITS: 3, AP_RADAR: 2, ENERGY_BASE: 100, ENERGY_CELL: 50, RADAR_EN: 25, SHOT: 12, MORTAR_SHELLS: 6 };
 import { UIK, frameAll, redrawFrames, playIn, glyph, GLYPHS, dots, seg, cells, matrix, eq, bars, dial, gauge, ringed, bracket, pad } from './kit.ts';
 
 const $ = (id: string) => document.getElementById(id)!;
@@ -111,22 +113,22 @@ function bootLog() {
 
 // ---------------------------------------------------------------- LOADOUT
 const MODS = [
-  { k: 'armour', name: 'ARMOUR PLATE', slots: 2, max: 5, g: 'shield', desc: '+' + TUNE.ARMOUR_HITS + ' hits · +1 signature' },
-  { k: 'radar', name: 'ACTIVE RADAR', slots: 2, max: 1, g: 'radar', desc: 'pulse ' + TUNE.AP_RADAR + ' AP + ' + TUNE.RADAR_EN + ' EN · cone, sees through 4 walls' },
+  { k: 'armour', name: 'ARMOUR PLATE', slots: 2, max: 5, g: 'shield', desc: '+' + OLD.ARMOUR_HITS + ' hits · +1 signature' },
+  { k: 'radar', name: 'ACTIVE RADAR', slots: 2, max: 1, g: 'radar', desc: 'pulse ' + OLD.AP_RADAR + ' AP + ' + OLD.RADAR_EN + ' EN · cone, sees through 4 walls' },
   { k: 'passive', name: 'PASSIVE SUITE', slots: 2, max: 1, g: 'ear', desc: 'bearing lines · cross two for a fix' },
   { k: 'ecm', name: 'ECM POD', slots: 2, max: 1, g: 'wave', desc: 'mask or ghost · jams' },
-  { k: 'ammo', name: 'AUTOCANNON', slots: 1, max: 10, g: 'gun', desc: TUNE.AMMO_PER_SLOT + ' rounds per slot · heard ' + TUNE.SOUND_RANGE.SHOT + ' tiles away' },
-  { k: 'cells', name: 'ENERGY CELL', slots: 1, max: 10, g: 'cell', desc: '+' + TUNE.ENERGY_CELL + ' energy' },
-  { k: 'mortar', name: 'MORTAR', slots: 1, max: 1, g: 'shell', desc: TUNE.MORTAR_SHELLS + ' shells · fires on a fix, no LoS' },
+  { k: 'ammo', name: 'AUTOCANNON', slots: 1, max: 10, g: 'gun', desc: OLD.AMMO_PER_SLOT + ' rounds per slot · heard ' + OLD.SHOT + ' tiles away' },
+  { k: 'cells', name: 'ENERGY CELL', slots: 1, max: 10, g: 'cell', desc: '+' + OLD.ENERGY_CELL + ' energy' },
+  { k: 'mortar', name: 'MORTAR', slots: 1, max: 1, g: 'shell', desc: OLD.MORTAR_SHELLS + ' shells · fires on a fix, no LoS' },
 ];
 const usedSlots = (l: any) => MODS.reduce((s, m) => s + l[m.k] * m.slots, 0);
 function mech(l: any) {
   const on = (k: string) => l[k] > 0 ? ' on' : '';
   const CO: [string, number, number, 'l' | 'r', number, string][] = [ // module, anchor x, y, side, label y, value
     ['passive', 184, 20, 'l', 28, l.passive ? 'BEARING ARRAY' : '— EMPTY'], ['ecm', 100, 110, 'l', 104, l.ecm ? 'MASK // GHOST' : '— EMPTY'],
-    ['armour', 166, 150, 'l', 176, l.armour ? '×' + l.armour + ' // +' + l.armour * TUNE.ARMOUR_HITS + ' HITS' : '— EMPTY'], ['cells', 180, 246, 'l', 252, l.cells ? '×' + l.cells + ' // +' + l.cells * TUNE.ENERGY_CELL + ' EN' : '— EMPTY'],
-    ['radar', 270, 44, 'r', 40, l.radar ? 'PULSE // CONE' : '— EMPTY'], ['mortar', 318, 66, 'r', 96, l.mortar ? TUNE.MORTAR_SHELLS + ' SHELLS' : '— EMPTY'],
-    ['ammo', 322, 280, 'r', 300, l.ammo ? '×' + l.ammo + ' // ' + l.ammo * TUNE.AMMO_PER_SLOT + ' RDS' : '— EMPTY'],
+    ['armour', 166, 150, 'l', 176, l.armour ? '×' + l.armour + ' // +' + l.armour * OLD.ARMOUR_HITS + ' HITS' : '— EMPTY'], ['cells', 180, 246, 'l', 252, l.cells ? '×' + l.cells + ' // +' + l.cells * OLD.ENERGY_CELL + ' EN' : '— EMPTY'],
+    ['radar', 270, 44, 'r', 40, l.radar ? 'PULSE // CONE' : '— EMPTY'], ['mortar', 318, 66, 'r', 96, l.mortar ? OLD.MORTAR_SHELLS + ' SHELLS' : '— EMPTY'],
+    ['ammo', 322, 280, 'r', 300, l.ammo ? '×' + l.ammo + ' // ' + l.ammo * OLD.AMMO_PER_SLOT + ' RDS' : '— EMPTY'],
   ];
   const co = CO.map(([k, ax, ay, s, ly, v]) => {
     const m = MODS.find(x => x.k === k)!, ex = s === 'l' ? 76 : 364, tx = s === 'l' ? 12 : 428, an = s === 'l' ? 'start' : 'end';
@@ -160,15 +162,15 @@ function mech(l: any) {
 function loadout() {
   const l = S.loads[S.mech], u = usedSlots(l), owned: string[] = [];
   for (const m of MODS) for (let i = 0; i < l[m.k] * m.slots; i++) owned.push(m.k);
-  const hits = 6 + l.armour * TUNE.ARMOUR_HITS, en = TUNE.ENERGY_BASE + l.cells * TUNE.ENERGY_CELL, rds = l.ammo * TUNE.AMMO_PER_SLOT;
+  const hits = 6 + l.armour * OLD.ARMOUR_HITS, en = OLD.ENERGY_BASE + l.cells * OLD.ENERGY_CELL, rds = l.ammo * OLD.AMMO_PER_SLOT;
   const tabs = ['A', 'B'].map((id, i) => btn(ringed(id, i === S.mech ? '' : '') + ' EXOS-' + id, { shape: 'tab', solid: i === S.mech, act: 'mech' + i, cls: 'sm', sub: usedSlots(S.loads[i]) + '/10 SLOTS' })).join('');
   return `<div class="scr lo">
   ${fx('panel', `<div class="row" style="justify-content:space-between"><div class="tabs">${tabs}</div><span class="data">BAY 02 // <span class="jp">装備</span></span></div>
     ${mech(l)}
-    <div><div class="row" style="justify-content:space-between">${cap('SLOTS // ' + u + ' / ' + TUNE.SLOTS + (u < TUNE.SLOTS ? ' // ' + (TUNE.SLOTS - u) + ' FREE' : ' // FULL'), 'no')}<span class="data">PATTERN = MODULE</span></div>${cells(owned, TUNE.SLOTS)}</div>`, { cls: 'bay', marks: 'dots pip ticks', treat: 'dbl' })}
+    <div><div class="row" style="justify-content:space-between">${cap('SLOTS // ' + u + ' / ' + OLD.SLOTS + (u < OLD.SLOTS ? ' // ' + (OLD.SLOTS - u) + ' FREE' : ' // FULL'), 'no')}<span class="data">PATTERN = MODULE</span></div>${cells(owned, OLD.SLOTS)}</div>`, { cls: 'bay', marks: 'dots pip ticks', treat: 'dbl' })}
   <div style="display:grid;gap:14px;align-content:start">
     ${fx('bar', `<div class="row" style="padding:12px 16px 10px 46px;justify-content:space-between"><b class="h3" data-decode>LOADOUT // EXOS-${'AB'[S.mech]}</b><span class="data">LOCKS FOR THE WHOLE CONTRACT</span></div>`, { treat: 'acc', marks: 'hatch4' })}
-    <div class="mods">${MODS.map(m => fx('plate', `<span class="sw p-${m.k}"></span><div><span class="mn">${m.name}</span><span class="sl">${'<i></i>'.repeat(m.slots)}</span><div class="ds">${m.desc}</div></div><div class="stepper">${btn('−', { cls: 'sm', act: 'dec:' + m.k })}<output>×${l[m.k]}</output>${btn('+', { cls: 'sm' + (l[m.k] >= m.max || u + m.slots > TUNE.SLOTS ? ' lock' : ''), act: 'inc:' + m.k })}</div>`, { cls: 'mod-r' + (l[m.k] ? '' : ' zero') })).join('')}</div>
+    <div class="mods">${MODS.map(m => fx('plate', `<span class="sw p-${m.k}"></span><div><span class="mn">${m.name}</span><span class="sl">${'<i></i>'.repeat(m.slots)}</span><div class="ds">${m.desc}</div></div><div class="stepper">${btn('−', { cls: 'sm', act: 'dec:' + m.k })}<output>×${l[m.k]}</output>${btn('+', { cls: 'sm' + (l[m.k] >= m.max || u + m.slots > OLD.SLOTS ? ' lock' : ''), act: 'inc:' + m.k })}</div>`, { cls: 'mod-r' + (l[m.k] ? '' : ' zero') })).join('')}</div>
     ${fx('wing', `<div class="stats" style="padding:16px 10px 12px">${gauge(hits, 21, String(hits), 'HIT POOL')}${gauge(en, 400, String(en), 'ENERGY')}${gauge(rds, 60, String(rds), 'ROUNDS')}${gauge(l.armour + l.radar * 2 + l.ecm, 8, '+' + (l.armour + l.radar * 2 + l.ecm), 'SIGNATURE')}</div>`, { treat: 'acc' })}
     <div class="row" style="justify-content:flex-end">${btn('BACK', { go: 'TITLE', icon: 'back' })}${btn('POST TO BOARD', { solid: true, go: 'JOBS', sub: 'START CONTRACT' })}</div>
   </div></div>`;
@@ -417,7 +419,7 @@ export function initUi(leave: () => void) {
     if (act === 'fits') { D.fits = !D.fits; a.classList.toggle('on', D.fits); refreshDial(); }
     if (act.startsWith('mech')) { S.mech = +act.slice(4); render(false); }
     if (act.startsWith('inc:') || act.startsWith('dec:')) { const k = act.slice(4), m = MODS.find(x => x.k === k)!, l = S.loads[S.mech], d = act[0] === 'i' ? 1 : -1, n = l[k] + d;
-      if (n >= 0 && n <= m.max && (d < 0 || usedSlots(l) + m.slots <= TUNE.SLOTS)) { l[k] = n; render(false); } }
+      if (n >= 0 && n <= m.max && (d < 0 || usedSlots(l) + m.slots <= OLD.SLOTS)) { l[k] = n; render(false); } }
     if (act.startsWith('job')) { S.job = +act.slice(3); render(false); }
     if (act === 'take') onLeave();
   });

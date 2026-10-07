@@ -35,7 +35,7 @@ Signal Lance started as a prototype toy and, from Round 6, lives in a **permanen
 - **Phone first:** landscape, touch, buttons ≥ 48px, top 56px kept clear for the app's viewer bar, no page scroll or zoom, steady frame rate, and mouse still works on desktop.
 - **Storage:** localStorage (view side only), wrapped in try/catch with an in-memory fallback. Keep the COPY LOG and SEND LOG buttons working.
 - **Test bed (from R14):** each round brief names 2–3 scenarios in `src/sim/scenarios.ts` (hand-placed units, zones, damage and TUNE overrides, a `tryThis` line and one tap question). Write them, add a Vitest check for each, and keep older rounds' scenarios working. They're reached from the TEST BED button, log as `[TESTBED <name>]`, and never count toward contract stats. No editor or free-spawn sandbox.
-- **Tester splash (from R11):** every round, update `src/view/brief.ts` before shipping: `TEST` (round title, the round's question, what's new in plain words, how to report) and `QUESTIONS` (2–3 tap-answer end-of-hunt questions shaped by the brief's debrief focus). Update the basics text if a control or mechanic changed. Keep all of it short and plain. Bump `BUILD` in `screens.ts`.
+- **Tester splash (from R11):** every round, update `src/view/brief.ts` before shipping: `TEST` (round title, the round's question, what's new in plain words, how to report) and `QUESTIONS` (2–3 tap-answer end-of-hunt questions shaped by the brief's debrief focus). **Every build** (Jamie, R16): bring `BASICS` (the GAMEPLAY BASICS screen) up to date with anything the build added or changed: mechanics, terrain, controls, map items. Testers need it when they play, not at the wrap. Keep all of it short and plain. Bump `BUILD` in `screens.ts`.
 
 ## Working rules (loosened 2026-10-05)
 
@@ -71,7 +71,9 @@ These started as hard rules, set up early (with Jamie's ADHD in mind) to stop he
 
 ## Ending a round
 
-A round ends when Jamie has played the runs the brief asks for and run the fun test, or when he calls it. Then write a status report and save it to the project as `claude/signal-lance-round<N>.md`, using this shape:
+A round ends when Jamie has played the runs the brief asks for and run the fun test, or when he calls it.
+
+**Before the report, move the round's `TEST.newThings`, condensed, to the top of `HISTORY`** in `src/view/brief.ts` (Jamie, R16), so a returning tester can page back through it on the splash. Ship that as the round's last build. Then write a status report and save it to the project as `claude/signal-lance-round<N>.md`, using this shape:
 
 - Header: date, build (project, rough line count), branch and commits, artifact URL
 - **Purpose:** the round's question

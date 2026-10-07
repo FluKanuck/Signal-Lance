@@ -13,13 +13,51 @@
 //   --quiet                            R14: the scripted mechs CREEP every move
 //   --scenario earshot [--runs 10]     R14: play a test-bed scenario with the scripted player (seed, seed+1, ...)
 //   --mission bounty                   R15: force every hunt's mission type (games and contracts); contracts report a split by type
+//   --map hive|blocks                  R16: the old fixed map, or a rolled block district every hunt (default: TUNE.MAP_MODE)
+//   --grid 4x3                         R16: force every district's grid (columns × rows); contracts report a split by grid
+//   --fit scout[,brawler]              R18: both suits (or A,B) use a hangar template id or a hangar build code
+//   --sweep 30                         R18: 30 contracts for each frame × reactor pair (the templates included); win rate per
+//                                      frame and per reactor, and what found the lance first, on which channel, from how far
+//   --item mortar.mortar.shells=8      R18: try an item row value for this run (row id, then a dotted path; repeatable)
+//   --from 61                          start the contract seeds at 61 instead of 1 (extends a batch without repeating seeds)
+//   --json                             print one '@@SL {...}' line per contract as it finishes (the Signal Lance mod reads these)
+//   --listen 2 [--drop 2|auto]         R19: the ship listens at this level before every hunt (0 SKIP, 1 SHORT, 2 MEDIUM, 3 LONG) and
+//                                      lands on drop zone N (1 = west edge; only offered at 2+; auto = nearest the objective). Default: no listen (= SKIP)
+//   --scan quiet|fast|mixed|loud|none       R20: the live scan's preset before every hunt (quiet = EM on the objective 8 min; fast = radar
+//                                      full map 2 min; mixed = radar wide 2 → thermal on the objective 3 → EM there 5); drop nearest
+//   --scansweep 40                     R20: 40 contracts per preset: wins, risk / step / painted / joined at the drop, per mission
+//   --company 10 [--companies 5]       R21: 10 contracts back to back on one company (seed --from; --companies: that many companies, seeds from --from up): operators, XP, CRITICAL / KIA, bench, credits, fuel, folds
+//   --listensweep 40                   R19: 40 contracts at each listen level (drop auto): win rate per level and per mission, and what
+//                                      the listen cost on average (extra units, alert units, painted)
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
+import { newCompany, hire, hireBlock, companyLine, autoCrew, suitRefit, suitRefitBlock, suitCost, lanceSize, buy, offerBlock, fuelCost, takeOffer, endContract } from '../src/sim/company.ts';
 import { playOut as autoPlayOut, AUTO } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
 import { idTick, idSummary } from '../src/sim/ids.ts';
 import { scenarioByName, startScenario, leaveScenario, SCENARIOS } from '../src/sim/scenarios.ts';
+import { MAP } from '../src/sim/world.ts';
+import { HANGAR_TEMPLATES, fitStats, fitText, launchBlock } from '../src/sim/kit.ts';
+import { fromCode } from '../src/sim/fit.ts';
+import { CHANNEL } from '../src/sim/found.ts';
+import { ITEMS } from '../src/sim/items.ts';
+import { listen, chooseDrop, offeredDrops } from '../src/sim/scan.ts';
+import { replayScan, type Cmd } from '../src/sim/livescan.ts';
+// R20 cp3: the scripted lance's scan presets (ticks: 4 a ship-minute). The lance still can't read what the scan found (#92),
+// so these measure the costs (risk, painted, units joined) and the drop zone, not the intel.
+const PRESETS = ['none', 'quiet', 'fast', 'mixed', 'loud'];
+function presetCmds(p: string): Cmd[] {
+  const ux = Math.floor(G.up.x / 32), uy = Math.floor(G.up.y / 32);
+  if (p === 'quiet') return [[0, 'R', 0], [0, 'E', 1], [0, 'a', ux, uy, 2], [0, 'G'], [32, 'S']];           // EM only, on the objective, 8 min
+  if (p === 'fast') return [[0, 'W', 0, 1], [0, 'G'], [8, 'S']];                                           // radar on the full map, 2 min
+  if (p === 'mixed') return [[0, 'W', 0, 1], [0, 'G'], [8, 'R', 0], [8, 'T', 1], [8, 'a', ux, uy, 1], [20, 'T', 0], [20, 'E', 1], [20, 'a', ux, uy, 2], [40, 'S']]; // radar wide 2 → thermal on the objective 3 → EM there 5
+  if (p === 'loud') return [[0, 'W', 0, 1], [0, 'T', 1], [0, 'W', 1, 1], [0, 'E', 1], [0, 'W', 2, 1], [0, 'G'], [40, 'S']]; // all three on the full map, 10 min (beyond the brief's four: shows the cost ladder biting)
+  return [];
+}
+// R19 --drop auto: the scripted lance lands on the offered drop zone nearest the objective (straight line)
+const nearestDrop = () => { const D = offeredDrops(), ux = G.up.x / 32, uy = G.up.y / 32; let b = 0; D.forEach((d, i) => { if (Math.hypot(d.x - ux, d.y - uy) < Math.hypot(D[b].x - ux, D[b].y - uy)) b = i; }); return D[b].i; }; // R20: a dropPts index
+import { previewJob } from '../src/sim/contract.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
@@ -30,7 +68,11 @@ if (MISSION && !TUNE.MISSION_TYPES.includes(MISSION) && MISSION !== 'UPLINK') th
 const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0), SCEN = sarg('--scenario'), RUNS = arg('--runs', 10);
 AUTO.loud = argv.includes('--loud'); AUTO.quiet = argv.includes('--quiet'); // R14: --quiet = CREEP every move
 if (argv.includes('--pack')) TUNE.PACK_ENABLED = true; // R13 s2: the pack on (as the splash toggle does)
-const BOTH = argv.includes('--both'); // R13 s2: run --contracts twice, normal then --loud, and compare
+const BOTH = argv.includes('--both');
+const MAPMODE = sarg('--map'), GRID = sarg('--grid'); // R16
+if (MAPMODE) { if (!['hive', 'blocks'].includes(MAPMODE)) throw new Error('--map: hive or blocks'); TUNE.MAP_MODE = MAPMODE; }
+if (GRID) { if (!/^\d+x\d+$/.test(GRID)) throw new Error('--grid: CxR, e.g. 4x3'); TUNE.MAP_GRIDS = [GRID]; TUNE.MAP_MIN_BLOCKS = 1; }
+console.log(`  (map: ${TUNE.MAP_MODE}${GRID ? ' ' + GRID : ''})`); // R13 s2: run --contracts twice, normal then --loud, and compare
 // --set KEY=VALUE (repeatable, dotted paths ok): try a tune value without editing tune.ts, e.g. --set SOUND_RANGE.NORMAL=4
 argv.forEach((k, i) => {
   if (k !== '--set') return;
@@ -41,13 +83,34 @@ argv.forEach((k, i) => {
   o[last] = v === 'true' ? true : v === 'false' ? false : Number(v);
   console.log(`  (--set ${path} = ${o[last]})`);
 });
+// --item ID.PATH=VALUE (repeatable): try an item row value without editing items.ts, e.g. --item lamp.radar.range=14
+argv.forEach((k, i) => {
+  if (k !== '--item') return;
+  const [path, v] = argv[i + 1].split('='), [id, ...keys] = path.split('.');
+  let o: any = ITEMS.find(r => r.id === id); if (!o) throw new Error('--item: unknown item row ' + id);
+  const last = keys.pop(); if (!last) throw new Error('--item: give a field, e.g. ' + id + '.wt=3');
+  for (const k2 of keys) { o = o[k2]; if (o == null || typeof o !== 'object') throw new Error('--item: no such path ' + path); }
+  if (!(last in o)) throw new Error('--item: unknown field ' + path);
+  o[last] = typeof o[last] === 'number' ? Number(v) : typeof o[last] === 'boolean' ? v === 'true' : v;
+  console.log(`  (--item ${path} = ${o[last]})`);
+});
+const JSON_OUT = argv.includes('--json'), FROM = arg('--from', 1);
+let LISTEN_LVL = arg('--listen', -1); if (LISTEN_LVL >= 0 || argv.includes('--listensweep')) TUNE.SCAN_MODE = 'dial'; const DROP = sarg('--drop') === 'auto' || argv.includes('--listensweep') ? -1 : arg('--drop', 1) - 1; // R19: auto = the offered drop zone nearest the objective (R20: --listen / --listensweep run the R19 dial; the live scan's presets come in cp3)
+let SCAN_PRESET = sarg('--scan') || ''; // R20 cp3: none | quiet | fast | mixed (the live scan; drop zone nearest the objective)
+if (SCAN_PRESET && !PRESETS.includes(SCAN_PRESET)) throw new Error('unknown --scan ' + SCAN_PRESET + ' (' + PRESETS.join(', ') + ')');
 const MAX_TURNS = 80;
 // --check: remember every FLAG / WARNING line, exit 1 at the end if there were any
 const FLAGS: string[] = [], log0 = console.log;
 console.log = (...a: any[]) => { const t = a.join(' '); if (/FLAG:|WARNING:/.test(t)) FLAGS.push(t.trim()); log0(...a); };
 // the game's default loadout; R13 --loud swaps ECM for radar (both 2 slots) so it has something to pulse
-const loadB = () => AUTO.loud ? { armour: 1, radar: 1, passive: 1, ecm: 0, ammo: 2, cells: 0, mortar: 0 } : { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 };
-const loadA = () => ({ ...loadB(), mortar: 1 }); // R9: scripted A carries a mortar (9/10 slots)
+const loadB0 = () => AUTO.loud ? { armour: 1, radar: 1, passive: 1, ecm: 0, ammo: 2, cells: 0, mortar: 0 } : { armour: 1, radar: 0, passive: 1, ecm: 1, ammo: 2, cells: 0, mortar: 0 };
+const loadA0 = () => ({ ...loadB0(), mortar: 1 }); // R9: scripted A carries a mortar (9/10 slots)
+// R18 --fit: a template id or a build code per suit; the default stays the R17 scripted lance
+const fitArg = (s: string) => { const t = HANGAR_TEMPLATES.find(t => t.id === s); const f = t ? t.fit() : fromCode(s); if (!f) throw new Error('--fit: no template or build code ' + s); const w = launchBlock(f); if (w) throw new Error('--fit ' + s + ': ' + w); return f; };
+let FITS: any[] | null = sarg('--fit') ? sarg('--fit').split(',').map(fitArg) : null;
+const loadA = () => FITS ? FITS[0] : loadA0();
+const loadB = () => FITS ? FITS[FITS.length - 1] : loadB0();
+if (FITS) console.log('  (--fit A ' + fitText(FITS[0]) + ' | B ' + fitText(FITS[FITS.length - 1]) + ')');
 
 function playGame(seed: number, comp?: string) {
   rollEnemy(seed, comp, MISSION || 'UPLINK'); newHunt([loadA(), loadB()]); // R7 s2: two scripted mechs, same loadout
@@ -115,19 +178,21 @@ function report(title: string, res: any[]) {
 function greedy() {
   for (const what of ['repair', 'rebuild', 'rounds', 'shell']) for (let k = 0; k < 50; k++) {
     let any = false;
-    for (const id of ['A', 'B']) if (refit(id, what)) any = true;
+    for (const id of G.ct.ids) if (refit(id, what)) any = true; // R21 cp2: every suit
     if (!any) break;
   }
 }
 // R11: whole contracts. The scripted lance always takes job 1 (A with mortar, as above).
 function contracts(n: number) {
   const res: any[] = [], shots: any[] = [], parts: any[] = [], hunts: any[] = [];
-  for (let c = 1; c <= n; c++) {
-    newContract(c, [loadA(), loadB()]);
+  for (let c = FROM; c < FROM + n; c++) {
+    newContract(c, [loadA(), loadB()]); const h0 = hunts.length;
     const entering: any[] = []; let stall = false;
     while (G.ct.status === 'ACTIVE') {
       entering.push({ n: G.ct.hunt, carry: JSON.parse(JSON.stringify(G.ct.carry)) });
       if (MISSION) for (const j of G.ct.jobs) j.mission = MISSION; // R15 --mission
+      if (LISTEN_LVL >= 0 && TUNE.SCAN_ENABLED) { G.scan = null; previewJob(0); listen(LISTEN_LVL); chooseDrop(DROP >= 0 ? DROP : nearestDrop()); } // R19 --listen
+      else if (SCAN_PRESET && TUNE.SCAN_ENABLED && TUNE.SCAN_MODE === 'active') { G.scan = null; previewJob(0); replayScan(presetCmds(SCAN_PRESET)); chooseDrop(nearestDrop()); } // R20 --scan
       takeJob(0);
       const r = playOut(G.ct.huntSeed);
       shots.push(...G.shotLog); parts.push(...G.partLog); // R12
@@ -137,6 +202,9 @@ function contracts(n: number) {
       if (G.ct.status === 'ACTIVE') { rollJobs(); greedy(); }
     }
     res.push({ c, status: stall ? 'STALL' : G.ct.status, reached: G.ct.hunt, results: G.ct.results, entering, earned: G.ct.earned, spent: G.ct.spent });
+    if (JSON_OUT) log0('@@SL ' + JSON.stringify({ c, status: res[res.length - 1].status, earned: G.ct.earned, spent: G.ct.spent,
+      hunts: hunts.slice(h0).map((h: any) => ({ outcome: h.outcome, mission: h.mission, turns: h.endTurn, lost: h.lost,
+        found: h.found.map((f: any) => f ? { ch: CHANNEL[f.src] || f.src, d: Math.round(f.d * 10) / 10 } : null) })) }));
   }
   const by: Record<string, number> = {};
   for (const r of res) by[r.status] = (by[r.status] || 0) + 1;
@@ -168,6 +236,7 @@ function contracts(n: number) {
   const st = res.filter(r => r.status === 'STALL');
   console.log(st.length ? '  stalls over 80 rounds: ' + st.map(r => `contract ${r.c} H${r.reached}`).join(', ') : '  stalls over 80 rounds: none');
   missionReport(res.flatMap(r => r.results), hunts);
+  mapReport(hunts);
   hitReport(shots, parts);
   soundReport(hunts);
   idReport(hunts);
@@ -177,8 +246,123 @@ function contracts(n: number) {
   const anyCarried = res.some(r => r.entering.some((x: any) => x.n > 1 && Object.values(x.carry).some((m: any) => m.dead || m.hits < m.maxHits)));
   if (!anyCarried) console.log('  FLAG: nothing is ever carried (stakes are zero)');
   if (VERBOSE) for (const r of res) console.log(`    contract ${r.c}: ${r.status} ` + r.results.map((h: any) => `H${h.n} ${h.comp} ${h.outcome} ${h.kills}/${h.total} [${h.out.join(', ')}]`).join(' | '));
+  foundReport(hunts);
+  return { res, hunts };
 }
 
+// R21: N contracts back to back on one company. The scripted lance takes job 1, repairs greedily (R11 refit), hires every
+// recruit it has room for, and never goes back for a CRITICAL suit (it only carries one by chance: #42). Cp3 adds the books.
+function companyRun(n: number, seed = FROM) {
+  newCompany(seed, [loadA(), loadB()]);
+  const per: any[] = [], sizes: Record<number, number> = {}; let crits = 0, carried = 0, hired = 0, played = 0;
+  const C = G.co, buyFirst = (k: string, max = 99) => { let got = 0; const i = C.market.findIndex((l: any) => l.k === k); while (i >= 0 && got < max && buy(i)) got++; return got; };
+  // repair everything it can afford: buy parts as the repairs need them (rebuild first, then hits, then reloads)
+  const repairAll = () => { for (const what of ['rebuild', 'repair', 'rounds', 'shell']) for (let k = 0; k < 60; k++) { let any = false;
+    for (const s of C.suits) { if (suitRefit(s.id, what)) { any = true; continue; } if (suitRefitBlock(s.id, what) === 'PARTS' && buyFirst('parts', suitCost(what).parts - C.parts) && suitRefit(s.id, what)) any = true; }
+    if (!any) break; } };
+  for (let c = 0; c < n && !C.folded; c++) {
+    while (hireBlock(0) === '' && C.ops.length < C.suits.length + 1) { hire(0); hired++; } // keeps one spare operator, no more
+    // the highest fee it can reach, buying the fuel it needs first (before any repair spends the credits)
+    const short = (o: any) => Math.max(0, fuelCost(o) - C.fuel), fl = C.market.find((l: any) => l.k === 'fuel');
+    const pick = C.offers.map((o: any, i: number) => ({ o, i })).filter((x: any) => short(x.o) === 0 || (fl && short(x.o) <= fl.qty && short(x.o) * fl.price <= C.credits)).sort((a: any, b: any) => b.o.fee - a.o.fee)[0];
+    if (pick) buyFirst('fuel', short(pick.o));
+    repairAll(); autoCrew();
+    if (!pick || offerBlock(pick.i) || !lanceSize()) { console.log(`  contract ${c + 1}: stranded (${!lanceSize() ? 'no lance' : 'no fuel'}; ${C.credits} cr, ${C.fuel} fuel)`); break; }
+    takeOffer(pick.i); played++;
+    while (G.ct.status === 'ACTIVE') {
+      autoCrew(); if (!lanceSize()) { G.ct.status = 'FAILED'; endContract('FAILED'); break; } // every suit that can drop does
+      sizes[lanceSize()] = (sizes[lanceSize()] || 0) + 1;
+      takeJob(0); playOut(G.ct.huntSeed);
+      for (const m of G.lance) if (m.crit) { crits++; if (m.carriedBy) carried++; }
+      if (G.mode === 'hunt') { G.ct.status = 'FAILED'; endContract('FAILED'); break; } // a stall ends the contract
+      if (G.ct.status === 'ACTIVE') { rollJobs(); repairAll(); }
+    }
+    per.push({ c: c + 1, status: G.ct.status, wins: G.ct.wins, hunts: G.ct.results.length, tier: G.ct.tier, cr: C.credits, fuel: C.fuel });
+    if (VERBOSE) console.log(`  C${c + 1} ${G.ct.status} ${G.ct.wins}/${G.ct.results.length} | ${companyLine()} | ${C.news.join(' ')}`);
+    C.news = [];
+  }
+  const R = C.rec, lv = [1, 2, 3].map(l => C.ops.filter((o: any) => o.lvl === l).length);
+  console.log(`== COMPANY ${C.code}: ${played} of ${n} contracts | complete ${R.complete} | failed ${R.failed} | hunts won ${R.wins}/${R.hunts} | ${C.folded ? 'FOLDED: ' + C.folded : 'still going'}`);
+  console.log(`  operators: KIA ${R.kia}, CRITICAL ${crits} (carried out ${carried}), hired ${hired} | roster at the end ${C.ops.length}: level 1 ×${lv[0]}, 2 ×${lv[1]}, 3 ×${lv[2]}, benched ${C.ops.filter((o: any) => o.status === 'BENCH').length}`);
+  console.log('  lance size per hunt: ' + Object.entries(sizes).map(([k, v]) => `${k} suits ×${v}`).join(', '));
+  console.log('  credits / fuel after each contract: ' + per.map(p => `C${p.c} ${p.status[0]}${['L', 'M', 'H'][p.tier] ?? ''} ${p.cr}cr/${p.fuel}f`).join(' · '));
+  console.log('  end: ' + companyLine());
+  if (C.memorial.length) console.log('  memorial: ' + C.memorial.map((m: any) => `${m.name} (${m.skill}${m.lvl}, ${m.when})`).join(', '));
+  console.log('  (the scripted lance never goes back for a CRITICAL suit and buys no ship modules or items: it undervalues the ship and market, #42)');
+  return { folded: !!C.folded, played, complete: R.complete, kia: R.kia, cr: C.credits };
+}
+// R21 cp3: --company N --companies K: K companies of N contracts (seeds FROM..FROM+K-1), the summary per company and in total
+function companies(n: number, k: number) {
+  const out: any[] = [];
+  for (let i = 0; i < k; i++) out.push(companyRun(n, FROM + i));
+  const sum = (key: string) => out.reduce((a, r) => a + r[key], 0);
+  console.log(`== ${k} COMPANIES × ${n} contracts: folded ${out.filter(r => r.folded).length} | contracts played ${sum('played')} (complete ${sum('complete')}) | KIA ${sum('kia')} | avg credits at the end ${Math.round(sum('cr') / k)}`);
+}
+
+// R18 (A12): what found each lance suit first, on which channel, from how far
+function foundReport(hunts: any[]) {
+  const F = hunts.flatMap(h => h.found), got = F.filter(Boolean), ch: Record<string, number[]> = {};
+  for (const f of got) (ch[CHANNEL[f.src] || f.src] ||= []).push(f.d);
+  const avg = (a: number[]) => (a.reduce((x, y) => x + y, 0) / Math.max(1, a.length)).toFixed(1);
+  console.log(`  FOUND (R18) suits found by the field ${got.length}/${F.length} | first heard on: ` + Object.entries(ch).sort((a, b) => b[1].length - a[1].length).map(([k, v]) => `${k} ${v.length} at ${avg(v)} tiles`).join(', '));
+  const rear = hunts.reduce((a, h) => a + h.rear, 0), all = hunts.reduce((a, h) => a + h.hitsAll, 0);
+  console.log(`  REAR (R18) gun hits from behind ${rear}/${all} (${Math.round(100 * rear / Math.max(1, all))}%)`);
+}
+// R18 (A11): build sweep. Every frame × reactor pair (from the frame's template, reactor swapped), N contracts each, both suits the same.
+function sweep(n: number) {
+  const rows: any[] = [];
+  for (const t of HANGAR_TEMPLATES) for (const r of ['coldburn', 'hotcore']) {
+    const f = t.fit(); f.mounts.CORE = f.mounts.CORE.map((id: string | null) => id === 'coldburn' || id === 'hotcore' ? r : id);
+    const why = launchBlock(f); if (why) { log0(`  ${t.role} + ${r}: can't launch (${why})`); continue; }
+    FITS = [f]; console.log = () => {}; const out = contracts(n); console.log = (...a: any[]) => { const s = a.join(' '); if (/FLAG:|WARNING:/.test(s)) FLAGS.push(s.trim()); log0(...a); };
+    const H = out.res.flatMap((c: any) => c.results), wins = H.filter((h: any) => h.outcome.startsWith('WIN')).length;
+    const F = out.hunts.flatMap((h: any) => h.found), got = F.filter(Boolean), ch: Record<string, number[]> = {};
+    for (const x of got) (ch[CHANNEL[x.src] || x.src] ||= []).push(x.d);
+    const s = fitStats(f), tpl = (t.id === 'line' ? 'coldburn' : 'hotcore') === r;
+    rows.push({ frame: f.frame, reactor: r, wins, hunts: H.length, complete: out.res.filter((c: any) => c.status === 'COMPLETE').length, n });
+    log0(`  ${(t.role + (tpl ? '*' : '')).padEnd(9)} ${f.frame.padEnd(8)} ${r.padEnd(9)} hunts ${H.length} | win ${wins} (${Math.round(100 * wins / Math.max(1, H.length))}%) | contracts ${rows[rows.length - 1].complete}/${n} | load ${s.load}/${s.rated} regen ${s.regen} EM ${s.emBase.toFixed(1)} | first heard: ` +
+      Object.entries(ch).sort((a, b) => b[1].length - a[1].length).map(([k, v]) => `${k} ${v.length} at ${(v.reduce((x, y) => x + y, 0) / v.length).toFixed(1)}t`).join(', '));
+  }
+  const by = (k: string) => { const g: Record<string, { w: number; h: number }> = {}; for (const r of rows) { const x = g[r[k]] ||= { w: 0, h: 0 }; x.w += r.wins; x.h += r.hunts; } return Object.entries(g).map(([n, x]) => `${n} ${Math.round(100 * x.w / Math.max(1, x.h))}%`).join(', '); };
+  log0(`== SWEEP (${n} contracts each, * = the template's own reactor) | win by frame: ${by('frame')} | by reactor: ${by('reactor')}`);
+}
+// R19 checkpoint 2: the listen sweep. Same contract seeds at every level; the scripted lance lands on the drop zone nearest the objective.
+function listenSweep(n: number) {
+  const rows: any[] = [], quiet = () => { console.log = () => {}; }, loud = () => { console.log = (...a: any[]) => { const s = a.join(' '); if (/FLAG:|WARNING:/.test(s)) FLAGS.push(s.trim()); log0(...a); }; };
+  for (const L of [0, 1, 2, 3]) {
+    LISTEN_LVL = L; quiet(); const out = contracts(n); loud();
+    const H = out.res.flatMap((c: any) => c.results), wins = H.filter((h: any) => h.outcome.startsWith('WIN')).length;
+    const S = out.hunts.map((h: any) => h.scan).filter(Boolean), avg = (f: (c: any) => number) => (S.reduce((a: number, c: any) => a + f(c), 0) / Math.max(1, S.length)).toFixed(2);
+    const byM: Record<string, { w: number; h: number }> = {};
+    for (const h of H) { const x = byM[h.mission] ||= { w: 0, h: 0 }; x.h++; if (h.outcome.startsWith('WIN')) x.w++; }
+    const lost = out.hunts.reduce((a: number, h: any) => a + h.lost, 0);
+    rows.push({ L, wins, hunts: H.length, complete: out.res.filter((c: any) => c.status === 'COMPLETE').length });
+    log0(`  ${['SKIP  ', 'SHORT ', 'MEDIUM', 'LONG  '][L]} hunts ${H.length} | win ${wins} (${Math.round(100 * wins / Math.max(1, H.length))}%) | contracts ${rows[rows.length - 1].complete}/${n} | mechs lost ${lost} | cost per hunt: extra ${avg(c => c.extra.length)}, alert ${avg(c => c.alert.length)}, painted ${avg(c => c.painted ? 1 : 0)} | ` +
+      Object.entries(byM).map(([k, x]) => `${k} ${Math.round(100 * x.w / Math.max(1, x.h))}%`).join(', '));
+  }
+  const pct = (r: any) => 100 * r.wins / Math.max(1, r.hunts), best = rows.slice().sort((a, b) => pct(b) - pct(a));
+  log0(`== LISTEN SWEEP (${n} contracts each, drop auto) | best ${['SKIP', 'SHORT', 'MEDIUM', 'LONG'][best[0].L]} ${Math.round(pct(best[0]))}%, worst ${['SKIP', 'SHORT', 'MEDIUM', 'LONG'][best[3].L]} ${Math.round(pct(best[3]))}%` +
+    (pct(best[0]) - pct(best[1]) >= 10 ? ' | NOTE: one level wins clearly (dominance?)' : ''));
+}
+// R20 cp3: the scan sweep. Same contract seeds for every preset; per preset: hunt wins, the risk and step at the drop, how
+// often the ship was painted, units that joined, who was awake, contracts complete, wins per mission type.
+function scanSweep(n: number) {
+  const quiet = () => { console.log = () => {}; }, loud = () => { console.log = (...a: any[]) => { const s = a.join(' '); if (/FLAG:|WARNING:/.test(s)) FLAGS.push(s.trim()); log0(...a); }; };
+  const rows: any[] = [];
+  for (const p of PRESETS) {
+    SCAN_PRESET = p; quiet(); const out = contracts(n); loud();
+    const H = out.res.flatMap((c: any) => c.results), wins = H.filter((h: any) => h.outcome.startsWith('WIN')).length;
+    const S = out.hunts.map((h: any) => h.scan).filter((c: any) => c && c.live), N = Math.max(1, S.length), av = (f: (c: any) => number) => (S.reduce((a: number, c: any) => a + f(c), 0) / N);
+    const byM: Record<string, { w: number; h: number }> = {};
+    for (const h of H) { const x = byM[h.mission] ||= { w: 0, h: 0 }; x.h++; if (h.outcome.startsWith('WIN')) x.w++; }
+    const r = { p, wins, hunts: H.length, complete: out.res.filter((c: any) => c.status === 'COMPLETE').length };
+    rows.push(r);
+    log0(`  ${p.padEnd(5)} hunts ${H.length} | win ${wins} (${Math.round(100 * wins / Math.max(1, H.length))}%) | contracts ${r.complete}/${n} | at the drop: ${av(c => c.t).toFixed(1)} min, risk ${av(c => c.risk).toFixed(1)}, step ${av(c => c.step).toFixed(2)}, painted ${Math.round(100 * av(c => +c.painted))}%, awake ${av(c => c.alert.length).toFixed(1)}, joined ${av(c => c.extra.length + c.arrived.length).toFixed(2)}, window closed ${Math.round(100 * av(c => +!!c.over))}% | wins by job: ` +
+      Object.entries(byM).map(([k, x]) => `${k} ${Math.round(100 * x.w / Math.max(1, x.h))}%`).join(', '));
+  }
+  const pct = (r: any) => 100 * r.wins / Math.max(1, r.hunts), best = rows.slice().sort((a, b) => pct(b) - pct(a));
+  log0(`== SCAN SWEEP (${n} contracts each, drop nearest the objective) | best ${best[0].p} ${Math.round(pct(best[0]))}%, worst ${best[best.length - 1].p} ${Math.round(pct(best[best.length - 1]))}% | the scripted lance can't read the intel (#92): this is the costs, not the benefit`);
+}
 let last = { failed: 0, complete: 0, lost: 0, n: 0 }; // R13: the latest contracts() summary (--both compares two)
 // R13: this hunt's sound / emissions numbers (read right after the hunt ends)
 function huntStats() {
@@ -188,7 +372,11 @@ function huntStats() {
     heardLance: G.lance.reduce((a: number, m: any) => a + (m.heardN || 0), 0), heardField: G.units.reduce((a: number, u: any) => a + (u.heardN || 0), 0),
     loudest: Math.max(0, ...G.lance.map((m: any) => m.loudest || 0)), sprints: G.lance.reduce((a: number, m: any) => a + (m.sprints || 0), 0),
     ids: (idTick(false), idSummary()), // R14: per field unit: read? narrowed? ID'd, right, before eyes
-    mission: G.mission.type, mres: G.mission.result, pickTurn: G.mission.pickTurn || 0, handoffs: G.mission.handoffs, endTurn: G.turn, units: G.units.map((u: any) => ({ v: u.variant, dead: u.dead })), // R15
+    mission: G.mission.type, mres: G.mission.result, ally: G.ally ? { hits: Math.max(0, G.ally.hits), max: G.ally.maxHits, dead: G.ally.dead, shotAt: G.shotLog.filter((r: any) => r.target === 'ALLY').length, heard: G.ally.heardN || 0 } : null, legs: G.mission.legs.slice(), pickTurn: G.mission.pickTurn || 0, handoffs: G.mission.handoffs, endTurn: G.turn, units: G.units.map((u: any) => ({ v: u.variant, dead: u.dead })), // R15
+    scan: G.scanCost ? JSON.parse(JSON.stringify(G.scanCost)) : null, // R19
+    found: G.lance.map((m: any) => G.firstLog.find((f: any) => f.side === 'E' && f.tgt === m.id && f.src !== 'GHOST') || null), // R18 (A12)
+    rear: G.shotLog.filter((r: any) => r.hit && r.rear).length, hitsAll: G.shotLog.filter((r: any) => r.hit).length,
+    grid: MAP.info.grid, rerolls: MAP.info.rerolls || 0, moves: { ...G.moveStat }, outcome: G.mode === 'hunt' ? 'STALL' : G.outcome, // R16
     alarms: G.alarmLog.length, allOn3, lost: G.lance.filter((m: any) => m.dead).length,
     pack: G.units.reduce((a: any, u: any) => { for (const k of ['HUNT', 'SEARCH', 'LEASH']) a[k] += (u.packN && u.packN[k]) || 0; return a; }, { HUNT: 0, SEARCH: 0, LEASH: 0 }) };
 }
@@ -232,6 +420,12 @@ function missionReport(R: any[], H: any[]) {
     const P = RH.filter(h => h.pickTurn), out = RH.filter(h => h.mres === 'cargo out').length, lost = RH.filter(h => h.mres === 'cargo lost').length;
     console.log(`  RETRIEVE picked up ${P.length}/${RH.length} | carried out ${out}, cargo lost ${lost} | hand-offs ${RH.reduce((a, h) => a + h.handoffs, 0)} | avg rounds pickup → end ${P.length ? (P.reduce((a, h) => a + h.endTurn - h.pickTurn, 0) / P.length).toFixed(1) : '-'}`);
   }
+  const EH = H.filter(h => h.mission === 'ESCORT'); // R15 s3: info only
+  if (EH.length) {
+    const A = EH.map(h => h.ally), shot = A.filter(a => a.shotAt > 0).length, legs: Record<string, number> = {};
+    for (const h of EH) for (const l of h.legs) legs[l] = (legs[l] || 0) + 1;
+    console.log(`  ESCORT transport shot at in ${shot}/${EH.length} hunts (avg ${(A.reduce((x, a) => x + a.shotAt, 0) / EH.length).toFixed(1)} shots), heard by the field in ${A.filter(a => a.heard).length} | destroyed ${A.filter(a => a.dead).length} | avg hits left ${(A.reduce((x, a) => x + a.hits, 0) / EH.length).toFixed(1)}/${A[0].max} | legs picked: ` + Object.entries(legs).sort().map(([k, v]) => `${k} ${v}`).join(', '));
+  }
   const B = R.filter(r => r.mission === 'BOUNTY');
   if (!B.length) return;
   const met = B.filter(r => r.earned >= TUNE.BOUNTY_QUOTA).length;
@@ -241,6 +435,28 @@ function missionReport(R: any[], H: any[]) {
   for (const h of H.filter(h => h.mission === 'BOUNTY')) for (const u of h.units) { const x = V[u.v] || (V[u.v] = { n: 0, k: 0 }); x.n++; if (u.dead) x.k++; }
   console.log('  BOUNTY killed when present: ' + Object.entries(V).sort().map(([k, x]) => `${k} ${x.k}/${x.n}`).join(', '));
   for (const [k, x] of Object.entries(V)) if (x.n >= 5 && (x.k / x.n > 0.9 || x.k / x.n < 0.05)) console.log(`  FLAG: ${k} killed in ${pc(x.k, x.n)} of the Bounty hunts it appears in (always or never worth it)`);
+}
+
+// R16: hunts split by grid size (win rate, average rounds), map rerolls, and how often the lance's moves crossed clutter.
+function mapReport(H: any[]) {
+  const pc = (a: number, b: number) => b ? Math.round(100 * a / b) + '%' : '-', win = (L: any[]) => L.filter(h => h.outcome.startsWith('WIN')).length;
+  const all = win(H) / Math.max(1, H.length);
+  const grids = [...new Set(H.map(h => h.grid))].sort();
+  for (const g of grids) {
+    const L = H.filter(h => h.grid === g), w = win(L);
+    console.log(`  MAP ${g.padEnd(5)} hunts ${L.length} | win ${w} (${pc(w, L.length)}) | avg rounds ${(L.reduce((a, h) => a + h.endTurn, 0) / L.length).toFixed(1)}`);
+    if (L.length >= 5 && Math.abs(w / L.length - all) > 0.3) console.log(`  FLAG: grid ${g} wins ${pc(w, L.length)}, more than 30 points from the overall ${pc(win(H), H.length)}`);
+  }
+  if (MAP.id === 'hive' && grids.length === 1 && grids[0] === 'hive') return;
+  const rr = H.filter(h => h.rerolls > 0).length, mv = H.reduce((a, h) => a + h.moves.n, 0), mc = H.reduce((a, h) => a + h.moves.c, 0);
+  console.log(`  MAP rerolls: ${rr}/${H.length} hunts needed one (${pc(rr, H.length)}) | lance moves into clutter ${mc}/${mv} (${pc(mc, mv)})`);
+  const ni = H.reduce((a, h) => a + (h.moves.intr || []).length, 0), ki = H.filter(h => (h.moves.intr || []).length).length;
+  console.log(`  MOVE (R17) interrupts ${ni} in ${ki}/${H.length} hunts (${pc(ki, H.length)}), ${(ni / Math.max(1, mv) * 100).toFixed(0)}% of lance moves | tap ${H.reduce((a, h) => a + (h.moves.tap || 0), 0)} drawn ${H.reduce((a, h) => a + (h.moves.drawn || 0), 0)} (the scripted lance only taps)`);
+  const why: Record<string, number> = {}; for (const h of H) for (const t of h.moves.intr || []) { const k = t.split(' ').pop(); why[k] = (why[k] || 0) + 1; }
+  console.log(`  MOVE (R17) interrupts by what showed it: ${Object.entries(why).map(([k, v]) => k + ' ' + v).join(', ') || 'none'}`);
+  if (rr / Math.max(1, H.length) > 0.05) console.log(`  FLAG: unreachable rerolls in ${pc(rr, H.length)} of hunts (over 5%)`);
+  if (mv && mc / mv < 0.05) console.log(`  FLAG: clutter crossed in only ${pc(mc, mv)} of lance moves (it's never on the way)`);
+  if (mv && mc / mv > 0.6) console.log(`  FLAG: clutter crossed in ${pc(mc, mv)} of lance moves (it's everywhere)`);
 }
 
 // R14: reading the signature. Over every field unit the lance ever had a contact on.
@@ -261,6 +477,7 @@ function hitReport(shots: any[], parts: any[]) {
   const P = shots.filter(r => r.mech), E = shots.filter(r => !r.mech);
   console.log(`  HIT overall ${pc(shots)}, avg shown ${avg(shots)} | lance ${pc(P)} | field ${pc(E)}`);
   console.log(`  HIT cover ${pc(shots.filter(r => r.cover))} vs open ${pc(shots.filter(r => !r.cover))}`);
+  console.log(`  HIT (R17) into clutter (low) cover ${pc(shots.filter(r => r.coverKind === 'LOW'))}, avg shown ${avg(shots.filter(r => r.coverKind === 'LOW'))} | into wall cover ${pc(shots.filter(r => r.coverKind === 'WALL'))}, avg shown ${avg(shots.filter(r => r.coverKind === 'WALL'))}`);
   const statics = (r: any) => r.ttype === 'TURRET' || r.ttype === 'EMPLACEMENT';
   console.log(`  HIT target moved ${pc(shots.filter(r => r.movedT > 0))} vs still ${pc(shots.filter(r => !(r.movedT > 0) && !statics(r)))} vs static ${pc(shots.filter(statics))}`);
   console.log(`  HIT range ≤4 ${pc(shots.filter(r => r.rangeT <= 4))} · 5–8 ${pc(shots.filter(r => r.rangeT > 4 && r.rangeT <= 8))} · 9–12 ${pc(shots.filter(r => r.rangeT > 8))}`);
@@ -301,11 +518,19 @@ function scenarioRuns(name: string, n: number) {
 
 if (SCEN) {
   scenarioRuns(SCEN, RUNS);
+} else if (arg('--company', 0) > 0) {
+  if (arg('--companies', 1) > 1) companies(arg('--company', 0), arg('--companies', 1)); else companyRun(arg('--company', 0));
 } else if (CONTRACTS > 0 && BOTH) {
   log0('######## NORMAL'); AUTO.loud = false; contracts(CONTRACTS); const a = last;
   log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;
   console.log(`== NORMAL vs LOUD: failed ${a.failed} vs ${b.failed} | complete ${a.complete} vs ${b.complete} | mechs lost ${a.lost} vs ${b.lost}`);
   if (b.lost < a.lost * 1.15 && b.failed < a.failed + 2) console.log('  FLAG: --loud does not lose noticeably more than normal (getting loud still carries no risk)');
+} else if (arg('--scansweep', 0) > 0) {
+  scanSweep(arg('--scansweep', 0));
+} else if (arg('--listensweep', 0) > 0) {
+  listenSweep(arg('--listensweep', 0));
+} else if (arg('--sweep', 0) > 0) {
+  sweep(arg('--sweep', 0));
 } else if (CONTRACTS > 0) {
   contracts(CONTRACTS);
 } else if (ONE >= 0) {

@@ -1,0 +1,9 @@
+{
+  "name": "signal-lance",
+  "version": "0.1.0",
+  "description": "Signal Lance: round band above the prompt, live runner pane, and headless balance sweeps",
+  "types": "./types/index.d.ts",
+  "author": {
+    "name": "FluKanuck"
+  }
+}

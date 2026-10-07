@@ -9,6 +9,7 @@
     "sim": "node --experimental-strip-types --no-warnings scripts/sim.ts",
     "test": "vitest run",
     "test:watch": "vitest",
+    "build:toy": "vite build --config vite.toy.config.ts && node scripts/toy-post.mjs",
     "lab": "vite --open /lab.html",
     "build:lab": "vite build -c vite.lab.config.ts"
   },

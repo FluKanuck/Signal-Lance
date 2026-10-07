@@ -6,6 +6,7 @@ import { G } from '../sim/state.ts';
 import { PART_ABBR } from '../sim/combat.ts';
 import { cx, cy } from '../sim/sensors.ts';
 import { playerTarget } from '../sim/turns.ts';
+import { has } from '../sim/kit.ts';
 import { T } from '../sim/world.ts';
 import { look } from './looks.ts';
 import { contactLabel } from './label.ts';
@@ -54,7 +55,7 @@ export function updateHud(dt: number) {
     ? `<div class="cap">TGT // ${c.lost > c.gap ? 'LOST' : 'TRACK'}</div><div class="row big foe">${(contactLabel(c) || 'UNKNOWN').toUpperCase()}</div>` +
       `<div class="row"><span class="dim">BRG</span> ${pad(((Math.atan2(cy(c) - p.y, cx(c) - p.x) * 180 / Math.PI + 450) % 360), 3)}° <span class="dim">// RNG</span> ${(Math.hypot(cx(c) - p.x, cy(c) - p.y) / T).toFixed(1)}T <span class="dim">// ±</span>${(c.unc / T).toFixed(1)}T</div>` +
       `<div class="row dim">${c.snd ? 'SRC: ACOUSTIC' : 'SRC: SIGNAL'} // CONF ${G.obs[c.id] && G.obs[c.id].var ? 'HIGH' : G.ids[c.id] ? 'CALLED' : 'NONE'}</div>`
-    : `<div class="cap">TGT // NONE</div><div class="row dim">NO CONTACT // LISTENING…</div><div class="row dim">PASSIVE ${p.load.passive ? 'ONLINE' : 'OFFLINE'}</div>`;
+    : `<div class="cap">TGT // NONE</div><div class="row dim">NO CONTACT // LISTENING…</div><div class="row dim">PASSIVE ${has(p, 'PASSIVE') ? 'ONLINE' : 'OFFLINE'}</div>`;
   // compass tape: active ExoS facing
   const hd = (Math.atan2(p.fy, p.fx) * 180 / Math.PI + 450) % 360;
   ($('hTape').querySelector('.strip') as HTMLElement).style.transform = `translateX(${-hd * 2}px)`;

@@ -10,13 +10,14 @@ import { observe } from './sensors.ts';
 export const MISSION_INFO = {
   UPLINK: { name: 'UPLINK', goal: 'Stand in the gold ring and UPLINK on ' + TUNE.UPLINK_TURNS + ' turns, or clear the field.' },
   BOUNTY: { name: 'BOUNTY', goal: 'Every kill pays its bounty. Reach the quota, then extract when you choose.' },
+  ESCORT: { name: 'ESCORT', goal: 'Get the transport from the left edge out the right. It stops at each fork until you tap a route. Scout ahead.' },
   RETRIEVE: { name: 'RETRIEVE', goal: 'PICK UP the guarded cargo and carry it out the right edge. Grabbing it alerts the whole field.' },
 };
 
 // Called by newHunt (type set by rollEnemy). Fresh goal progress. Retrieve: the cargo sits on the rolled site (G.up).
 export function newMission(type = 'UPLINK') {
   G.mission = { type, earned: 0, quota: type === 'BOUNTY' ? TUNE.BOUNTY_QUOTA : 0, kills: [], result: '', endTurn: 0,
-    carrier: '', flipped: false, pickups: 0, handoffs: 0 }; // R15 s2: who holds the cargo ('' = on its tile), has the field flipped
+    carrier: '', flipped: false, pickups: 0, handoffs: 0, legs: [] }; // R15 s3: legs = the routes picked ('NORTH@J1') // R15 s2: who holds the cargo ('' = on its tile), has the field flipped
 }
 export function isType(t: string) { return !!G.mission && G.mission.type === t; }
 // What a unit's death pays (its TRUE variant, not what you called it)
@@ -67,15 +68,21 @@ export function doHandoff(m) { const o = handoffTo(m); m.ap -= TUNE.RETRIEVE_HAN
 export function cargoLost() { const c = carrier(); return !!c && c.dead; }
 export function onCargoLost() { G.mission.endTurn = G.turn; G.mission.result = 'cargo lost'; finishHunt('FAIL'); }
 
-// A lance mech m reached extraction. Uplink: BAIL (as before). Bounty: WIN at or over quota, else BAIL with the bounties
-// kept. Retrieve: WIN if m carries the cargo, else BAIL (any mech reaching extraction still pulls the lance out).
-export function onExtract(m?) {
-  G.mission.endTurn = G.turn; G.mission.result = 'extracted';
+// ---- R15 step 3: Escort ----
+export function onAllyLost() { G.mission.endTurn = G.turn; G.mission.result = 'transport lost'; finishHunt('FAIL'); }
+export function onAllyOut() { G.mission.allyOut = true; G.mission.result = 'transport out'; } // R16: the hunt ends once the lance is out too
+export function escortBonus() { const a = G.ally; return a ? Math.round(TUNE.ESCORT_BONUS * Math.max(0, a.hits) / a.maxHits) : 0; }
+
+// R16: every living mech has extracted. Bounty: WIN at or over quota, else BAIL with the bounties kept. Retrieve: WIN if the
+// carrier took the cargo out. Escort: WIN if the transport is out, else BAIL (the lance left it). Uplink: BAIL.
+export function onAllOut() {
+  const M = G.mission; M.endTurn = G.turn;
   if (quotaMet()) { G.winBy = 'BOUNTY'; finishHunt('WIN'); }
-  else if (m && isCarrier(m)) { G.mission.result = 'cargo out'; G.winBy = 'RETRIEVE'; finishHunt('WIN'); }
-  else finishHunt('BAIL');
+  else if (isType('RETRIEVE') && M.cargoOut) { M.result = 'cargo out'; G.winBy = 'RETRIEVE'; finishHunt('WIN'); }
+  else if (isType('ESCORT') && M.allyOut) { M.result = 'transport out'; G.winBy = 'ESCORT'; finishHunt('WIN'); }
+  else { M.result = isType('ESCORT') ? 'left the transport' : 'extracted'; finishHunt('BAIL'); }
 }
-// The whole field is destroyed. Uplink / Retrieve: WIN CLEAR. Bounty: same quota rule as extracting (nothing left to take).
+// The whole field is destroyed. Uplink / Retrieve: WIN CLEAR. Escort: never called (turns.ts skips it: only the transport walking out wins). Bounty: same quota rule as extracting (nothing left to take).
 export function onClear() {
   G.mission.endTurn = G.turn; G.mission.result = 'cleared';
   if (isType('BOUNTY')) { if (quotaMet()) { G.winBy = 'BOUNTY'; finishHunt('WIN'); } else finishHunt('BAIL'); return; }
@@ -85,6 +92,7 @@ export function onClear() {
 // Credits this hunt pays the contract. kind = WIN / BAIL / FAIL / LOSS.
 export function huntPay(kind: string) {
   if (isType('BOUNTY')) return G.mission.earned; // bounties replace PAY_WIN + PAY_KILL, and are kept on a BAIL
+  if (isType('ESCORT') && kind === 'WIN' && G.winBy === 'ESCORT') return TUNE.PAY_WIN + escortBonus() + G.kills * TUNE.PAY_KILL; // + the bonus for the ally's hits left
   return kind === 'BAIL' || kind === 'FAIL' ? 0 : (kind === 'WIN' ? TUNE.PAY_WIN : 0) + G.kills * TUNE.PAY_KILL; // R11 s2 (Retrieve as uplink)
 }
 
@@ -94,6 +102,7 @@ export function missionText() {
   const M = G.mission; if (!M) return '';
   const end = M.result ? ' · ' + M.result + ' round ' + M.endTurn : '';
   if (M.type === 'BOUNTY') return 'BOUNTY ' + M.earned + '/' + M.quota + ' · kills: ' + (M.kills.map(k => k.v + ' ' + k.b).join(', ') || 'none') + end;
+  if (M.type === 'ESCORT') return 'ESCORT transport ' + (G.ally ? (G.ally.dead ? 'destroyed' : G.ally.hits + '/' + G.ally.maxHits + ' hits') : '?') + ' · routes ' + (M.legs.join(', ') || 'none picked') + ' · holds ' + (M.holds || 0) + ', hurries ' + (M.hurries || 0) + end;
   if (M.type === 'RETRIEVE') return 'RETRIEVE ' + (M.carrier ? 'carried by ' + M.carrier : 'cargo untouched') + ' · pickups ' + M.pickups + ' · hand-offs ' + M.handoffs + end;
   return '';
 }

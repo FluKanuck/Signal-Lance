@@ -1,11 +1,12 @@
 import { TUNE } from '../tune.ts';
 import { T, isSolid, randomReachable } from './world.ts';
 import { rand } from './rng.ts';
-import { G, unitById, isMech } from './state.ts';
+import { G, unitById, isFriend, friends } from './state.ts';
 import { killContact, cx, cy } from './sensors.ts';
 import { partGone } from './combat.ts';
 import { canPay, doMove, doPulse, doShot, freeTurn, planMove, shootBlock } from './turns.ts';
 import { pickPackTarget, wounded, packOn } from './pack.ts';
+import { has, gunOf, radarOf } from './kit.ts';
 
 // ============================ FIELD AI ================================
 // Same sensors as the player. Each field unit decides on its own sensors only (no shared info, R7).
@@ -49,14 +50,15 @@ export function pickPatrol(e) {
 // player. Returns a function that performs it, or null (= its activation is over).
 export function enemyDecide(e) {
   const F = e.ft;
-  if (e.dead || !G.lance.some(m => !m.dead)) return null;
+  if (e.dead || !friends().some(m => !m.dead)) return null; // R16: nothing of the lance's left in the district
   const c = bestContact(e.ec), tracked = c && c.lost <= c.gap;
   const cd = c ? Math.hypot(cx(c) - e.x, cy(c) - e.y) : 1e9;
   // R13 s2: with the pack on, a patrol picks its target among the lance mechs it knows about (own or shared contacts)
+  const range = gunOf(e)?.range || 0; // R18: its gun row (was ENEMY_FIRE_RANGE)
   const pk = packOn() && e.mobile ? packTarget(e) : null; // R15: packOn() = PACK_ENABLED, or a Retrieve after the flip
   // 1. shoot whenever its lock rule allows (2-shot cap and AP included); the pack's target first, if it can
-  if (pk && shootBlock(e, pk.c, F.FIRE_UNC, TUNE.ENEMY_FIRE_RANGE) === '') { e.state = 'FIRE'; e.acted = true; return () => doShot(e, pk.c); }
-  if (c && shootBlock(e, c, F.FIRE_UNC, TUNE.ENEMY_FIRE_RANGE) === '') { e.state = 'FIRE'; e.acted = true; return () => doShot(e, c); }
+  if (pk && shootBlock(e, pk.c, F.FIRE_UNC, range) === '') { e.state = 'FIRE'; e.acted = true; return () => doShot(e, pk.c); }
+  if (c && shootBlock(e, c, F.FIRE_UNC, range) === '') { e.state = 'FIRE'; e.acted = true; return () => doShot(e, c); }
   const b = c ? null : freshBearing(e.eb, 5);
   if (!e.mobile) return staticDecide(e, c, b);
   if (e.moved) return null;
@@ -82,7 +84,7 @@ export function enemyDecide(e) {
   }
   e.goalX = tx; e.goalY = ty; e.goalK = e.state;
   let apB = e.ap;
-  if (c && cd <= (TUNE.ENEMY_FIRE_RANGE + 6) * T) apB -= Math.min(e.ap, TUNE.AP_SHOT * TUNE.SHOTS_PER_TURN); // keep AP for shots when near
+  if (c && cd <= ((gunOf(e)?.range || 0) + 6) * T) apB -= Math.min(e.ap, TUNE.AP_SHOT * TUNE.SHOTS_PER_TURN); // keep AP for shots when near
   e.moved = true;
   let pl = planMove(e, tx, ty, 'NORMAL', apB, e.en);
   if (!pl || !pl.path) pl = planMove(e, tx, ty, 'CREEP', apB, e.en);
@@ -96,7 +98,7 @@ function packTarget(e) {
   const cands = [];
   for (const c of e.ec) {
     const m = c.on ? unitById(c.id) : null;
-    if (m && isMech(m) && !m.dead) cands.push({ c, m, d: Math.hypot(cx(c) - e.x, cy(c) - e.y) / T });
+    if (m && isFriend(m) && !m.dead) cands.push({ c, m, d: Math.hypot(cx(c) - e.x, cy(c) - e.y) / T });
   }
   return cands.length ? pickPackTarget(e, cands) : null;
 }
@@ -124,7 +126,7 @@ function packDecide(e, pk) {
   countPack(e);
   e.goalX = tx; e.goalY = ty; e.goalK = e.state;
   let apB = e.ap;
-  if (pk && pk.d <= TUNE.ENEMY_FIRE_RANGE + 6) apB -= Math.min(e.ap, TUNE.AP_SHOT * TUNE.SHOTS_PER_TURN); // keep AP for shots when near
+  if (pk && pk.d <= (gunOf(e)?.range || 0) + 6) apB -= Math.min(e.ap, TUNE.AP_SHOT * TUNE.SHOTS_PER_TURN); // keep AP for shots when near
   e.moved = true;
   let pl = mode === 'SPRINT' ? planMove(e, tx, ty, 'SPRINT', apB, e.en) : null;
   if (!pl || !pl.path) pl = planMove(e, tx, ty, 'NORMAL', apB, e.en);
@@ -140,7 +142,8 @@ function countPack(e) { if (e.packCounted) return; e.packCounted = true; (e.pack
 // same rule as the player), and the emplacement pulses radar every EMPL_PULSE_TURNS of its turns.
 function staticDecide(e, c, b) {
   e.goalX = e.goalY = -1; e.goalK = '';
-  if (e.hasRadar && !partGone(e, 'SENSORS') && !e.pulsed && e.pulseCD <= 0 && canPay(e, TUNE.AP_RADAR, TUNE.RADAR_EN)) {
+  const R = radarOf(e);
+  if (R && !e.pulsed && e.pulseCD <= 0 && canPay(e, R.ap, R.en)) {
     e.pulsed = true; e.pulseCD = e.pulseN; e.state = 'PULSE'; e.acted = true;
     let x, y;
     if (c) { x = cx(c); y = cy(c); }

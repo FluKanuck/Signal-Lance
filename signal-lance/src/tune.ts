@@ -6,12 +6,17 @@ export const TUNE = {
   CREEP_SPEED: 0.9,     // CREEP move speed (both mechs), tiles per second
   PLAYER_HITS: 3,       // base hits before destruction
   ZOOMS: [1.0, 0.55],   // the two zoom levels (screen px per world unit)
+  UI_REF_W: 844,        // R18 fix (iPad split screen): the window the layout was made for (phone landscape, CSS px); UI scale = window ÷ this...
+  UI_REF_H: 390,
+  UI_MIN: 0.85,         // ...never smaller than this (R19 readability pass, Jamie: "at iPhone scale this is very hard to read": 0.7 → 0.85)...
+  UI_PANEL_MIN: 0.92,   // R19 readability pass: a menu panel shrinks to fit the screen height only down to this, then scrolls (was UI_MIN 0.7: 9 px text)
+  UI_MAX: 1.6,          // ...nor bigger than this (iPad Pro full screen)
   DRAG_PX: 12,          // finger travel (px) before a touch counts as a pan
   EXTRACT_COLS: 3,      // rightmost map columns that count as extraction
   CAM_LERP: 6,          // camera follow stiffness (higher = snappier)
   DPR_MAX: 2,           // cap on devicePixelRatio (performance)
   SMOOTH_PAD: 0.3,      // path smoothing clearance, in tiles
-  SLOTS: 10,            // loadout slots on the mech
+  SLOTS: 10,            // loadout slots on the mech (R18: the old picker only, until the hangar replaces it)
   // --- signature (arbitrary units) ---
   SIG_STILL: 0.5,       // standing still
   SIG_MOVE: 2.0,        // UNUSED from R13 (movement is Sound now, not a passive emission). Was: added while moving
@@ -19,8 +24,8 @@ export const TUNE = {
   CREEP_SIG_MULT: 0.5,  // UNUSED from R13. Was: whole signature × this while creeping (R4 run6: creep = quieter, not silent)
   SIG_FIRE: 6.0,        // UNUSED from R13 (the gun's firing spike is Sound now). Was: added briefly after each shot
   SIG_FIRE_TIME: 1.0,   // seconds the firing spike lasts
-  SIG_RADAR: 12.0,      // added while radar is on
-  SIG_ARMOUR: 1.0,      // added per armour plate
+  // SIG_RADAR (12, added while radar is on): R18 moved to the radar's row (src/sim/items.ts, radar.sig)
+  SIG_ARMOUR: 1.0,      // added per armour plate. R18: only for a unit with no fit (the Escort transport); a fit's EM comes from SIG_EM_PER_PT
   // --- detection ---
   DET_FALLOFF: 6,       // tiles; strength = sig / (1 + (dist/FALLOFF)^2)
   DET_WALL: 0.8,        // strength multiplier per building tile in between
@@ -29,7 +34,7 @@ export const TUNE = {
   EYES_HALF_ANG: 70,    // ...within this many degrees of facing (facing = last move direction)
   EYES_CLOSE: 2,        // tiles; inside this, eyes see all round (any facing), LOS still needed
   FREE_TURNS: 1,        // free changes of facing per turn (each mech)...
-  AP_TURN: 1,           // ...then this many AP per extra change of facing
+  AP_TURN: 0,           // ...then this many AP per extra change of facing. r17-s4 (Jamie: "now we are a smaller man sized unit, facings shouldnt cost AP at all"): 1 → 0, both sides
   DMG_BLOODIED: 0.5,    // enemy label BLOODIED at or below this fraction of its max hits
   DMG_BADLY: 0.25,      // enemy label BADLY DAMAGED at or below this fraction
   // --- contacts ---
@@ -44,8 +49,7 @@ export const TUNE = {
   SELF_TAP_PX: 16,      // screen radius for tapping your own mech (arms / cancels a face change)
   TRACK_GAP: 1.6,       // seconds without a new fix before a triangulated contact counts as lost
   // --- radar ---
-  RADAR_RANGE: 18,      // tiles
-  RADAR_HALF_ANG: 50,   // degrees, half-width of the forward cone
+  // RADAR_RANGE (18 tiles), RADAR_HALF_ANG (50°): R18 moved to the radar's row (src/sim/items.ts, radar.range / halfAng)
   RADAR_UNC: 0.3,       // tiles, uncertainty of a clear-LOS radar fix
   RADAR_MAX_WALLS: 4,   // building tiles radar can see through
   RADAR_WALL_UNC: 0.6,  // tiles of extra uncertainty per building tile in the way
@@ -57,14 +61,19 @@ export const TUNE = {
   TRI_MIN_BASE: 3,      // tiles between the two positions the bearings were taken from
   TRI_MIN_ANG: 15,      // degrees; min crossing angle to triangulate
   TRI_UNC_MIN: 0.8,     // tiles, best possible triangulated uncertainty
-  TRI_BLEND: 0.5,       // how far each new triangulated fix pulls the contact (0..1)
+  TRI_BLEND: 0.5,       // how far each new triangulated fix pulls the contact (0..1). R18 fix list 10: the floor; with trust the pull rises to 1
+  TRI_TRUST_N: 4,       // R18 fix list 10 (Jamie: "that many EM signals … should trump the noise … a weighting"): bearings taken from this many
+                        // different spots (1+ tile apart) on one unit = full trust in their best-fit crossing...
+  TAG_KEEP: 6,          // R18 (Jamie: stack the sense tags): seconds of sim time a sense's tag stays on a contact after its last fix
+  TRI_TRUST_ANG: 60,    // ...and only once the widest pair crosses at this many degrees or more (narrower = less trust).
+                        // Trust pulls the contact onto the crossing and scales NOISE's error and floor down (0 trust = as before)
   // --- ECM ---
   ECM_MASK_MULT: 0.25,  // signature multiplier while masking
   SIG_JAM: 5,           // jamming emission (bearing only) while masking or a ghost is up
   GHOST_COST: 25,       // Energy to place a ghost (plus AP_ECM)
   GHOST_TURNS: 3,       // your turns a ghost lasts (was GHOST_TIME 25 s)
   // --- weapons (both sides) ---
-  AMMO_PER_SLOT: 10,    // rounds per autocannon slot
+  // AMMO_PER_SLOT (10): R18 gone with the slot picker; the gun's row sets rounds loaded (src/sim/items.ts, gun.rounds)
   SHOT_SPEED: 25,       // tiles/sec shell speed
   HIT_RADIUS: 0.6,      // tiles; target must be this close to the aim point when the shell lands
   SHOT_DAMAGE: 1,       // hits removed per shell
@@ -72,7 +81,7 @@ export const TUNE = {
   GHOST_UNC: 2.5,       // tiles; how certain a ghost looks to the enemy
   // --- enemy ---
   ENEMY_SPAWN_MIN: 35,  // tiles; min spawn distance from the player
-  ENEMY_FIRE_RANGE: 12, // tiles
+  // ENEMY_FIRE_RANGE (12 tiles): R18 moved to the gun's row (gun.range)
   ENEMY_BLIND_PULSE: 8, // seconds (÷ SEC_PER_TURN = turns) between radar pulses for an enemy with no passive suite
   ENEMY_INVEST_DIST: 10,// tiles along a bare bearing that it goes to check
   ENEMY_ACT_PAUSE: 0.4, // real seconds between the enemy's actions on its turn (readability)
@@ -80,17 +89,17 @@ export const TUNE = {
   // --- shots (both sides) ---
   SHOTS_PER_TURN: 2,    // max shots per turn, each mech
   PLAYER_FIRE_UNC: 2,   // tiles; the player can only shoot contacts at least this certain
-  PLAYER_FIRE_RANGE: 12,// tiles; player max shot range (= ENEMY_FIRE_RANGE)
+  // PLAYER_FIRE_RANGE (12 tiles): R18 moved to the gun's row (gun.range, both sides)
   // --- Round 4: I-go-you-go, action points + Energy (both mechs, same rules) ---
   AP_PER_TURN: 4,       // AP gained at the start of your own turn
   AP_BANK_MAX: 8,       // unspent AP carries over, up to this
   AP_SHOT: 1,           // AP per shot
-  AP_RADAR: 2,          // AP per radar pulse
+  // AP_RADAR (2): R18 moved to the radar's row (radar.ap)
   AP_ECM: 1,            // AP to switch ECM on, and again at the start of each of your turns while on (also the ghost)
   ENERGY_BASE: 100,     // base Energy pool (was POWER_BASE)
-  ENERGY_CELL: 50,      // extra Energy per energy cell (was POWER_CELL)
-  ENERGY_REGEN: 10,     // Energy regained at the start of your own turn
-  RADAR_EN: 25,         // Energy per radar pulse (≈4 pulses from full)
+  // ENERGY_CELL (50): R18 a battery row's pool (src/sim/items.ts)
+  ENERGY_REGEN: 10,     // Energy regained at the start of your own turn. R18: field units only (no reactor rows yet); a suit's regen = its reactor output − idle draw
+  // RADAR_EN (25): R18 moved to the radar's row (radar.en)
   ECM_EN: 20,           // Energy per turn while ECM is on (paid with AP_ECM at turn start)
   MOVE_TILES_PER_AP: { CREEP: 1, NORMAL: 2, SPRINT: 3 },   // tiles bought by 1 AP
   MOVE_ENERGY_PER_TILE: { CREEP: 0, NORMAL: 1, SPRINT: 4 },  // Energy per tile (sprint was 10; 4-AP sprint = 12 tiles, 48 EN)
@@ -101,7 +110,7 @@ export const TUNE = {
   // R13: this pool is now EMISSIONS ("EMIT" on screen; unit.emit in code), electronic sources only (radar, ECM,
   // uplink). The SIGNAL_* names are kept so the TWEAK LOG history still matches.
   SIGNAL_MAX: 100,      // Signal range 0..MAX
-  SIGNAL_RADAR: 30,     // Signal added per radar pulse
+  // SIGNAL_RADAR (30, EMIT added per pulse): R18 moved to the radar's row (radar.emit)
   SIGNAL_ECM: 15,       // Signal added per turn while ECM is on (incl. the turn you switch it on)
   SIGNAL_MOVE_PER_TILE: { CREEP: 0, NORMAL: 0, SPRINT: 0 }, // UNUSED from R13 (all 0: movement is Sound now). Was CREEP 0, NORMAL 2, SPRINT 5 per tile
   SIGNAL_DECAY: 25,     // Signal lost at the start of the owner's turn
@@ -114,8 +123,7 @@ export const TUNE = {
     CREEP: 2,           // a creeping move
     NORMAL: 4,          // a normal move (R13 runner: 6 → 4, sound was 70% of the field's first contacts)
     SPRINT: 7,          // a sprint: louder than walking, but doesn't carry as far as a gunshot (R13 runner: 9 → 7)
-    SHOT: 12,           // a gun shot
-    MORTAR: 14,         // a mortar launch
+    // SHOT (12) and MORTAR (14): R18 moved to the gun's / mortar's row (gun.snd, mortar.snd). A variant's SOUND.SHOT still overrides
   },
   SOUND_UNC: 5,         // tiles; uncertainty of a sound contact (never enough for a gun lock or an aimed lob on its own)
   // --- Round 13 step 2: the pack (alarm, converge, press the wound). Off unless the tester splash / runner --pack turns it on ---
@@ -158,7 +166,7 @@ export const TUNE = {
   COST_REBUILD: 200,     // credits to rebuild a lost mech (comes back at the refit cap, not full)
   REFIT_CAP: 0.8,        // Jamie: repairs / rearm / rebuild never go above this × what the mech started its previous hunt with (rounded down), so the lance never fully recovers
   // --- Round 15: mission types. Each briefed job rolls one (seeded, evenly). The INTEL names it before you take the job ---
-  MISSION_TYPES: ['UPLINK', 'BOUNTY', 'RETRIEVE'], // types a job can roll; each R15 step adds its type (Step 3 ESCORT)
+  MISSION_TYPES: ['UPLINK', 'BOUNTY', 'RETRIEVE', 'ESCORT'], // types a job can roll (R15: one type per step)
   // Step 1, BOUNTY: every kill pays its TRUE variant's bounty (credits), however it died (blind lob, gun, eyes on; no ID needed).
   // Set from each variant's FIGHT line: tougher, better armed or harder to find = more.
   BOUNTY: {
@@ -168,6 +176,7 @@ export const TUNE = {
     sentry: 35,  // core 1, firm lock only
     hush: 45,    // core 1, firm lock; you barely hear it fire (hard to find)
     gun: 90,     // core 4, 30 rds, fires on looser locks: the most dangerous thing on the field
+    sniper: 70,  // R18: core 1, 12 rds, but hits from 20 tiles
     search: 60,  // core 4, 20 rds
     fire: 50,    // core 1, but fires on a 3-tile fix
     relay: 55,   // core 4, 10 rds
@@ -180,16 +189,71 @@ export const TUNE = {
   RETRIEVE_NO_SPRINT: true,  // the carrier can't SPRINT
   RETRIEVE_HANDOFF_AP: 1,    // AP for the carrier to HAND OFF the cargo to the other mech...
   RETRIEVE_HANDOFF_RANGE: 1.5, // ...standing within this many tiles
-  FIELD_SHUFFLE: 1,    // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
+  // Step 3, ESCORT: an unarmed faction transport walks the route legs (MAP_ANCHORS waypoints / legs) from the left edge to
+  // the right. It holds at each junction until you tap a leg. The field senses and fires on it like a lance mech.
+  ESCORT_HITS: 5,          // its hit pool (one part: CORE). Destroyed = the hunt fails. Build: 8 → 5 (runner: 8 won 93%, 5 → 68%, like Uplink)
+  ESCORT_MOVE: 8,          // tiles it walks per round (its own activation), at NORM speed and NORM sound
+  ESCORT_EMIT: 10,         // its radio: the EMIT floor, like a patrol's comms
+  ESCORT_ARMOUR: 1,        // armour plates for its signature (SIG_ARMOUR each), like a patrol
+  ESCORT_INIT: 4,          // its initiative base (as a patrol)
+  ESCORT_BONUS: 60,        // credits on a win × the ally's hits left / its max (on top of PAY_WIN + kills)
+  ESCORT_HOLDS: 3,         // R16 (Jamie): HOLD orders per Escort hunt: the transport skips its next move (one round), then carries on
+  ESCORT_HURRIES: 3,       // R16 (Jamie): HURRY orders per Escort hunt: its next move is a sprint (ESCORT_SPRINT tiles, SPRINT speed and sound)
+  ESCORT_SPRINT: 12,       // tiles the transport covers on a HURRY move (ESCORT_MOVE is the normal walk)
+  ESCORT_AMBUSH_RANGE: 4,  // tiles; in an Escort job every field unit is placed within this of a route leg ('anywhere' near the legs)
+  // --- Round 16: rolled ground. Every hunt builds a new district from hand-drawn blocks (sim/blocks.ts) ---
+  MAP_MODE: 'blocks',      // 'blocks' = a new district every hunt; 'hive' = the old fixed map (MAP_SRC), as the control (splash toggle)
+  BLOCK_SIZE: 12,          // tiles per block side (blocks are square, with a 1-tile street ring)
+  MAP_GRIDS: ['6x2', '5x2', '4x2', '4x3', '3x3', '5x3', '4x4'], // columns × rows; each hunt rolls one evenly (seeded)
+  MAP_MIN_BLOCKS: 8,       // a grid with fewer blocks than this is never rolled
+  MAP_ROTATE: true,        // blocks may be placed rotated (0/90/180/270) and mirrored (seeded)
+  MAP_REROLL_MAX: 20,      // tries (seed, seed+1, ...) before giving up on a district where the mission's tiles aren't all reachable
+  FIELD_SCALE_BY_AREA: true, // a bigger district gets a bigger field: each type's count × map area / FIELD_BASE_AREA, rounded, never below the composition's own
+  FIELD_BASE_AREA: 1728,   // tiles; the hive map's area (72 × 24)
+  ZONE_SCALE_BY_AREA: true,// zone counts (ZONE_COUNT_MIN / MAX) scale the same way on block maps
+  MOD_SPAWN_CHANCE: 0.5,   // each block's modifier slot (sound zone, set piece, ground clutter) spawns with this chance per hunt
+  CLUTTER_TILE_COST: 2,    // tiles of movement each clutter tile costs to cross (1 = off). Same for everyone; pathing goes round it if it can
+  CLUTTER_SOUND: 3,        // tiles added to a move's Sound if it enters any clutter tile (once per move; 0 = off)
+  // --- R17: drawn routes ("Eyes on the street") ---
+  DRAW_PATH_ENABLED: true, // drag from your selected ExoS to draw this turn's path (false = tap-to-move only)
+  FACE_WAYPOINTS_MAX: 3,   // facing waypoints per drawn move (tap the path, drag to aim). Each is one change of facing: FREE_TURNS first, then AP_TURN
+  MOVE_INTERRUPT: true,    // a player move stops on the tile where it reveals something new (new contact, or eyes on a known one); unspent AP / EN kept
+  DRAW_GRAB_PX: 26,        // screen radius around your ExoS that starts a drawn path (a tap there still arms a face change)
+  DRAW_END_GRAB_PX: 34,    // r17-s2: screen radius of the handle at the drawn path's end: drag it to carry the path on
+  WAYPOINT_GRAB_PX: 22,    // screen distance from the drawn path that counts as on it: tap = LOOK / ✕ menu, drag = redraw from there
+  DRAW_SIMPLIFY: 0.25,     // r17-s2: tiles; a freehand stroke's wobbles smaller than this are straightened (never round clutter you drew through)
+  DRAW_SAMPLE: 0.35,       // r17-s2: tiles between the stroke points the view keeps
+  INTERRUPT_CUE_TIME: 2.5, // seconds the "CONTACT — move stopped" cue stays on the suit
+  ESCORT_FORKS: 2,         // forks on a block map's escort route (each with 2-3 onward legs: NORTH / AHEAD / SOUTH, open streets only)
+  // R16 debrief 2 (Jamie: "still feels too much like a grid"): packed districts of irregular shapes (sim/packed.ts)
+  MAP_LAYOUT: 'packed',    // 'packed' = shapes packed on half-block cells, cropped at the map edge; 'grid' = the r16-s3 block grid
+  MAP_EDGE_CROP: true,     // the packing is offset by a random part of a cell and cut off at the map edge (false = seams line up with the edges)
+  SHAPE_WEIGHTS: { '1x1': 2, '1x2': 3, '1x3': 2, 'L3': 3, 'L4': 2, '2x2': 3, '2x3': 1 }, // pick weights (in half-block cells); 2x2 = a hand-drawn block
+  SPAWN_APRON: { W: 4, H: 9 }, // R16 (Jamie: spawning boxed in = boring rounds): a cleared staging area at the spawn, tiles deep × tall
+  SPAWN_LOOK: 12,          // the spawn row is the left-edge row with the most street tiles within this many steps (mid-height breaks ties)
+  STREET_KEEP: 0.6,        // chance each side of a piece keeps its street ring (else its buildings run to the edge: narrow or closed streets)
+  LOT_CHANCE: 0.3,         // a 1x1 piece is an open lot (with a spot) instead of a building
+  YARD_CHANCE: 0.4,        // a piece of 3+ cells gets a courtyard (a spot), joined to the street by an alley
+  ALLEY_MAX: 2,            // up to this many one-tile alleys cut straight across a generated piece
+  ESCORT_SHARED: 5,        // tiles; Escort legs may share this much at each end (leaving the fork, arriving) without counting as the same way
+  ESCORT_LEG_SPREAD: 6,
+  ESCORT_BACKTRACK: 4,     // tiles; an Escort leg may travel at most this far west in all (no loops back)
+  ESCORT_DETOUR: 1.8,      // an Escort leg may be at most this × the shortest leg between the same places    // extra A* cost per tile on and next to an earlier Escort leg, so the next leg finds a different way
+  SEAM_BLOCK_CHANCE: 0.35, // R16 debrief: each stretch of street between two crossings gets a blocker with this chance (0 = the open grid)
+  SEAM_BLOCK_KINDS: { RUBBLE: 0.4, BARRICADE: 0.3, CHOKE: 0.3 }, // weights: scrap across the street / a wall that shuts it / a wall over one lane
+  FIELD_SHUFFLE: 1,   // R8 (Jamie): 1 = shuffled set: every composition once per cycle, random order (view keeps the bag); 0 = seeded weighted roll
+  // R18 checkpoint 3: THERMAL 1 = it carries a thermal sight (turrets: they wait and watch); IR = its steady heat on top of its
+  // frame's size (emplacements run generators, patrols engines; turrets sit cold).
+  // R18: FRAME = its frame in src/sim/items.ts; the unit's fit is built from FRAME + the numbers below (kit.ts fieldFit).
   // Per type. ARMOUR plates (signature as SIG_ARMOUR; hits = BASE_HITS + ARMOUR × ARMOUR_HITS), AMMO rounds,
   // CELLS energy cells (+ENERGY_CELL each), MOBILE 0 = never moves, RADAR/PASSIVE 0|1,
   // FIRE_UNC tiles (fires only at contacts at least this certain), NAME / PLURAL for INTEL and the result screen.
   // PATROL also takes the brain values the old bot used (copied from CAUTIOUS; see ROUND 7 ASSUMPTIONS):
   // PATIENCE_MIN/MAX s, CONFIDENT tiles, HOLD_DIST tiles, LEASH tiles (= GUARD_RADIUS × 1.5).
   FIELD_TYPES: {
-    TURRET:      { NAME: 'turret',      PLURAL: 'turrets',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 0, RADAR: 0, PASSIVE: 1, FIRE_UNC: 1.2 }, // hidden: silent until it fires; firm lock only (= PATIENT)
-    EMPLACEMENT: { NAME: 'emplacement', PLURAL: 'emplacements', ARMOUR: 2, BASE_HITS: 0, AMMO: 20, CELLS: 1, MOBILE: 0, RADAR: 1, PASSIVE: 0, FIRE_UNC: 2 },   // pulses radar on a timer, so it's findable
-    PATROL:      { NAME: 'patrol',      PLURAL: 'patrols',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 1, RADAR: 0, PASSIVE: 1, FIRE_UNC: 2,
+    TURRET:      { FRAME: 'f_turret', THERMAL: 1, IR: 0, NAME: 'turret',      PLURAL: 'turrets',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 0, RADAR: 0, PASSIVE: 1, FIRE_UNC: 1.2 }, // hidden: silent until it fires; firm lock only (= PATIENT)
+    EMPLACEMENT: { FRAME: 'f_empl', THERMAL: 0, IR: 4, NAME: 'emplacement', PLURAL: 'emplacements', ARMOUR: 2, BASE_HITS: 0, AMMO: 20, CELLS: 1, MOBILE: 0, RADAR: 1, PASSIVE: 0, FIRE_UNC: 2 },   // pulses radar on a timer, so it's findable
+    PATROL:      { FRAME: 'f_patrol', THERMAL: 0, IR: 2, NAME: 'patrol',      PLURAL: 'patrols',      ARMOUR: 1, BASE_HITS: 0, AMMO: 20, CELLS: 0, MOBILE: 1, RADAR: 0, PASSIVE: 1, FIRE_UNC: 2,
                    PATIENCE_MIN: 3, PATIENCE_MAX: 6, CONFIDENT: 2, HOLD_DIST: 8, LEASH: 9 },
   },
   // R13 test 2 (Jamie): field units carry comms, a steady electronic emission, so passive can find them. Emissions never
@@ -221,6 +285,11 @@ export const TUNE = {
     hush:   { TYPE: 'TURRET', COMMS: 0, PULSE: 0, SOUND: { SHOT: 5 },                              // suppressed: you barely hear it fire
               STATS: {},
               TRAITS: ['EMIT none · still'], TELL: 'muffled shot (≤6)', FIGHT: 'core 1 · firm lock only' },
+    // R18 (Jamie: "Add a sniper turret variant that can hit further"): a Long gun (src/sim/items.ts): range 20, loses only
+    // 1% a tile past HIT_RANGE_FREE, a loud crack. Firm lock only, so beyond eye range it needs its thermal sight (a hot suit).
+    sniper: { TYPE: 'TURRET', COMMS: 0, PULSE: 0, SOUND: {},
+              STATS: { GUN: 'longgun', AMMO: 12, FIRE_UNC: 1.2 },
+              TRAITS: ['EMIT none · still', 'shot 16'], TELL: 'very loud shot, from far off', FIGHT: 'core 1 · 12 rds · hits out to 20 tiles' },
     gun:    { TYPE: 'TURRET', COMMS: 10, PULSE: 0, SOUND: {},                                      // fire-director link: core 4, 30 rds, fires on looser locks
               STATS: { ARMOUR: 2, AMMO: 30, FIRE_UNC: 2 },
               TRAITS: ['still · no pulse', 'shot 12'], TELL: 'steady low EMIT', FIGHT: 'core 4 · 30 rds · looser lock' },
@@ -253,18 +322,18 @@ export const TUNE = {
   INIT_BASE: { MECH: 5, TURRET: 6, PATROL: 4, EMPLACEMENT: 3 }, // initiative = base + a seeded 0..INIT_ROLL each round; higher acts first, ties to the player
   INIT_ROLL: 3,        // top of the random part of the initiative roll (whole numbers 0..this)         // tiles; muzzle flash: a unit that's shot at gets a contact on the shooter this uncertain
   // --- Round 9: MORTAR loadout module (player mechs only): indirect fire on a fix, no LoS needed ---
-  MORTAR_SHELLS: 6,         // shells carried by a mech with the module (separate from gun rounds)
-  AP_MORTAR: 2,             // AP per mortar shot (no Energy cost)
+  // MORTAR_SHELLS (6), AP_MORTAR (2): R18 moved to the mortar's row (mortar.shells / ap)
   MORTAR_PER_ACTIVATION: 1, // max mortar shots per activation
   MORTAR_MAX_UNC: 4,        // tiles; the target contact must be at least this certain ("FUZZY" otherwise)
-  MORTAR_MIN_RANGE: 4,      // tiles; closer than this to the fix centre = "CLOSE"
-  MORTAR_MAX_RANGE: 18,     // tiles; further than this = "RANGE"
-  MORTAR_SCATTER_BASE: 0.5, // tiles; scatter radius = BASE + contact uncertainty (tiles) × PER_UNC...
-  MORTAR_SCATTER_PER_UNC: 0.6, // ...impact lands at a seeded random point inside that circle around the fix centre
+  // MORTAR_MIN_RANGE (4), MORTAR_MAX_RANGE (18), MORTAR_SCATTER_BASE (0.5), MORTAR_SCATTER_PER_UNC (0.6): R18 moved to the mortar's
+  // row (mortar.min / max / scatter / perUnc). Scatter radius = scatter + contact uncertainty (tiles) × perUnc; the impact lands at a
+  // seeded random point inside that circle around the fix centre
   MORTAR_SPLASH: 1,         // tiles; every unit (yours too) within this of the impact is damaged
   MORTAR_DMG: 1,            // armour plates of damage per splash (× ARMOUR_HITS = hits)
   SIG_MORTAR: 30,           // UNUSED from R13 (a mortar launch is Sound now: SOUND_RANGE.MORTAR). Was: Signal added to the firing mech per shot
-  MORTAR_BLIND_UNC: 6,      // R9 run1: tiles; a blind lob (tapped map spot, no fix) scatters as if the fix were this fuzzy (≈4.1-tile circle)
+  MORTAR_BLIND_UNC: 6,      // R9 run1: tiles; a blind lob (tapped map spot, no fix) scatters as if the fix were this fuzzy (≈4.1-tile circle). R18: the most it can be (long range)
+  MORTAR_BLIND_UNC_PER_TILE: 0.25, // R18 fix list 12 (Jamie: "Blind lob is too inaccurate … needs to be less punishing"): the pretend fuzz = this × the range
+  MORTAR_BLIND_UNC_MIN: 1.5,       // (tiles), never below this, never above MORTAR_BLIND_UNC. 7 tiles ≈ a 1.6-tile circle (was 4.1), 18 tiles ≈ 3.2
   MORTAR_FLASH_UNC: 4,      // tiles; the targeted unit's flash contact on the firer (fuzzier than a gun's FLASH_UNC)
   // --- Round 10: signal terrain. Rolled zones change how a unit STANDING IN ONE is seen (both sides, same rules) ---
   // QUIET.SIG_MULT (brief: ZONE_QUIET_SIG_MULT): others read a unit's Signal × this (fix lerp, SIGNAL_EMIT, noise ring).
@@ -297,7 +366,7 @@ export const TUNE = {
   // --- Round 12 step 1: to-hit roll + hit locations (both sides, same rules) ---
   // The lock rule (PLAYER_FIRE_UNC / FIELD_TYPES.FIRE_UNC, range, LOS, AP, cap, ammo) still gates FIRE; an allowed shot
   // then rolls to hit (seeded). Chance in %: HIT_BASE + Signal bonus − range − target moved − cover, clamped HIT_MIN..HIT_MAX.
-  HIT_BASE: 75,           // % before modifiers
+  // HIT_BASE (75 %, before modifiers): R18 moved to the gun's row (gun.hit)
   HIT_MIN: 10,            // % floor
   HIT_MAX: 95,            // % ceiling
   HIT_SIG_MAX: 15,        // + this × target's EFFECTIVE Signal / SIGNAL_MAX (after QUIET): loud targets are easier to hit
@@ -306,7 +375,10 @@ export const TUNE = {
   HIT_MOVED_PER_TILE: 4,  // − this % per tile the target moved in its LAST activation (statics always 0)...
   HIT_MOVED_MAX: 24,      // ...up to this much
   HIT_COVER: 25,          // − this % if the target is in cover:
+  HIT_COVER_LOW: 15,      // R17 (Jamie, parked #62): − this % instead when only ground clutter (scrap / rubble) covers it ("low cover"); walls and set pieces stay HIT_COVER
   COVER_GRAZE: 0.3,       // ...the shot line passes closer than this (tiles) to a wall tile (last 0.5 tile ignored). R12 run: 0.5 → 0.3
+  COVER_ADJ: 0.75,        // R16 (Jamie): tiles; a shooter this close to the same piece of cover as its target ignores that cover (lean out and shoot)...
+  COVER_ITEM_RADIUS: 3,   // ...a 'piece' = the grazed wall / clutter tile and everything joined to it within this many tiles
   COVER_RANGE: 1.0,       // ...that is within this many tiles of the target. R12 run: 1.5 → 1.0 (walls beside a turret counted)
   // Hit locations. Parts per unit kind; a hit picks one by PART_WEIGHTS (renormalised over the unit's parts).
   // Each unit's hit pool (base hits + armour plates × ARMOUR_HITS) is split across its parts by PART_SHARE
@@ -314,16 +386,191 @@ export const TUNE = {
   // CORE gone = unit destroyed. SENSORS gone = no radar / ECM / ghost, eyes × PART_SENSORS_EYES_MULT (passive still works).
   // WEAPON gone = the gun can't FIRE ("WPN"; mortar unaffected). LEGS gone = CREEP only ("LEGS").
   PARTS: {
-    MECH:        ['SENSORS', 'WEAPON', 'LEGS', 'CORE'],
-    PATROL:      ['SENSORS', 'WEAPON', 'LEGS', 'CORE'],
-    TURRET:      ['SENSORS', 'WEAPON', 'CORE'],     // static: no legs
-    EMPLACEMENT: ['SENSORS', 'WEAPON', 'CORE'],     // static: no legs
+    // R18 (A4): each part is a location of the fit (SENSORS = MAST, WEAPON = ARMS, CORE, LEGS, BACK). BACK is new: only a shot
+    // from behind can hit it (REAR_ARC), and it takes the BACK's modules offline when it goes
+    MECH:        ['SENSORS', 'WEAPON', 'LEGS', 'CORE', 'BACK'],
+    PATROL:      ['SENSORS', 'WEAPON', 'LEGS', 'CORE', 'BACK'],
+    TURRET:      ['SENSORS', 'WEAPON', 'CORE', 'BACK'],     // static: no legs
+    EMPLACEMENT: ['SENSORS', 'WEAPON', 'CORE', 'BACK'],     // static: no legs
+    ALLY:        ['CORE'],                          // R15 Escort: the transport is one hit pool
   },
-  PART_WEIGHTS: { CORE: 40, LEGS: 25, WEAPON: 20, SENSORS: 15 }, // chance a hit lands on each part
-  PART_SHARE:   { CORE: 0.5, LEGS: 0.2, WEAPON: 0.15, SENSORS: 0.15 }, // how the hit pool is split (mech, 6 hits → CORE 3, LEGS 1, WEAPON 1, SENSORS 1)
+  PART_WEIGHTS: { CORE: 40, LEGS: 25, WEAPON: 20, SENSORS: 15, BACK: 0 }, // chance a hit lands on each part. R18: BACK only from behind (it takes WEAPON's weight then)
+  PART_SHARE:   { CORE: 0.5, LEGS: 0.2, WEAPON: 0.15, SENSORS: 0.15, BACK: 0 }, // R18: BACK takes no share; it gets its 1 hit on top of the pool (every part has at least 1)
+   // how the hit pool is split (mech, 6 hits → CORE 3, LEGS 1, WEAPON 1, SENSORS 1)
   PART_SENSORS_EYES_MULT: 0.5, // eyes range × this once SENSORS are gone
+  // --- Round 18: fit for the job (suit building). Rows in src/sim/items.ts, rules in src/sim/fit.ts + kit.ts ---
+  REAR_ARC: true,          // A5: a gun shot from outside the target's front arc rolls BACK in place of WEAPON (ARMS). Both sides
+  FRONT_ARC_HALF: 90,      // degrees either side of the target's facing that count as its front (90 = the front half)
+  OVERLOAD_SND_PER_PT: 1,  // A7: + this Sound (tiles) on every move per load point over the frame's rated load (toy placeholder)
+  OVERLOAD_EN_PER_TILE: 0.5, // R18 debrief 1 (Jamie: weight "should carry not only sound, but also … more energy cost to move, even creep"): + this Energy per tile moved, per load point over rated, every mode (was 0)
+  OVERLOAD_AP_FRAC: 0.5,   // A7: past this fraction of the way from rated to max load, every move costs +1 AP (toy placeholder)
+  SIG_EM_PER_PT: 0.5,      // A8: standing EM signature per point of the fit's always-on EM emit + EM visibility (Warden 3 → 1.5 = the R17 default)
+  HANGAR_FRAMES: ['wisp', 'warden', 'bulwark'], // A10: the cheap-test set, the only things the in-game hangar offers (build-toy.html keeps them all)
+  HANGAR_ITEMS: ['coldburn', 'hotcore', 'lamp', 'emarray', 'mask', 'ghost', 'autocannon', 'mortar', 'battery', 'm_cold', 'thermal', 'rwr'], // thermal optics only with THERMAL_ENABLED. R19 cp3: + the RWR
+  HANGAR_PLATES: ['p_steel'],
+  // --- R18 checkpoint 3: THERMAL (IR). Heat = a steady part (reactor IR emit + frame size) + heat that builds and cools ---
+  THERMAL_ENABLED: true,   // B1/B2 master switch: false = no heat is read by anyone and thermal optics leaves the hangar (checkpoint 2 on its own)
+  IR_FIRE: 3,              // heat added per gun shot or mortar lob (both sides)
+  IR_SPRINT: 2,            // heat added per sprint move
+  IR_COOL_PER_TURN: 2,     // heat lost at the start of each of the unit's own turns (heat persists, unlike Sound)
+  IR_TILES_PER_PT: 2.5,    // a thermal sight sees a target in line of sight (and its facing cone, like eyes) out to this × the target's IR...
+  IR_RANGE: 20,            // ...but never further than this (tiles)
+  IR_UNC: 1.0,             // tiles; uncertainty of a thermal fix (a heat blob: good enough to shoot at, but it doesn't show the variant)
+  IR_SIZE_PER_VIS: 1,      // a suit's steady IR from its size: × the frame's VIS visibility (Wisp 1, Warden 3, Bulwark 5)
+  // --- Round 19: listen before you land. The ship's pre-drop scan (src/sim/scan.ts): one listen dial, 0 SKIP / 1 SHORT /
+  // 2 MEDIUM / 3 LONG. Each step reveals everything below it plus: SHORT the field roster (types, variants, counts) and zone
+  // outlines; MEDIUM zone types and a choice of drop zones; LONG contact blips (emitters only: a silent unit gives the ship nothing) ---
+  SCAN_ENABLED: true,      // false = the R18 flow (no scan screen, one spawn, zones always drawn, the hangar before the contract)
+  SCAN_BLIP_UNC: 3,        // tiles; a LONG blip's fuzz (its circle; the centre is off the true spot by up to 0.7 × this)
+  SCAN_BLIP_KEEP: 30,      // seconds of sim time a blip lingers in the hunt as a stale contact, on top of CONTACT_LINGER
+  SCAN_DRIFT: 4,           // tiles; between the scan and the drop each patrol walks to a random reachable tile this close (blips go stale)
+  SCAN_STILL_ACTS: 4,      // a LONG listen watches each emitter this many of its rounds (a static reads "still"; outlasts a 3-round pulse)
+  DROP_ZONES: 3,           // drop zones offered at MEDIUM+ (west edge = the default spawn, then north and south edges; at most 3)
+  // R19 checkpoint 2: the cost ladder. The longer the ship listens, the more it emits. Per listen step [SKIP, SHORT, MEDIUM, LONG];
+  // rolled at the drop (seeded), never shown before you land. Starting guesses, tuned in the debrief.
+  SCAN_ALERT_SHARE: [0, 0, 0.25, 0.5], // share of the field (rounded) that starts ALERT: a shared fix on your drop zone (the pack's
+                           // alarm / converge logic on for this hunt, whatever PACK_ENABLED says); alert statics face the drop (dug in)
+  SCAN_ALERT_UNC: 5,       // tiles; how fuzzy an alert unit's fix on your drop zone is (never a lock)
+  SCAN_EXTRA_CHANCE: [0, 0.25, 0.35, 0.5], // each step up to the listen level rolls this chance of one extra starting unit (variant
+                           // from all 10, placed like the field: far from your drop). LONG = up to 3 extra
+  SCAN_PAINT_CHANCE: 0.5,  // at LONG, the chance the field reads where you'll land (the ship is painted)...
+  SCAN_AMBUSH: 2,          // ...and then this many patrols wait toward your drop zone, alert...
+  SCAN_AMBUSH_DIST: [6, 10], // ...this many tiles from where you land (min, max: outside the apron)
+  DROP_X: { N: 0.35, S: 0.55 },
+  // --- Round 20: eyes from the ship. The live scan (src/sim/livescan.ts): a clock you START / STOP, one sensor at a time,
+  // an aim mark you drag; every unit, zone and drop zone gathers dwell per sensor and its bands reveal that sensor's layer.
+  SCAN_MODE: 'active',     // 'active' = the R20 live scan; 'dial' = the R19 listen dial (SKIP / SHORT / MEDIUM / LONG)
+  SCAN_TIME_RATE: 1,       // ship-minutes per real second while the scan runs
+  // (R20 fix list 3, Jamie: "the clock time, should be infinite": no cap; time costs risk instead, see SCAN_LOUD)
+  SCAN_TICK: 0.25,         // ship-minutes per sim step (the view sends commands; the sim steps; a seed + commands replay exactly)
+  SCAN_SPEED: { RADAR: 3, THERMAL: 1.5, EM: 0.75 }, // dwell per ship-minute at full aim strength (radar fast, thermal medium, EM slow)
+  SCAN_BANDS: { RADAR: [1, 3, 6], THERMAL: [1, 3, 6], EM: [1, 3, 6] }, // dwell needed for bands 1 / 2 / 3 of each sensor's layer
+  SCAN_AIM_CORE: 4,        // tiles; full strength inside this radius of the aim mark...
+  SCAN_AIM_EDGE: 10,       // ...fading linearly to zero at this radius
+  SCAN_WIDE_STRENGTH: 0.25, // FULL MAP: that sensor covers the whole map at this flat strength (no ring)
+  SCAN_DRIFT_PER_MIN: 0.5, // tiles a patrol walks per ship-minute while the ship scans (replaces SCAN_DRIFT in 'active')
+  SCAN_DRIFT_LEASH: 8,     // tiles; a patrol's scan-time walk stays this close to where it started
+  SCAN_DROP_DELAY: 2,      // ship-minutes between STOP and landing: patrols keep walking (even a last-second look is a little stale)
+  SCAN_PING_UNC: [3, 2, 1], // tiles; a RADAR ping's fuzz at bands 1 / 2 / 3
+  SCAN_HEAT_UNC: [3, 2, 1.5], // tiles; a THERMAL heat blob's fuzz at bands 1 / 2 / 3
+  SCAN_HOT_IR: 4,          // THERMAL sees a unit whose IR is at least this (patrol 5, emplacement 7; turrets 3 stay cold)
+  SCAN_IR_LARGE: 6,        // a heat blob at THERMAL band 2+ reads LARGE at this IR or more, else MEDIUM
+  SCAN_BLIP_FLOOR: 1,      // tiles; an EM blip's fuzz shrinks from SCAN_BLIP_UNC (band 2) to this (band 3)
+  // R20 fix list 5 (Jamie: "a ship height function … do a high mid low alts"): the ship's altitude changes every sensor.
+  // RING scales both ring radii, SPEED multiplies dwell per sensor (full map too), UNC multiplies the fuzz of new fixes,
+  // LOUD multiplies risk. HIGH sees wide but weak and fuzzy, and quietly; LOW sees a small spot hard and sharp, loudly
+  // (thermal reads best low). MID = r20-s2.
+  SCAN_ALT: {
+    HIGH: { RING: 1.6, SPEED: { RADAR: 0.7, THERMAL: 0.4, EM: 0.8 }, UNC: 1.5, LOUD: 0.6 },
+    MID:  { RING: 1,   SPEED: { RADAR: 1,   THERMAL: 1,   EM: 1 },   UNC: 1,   LOUD: 1 },
+    LOW:  { RING: 0.6, SPEED: { RADAR: 1.4, THERMAL: 1.8, EM: 1.2 }, UNC: 0.7, LOUD: 1.6 },
+  } as Record<string, { RING: number; SPEED: Record<string, number>; UNC: number; LOUD: number }>,
+  SCAN_COSTS: true,        // R20 cp2: the risk meter's costs (false = scanning is free, as r20-s1)
+  // R20 fix list 3 (with checkpoint 2): one risk meter. While the clock runs, every sensor that is on adds its loudness; with no
+  // sensor on the meter cools. Crossing a step (upwards, the first time) may call in a unit; the step you DROP at sets the alert
+  // share and the painted chance. Time also lets the field change: patrols walk, and now and then a unit arrives.
+  SCAN_LOUD: { RADAR: 1, THERMAL: 0.2, EM: 0.05 }, // risk per ship-minute while that sensor is on (radar loud, thermal low, EM near zero)
+  SCAN_COOL: 0.5,          // risk lost per ship-minute while the clock runs with every sensor off (waiting)
+  SCAN_RISK_STEPS: [3, 6, 10], // risk at which steps 1, 2, 3 start...
+  SCAN_RISK_MORE: 5,       // ...and past the last one, another step every this much risk (no ceiling: the threats keep coming)
+  SCAN_RISK_EXTRA: [0, 0.35, 0.5, 0.5], // chance a unit is called in when the meter first reaches step k (the last value past the list)
+  SCAN_RISK_ALERT: [0, 0.25, 0.5, 0.75], // share of the field awake at the drop, by the step you drop at (the dial's SCAN_ALERT_SHARE)
+  SCAN_RISK_PAINT: [0, 0, 0.25, 0.5], // chance the ship is painted at the drop, by step (then SCAN_AMBUSH patrols wait near the drop zone)
+  SCAN_ARRIVE_PER_MIN: 0.02, // chance per ship-minute on station that a new patrol arrives anyway (waiting isn't free)
+  // R20 fix list 4 (Jamie: "some missions may have a time restraint"): some jobs give the ship a window; at the deadline the
+  // scan ends and you drop. Scan screen only for now (the in-hunt mission clock is parked #85).
+  SCAN_DEADLINE_CHANCE: 0.5, // share of jobs with a window (seeded per job)
+  SCAN_DEADLINE_MIN: [8, 16], // ship-minutes of window (min, max)
+  // R19 checkpoint 3: the RWR (src/sim/rwr.ts). A catalogue row ('rwr', S hardpoint, wt 1, draw 0), now in the hangar.
+  RWR_ENABLED: true,       // false = no warnings (the row still fits but does nothing)
+  RWR_BASELINE: true,      // R19 fix list 1 (Jamie: "All mechs have a baseline RWR, that shows only they been hit with radar"): every suit knows it was painted
+                           // (which round; no bearing, band, type or ID). The 'rwr' module adds the full readout
+  RWR_BEARING_ERR: 10,     // degrees, max random error on a warning's bearing (passive ESM is BEARING_ERR 3)
+  RWR_BANDS: { CLOSE: [3, 6], MEDIUM: [9, 15], FAR: [15, 25] }, // tiles each range ring stands for; the band is a guess from strength
+  RWR_REF_SIG: 16,         // the radar the RWR assumes it hears (≈ an emplacement mid-pulse): a louder one reads closer, walls read further
+  RWR_LIFE: 3,             // rounds a warning lasts (fading) unless the same radar paints you again // where along the edge each extra apron is wanted (fraction of the width); the most open spot near it wins
   PART_MIN: { LEGS: 2 },       // R13 test 2 (Jamie): at least this many hits on a part (added on top of the pool): two legs
   LEGS_GONE_MULT: 0.5,         // R13 test 2: one leg gone = CREEP only; both gone = CREEP at this × distance per AP and speed
+  // --- Round 21: the company (see sim/company.ts). Placeholder numbers to show the shape, not balanced ---
+  COMPANY_MODE: true,          // R21: contracts run inside one saved company (operators, roster, books, ship). false = the R11 contract flow (runner default, old scenarios)
+  START_SUITS: 3,               // R21 cp2: suits a new company starts with (each its own fit; a 4th has to be bought, cp3, and needs a bay, cp4)
+  START_OPS: 4,                // R21 cp1: operators a new company starts with
+  OP_CAP: 4,                   // R21 cp1: most operators on the roster (cp4: OPERATOR BERTHS +2)
+  OP_SKILLS: ['AIM', 'QUIET', 'EARS', 'TECH'], // R21 cp1: one skill per operator, rolled from this list
+  OP_SKILL_NAMES: { AIM: 'STEADY AIM', QUIET: 'QUIET MOVER', EARS: 'SHARP EARS', TECH: 'SENSOR TECH' },
+  SKILL_AIM: [10, 15, 20],     // R21: STEADY AIM, + to-hit per level (1, 2, 3)
+  SKILL_QUIET: [0.7, 0.6, 0.5], // R21: QUIET MOVER, × the suit's move sound (creep, walk, sprint; not shots) per level
+  SKILL_EARS: [1.3, 1.45, 1.6], // R21: SHARP EARS, × how far this suit hears sounds per level
+  SKILL_TECH: [1.5, 2, 2.5],   // R21: SENSOR TECH, × how fast watched rounds count toward an ID trait ("still", "no pulse") per level, while it's on the map
+  OP_XP_HUNT: 1,               // R21: XP for each hunt an operator comes back from without going CRITICAL
+  OP_XP_WIN: 1,                // R21: + this when that hunt was a win
+  OP_LEVELS: [3, 7],           // R21: XP for level 2, then level 3 (the skill steps up; level 2+ = veteran)
+  OP_BENCH: 2,                 // R21: contracts an operator sits out after being carried out CRITICAL
+  OP_CARRY_RANGE: 1.5,         // R21: tiles; a lancemate that ends its turn this close to a CRITICAL suit carries its operator (adjacent, diagonals included)
+  OP_MEMORIAL: 8,              // R21: KIA names kept on the memorial list
+  RECRUITS_OFFERED: 2,         // R21: recruits on offer between contracts (level 1, random skill)
+  COST_HIRE: 60,               // R21: credits to hire a recruit (cp1-2: free; cp3: the books)
+  // --- R21 cp3: the books (credits, fuel, contracts on offer, wages, parts, the market). Placeholder numbers ---
+  START_CREDITS: 300,          // R21 cp3: a new company's credits
+  START_FUEL: 6,               // R21 cp3: a new company's fuel (jumps' worth)
+  FUEL_MAX: 10,                // R21 cp3: fuel the ship holds (cp4 FUEL TANKS + MOD_FUEL)
+  START_PARTS: 6,              // R21 cp3: parts in the hold at the start
+  CONTRACTS_OFFERED: 3,        // R21 cp3: contracts on offer between contracts
+  CONTRACT_HUNTS_RANGE: [2, 4], // R21 cp3: a contract's length in hunts (inclusive)
+  FUEL_PER_JUMP: [1, 4],       // R21 cp3: fuel to reach an offered contract (inclusive range)
+  DANGER_NAMES: ['LOW', 'MEDIUM', 'HIGH'], // R21 cp3: an offer's danger, in words
+  DANGER_FIELD: [0.75, 1, 1.35], // R21 cp3: × the field's unit counts per danger (rounded, at least 1 of each type it fields)
+  CONTRACT_FEE: [60, 100, 160], // R21 cp3: fee per hunt of the contract, paid on CONTRACT COMPLETE, per danger
+  CONTRACT_WIN_SHARE: 0.6,     // R21 cp3: hunt wins needed = ceil(hunts × this) (2 of 2, 2 of 3, 3 of 4)
+  WAGE_OP: 30,                 // R21 cp3: credits per operator on the roster (benched too), paid when a contract ends
+  WAGE_LEVEL_MULT: 0.5,        // R21 cp3: wage × (1 + this × (level − 1)): veterans cost more
+  UPKEEP_SHIP: 60,             // R21 cp3: ship upkeep, paid when a contract ends
+  DEBT_LIMIT: 300,             // R21 cp3: how far below 0 the company may go once; deeper, or still in debt a contract later = it folds
+  PARTS_PER_REPAIR: 2,         // R21 cp3: parts per hit repaired (company mode; cp4 REPAIR BAY −MOD_REPAIR_PARTS)
+  REPAIR_CR: 10,               // R21 cp3: credits per hit repaired, on top of the parts
+  REBUILD_PARTS: 8,            // R21 cp3: parts to rebuild a destroyed suit (REPAIR BAY halves it)
+  REBUILD_CR: 100,             // R21 cp3: credits to rebuild a destroyed suit
+  HOLD_CAP: 16,                // R21 cp3: parts the hold carries (salvage and bought); cp4 SALVAGE HOLD + MOD_HOLD
+  SALVAGE_PER_KILL: 2,         // R21 cp3: parts salvaged per field unit destroyed (into the hold, up to HOLD_CAP)
+  PART_PRICE: 15,              // R21 cp3: market price per part
+  PART_SELL: 8,                // R21 cp3: what the market pays per spare part (salvage)
+  FUEL_PRICE: 30,              // R21 cp3: market price per fuel
+  MARKET_STOCK: 6,             // R21 cp3: market lines (parts, fuel, then hangar items, and now and then an ExoS)
+  MARKET_PARTS_QTY: 12,        // R21 cp3: parts on sale per market
+  MARKET_FUEL_QTY: 8,          // R21 cp3: fuel on sale per market
+  MARKET_SUIT_CHANCE: 0.35,    // R21 cp3: chance an ExoS (standard kit) is for sale
+  COST_SUIT: 450,              // R21 cp3: an ExoS on the market (it comes with the standard kit; needs a free suit bay)
+  // --- R21 cp4: the ship. One Courier-style hull ---
+  SHIP_HARDPOINTS: 7,          // R21 cp4: module hardpoints (one module each)
+  SHIP_BAYS_BUILT_IN: 2,       // R21 cp4: suits the hull carries with no SUIT BAY (each SUIT BAY carries one more)
+  SHIP_START_MODS: ['SUIT_BAY'], // R21 cp4: fitted at the start, so the 3 starting suits fit
+  MOD_SCAN_SPEED: 1.4,         // R21 cp4: RADAR ARRAY / THERMAL POD / EM SUITE: that sensor's SCAN_SPEED ×
+  MOD_SCAN_LOUD: 0.6,          // R21 cp4: ...and its SCAN_LOUD ×
+  MOD_QUIET_DROP: 0.5,         // R21 cp4: QUIET DROP RIG: the alert share at the drop ×
+  MOD_REPAIR_PARTS: 1,         // R21 cp4: REPAIR BAY: parts per repair − this (and rebuilds take half the parts)
+  MOD_BENCH: 1,                // R21 cp4: MEDBAY: bench − this (never below 1)
+  MEDBAY_SAVE: 0.35,           // R21 cp4: MEDBAY: chance a CRITICAL operator left behind is pulled out by the ship anyway
+  MOD_HOLD: 12,                // R21 cp4: SALVAGE HOLD: HOLD_CAP + this
+  MOD_FUEL: 6,                 // R21 cp4: FUEL TANKS: FUEL_MAX + this
+  MOD_ENGINES: 0.75,           // R21 cp4: EFFICIENT ENGINES: fuel per jump × (rounded up)
+  MOD_BERTHS: 2,               // R21 cp4: OPERATOR BERTHS: OP_CAP + this
+  SHIP_HIT_CHANCE: 0.5,        // R21 cp4: a painted ship takes a hull hit on this chance (HULL ARMOUR soaks one per contract)
+  SHIP_HIT_COST: 80,           // R21 cp4: credits per hull hit, paid when the contract ends
+  SHIP_MODULES: {              // R21 cp4: the ship shop (fixed list). Each is one hook into an existing rule. many = can fit more than one
+    RADAR_ARRAY:  { name: 'RADAR ARRAY', section: 'Before the drop', price: 180, does: 'Scan: RADAR builds ×1.4 faster and is ×0.6 as loud' },
+    THERMAL_POD:  { name: 'THERMAL POD', section: 'Before the drop', price: 160, does: 'Scan: THERMAL builds ×1.4 faster and is ×0.6 as loud' },
+    EM_SUITE:     { name: 'EM SUITE', section: 'Before the drop', price: 160, does: 'Scan: EM LISTEN builds ×1.4 faster and is ×0.6 as loud' },
+    QUIET_DROP:   { name: 'QUIET DROP RIG', section: 'Drop', price: 200, does: 'Half as much of the field wakes at the drop' },
+    SUIT_BAY:     { name: 'SUIT BAY', section: 'Drop', price: 150, does: 'Carries one more ExoS (the hull carries 2)', many: true },
+    REPAIR_BAY:   { name: 'REPAIR BAY', section: 'After the mission', price: 220, does: 'One part fewer per repair; rebuilds take half the parts' },
+    MEDBAY:       { name: 'MEDBAY', section: 'After the mission', price: 200, does: 'Bench 1 contract shorter; a CRITICAL operator left behind has a 35% chance to be pulled out' },
+    SALVAGE_HOLD: { name: 'SALVAGE HOLD', section: 'After the mission', price: 120, does: 'The hold carries 12 more parts' },
+    ARMOURY:      { name: 'ARMOURY', section: 'After the mission', price: 140, does: 'Reloads (+10 rounds, +1 shell) cost 1 part instead of credits' },
+    FUEL_TANKS:   { name: 'FUEL TANKS', section: 'Between missions', price: 120, does: 'Holds 6 more fuel' },
+    ENGINES:      { name: 'EFFICIENT ENGINES', section: 'Between missions', price: 200, does: 'Fuel per jump ×0.75 (rounded up)' },
+    HULL_ARMOUR:  { name: 'HULL ARMOUR', section: 'Between missions', price: 150, does: 'Soaks one hull hit per contract when the ship is painted' },
+    BERTHS:       { name: 'OPERATOR BERTHS', section: 'Crew', price: 130, does: 'Room for 2 more operators' },
+  },
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

@@ -1,6 +1,9 @@
 // Rules that held before Round 13 and should keep holding. If one of these breaks, a change leaked.
 import { describe, it, expect } from 'vitest';
 import { TUNE } from '../src/tune.ts';
+import { has, gunOf, radarOf, mortarOf } from '../src/sim/kit.ts';
+import { ITEMS, byId } from '../src/sim/items.ts';
+import { fireRange } from '../src/sim/turns.ts';
 import { G } from '../src/sim/state.ts';
 import { rand, setSeed } from '../src/sim/rng.ts';
 import { planMove, shootBlock, beginUnit } from '../src/sim/turns.ts';
@@ -27,7 +30,7 @@ describe('turns: AP and Energy', () => {
     startHunt(1); const m = G.lance[0];
     m.ap = 0; m.en = 0; beginUnit(m);
     expect(m.ap).toBe(TUNE.AP_PER_TURN);
-    expect(m.en).toBe(TUNE.ENERGY_REGEN);
+    expect(m.en).toBe(m.regen); // R18: reactor output − idle draw
     m.ap = TUNE.AP_BANK_MAX; beginUnit(m);
     expect(m.ap).toBe(TUNE.AP_BANK_MAX);
   });
@@ -68,12 +71,12 @@ describe('moves', () => {
 describe('shots', () => {
   it('the lock rule gives a one-word reason', () => {
     startHunt(1); const m = G.lance[0], e = G.units[0];
-    expect(shootBlock(m, null, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE)).toBe('NONE');
+    expect(shootBlock(m, null, TUNE.PLAYER_FIRE_UNC, fireRange(m))).toBe('NONE');
     m.ap = 4; m.turnShots = 0;
     const c = observe(G.pc, e.id, m.x + 3 * T, m.y, 5 * T, 0, 0, true, true);
-    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE)).toBe('FUZZY');
+    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, fireRange(m))).toBe('FUZZY');
     damagePart(m, 'WEAPON', m.parts.WEAPON);
-    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, TUNE.PLAYER_FIRE_RANGE)).toBe('WPN');
+    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, fireRange(m))).toBe('WPN');
   });
   it('hit chance stays inside HIT_MIN..HIT_MAX', () => {
     startHunt(1); const m = G.lance[0], e = G.units[0];
@@ -91,6 +94,16 @@ describe('contract length (quick test)', () => {
     expect(G.ct.hunts).toBe(1); expect(G.ct.need).toBe(1);
     takeJob(0); G.outcome = 'WIN UPLINK'; recordHunt();
     expect(G.ct.status).toBe('COMPLETE');
+  });
+  it('R16 debug: REROLL JOBS rolls new jobs for the same hunt and counts the rerolls (reset by the next hunt)', async () => {
+    const { newContract, rerollJobs, rollJobs } = await import('../src/sim/contract.ts');
+    newContract(5, [LOAD_A, LOAD]);
+    const seen = new Set<string>(), first = JSON.stringify(G.ct.jobs);
+    for (let k = 0; k < 12; k++) { rerollJobs(); seen.add(G.ct.jobs.map(j => j.mission).join()); }
+    expect(G.ct.hunt).toBe(1); expect(G.ct.rerolls).toBe(12);
+    expect(JSON.stringify(G.ct.jobs)).not.toBe(first);
+    expect(seen.size).toBeGreaterThan(1); // the mission types change
+    rollJobs(); expect(G.ct.hunt).toBe(2); expect(G.ct.rerolls).toBe(0);
   });
   it('the default is still CONTRACT_HUNTS, needing CONTRACT_WINS_NEEDED', async () => {
     const { newContract } = await import('../src/sim/contract.ts');

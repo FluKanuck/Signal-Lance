@@ -12,22 +12,29 @@ const tile = (u) => [Math.floor(u.x / T), Math.floor(u.y / T)];
 const dist = (a, b) => Math.hypot(a.x - b.x, a.y - b.y) / T;
 
 describe('every scenario', () => {
-  for (const s of SCENARIOS) it(`${s.name}: loads its placements, on reachable tiles, outside any contract`, () => {
+  for (const s of SCENARIOS.filter(s => s.job)) it(`${s.name}: a rolled job through the forced scan, outside any contract`, () => { // R19
+    startScenario(s);
+    expect(G.tb).toBe(s); expect(G.ct).toBeNull();
+    expect(G.scan.lvl).toBe(s.job.listen);
+    expect(G.units.length).toBeGreaterThan(0);
+    for (const m of G.lance) expect(canReach(Math.floor(m.x / T), Math.floor(m.y / T))).toBe(true);
+  });
+  for (const s of SCENARIOS.filter(s => !s.job && !s.books)) it(`${s.name}: loads its placements, on reachable tiles, outside any contract`, () => {
     startScenario(s);
     expect(G.tb).toBe(s);
     expect(G.ct).toBeNull();
-    expect(G.lance.map(tile)).toEqual(s.lance.map(l => l.tile));
+    expect(G.lance.filter((m, i) => !s.lance[i].lost).map(tile)).toEqual(s.lance.filter(l => !l.lost).map(l => l.tile)); // R16: a lost mech is off the map
     expect(G.units.map(tile)).toEqual(s.field.map(f => f.tile));
     expect(G.units.map(u => u.type)).toEqual(s.field.map(f => f.type));
     for (const t of [...s.lance.map(l => l.tile), ...s.field.map(f => f.tile), s.uplink]) expect(canReach(t[0], t[1])).toBe(true);
     expect(s.tryThis.length).toBeGreaterThan(10);
   });
-  for (const s of SCENARIOS) it(`${s.name}: plays to an end with the scripted player (no stall)`, () => {
+  for (const s of SCENARIOS.filter(s => !s.books)) it(`${s.name}: plays to an end with the scripted player (no stall)`, () => {
     startScenario(s); playOut(80);
     expect(G.mode).toBe('result');
   });
   it('the same seed plays the same hunt (RETRY)', () => {
-    const s = SCENARIOS[0], run = () => { startScenario(s); playOut(80); const r = G.outcome + G.turn + G.kills; leaveScenario(); return r; };
+    const s = SCENARIOS.find(x => !x.books), run = () => { startScenario(s); playOut(80); const r = G.outcome + G.turn + G.kills; leaveScenario(); return r; };
     expect(run()).toBe(run());
   });
   it('scenario TUNE overrides are restored on leaving', () => {

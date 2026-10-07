@@ -1,19 +1,22 @@
 // Round 15 step 1: mission types and BOUNTY. Each test reads like a line from the brief.
 import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
-import { G, rollEnemy, newHunt } from '../src/sim/state.ts';
-import { T, W, anchors } from '../src/sim/world.ts';
+import { has, gunOf, radarOf, mortarOf } from '../src/sim/kit.ts';
+import { ITEMS, byId } from '../src/sim/items.ts';
+import { fireRange } from '../src/sim/turns.ts';
+import { G, rollEnemy, newHunt, fieldCount } from '../src/sim/state.ts';
+import { T, W, anchors, canReach as canReachTile } from '../src/sim/world.ts';
 import { newContract, takeJob } from '../src/sim/contract.ts';
-import { updateShells, uplinkBlock } from '../src/sim/turns.ts';
+import { updateShells, uplinkBlock, step } from '../src/sim/turns.ts';
 import { damagePart } from '../src/sim/combat.ts';
-import { onExtract, onClear, bountyOf, quotaMet } from '../src/sim/mission.ts';
+import { onAllOut, onClear, bountyOf, quotaMet } from '../src/sim/mission.ts';
 import { scenarioByName, startScenario, leaveScenario } from '../src/sim/scenarios.ts';
 import { LOAD, LOAD_A } from './helpers.ts';
 
 afterEach(() => leaveScenario());
 const hunt = (mission: string, seed = 7, comp = 'Mixed') => { rollEnemy(seed, comp, mission); newHunt([{ ...LOAD_A }, { ...LOAD }]); };
 const kill = (u) => { damagePart(u, 'CORE', 99); updateShells(0); };
-const compTotal = (name: string) => { const C = TUNE.FIELD_COMPOSITIONS.find(c => c.NAME === name); return Object.keys(TUNE.FIELD_TYPES).reduce((a, k) => a + (C[k] || 0), 0); };
+const compTotal = (name: string) => { const C = TUNE.FIELD_COMPOSITIONS.find(c => c.NAME === name); return Object.keys(TUNE.FIELD_TYPES).reduce((a, k) => a + fieldCount(C, k), 0); }; // R16: scaled by map area
 // a contract whose first job is forced to this type, taken
 function contractHunt(mission: string, seed = 11) {
   newContract(seed, [{ ...LOAD_A }, { ...LOAD }]);
@@ -76,7 +79,7 @@ describe('BOUNTY', () => {
     contractHunt('BOUNTY');
     G.mission.earned = TUNE.BOUNTY_QUOTA + 35; G.kills = 3;
     expect(quotaMet()).toBe(true);
-    onExtract();
+    onAllOut();
     expect(G.outcome).toBe('WIN BOUNTY');
     const r = G.ct.results[0];
     expect(r.pay).toBe(TUNE.BOUNTY_QUOTA + 35); expect(r.mission).toBe('BOUNTY'); expect(G.ct.wins).toBe(1);
@@ -84,7 +87,7 @@ describe('BOUNTY', () => {
   it('extract under quota = not a win and not a loss: the contract goes on, bounties kept', () => {
     contractHunt('BOUNTY');
     G.mission.earned = TUNE.BOUNTY_QUOTA - 10;
-    onExtract();
+    onAllOut();
     expect(G.outcome).toBe('BAIL');
     expect(G.ct.results[0].pay).toBe(TUNE.BOUNTY_QUOTA - 10);
     expect(G.ct.wins).toBe(0); expect(G.ct.status).toBe('ACTIVE');
@@ -97,7 +100,7 @@ describe('BOUNTY', () => {
   it('uplink pay is unchanged: PAY_WIN + kills × PAY_KILL, and a BAIL pays nothing', () => {
     contractHunt('UPLINK'); G.kills = 2; onClear();
     expect(G.outcome).toBe('WIN CLEAR'); expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + 2 * TUNE.PAY_KILL);
-    contractHunt('UPLINK'); G.kills = 2; onExtract();
+    contractHunt('UPLINK'); G.kills = 2; onAllOut();
     expect(G.outcome).toBe('BAIL'); expect(G.ct.results[0].pay).toBe(0);
   });
 });
@@ -120,7 +123,7 @@ describe('R15 scenarios', () => {
     expect(W - TUNE.EXTRACT_COLS - A.x / T).toBeLessThan(6);
     expect(e.type).toBe('EMPLACEMENT'); expect(TUNE.BOUNTY[e.variant]).toBeGreaterThanOrEqual(50);
     const d = Math.hypot(e.x - A.x, e.y - A.y) / T;
-    expect(d).toBeGreaterThan(TUNE.MORTAR_MIN_RANGE); expect(d).toBeLessThan(TUNE.MORTAR_MAX_RANGE);
+    expect(d).toBeGreaterThan(mortarOf(A).min); expect(d).toBeLessThan(mortarOf(A).max);
   });
 });
 
@@ -195,13 +198,13 @@ describe('RETRIEVE', () => {
     expect(G.outcome).toBe('FAIL'); expect(G.ct.status).toBe('ACTIVE'); expect(G.ct.wins).toBe(0);
     expect(G.ct.results[0].pay).toBe(0);
   });
-  it('win: the carrier reaches extraction; pay PAY_WIN + kills. Another mech extracting first = BAIL', () => {
+  it('win: the carrier extracts with the cargo (then everyone is out); pay PAY_WIN + kills. Out without it = BAIL', () => {
     contractHunt('RETRIEVE');
     const [A, B] = G.lance; onCargo(A); doPickup(A); G.kills = 1;
-    onExtract(A);
+    G.mission.cargoOut = true; onAllOut(); // R16: the carrier extracted, then the rest of the lance
     expect(G.outcome).toBe('WIN RETRIEVE'); expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + TUNE.PAY_KILL);
     contractHunt('RETRIEVE');
-    onCargo(G.lance[0]); doPickup(G.lance[0]); onExtract(G.lance[1]);
+    onCargo(G.lance[0]); doPickup(G.lance[0]); onAllOut();
     expect(G.outcome).toBe('BAIL');
     expect(huntPay('BAIL')).toBe(0);
   });
@@ -219,5 +222,125 @@ describe('R15 step 2 scenarios', () => {
     startScenario(scenarioByName('Hot potato'));
     expect(pickupBlock(G.lance[0])).not.toBe('RANGE');
     expect(G.units.map(u => u.variant).sort()).toEqual(['gun', 'heavy', 'search']);
+  });
+});
+
+// ---- R15 step 3: ESCORT ----
+import { makeAlly, legsFrom, legChoices, pickLeg, allyHolding, legPath, nearLegTiles } from '../src/sim/escort.ts';
+import { friends } from '../src/sim/state.ts';
+import { observe } from '../src/sim/sensors.ts';
+import { cmdLeg, nextActivation } from '../src/sim/turns.ts';
+import { onAllyLost, onAllyOut, escortBonus } from '../src/sim/mission.ts';
+import { playOut } from '../src/sim/autoplay.ts';
+
+describe('R16: individual extraction (EXTRACT)', () => {
+  it('walking into extraction ends nothing; EXTRACT takes one mech off the map; the hunt ends once every living mech is out', async () => {
+    const T2 = await import('../src/sim/turns.ts');
+    for (const job of ['UPLINK', 'BOUNTY', 'RETRIEVE', 'ESCORT']) {
+      hunt(job); const [A, B] = G.lance;
+      expect(T2.extractBlock(A)).toBe('ZONE');
+      A.x = (W - 1.5) * T; expect(T2.extractBlock(A)).toBe('');
+      T2.leaveMap(A); expect(A.out).toBe(true); expect(T2.allOut()).toBe(false); expect(G.mode).toBe('hunt');
+      expect(friends()).not.toContain(A);
+      B.dead = true; expect(T2.allOut()).toBe(true); // the other is destroyed: everyone living is out
+    }
+  });
+  it('an extracted mech takes no turns and the field loses track of it', async () => {
+    const T2 = await import('../src/sim/turns.ts');
+    hunt('UPLINK'); const [A] = G.lance;
+    observe(G.units[0].ec, A.id, A.x, A.y, T, 0, 0, true, false, true, 'EYES');
+    T2.leaveMap(A);
+    expect(G.units[0].ec.some(c => c.on && c.id === A.id)).toBe(false);
+    T2.startRound(); expect(G.order).not.toContain(A);
+  });
+  it('Escort: everyone out with the transport out = WIN; the lance out without it = BAIL', () => {
+    contractHunt('ESCORT'); onAllyOut(); onAllOut(); expect(G.outcome).toBe('WIN ESCORT');
+    contractHunt('ESCORT'); onAllOut(); expect(G.outcome).toBe('BAIL'); expect(G.mission.result).toBe('left the transport');
+  });
+});
+
+describe('ESCORT', () => {
+  it('the route comes from the anchors table: every junction has 2 or 3 onward legs, every leg walks', () => {
+    const X = anchors();
+    for (const j of X.junctions) { expect(legsFrom(j).length).toBeGreaterThanOrEqual(2); expect(legsFrom(j).length).toBeLessThanOrEqual(3); } // R16: NORTH / AHEAD / SOUTH on block maps
+    X.legs.forEach((_, i) => { const P = legPath(i); expect(P.length).toBeGreaterThan(1); });
+    for (const k of Object.keys(X.waypoints)) { const n = X.waypoints[k]; expect(canReachTile(n.x, n.y)).toBe(true); }
+  });
+  it('an Escort hunt has the transport on the start node; other jobs have none', () => {
+    hunt('ESCORT'); expect(G.ally).not.toBeNull(); expect(G.ally.node).toBe('S'); expect(friends()).toContain(G.ally);
+    expect(G.ally.maxHits).toBe(TUNE.ESCORT_HITS);
+    hunt('UPLINK'); expect(G.ally).toBeNull();
+  });
+  it('the field is placed near the route legs', () => {
+    hunt('ESCORT', 9, 'Mixed');
+    const near = new Set(nearLegTiles().map(t => t.y * W + t.x));
+    for (const u of G.units) expect(near.has(Math.floor(u.y / T) * W + Math.floor(u.x / T))).toBe(true);
+  });
+  it('at a junction it holds until you pick a leg, then walks up to ESCORT_MOVE tiles a round along it', () => {
+    hunt('ESCORT');
+    G.ally = makeAlly('J1');
+    expect(allyHolding()).toBe(true);
+    expect(legChoices().length).toBeGreaterThanOrEqual(2);
+    const x0 = G.ally.x, y0 = G.ally.y, north = legChoices()[0];
+    expect(pickLeg(north.i)).toBe(true);
+    expect(allyHolding()).toBe(false); expect(G.mission.legs).toEqual([north.name + '@J1']);
+    // run its activation: put it next in the order
+    G.order = [G.ally]; G.oi = -1; G.act = null; nextActivation();
+    for (let n = 0; n < 2000 && G.act; n++) step(0.05);
+    const moved = G.ally.movedT; // tiles walked this activation (the leg turns a corner)
+    expect(Math.hypot(G.ally.x - x0, G.ally.y - y0)).toBeGreaterThan(0);
+    expect(moved).toBeGreaterThan(TUNE.ESCORT_MOVE * 0.6); expect(moved).toBeLessThanOrEqual(TUNE.ESCORT_MOVE + 0.01);
+  });
+  it('the field senses it and can target it like a lance mech', () => {
+    hunt('ESCORT', 9, 'Sweep');
+    const a = G.ally, p = G.units[0];
+    for (const c of p.ec) c.on = false;
+    observe(p.ec, a.id, a.x, a.y, T, 0, 0, true, false, true, 'EYES');
+    p.x = a.x + 3 * T; p.y = a.y; p.ap = 8;
+    G.up.x = a.x; G.up.y = a.y; // R16: keep the transport inside the patrol's leash (the fork can be anywhere on a packed map)
+    const act = enemyDecide(p);
+    expect(['FIRE', 'CHARGE', 'INVESTIGATE', 'HOLD', 'HUNT']).toContain(p.state);
+    if (p.state !== 'HOLD') expect(act).toBeTruthy(); // HOLD = it has the transport and waits out its patience (no action)
+  });
+  it('a field shell hits it; its death fails the hunt (not a contract LOSS)', () => {
+    contractHunt('ESCORT');
+    damagePart(G.ally, 'CORE', 99); updateShells(0);
+    expect(G.ally.dead).toBe(true);
+    onAllyLost();
+    expect(G.outcome).toBe('FAIL'); expect(G.ct.status).toBe('ACTIVE'); expect(G.ct.results[0].pay).toBe(0);
+  });
+  it('win: the transport walks out; pay PAY_WIN + ESCORT_BONUS × hits left + kills', () => {
+    contractHunt('ESCORT');
+    damagePart(G.ally, 'CORE', 2); G.kills = 1;
+    const bonus = Math.round(TUNE.ESCORT_BONUS * G.ally.hits / G.ally.maxHits);
+    expect(escortBonus()).toBe(bonus);
+    onAllyOut(); expect(G.mode).toBe('hunt'); // R16: out, but the hunt goes on until the lance extracts
+    onAllOut();
+    expect(G.outcome).toBe('WIN ESCORT');
+    expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + bonus + TUNE.PAY_KILL);
+  });
+  it('clearing the field does not end an Escort: the scripted lance still walks it out', () => {
+    startScenario(scenarioByName('Fork')); playOut(80);
+    expect(G.outcome).toBe('WIN ESCORT');
+  });
+});
+
+describe('R15 step 3 scenarios', () => {
+  it('Fork: the transport holds at the west fork; the gun turret sits on one route, the other is clean', () => {
+    startScenario(scenarioByName('Fork'));
+    expect(allyHolding()).toBe(true); expect(G.ally.node).toBe('J1');
+    const g = G.units[0]; expect(g.variant).toBe('gun');
+    const segD = (p, q) => { const dx = q.x - p.x, dy = q.y - p.y, k = Math.max(0, Math.min(1, ((g.x - p.x) * dx + (g.y - p.y) * dy) / (dx * dx + dy * dy || 1))); return Math.hypot(p.x + dx * k - g.x, p.y + dy * k - g.y); };
+    const on = (i: number) => { const P = legPath(i); return P.slice(1).some((q, k) => segD(P[k], q) <= 2 * T); };
+    const [a, b] = legChoices(); expect(on(a.i) !== on(b.i)).toBe(true);
+  });
+  it('Shadow: the transport holds at the centre fork, one patrol between the two routes', () => {
+    startScenario(scenarioByName('Shadow'));
+    expect(G.ally.node).toBe('J2'); expect(allyHolding()).toBe(true);
+    expect(G.units.length).toBe(1); expect(G.units[0].type).toBe('PATROL');
+  });
+  it('cmdLeg only works on your turn', () => {
+    startScenario(scenarioByName('Shadow'));
+    G.phase = 'ENEMY'; cmdLeg(legChoices()[0].i); expect(allyHolding()).toBe(true);
   });
 });

@@ -1,6 +1,9 @@
 // Round 14 part 1: read the signature. Variants, observed traits, the matcher, and what an ID does.
 import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
+import { has, gunOf, radarOf, mortarOf } from '../src/sim/kit.ts';
+import { ITEMS, byId } from '../src/sim/items.ts';
+import { fireRange } from '../src/sim/turns.ts';
 import { G, makeUnit, rollEnemy, newHunt } from '../src/sim/state.ts';
 import { T } from '../src/sim/world.ts';
 import { step, endPlayerTurn } from '../src/sim/turns.ts';
@@ -15,9 +18,9 @@ afterEach(() => { leaveScenario(); TUNE.VARIANTS_ENABLED = true; });
 const obs = (o: any) => ({ emit: [], pulses: [], moved: false, acts: 0, step: 0, shot: 0, fired: false, first: 1, ...o });
 
 describe('the variant set', () => {
-  it('9 variants, 3 per field type, each with traits, a tell and a fight line', () => {
-    expect(KEYS.length).toBe(9);
-    for (const t of Object.keys(TUNE.FIELD_TYPES)) expect(KEYS.filter(k => V[k].TYPE === t).length).toBe(3);
+  it('10 variants (R18: + the sniper turret), 3 per field type and 4 turrets, each with traits, a tell and a fight line', () => {
+    expect(KEYS.length).toBe(10);
+    for (const t of Object.keys(TUNE.FIELD_TYPES)) expect(KEYS.filter(k => V[k].TYPE === t).length).toBe(t === 'TURRET' ? 4 : 3);
     for (const k of KEYS) { expect(V[k].TRAITS.length).toBeGreaterThan(0); expect(V[k].TELL).toBeTruthy(); expect(V[k].FIGHT).toBeTruthy(); }
   });
   it('every variant shares its EMIT reading with another variant, so one reading never settles it', () => {
@@ -45,7 +48,7 @@ describe('the variant set', () => {
 });
 
 describe('the matcher (the CARD rules)', () => {
-  it('nothing observed = anything', () => expect(matchVariants(obs({})).length).toBe(9));
+  it('nothing observed = anything', () => expect(matchVariants(obs({})).length).toBe(KEYS.length));
   it('steady low EMIT that stays still = the gun turret', () => {
     expect(matchVariants(obs({ emit: ['low'], acts: 3 })).sort()).toEqual(['gun', 'relay']); // a relay pulses every 3rd: not yet ruled out
     expect(matchVariants(obs({ emit: ['low'], acts: 4 }))).toEqual(['gun']);
@@ -127,6 +130,6 @@ describe('R14 scenarios', () => {
     startScenario(scenarioByName('Twin pulse'));
     wait(7);
     for (const u of G.units) expect(matchVariants(obsOf(u.id))).toEqual([u.variant]);
-    expect(G.lance[0].load.mortar).toBe(1);
+    expect(has(G.lance[0], 'MORTAR')).toBe(true);
   });
 });
