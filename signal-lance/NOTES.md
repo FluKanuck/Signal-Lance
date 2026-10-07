@@ -1633,6 +1633,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            modules, SHIP_HIT_CHANCE 0.5 × 80 cr). Runner --company 10 --companies 6: all 6 fold (5 by every ExoS lost, 1
            stranded), 19 contracts played, 9 complete, 31 KIA; complete contracts leave 600-970 cr. The scripted lance drops
            every suit, never carries, buys no modules (#42). Plain --contracts 20 byte-identical. BUILD r21-s4 | -
+   round21 debrief 1 (r21-s4) | first company contract: a MEDIUM (no LOW on offer, fix list 1), a suit lost. Jamie: "the bill definitely took a squeeze, especially with having a suit loss"; taps: "Tight but fair", next move "Rebuild now" (8 parts + 100 cr). Parked: rep raises fees, friendly factions pay bonuses (roadmap #47) | no change | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,
