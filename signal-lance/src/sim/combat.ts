@@ -7,6 +7,7 @@ import { effEmit } from './zones.ts';
 import { idBonus } from './ids.ts';
 import { gunOf, radarOf, has } from './kit.ts';
 import { skillVal } from './company.ts';
+import { aarPart, aarTouch } from './aar.ts';
 
 // ============================ PARTS ===================================
 // u.kind: 'MECH' or a FIELD_TYPES key. u.parts / u.pmax: hits left / at full, per part. u.hits stays the
@@ -54,10 +55,11 @@ export function fromBehind(u, x: number, y: number) {
 }
 // n hits on part p. Hits on a destroyed part spill to CORE. Logs parts destroyed (runner / result).
 export function damagePart(u, p: string, n: number) {
+  aarTouch(u); // R22: who hit it last
   for (let k = 0; k < n && u.parts.CORE > 0; k++) {
     const q = u.parts[p] > 0 ? p : 'CORE';
     u.parts[q]--;
-    if (u.parts[q] === 0) { u.partsLost.push(q); G.partLog.push({ kind: u.kind, part: q }); if (!radarOf(u)) u.radarOn = false; if (!has(u, 'MASK')) u.mask = false; } // R18: whatever was mounted there goes offline
+    if (u.parts[q] === 0) { aarPart(u, q); u.partsLost.push(q); G.partLog.push({ kind: u.kind, part: q }); if (!radarOf(u)) u.radarOn = false; if (!has(u, 'MASK')) u.mask = false; } // R18: whatever was mounted there goes offline
   }
   syncHits(u);
 }

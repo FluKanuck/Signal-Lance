@@ -7,6 +7,7 @@ import { observe } from './sensors.ts';
 import { effEmit } from './zones.ts';
 import { partGone } from './combat.ts';
 import { scanAlertOn } from './scan.ts';
+import { aarAlarm } from './aar.ts';
 
 // A field unit's OWN senses (a shared ALARM contact never raises a further alarm: no relay).
 const OWN = ['EYES', 'RADAR', 'PASSIVE', 'SOUND', 'FLASH', 'THERMAL']; // R18 cp3: a thermal sight's own fix alarms too
@@ -36,6 +37,7 @@ export function raiseAlarm(list, c, src: string) {
     from.alarmT[mech.id] = G.turn;
     mech.alarms = (mech.alarms || 0) + 1;
     G.alarmLog.push({ from: from.id, to, mech: mech.id, turn: G.turn, t: G.time });
+    aarAlarm(from, mech, to.length); // R22
   }
 }
 

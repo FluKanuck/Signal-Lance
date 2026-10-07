@@ -1,6 +1,7 @@
 // Round 15 step 3: ESCORT. An unarmed faction transport (G.ally) walks the route legs from the left edge to the right.
 // It holds at each junction until the player picks a leg. The field senses, hunts and fires on it like a lance mech
 // (state.ts friends()); the lance's own guns never hit it (a mortar splash does). Its death fails the hunt.
+import { aarObj } from './aar.ts';
 import { TUNE } from '../tune.ts';
 import { T, W, anchors, findPath, canReach, mapGen, pathCost, clipPathCost, pathHitsClutter } from './world.ts';
 import { G } from './state.ts';
@@ -59,7 +60,7 @@ export function makeAlly(at = 'S') {
 }
 function startLeg(a, i: number) {
   const L = anchors().legs[i];
-  if (legsFrom(L.from).length > 1) { G.mission.legs.push(L.name + '@' + L.from); if (!a.passed.includes(L.from)) a.passed.push(L.from); } // logged as it is taken
+  if (legsFrom(L.from).length > 1) { aarObj('ROUTE', null, L.name + ' at ' + L.from); G.mission.legs.push(L.name + '@' + L.from); if (!a.passed.includes(L.from)) a.passed.push(L.from); } // logged as it is taken
   a.leg = i; a.walk = legPath(i); a.done = 0;
 }
 // Holding at a junction, waiting for the player's pick?

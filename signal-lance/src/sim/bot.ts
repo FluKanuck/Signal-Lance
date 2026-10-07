@@ -6,6 +6,7 @@ import { killContact, cx, cy } from './sensors.ts';
 import { partGone } from './combat.ts';
 import { canPay, doMove, doPulse, doShot, freeTurn, planMove, shootBlock } from './turns.ts';
 import { pickPackTarget, wounded, packOn } from './pack.ts';
+import { aarPack } from './aar.ts';
 import { has, gunOf, radarOf } from './kit.ts';
 
 // ============================ FIELD AI ================================
@@ -110,6 +111,7 @@ function packDecide(e, pk) {
   let tx, ty, mode = 'NORMAL';
   if (pk) {
     const c = pk.c, tracked = c.lost <= c.gap, cd = pk.d * T, hurt = wounded(pk.m);
+    if (e.pack !== 'HUNT' || e.packTgt !== pk.m.id) aarPack(e, pk.m); // R22: it closes in on this suit
     e.pack = 'HUNT'; e.packX = cx(c); e.packY = cy(c); e.searchLeft = TUNE.PACK_SEARCH_ACTIVATIONS; e.packTgt = pk.m.id;
     if (!tracked && cd < 1.2 * T) { killContact(e.ec, c.id); e.state = 'SEARCH'; return enemyDecide(e); } // stale estimate, nothing here
     if (tracked && !hurt && cd <= F.HOLD_DIST * T) { // a healthy target close by: the usual patience, then push

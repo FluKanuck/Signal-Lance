@@ -14,6 +14,7 @@ import { setZones, zoneAtTile } from './zones.ts';
 import { syncHits } from './combat.ts';
 import { makeAlly } from './escort.ts';
 import { onSuitDown } from './company.ts';
+import { playOut } from './autoplay.ts';
 
 type Tile = [number, number];
 export type Scenario = {
@@ -32,6 +33,8 @@ export type Scenario = {
   map?: DistrictSpec;                    // R16: a fixed block district (no roll); none = the hive map
   packed?: { seed: number; grid: string }; // R17 (parked #65): a packed district rolled from this seed and grid (the same map every time)
   job?: { seed: number; comp: string; listen: number; scan?: string };
+  auto?: boolean;                        // R22: the scripted lance plays it straight through (the after-action page is what's tested)
+  endAs?: string;                        // R22: the hunt ends this way at the moment it would have ended (same seed, same events)
   books?: boolean;                       // R21 cp3: a company-screen scenario (no hunt): the view opens a test company's contract offers // R20: scan = live-scan commands already run when it opens (encodeCmds) // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen (R20: listen -1 = the live scan, yours to run)
 };
 
@@ -48,7 +51,21 @@ export const WARM_FIT = () => makeFit('warden', [['MAST', 'emarray'], ['MAST', '
 // R19 cp3: a Warden with the RWR beside its EM array
 export const RWR_FIT = () => makeFit('warden', [['MAST', 'rwr'], ['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery']], ['CORE']);
 export const HEAVY_FIT = () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery'], ['BACK', 'mortar']], ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS']);
+// R22: the same hunt for both after-action scenarios: Mara (A, line) and Jok (B, scout) walk up the long street to the uplink at
+// its east end; a line patrol walks toward them, a sentry turret and a fire emplacement guard the point.
+const AAR_HUNT = {
+  seed: 2204, mission: 'UPLINK', packed: D1701, uplink: [41, 13] as Tile, auto: true,
+  lance: [{ tile: [20, 13] as Tile, fit: 'line', op: ['Mara Voss', 'AIM', 2] as [string, string, number] }, { tile: [18, 13] as Tile, fit: 'scout', op: ['Jok Okafor', 'QUIET', 1] as [string, string, number] }],
+  field: [{ type: 'PATROL', variant: 'line', tile: [31, 13] as Tile, face: [20, 13] as Tile, state: 'PATROL' }, { type: 'TURRET', variant: 'sentry', tile: [39, 12] as Tile }, { type: 'EMPLACEMENT', variant: 'fire', tile: [42, 14] as Tile }],
+  question: { q: 'Did the list tell you why it went that way?', a: ['Yes, I can see why', 'Partly', 'No, it missed what mattered', 'Too much to read'] },
+};
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 22 (what happened): one hunt, played by the scripted lance, ending two ways. Held the field shows every
+  // moment in full; Bailed ends at the same moment as a BAIL, so the field's side is redacted. Compare the two pages. ----
+  { name: 'Held the field', round: 22, ...AAR_HUNT,
+    tryThis: 'Watch only: the lance plays itself and takes the uplink, then the after-action page opens. Read WHAT HAPPENED and WHAT IT COST, tap a moment to see it on the map. Then play Bailed: the same hunt, ending as a bail.' },
+  { name: 'Bailed', round: 22, ...AAR_HUNT, endAs: 'BAIL',
+    tryThis: 'The same hunt as Held the field, but it ends as a BAIL at the same moment. You lost the field, so the enemy’s side of the story is blanked out (???, a rough direction). Compare it with Held the field.' },
   // ---- R21 cp3: the books. No hunt: a test company one contract from folding (in debt, fuel 4), three offers. ----
   {
     name: 'Thin books', round: 21, seed: 2103, books: true,
@@ -378,4 +395,6 @@ export function startScenario(s: Scenario, launch = true) {
 // R19: drop into a job scenario (after its scan); the lance from the scenario's fits
 export function launchJobScenario() { const s = G.tb; newHunt(s.lance.map(l => HANGAR_TEMPLATES.find(t => t.id === l.fit).fit())); G.tb = s; }
 // The test bed is over (BACK): forget the scenario and put TUNE back.
+// R22: an auto scenario plays itself to the end (the scripted lance, the same seed every time)
+export function autoScenario(maxTurns = 60) { playOut(maxTurns); }
 export function leaveScenario() { G.tb = null; restoreTune(); }

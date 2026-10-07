@@ -12,6 +12,7 @@ import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
 import { ageRwr } from './rwr.ts';
 import { has, fitted, gunOf, radarOf, mortarOf, offWhy, addHeat } from './kit.ts';
+import { aarHitBy, aarKill, aarDown, aarObj } from './aar.ts';
 import { onKill, onAllOut, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
 // ============================ UPDATE ==================================
@@ -63,7 +64,9 @@ export function updateShells(dt) {
       if (s.rec && !s.rec.roll) v = null;
       const hit = !!v;
       if (hit) {
+        aarHitBy(s.owner, s.sx, s.sy, 'GUN'); // R22: the shooter, from where
         const part = rollPart(v, { x: s.sx, y: s.sy }); damagePart(v, part, TUNE.SHOT_DAMAGE); // R18: from behind = BACK
+        aarHitBy(null, 0, 0, '');
         s.owner.landed++; v.took = (v.took || 0) + 1; if (isMech(v)) hooks.playerHit();
         if (s.rec) { s.rec.part = part; s.rec.rear = fromBehind(v, s.sx, s.sy); }
       }
@@ -77,6 +80,7 @@ export function updateShells(dt) {
   for (const f of G.fx) if (f.on && (f.t -= dt) <= 0) f.on = false;
   for (const u of G.units) if (u.hits <= 0 && !u.dead) { // destroyed: wreck marker replaces its contact
     u.dead = true; u.radarOn = false; u.path = null; u.moving = false; G.kills++;
+    aarKill(u); // R22
     onKill(u); // R15: a Bounty kill pays its true variant's bounty, however it died
     killContact(G.pc, u.id); if (G.sel && !G.sel.on) G.sel = null;
   }
@@ -84,6 +88,7 @@ export function updateShells(dt) {
   for (const m of G.lance) if (m.hits <= 0 && !m.dead) { // R7 s2: a destroyed mech is out (skipped in the order)
     m.dead = true; m.radarOn = false; m.mask = false; m.path = null; m.moving = false;
     onSuitDown(m); // R21: with an operator aboard, the suit is down and its operator CRITICAL (stays on the board)
+    aarDown(m); // R22
     for (const u of G.units) killContact(u.ec, m.id);
   }
 }
@@ -225,6 +230,7 @@ export function cmdExtract() {
   if (isCarrier(m)) { G.mission.cargoOut = true; G.mission.result = 'cargo out'; } // R15 Retrieve: the cargo leaves with it
   G.mission.out = (G.mission.out || []).concat(m.id);
   noteCarry(m); // R21: extracting next to a CRITICAL lancemate takes its operator along
+  aarObj('OUT', m); // R22
   leaveMap(m);
   if (allOut()) { onAllOut(); return; }
   nextActivation();
@@ -520,7 +526,7 @@ function lob(m, ax, ay, r, target) {
   for (const u of [...G.units, ...friends()]) { // R15 s3: a splash hurts the transport too
     if (u.dead || Math.hypot(u.x - ix, u.y - iy) > sp) continue;
     const alive = u.hits > 0;
-    damagePart(u, rollPart(u), dmg); u.took = (u.took || 0) + 1; // R12: a splash hit rolls a part (no to-hit roll: scatter does that)
+    aarHitBy(m, m.x, m.y, 'MORTAR'); damagePart(u, rollPart(u), dmg); aarHitBy(null, 0, 0, ''); u.took = (u.took || 0) + 1; // R12: a splash hit rolls a part (no to-hit roll: scatter does that)
     if (isFriend(u)) { m.mFriendly++; if (isMech(u)) hooks.playerHit(); }
     else { hit = true; struck.push(u); if (alive && u.hits <= 0) m.mKills++; }
   }
@@ -547,6 +553,7 @@ export function uplinkBlock() {
 export function doUplink() {
   const p = G.p, U = G.up;
   pay(p, TUNE.AP_UPLINK, 0); addEmit(p, TUNE.SIG_UPLINK); U.used = true; U.prog++;
+  if (U.prog < TUNE.UPLINK_TURNS) aarObj('UPLINK', p); // R22: the uplink's first turn (its last ends the hunt)
   if (U.prog >= TUNE.UPLINK_TURNS) { G.winBy = 'UPLINK'; finishHunt('WIN'); }
 }
 

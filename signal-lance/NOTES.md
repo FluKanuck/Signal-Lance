@@ -1097,6 +1097,27 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      ship's hull roll uses the company RNG (the hunt's RNG is untouched); HULL ARMOUR soaks the first hit per contract.
    - Thin books is a company-screen scenario: the real company is set aside (not saved over), a test company in debt is
      shown, TAKE IT asks the question instead of starting the contract, BACK restores the real one.
+   R22 (what happened: the after-action page)
+   - The lance shares one contact picture, so "each suit's first detection of each enemy" is recorded once per enemy for the
+     lance (named by the suit whose sense made it). The field's are per unit and suit. A dropped contact found again is not new.
+   - Kinds as recorded: SEEN = DETECT (eyes, sound, radar, thermal, passive, muzzle flash), ALARM (first per unit and suit),
+     PACK (a patrol drops its leash for a suit); HIT = PART (a non-CORE part to 0, either side), KILL, DOWN (a suit's CORE gone:
+     CRITICAL with an operator, destroyed without), CARRY, KIA (written at the end, once the company has rolled the fate);
+     OBJ = UPLINK (its first turn), PICKUP, HANDOFF, CARGO_LOST, ROUTE (a fork picked), QUOTA, OUT (a suit extracts), END.
+   - The shooter of a hit is whoever fired the shell or mortar that did it (the last hit on a unit names its kill).
+   - The moments: the END, every DOWN and KIA, and the field's first detection of the lance are always in; the rest by weight
+     (AAR_WEIGHT_*, enemy-side +AAR_ENEMY_FIRST), ties to the earlier event; then shown in turn order. If the always-in alone
+     pass the cap, the END, KIA and first detection go first, then the earliest.
+   - Held the field = the outcome is a WIN (the job done). Anything else (BAIL, FAIL, LOSS) redacts every enemy-side moment:
+     no identity, no range, no position, a bearing from the suit rounded to AAR_REDACT_BEARING points. The lance's own moments
+     are never redacted, but when not held a field unit is named only as the lance knew it (eyes = its type and variant;
+     otherwise "a contact", "a heat source", "something"). Not held, the map highlight never holds a field unit's position.
+   - WHAT IT COST lines point back (← T) only to a moment shown on the page. Repairs are hits lost this hunt × a repair's
+     cost (1 hit per repair). Outside a contract (test bed) there are no company lines.
+   - The page sits on the right (≤ 66% of the width) over the live map; the in-hunt buttons hide except Z+ / Z−. The test
+     bed's after-action scenarios use the same page with their own question and RETRY / BACK.
+   - Held the field / Bailed: one hand-placed hunt (seed 2204) played by the scripted lance; Bailed turns the WIN into a BAIL
+     at the moment it ends (TB endAs), so both have the same events.
 ```
 
 ## TWEAK LOG
@@ -1635,6 +1656,13 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            every suit, never carries, buys no modules (#42). Plain --contracts 20 byte-identical. BUILD r21-s4 | -
    round21 debrief 1 (r21-s4) | first company contract: a MEDIUM (no LOW on offer, fix list 1), a suit lost. Jamie: "the bill definitely took a squeeze, especially with having a suit loss"; taps: "Tight but fair", next move "Rebuild now" (8 parts + 100 cr). Parked: rep raises fees, friendly factions pay bonuses (roadmap #47) | no change | -
    round21 fix list 1 + wrap (r21-s5) | Jamie: "never 3 of the same" (not one of each) | rollOffers: all three one danger = the last rerolls to another (vitest 300 seeds). Read-and-connect: "Changed my plan". Carry them out: "Yes, went back". Jamie stopped after one company contract ("happy as is right now for this round"). Runner --company 10 --companies 6: 6 fold (4 every ExoS lost, 2 stranded), 18 played, 7 complete, 32 KIA. Round 21 moved to the splash HISTORY. BUILD r21-s5 | -
+   round22 cp1 (r22-s1) | brief: what happened (the after-action page; headless testing) | NEW AAR_MAX_MOMENTS 6, AAR_WEIGHT_SEEN 2 /
+           ALARM 3 / PART 3 / KILL 4 / DOWN 6 / CARRY 5 / KIA 8 / OBJ 5 / OUT 1, AAR_ENEMY_FIRST 1, AAR_REDACT_BEARING 8, AAR_COST_MAX 7.
+           Runner --contracts 20: 46 hunts, 21.3 events → 6.0 moments (min 5), at the cap 98%, thin 0, SEEN 22% HIT 46% OBJ 32%,
+           held 46%, not held 52% of lines redacted, always-in never dropped. --company 10 --companies 6: identical to r21-s5
+           (6 fold, 18 played, 7 complete, 32 KIA, 76 cr); AAR 49 hunts, 31.1 events, cap 100%, 6 always-in dropped (3 hunts with
+           more than 6). NEW runner --pick low: 12 companies, 30 LOW played, 21 complete, 18 paid their way (complete avg +153 cr).
+           The pre-existing sound FLAG (field first contacts > 50% sound) fails --check on main before this round too. BUILD r22-s1 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

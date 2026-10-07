@@ -1,7 +1,8 @@
 // Round 14 part 0: the TEST BED screens. List (current round first) → one hunt → tap question → RETRY / BACK.
 // A scenario hunt never touches a contract; it logs one [TESTBED <name>] line with the tap answer.
 import { G } from '../sim/state.ts';
-import { scenarioList, startScenario, leaveScenario, launchJobScenario } from '../sim/scenarios.ts';
+import { scenarioList, startScenario, leaveScenario, launchJobScenario, autoScenario } from '../sim/scenarios.ts';
+import { aarLog, hideAar } from './aar.ts';
 import { showScan } from './scan.ts';
 import { LISTEN, scanReport } from '../sim/scan.ts';
 import { V } from './state.ts';
@@ -26,6 +27,12 @@ function play(s) {
   if (s.job) { startScenario(s, false); showScan('TEST BED · ' + s.name + (s.job.listen >= 0 ? ' · listen forced: ' + LISTEN[s.job.listen] : ' · scan it yourself'), () => { launchJobScenario(); camera(); }, 'DROP', s.job.listen); return; } // R19 (R20: listen -1 = the live scan)
   startScenario(s);
   camera();
+  if (s.auto) { tbAsk(s); autoScenario(); } // R22: it plays itself, then the after-action page opens (hooks.end)
+}
+// R22: the scenario's question on the after-action page
+function tbAsk(s) {
+  answer = ''; const Q = s.question;
+  $('resTbQ').innerHTML = Q ? '<div class="qrow"><span>' + esc(Q.q) + '</span>' + Q.a.map(a => '<button class="qa" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('') + '</div>' : '';
 }
 function camera() {
   V.follow = true; V.camX = G.p.x; V.camY = G.p.y; V.ghostArm = V.faceArm = V.mortarArm = false; V.hitFlash = 0;
@@ -56,7 +63,15 @@ function logIt() {
   if (s.books) { logLine('[TESTBED ' + s.name + '] took ' + booksPick + (answer ? ' | q ' + answer : '')); return; } // R21 cp3
   logLine('[TESTBED ' + s.name + '] ' + G.outcome + ' · ' + killText() + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + loadSummary() + ' | ' + dmgSummary() + (crewLines().length ? ' | ' + crewLines().join('; ') : '') + (answer ? ' | q ' + answer : ''));
   for (const l of scanReport()) logLine('[TESTBED ' + s.name + '] [SCAN] ' + l); // R20 cp3
+  if (s.auto) for (const l of aarLog()) logLine('[TESTBED ' + s.name + '] ' + l); // R22
 }
+$('resTbQ').addEventListener('click', ev => {
+  const b = (ev.target as any).closest('.qa'); if (!b) return;
+  answer = answer === b.dataset.a ? '' : b.dataset.a;
+  for (const o of $('resTbQ').querySelectorAll('.qa')) o.classList.toggle('on', o.dataset.a === answer);
+});
+$('bAarRetry').addEventListener('click', () => { const s = G.tb; if (!s) return; logIt(); $('res').hidden = true; hideAar(); leaveScenario(); play(s); });
+$('bAarDone').addEventListener('click', () => { if (!G.tb) return; logIt(); $('res').hidden = true; hideAar(); leaveScenario(); showTestBed(); });
 $('bTB').addEventListener('click', showTestBed);
 $('bTBBack').addEventListener('click', () => { $('tb').hidden = true; showLoadout(); });
 $('tbList').addEventListener('click', ev => { const b = (ev.target as any).closest('.tbplay'); if (b) play(scenarioList()[+b.dataset.i]); });

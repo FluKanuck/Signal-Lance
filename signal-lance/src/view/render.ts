@@ -1,3 +1,4 @@
+import { drawAarHl } from './aar.ts';
 import { TUNE } from '../tune.ts';
 import { has, radarOf, mortarOf } from '../sim/kit.ts';
 import { fireRange } from '../sim/turns.ts';
@@ -615,6 +616,7 @@ export function render() {
     ctx.fillStyle = act ? '#9cf' : '#a9b0b8'; ctx.fillText(m.id + (m.op ? ' ' + m.op.name.split(' ')[0] + (m.op.lvl >= 2 ? '★' : '') : ''), m.x + 12, m.y - 10); // R21: the operator (★ = veteran)
     if (G.lance.some(d => d.carriedBy === m.id)) { ctx.fillStyle = '#70c080'; ctx.fillText('carrying ' + G.lance.filter(d => d.carriedBy === m.id).map(d => d.id).join(' '), m.x + 12, m.y + 4 / z); }
   }
+  drawAarHl(ctx, z); // R22: the tapped after-action moment
   if (G.mode === 'hunt') { drawPainted(z); drawRwr(G.p, z); } // R19 cp3; fix list 1: the built-in warning on every suit
   // took a hit: red screen border
   if (V.hitFlash > 0) {

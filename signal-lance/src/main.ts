@@ -12,7 +12,7 @@ import { showTbResult } from './view/testbed.ts';
 import './view/card.ts';
 
 hooks.sync = syncButtons;
-hooks.end = () => (G.tb ? showTbResult() : showResult()); // R14: a test-bed hunt has its own end screen
+hooks.end = () => (G.tb && !G.tb.auto ? showTbResult() : showResult()); // R22: an after-action scenario ends on the after-action page // R14: a test-bed hunt has its own end screen
 hooks.playerHit = () => { V.hitFlash = 0.4; };
 hooks.activate = () => { V.follow = true; V.faceArm = V.ghostArm = V.mortarArm = false; V.lookArm = null; hideWpMenu(); if (G.pmode !== 'CREEP' && partHurt(G.p, 'LEGS')) cmdMoveMode('CREEP'); }; // R13: hurt legs = start in CREEP // R7 s2: camera centres on the mech whose activation it is
 

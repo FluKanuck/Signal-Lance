@@ -5,30 +5,18 @@ import { $ } from './hud.ts';
 import { TUNE } from '../tune.ts';
 
 export const TEST = {
-  title: 'Round 21 test: The company',
-  question: 'Does owning a company (people who can be hurt and grow, a roster to choose from, money and fuel that run out, a ship you fit) make you care what comes back from a drop, and plan the next contract around it?',
+  title: 'Round 22 test: What happened',
+  question: 'Does a short after-action list of turning points, with what each one cost the company, tell you why a drop went the way it did and change how you plan the next one?',
   newThings: [
-    'FIXED (r21-s5): the three contract offers are never all the same danger.',
-    'NEW (r21-s4): THE BOOKS. The company opens on CONTRACTS: three offers, each with its danger (LOW / MEDIUM / HIGH: how big the field is), length (2 to 4 hunts, win most of them), the fee on completion, and the FUEL it takes to get there. No fuel, no contract. You start with ' + TUNE.START_CREDITS + ' cr and ' + TUNE.START_FUEL + ' fuel.',
-    'NEW: when a contract ends (or you QUIT it) you pay WAGES for every operator on the roster (veterans cost more) and the ship’s UPKEEP; the books on CONTRACTS show the bill. Below 0 you take debt once (down to −' + TUNE.DEBT_LIMIT + '); still in debt a contract later, or deeper, and THE COMPANY FOLDS (an end screen, then NEW COMPANY). Being stranded (no lance, or no way to reach a contract) folds it too.',
-    'NEW: PARTS. Repairs take parts and a few credits; rebuilds take a lot of parts. Every kill salvages parts into the hold (it holds ' + TUNE.HOLD_CAP + '). The MARKET (new tab) sells parts, fuel, hangar items, now and then an ExoS, and your recruits (now ' + TUNE.COST_HIRE + ' cr); spare parts sell back.',
-    'NEW: the hangar fits only what the company OWNS. Your suits’ kit is yours; anything else comes from the MARKET (the pick list shows how many are spare).',
-    'NEW (cp4): THE SHIP tab. 7 hardpoints, one module each, bought from the ship shop and fitted between contracts. RADAR ARRAY / THERMAL POD / EM SUITE (that sensor scans faster and quieter), QUIET DROP RIG (less of the field wakes), SUIT BAY (one more ExoS; you start with one, so 3 fit; a 4th ExoS needs another), REPAIR BAY, MEDBAY, SALVAGE HOLD, ARMOURY, FUEL TANKS, EFFICIENT ENGINES, HULL ARMOUR, OPERATOR BERTHS.',
-    'NEW: a PAINTED ship (the scan’s drop roll) may take a hull hit: credits owed when the contract ends. HULL ARMOUR soaks one per contract. THE SCAN on the result screen says so.',
-    'TEST BED: “Thin books”: a company in debt, one contract from folding, three offers. Pick one.',
-    'THE ROSTER. Your company owns ' + TUNE.START_SUITS + ' ExoS (A, B, C), each with its own fit (HANGAR · TOOLS; A and B start from your old hangar fits) and its own damage. Damage, rounds and shells now carry from hunt to hunt AND contract to contract.',
-    'Pick your lance before every hunt. On the job screen each suit has a button: tap it to step through your free operators, or leave the suit aboard (STAYS ABOARD). 1, 2 or 3 suits can drop. A benched or KIA operator can’t drop; a destroyed suit can’t drop until it is rebuilt.',
-    'The company keeps its credits: hunt pay and fees in; repairs, reloads, rebuilds, the market and the ship out.',
-    'From r21-s1: THE COMPANY. The game now opens on your company screen, and it is saved on this phone (after every hunt and every tap on the company screen). NEW COMPANY (tap twice) wipes it and starts again. HANGAR · TOOLS opens the hangar, test bed, PLAY SEED and the log, as before.',
-    'OPERATORS. Every ExoS is driven by a named operator with one skill: STEADY AIM (+' + TUNE.SKILL_AIM[0] + ' to hit), QUIET MOVER (your steps carry ×' + TUNE.SKILL_QUIET[0] + ' as far; shots unchanged), SHARP EARS (you hear sounds ×' + TUNE.SKILL_EARS[0] + ' further), SENSOR TECH (watched rounds count ×' + TUNE.SKILL_TECH[0] + ' toward an ID’s “still” / “no pulse”, for the whole lance). You start with ' + TUNE.START_OPS + '. The ROSTER tab’s letter buttons (A, B, C) put an operator in a suit.',
-    'They grow. Each hunt an operator comes back from: +' + TUNE.OP_XP_HUNT + ' XP, +' + TUNE.OP_XP_WIN + ' more on a win. Level 2 at ' + TUNE.OP_LEVELS[0] + ' XP (a veteran, ★), level 3 at ' + TUNE.OP_LEVELS[1] + ': the skill gets stronger.',
-    'CRITICAL. A suit that would be destroyed goes down instead and stays on the map, its operator CRITICAL (a pulsing red ring). End another suit’s turn inside that ring to carry them (it turns green: CARRIED BY A), then extract or finish the job. Carried out (or the field cleared) = they live, benched for ' + TUNE.OP_BENCH + ' contracts. Left behind = KIA, and their name goes on the MEMORIAL.',
-    'RECRUITS. After each contract, ' + TUNE.RECRUITS_OFFERED + ' recruits are on offer (level 1, free for now). The roster holds ' + TUNE.OP_CAP + '.',
-    'The result screen says who came back, who levelled up, who was carried out and who was left (THE COMPANY); SEND LOG carries it as [COMPANY] lines, with your company code. COMPANY: ON / OFF on this splash switches back to plain contracts.',
-    'TEST BED: “Carry them out”: B is down two tiles behind A. Go back for Jok, or don’t.',
+    'NEW (r22-s1): THE AFTER-ACTION PAGE replaces the old result panels. WHAT HAPPENED lists up to ' + TUNE.AAR_MAX_MOMENTS + ' turning points of the hunt, each starting with its turn: who found whom first (and how), hits that mattered (parts wrecked, kills, a suit down, a carry, a KIA), and how the job swung (uplink started, cargo grabbed or lost, a route picked, the quota, the end).',
+    'WHAT IT COST: who got hurt, benched, KIA or levelled; each suit’s repairs or rebuild; the pay; salvage; a hull hit; and at a contract’s end the wages, upkeep and balance. A line with ← T7 points back to the moment that caused it.',
+    'Tap a moment and it pulses on the map (the map stays live on the left; Z+ / Z− zoom it). Not a replay: just who and where.',
+    'HELD THE FIELD (you won the job): the whole story, the enemy side included. FIELD LOST (bailed, failed or wiped): you only get what your own suits saw, heard or took; the enemy’s side shows as ??? with a rough direction (the map shows it as a dashed wedge, never their position).',
+    'DETAILS opens the old panels (the scan log, the company news, shots, the field). SEND LOG carries the moments as [AAR] lines.',
+    'TEST BED: “Held the field” and “Bailed”: the same hunt played by itself, ending two ways. Compare the two pages.',
   ],
-  round: 21,
-  howTo: 'Play Carry them out and Thin books first, then at least 3 contracts on one company. Pick who drops, and see whether a CRITICAL, a KIA or a veteran changes what you do next. After each hunt, tap the answers. When you finish, tap SEND LOG and send it to Jamie.',
+  round: 22,
+  howTo: 'Play Held the field, then Bailed, and compare the pages. Then play a contract or two if you like: read WHAT HAPPENED after each hunt and tap the answers. When you finish, tap SEND LOG and send it to Jamie.',
 };
 const R20_NEW = [
     'NEW (r20-s4): learn why. After every hunt the result screen has THE SCAN: a line per stretch of your scan (which sensors, where each looked: full map or the map area its ring was in, the altitude, the minutes, what came back, the risk it added), then what the drop rolled (the step, how many were awake, painted or not, units that joined). SEND LOG carries the same lines as [SCAN].',
@@ -146,12 +134,13 @@ export const HISTORY = [
 ];
 // End-of-hunt questions (tap one answer each; optional). Answers go into the log line, next to the hunt's job type.
 export const QUESTIONS = [
-  { k: 'care', q: 'What came back from this hunt…', a: ['Changes who I drop next', 'Changed how I played it', 'Made me go back for someone', 'Didn’t matter to me'] }, // R21 debrief focus 1: caring what comes back
-  { k: 'pick', q: 'Between contracts, the choices felt…', a: ['Like a real trade-off', 'Obvious', 'Nothing much to choose yet', 'Not sure'] }, // focus 2: the books bite
-  { k: 'link', q: 'The company changed my plan…', a: ['Yes', 'It didn’t', 'Not sure'] }, // the read-and-connect check
+  { k: 'why', q: 'WHAT HAPPENED told me why it went that way…', a: ['Yes', 'Partly', 'It missed what mattered', 'Too much to read'] }, // R22 debrief focus 1: does the list carry the story
+  { k: 'cost', q: 'WHAT IT COST…', a: ['Changes my next plan', 'Good to know, no change', 'Didn’t read it', 'Not sure'] }, // focus 2: the company over time
+  { k: 'link', q: 'The page (vs the old result screen) felt…', a: ['Clearer', 'About the same', 'Busier', 'Not sure'] }, // the read-and-connect check / "busy, a lot of screens"
 ];
 
 const BASICS = [
+  ['After', 'After each hunt the after-action page opens. WHAT HAPPENED: up to ' + TUNE.AAR_MAX_MOMENTS + ' turning points (T = the turn): first detections both ways, hits that mattered, objective swings, and the end; the end, any suit down or KIA and the first time the enemy found you are always there. WHAT IT COST: people, repairs, pay, salvage, the ship, and the books at a contract’s end (← T7 = the moment that caused it). Tap a moment to pulse it on the map. HELD THE FIELD (job done) shows the enemy side in full; FIELD LOST shows it as ??? with a rough direction. DETAILS: the old result panels.'],
   ['Company', 'The game opens on your COMPANY (saved on this phone). CONTRACTS: three offers (danger, hunts, fee, fuel to get there) and the books. ROSTER: your operators; the letter buttons put one in a suit. SUITS: each ExoS’s damage, rounds and shells, repairs (parts + credits). MARKET: parts, fuel, hangar items, an ExoS now and then, recruits. SHIP: 7 hardpoints for modules. RECRUITS: hire new operators between contracts (the roster holds ' + TUNE.OP_CAP + '). MEMORIAL: who you lost. Damage carries from contract to contract. The three offers are never all one danger. TAKE IT on an offer runs the usual job → scan → hangar → hunt flow; after the contract you come back here. NEW COMPANY (tap twice) starts over. HANGAR · TOOLS: hangar, test bed, PLAY SEED, log.'],
   ['Books', 'Credits: hunt pay and contract fees come in; wages (per operator, more for veterans), ship upkeep and hull repairs go out when a contract ends. Below 0 you take debt once; still in debt a contract later, or more than ' + TUNE.DEBT_LIMIT + ' down, and the company folds. FUEL: each contract costs fuel to reach. PARTS: repairs and rebuilds use them; kills salvage them into the hold. The hangar only fits items the company owns.'],
   ['Ship', 'Seven hardpoints, one module each (SHIP tab, between contracts). Scan modules make one sensor faster and quieter; QUIET DROP RIG wakes less of the field; SUIT BAY carries one more ExoS (the hull carries 2); REPAIR BAY, MEDBAY, SALVAGE HOLD and ARMOURY help after a hunt; FUEL TANKS, EFFICIENT ENGINES and HULL ARMOUR between contracts; OPERATOR BERTHS room for 2 more operators. A painted ship may take a hull hit.'],

@@ -6,6 +6,7 @@ import { rand, setSeed } from './rng.ts';
 import { startRound } from './turns.ts';
 import { rollZones, zoneAtTile, areaScale } from './zones.ts';
 import { recordHunt } from './contract.ts';
+import { aarReset, aarSnap, aarEnd } from './aar.ts';
 import { initParts } from './combat.ts';
 import { newMission } from './mission.ts';
 import { makeAlly, nearLegTiles } from './escort.ts';
@@ -225,7 +226,7 @@ export function newHunt(loads?, prep?: () => void, ids?: string[]) {
   L.forEach((m, i) => { const t = i ? nextTo(spawnX, spawnY, taken) : taken[0]; if (i) taken.push(t); m.x = (t.x + 0.5) * T; m.y = (t.y + 0.5) * T; }); // the first on the drop point, the rest beside it
   G.lance = L; setActive(L[0]);
   for (const m of G.lance) m.op = G.crew ? G.crew[m.id] || null : null; // R21: the operator driving it (skills, CRITICAL)
-  G.carryLog = [];
+  G.carryLog = []; aarReset(); // R22: a fresh after-action record
   G.ghost.on = false; G.ghost.owner = null;
   for (const bb of G.pb) bb.on = false;
   // R7: build and place the field (seeded: same seed, same positions)
@@ -247,6 +248,7 @@ export function newHunt(loads?, prep?: () => void, ids?: string[]) {
   G.mode = 'hunt';
   if (G.scan) applyScan(); // R19: what the ship heard (stale blips, notes), the patrols' drift and the listen's costs
   if (prep) prep();
+  aarSnap(); // R22: hits and levels at the start (WHAT IT COST)
   startRound();
 }
 
@@ -279,8 +281,10 @@ export function rollEnemy(seed: number, force?: string, mtype = 'UPLINK') {
 export function enterLoadout(seed: number, force?: string) { G.mode = 'loadout'; G.ally = null; rollEnemy(seed, force); } // R18 fix: an Escort transport from a quit hunt pointed at the old map's route legs // R8: force = the view's shuffled-set pick
 // End of the hunt (the result screen is the view's hooks.end).
 export function finishHunt(outcome: string) {
+  if (G.tb && G.tb.endAs && outcome === 'WIN') { outcome = G.tb.endAs; G.winBy = ''; if (G.mission) G.mission.result = 'extracted'; } // R22 test bed: the same hunt, ending the other way
   G.mode = 'result'; G.outcome = outcome;
   if (outcome === 'WIN') G.outcome = 'WIN ' + (G.winBy || 'CLEAR'); // R7: WIN UPLINK / WIN CLEAR
   recordHunt(); // R11: carry-over and contract progress (no-op outside a contract)
+  aarEnd(); // R22: the end, then any KIA (the company has rolled the fates)
   hooks.end();
 }

@@ -571,6 +571,20 @@ export const TUNE = {
     HULL_ARMOUR:  { name: 'HULL ARMOUR', section: 'Between missions', price: 150, does: 'Soaks one hull hit per contract when the ship is painted' },
     BERTHS:       { name: 'OPERATOR BERTHS', section: 'Crew', price: 130, does: 'Room for 2 more operators' },
   },
+  // --- Round 22: the after-action page (sim/aar.ts). The hunt records three kinds of events; the page shows the turning points ---
+  AAR_MAX_MOMENTS: 6,          // R22: the most turning points WHAT HAPPENED lists (in turn order)
+  AAR_WEIGHT_SEEN: 2,          // R22: a first detection (enemy on a suit or the lance on an enemy) as a turning point
+  AAR_WEIGHT_ALARM: 3,         // R22: the field passing word (an alarm, a pack closing in)
+  AAR_WEIGHT_PART: 3,          // R22: a part wrecked (legs, arms, mast, back) on either side
+  AAR_WEIGHT_KILL: 4,          // R22: a field unit destroyed
+  AAR_WEIGHT_DOWN: 6,          // R22: a suit down (its operator CRITICAL) or destroyed
+  AAR_WEIGHT_CARRY: 5,         // R22: a CRITICAL operator picked up
+  AAR_WEIGHT_KIA: 8,           // R22: an operator left behind (KIA)
+  AAR_WEIGHT_OBJ: 5,           // R22: an objective swing (uplink started, cargo grabbed / dropped, a route picked, quota reached, a suit out)
+  AAR_WEIGHT_OUT: 1,           // R22: a suit extracting (the hunt's end says how it ended; this is filler)
+  AAR_ENEMY_FIRST: 1,          // R22: added to an enemy-side event's weight (the field's side is what you can't see during the hunt)
+  AAR_REDACT_BEARING: 8,       // R22: compass points a redacted bearing is rounded to (8 = N, NE, E ...)
+  AAR_COST_MAX: 7,             // R22: the most lines WHAT IT COST lists
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

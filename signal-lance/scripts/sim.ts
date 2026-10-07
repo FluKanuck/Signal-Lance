@@ -26,6 +26,8 @@
 //   --scan quiet|fast|mixed|loud|none       R20: the live scan's preset before every hunt (quiet = EM on the objective 8 min; fast = radar
 //                                      full map 2 min; mixed = radar wide 2 → thermal on the objective 3 → EM there 5); drop nearest
 //   --scansweep 40                     R20: 40 contracts per preset: wins, risk / step / painted / joined at the drop, per mission
+//   --pick low                         R22: with --company, take the lowest-danger offer in reach (default: the highest fee)
+//   --aar                              R22: print each hunt's after-action moments (the summary prints with --contracts / --company anyway)
 //   --company 10 [--companies 5]       R21: 10 contracts back to back on one company (seed --from; --companies: that many companies, seeds from --from up): operators, XP, CRITICAL / KIA, bench, credits, fuel, folds
 //   --listensweep 40                   R19: 40 contracts at each listen level (drop auto): win rate per level and per mission, and what
 //                                      the listen cost on average (extra units, alert units, painted)
@@ -58,6 +60,7 @@ function presetCmds(p: string): Cmd[] {
 // R19 --drop auto: the scripted lance lands on the offered drop zone nearest the objective (straight line)
 const nearestDrop = () => { const D = offeredDrops(), ux = G.up.x / 32, uy = G.up.y / 32; let b = 0; D.forEach((d, i) => { if (Math.hypot(d.x - ux, d.y - uy) < Math.hypot(D[b].x - ux, D[b].y - uy)) b = i; }); return D[b].i; }; // R20: a dropPts index
 import { previewJob } from '../src/sim/contract.ts';
+import { pickMoments, momentLine, heldField } from '../src/sim/aar.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
@@ -139,6 +142,34 @@ function summary(seed: number) {
   return { seed, comp: G.comp.NAME, outcome, turns: G.turn, kills: G.kills, up: G.up.name, units, mt, zones };
 }
 
+// R22: the after-action page per hunt: how many moments, which kinds, held the field or not, redacted lines, the always-in
+const AAR = argv.includes('--aar'); let aarRuns: any[] = [];
+function aarNote(label: string) {
+  if (G.mode === 'hunt') return; // a stall has no page
+  const ev: any[] = G.aar || [], held = heldField(), M = pickMoments(), L = M.map(m => momentLine(m, held));
+  const firstE = ev.find(e => e.sub === 'DETECT' && e.side === 'E'), must = ev.filter(e => e.sub === 'END' || e.sub === 'KIA' || e.sub === 'DOWN' || e === firstE);
+  const kinds: Record<string, number> = {}; for (const m of M) kinds[m.kind] = (kinds[m.kind] || 0) + 1;
+  const subs: Record<string, number> = {}; for (const m of M) subs[m.sub] = (subs[m.sub] || 0) + 1;
+  aarRuns.push({ label, outcome: G.outcome, n: L.length, ev: ev.length, kinds, subs, held, red: L.filter(l => l.redacted).length, enemy: M.filter(m => m.side === 'E').length,
+    firstE: !!firstE, firstIn: !!firstE && M.some(m => m.n === firstE.n), must: must.length, missing: must.filter(e => !M.some(m => m.n === e.n)).length, lines: L });
+  if (AAR) { console.log(`  [AAR] ${label} ${G.outcome} · ${held ? 'held the field' : 'not held'} · ${ev.length} events → ${L.length} moments`); for (const l of L) console.log(`    T${l.turn} ${l.kind} ${l.redacted ? 'redacted' : 'held'}: ${l.text}`); }
+}
+function aarReport() {
+  const R = aarRuns; if (!R.length) return;
+  const ns = R.map(r => r.n), avg = (a: number[]) => (a.reduce((x, y) => x + y, 0) / Math.max(1, a.length)).toFixed(1), pc = (a: number, b: number) => b ? Math.round(100 * a / b) + '%' : '-';
+  const tot = ns.reduce((a, b) => a + b, 0), K: Record<string, number> = {}, S: Record<string, number> = {};
+  for (const r of R) { for (const [k, v] of Object.entries(r.kinds)) K[k] = (K[k] || 0) + (v as number); for (const [k, v] of Object.entries(r.subs)) S[k] = (S[k] || 0) + (v as number); }
+  const held = R.filter(r => r.held), lost = R.filter(r => !r.held), lostLines = lost.reduce((a, r) => a + r.n, 0), lostRed = lost.reduce((a, r) => a + r.red, 0);
+  console.log(`== AFTER-ACTION (R22): ${R.length} hunts · events per hunt avg ${avg(R.map(r => r.ev))} · moments avg ${avg(ns)} (min ${Math.min(...ns)}, max ${Math.max(...ns)})`);
+  console.log('  kinds: ' + ['SEEN', 'HIT', 'OBJ'].map(k => `${k} ${pc(K[k] || 0, tot)}`).join(', ') + ' · by event: ' + Object.entries(S).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k} ${v}`).join(', '));
+  console.log(`  held the field ${held.length}/${R.length} (${pc(held.length, R.length)}) · not held: ${lostRed}/${lostLines} lines redacted (${pc(lostRed, lostLines)}) · enemy-side moments ${pc(R.reduce((a, r) => a + r.enemy, 0), tot)} of all`);
+  console.log(`  too thin (< 3 moments) ${R.filter(r => r.n < 3).length} (${pc(R.filter(r => r.n < 3).length, R.length)}) · at the cap (${TUNE.AAR_MAX_MOMENTS}) ${R.filter(r => r.n >= TUNE.AAR_MAX_MOMENTS).length} (${pc(R.filter(r => r.n >= TUNE.AAR_MAX_MOMENTS).length, R.length)}) · more events than the cap ${R.filter(r => r.ev > TUNE.AAR_MAX_MOMENTS).length}`);
+  console.log(`  always-in: first detection of the lance in ${R.filter(r => r.firstIn).length}/${R.filter(r => r.firstE).length} · the end in ${R.filter(r => r.subs.END).length}/${R.length} · always-in dropped by the cap ${R.reduce((a, r) => a + r.missing, 0)} (in ${R.filter(r => r.missing).length} hunts with more than ${TUNE.AAR_MAX_MOMENTS} always-in)`);
+  if (R.some(r => !r.subs.END)) console.log('  WARNING: a hunt with no END moment');
+  if (R.some(r => r.missing && r.must <= TUNE.AAR_MAX_MOMENTS)) console.log('  FLAG: an always-in moment was dropped under the cap');
+  aarRuns = [];
+}
+
 function report(title: string, res: any[]) {
   const by: Record<string, number> = {};
   for (const r of res) by[r.outcome] = (by[r.outcome] || 0) + 1;
@@ -195,6 +226,7 @@ function contracts(n: number) {
       else if (SCAN_PRESET && TUNE.SCAN_ENABLED && TUNE.SCAN_MODE === 'active') { G.scan = null; previewJob(0); replayScan(presetCmds(SCAN_PRESET)); chooseDrop(nearestDrop()); } // R20 --scan
       takeJob(0);
       const r = playOut(G.ct.huntSeed);
+      aarNote(`C${c} H${G.ct.results.length}`); // R22
       shots.push(...G.shotLog); parts.push(...G.partLog); // R12
       hunts.push(huntStats()); // R13
       if (r.outcome === 'STALL') { stall = true; break; }
@@ -247,6 +279,7 @@ function contracts(n: number) {
   if (!anyCarried) console.log('  FLAG: nothing is ever carried (stakes are zero)');
   if (VERBOSE) for (const r of res) console.log(`    contract ${r.c}: ${r.status} ` + r.results.map((h: any) => `H${h.n} ${h.comp} ${h.outcome} ${h.kills}/${h.total} [${h.out.join(', ')}]`).join(' | '));
   foundReport(hunts);
+  aarReport(); // R22
   return { res, hunts };
 }
 
@@ -264,20 +297,21 @@ function companyRun(n: number, seed = FROM) {
     while (hireBlock(0) === '' && C.ops.length < C.suits.length + 1) { hire(0); hired++; } // keeps one spare operator, no more
     // the highest fee it can reach, buying the fuel it needs first (before any repair spends the credits)
     const short = (o: any) => Math.max(0, fuelCost(o) - C.fuel), fl = C.market.find((l: any) => l.k === 'fuel');
-    const pick = C.offers.map((o: any, i: number) => ({ o, i })).filter((x: any) => short(x.o) === 0 || (fl && short(x.o) <= fl.qty && short(x.o) * fl.price <= C.credits)).sort((a: any, b: any) => b.o.fee - a.o.fee)[0];
+    const pick = C.offers.map((o: any, i: number) => ({ o, i })).filter((x: any) => short(x.o) === 0 || (fl && short(x.o) <= fl.qty && short(x.o) * fl.price <= C.credits)).sort((a: any, b: any) => PICK === 'low' ? a.o.tier - b.o.tier || b.o.fee - a.o.fee : b.o.fee - a.o.fee)[0]; // R22 --pick low: the safest offer in reach
     if (pick) buyFirst('fuel', short(pick.o));
     repairAll(); autoCrew();
     if (!pick || offerBlock(pick.i) || !lanceSize()) { console.log(`  contract ${c + 1}: stranded (${!lanceSize() ? 'no lance' : 'no fuel'}; ${C.credits} cr, ${C.fuel} fuel)`); break; }
+    const cr0 = C.credits, tier0 = C.offers[pick.i].tier, hunts0 = C.offers[pick.i].hunts; // R22: what the contract did to the books
     takeOffer(pick.i); played++;
     while (G.ct.status === 'ACTIVE') {
       autoCrew(); if (!lanceSize()) { G.ct.status = 'FAILED'; endContract('FAILED'); break; } // every suit that can drop does
       sizes[lanceSize()] = (sizes[lanceSize()] || 0) + 1;
-      takeJob(0); playOut(G.ct.huntSeed);
+      takeJob(0); playOut(G.ct.huntSeed); aarNote(`co ${C.code} C${c + 1} H${G.ct.results.length}`); // R22
       for (const m of G.lance) if (m.crit) { crits++; if (m.carriedBy) carried++; }
       if (G.mode === 'hunt') { G.ct.status = 'FAILED'; endContract('FAILED'); break; } // a stall ends the contract
       if (G.ct.status === 'ACTIVE') { rollJobs(); repairAll(); }
     }
-    per.push({ c: c + 1, status: G.ct.status, wins: G.ct.wins, hunts: G.ct.results.length, tier: G.ct.tier, cr: C.credits, fuel: C.fuel });
+    per.push({ c: c + 1, status: G.ct.status, wins: G.ct.wins, hunts: G.ct.results.length, tier: G.ct.tier ?? tier0, cr: C.credits, fuel: C.fuel, delta: C.credits - cr0, len: hunts0 });
     if (VERBOSE) console.log(`  C${c + 1} ${G.ct.status} ${G.ct.wins}/${G.ct.results.length} | ${companyLine()} | ${C.news.join(' ')}`);
     C.news = [];
   }
@@ -289,13 +323,25 @@ function companyRun(n: number, seed = FROM) {
   console.log('  end: ' + companyLine());
   if (C.memorial.length) console.log('  memorial: ' + C.memorial.map((m: any) => `${m.name} (${m.skill}${m.lvl}, ${m.when})`).join(', '));
   console.log('  (the scripted lance never goes back for a CRITICAL suit and buys no ship modules or items: it undervalues the ship and market, #42)');
-  return { folded: !!C.folded, played, complete: R.complete, kia: R.kia, cr: C.credits };
+  if (!MANY) aarReport(); // R22 (several companies: one summary at the end)
+  return { folded: !!C.folded, played, complete: R.complete, kia: R.kia, cr: C.credits, per };
 }
 // R21 cp3: --company N --companies K: K companies of N contracts (seeds FROM..FROM+K-1), the summary per company and in total
+let MANY = false; const PICK = sarg('--pick') || 'high'; // R22: --pick low = the company takes the lowest danger it can reach (default: the highest fee)
 function companies(n: number, k: number) {
+  MANY = true;
   const out: any[] = [];
   for (let i = 0; i < k; i++) out.push(companyRun(n, FROM + i));
   const sum = (key: string) => out.reduce((a, r) => a + r[key], 0);
+  // R22 (R21's open question): does a contract pay its way? credits after it ends vs before it was taken (fuel bought before)
+  const all = out.flatMap(r => r.per);
+  for (const [t, nm] of [[0, 'LOW'], [1, 'MEDIUM'], [2, 'HIGH']] as [number, string][]) {
+    const L = all.filter((p: any) => p.tier === t); if (!L.length) { console.log(`  ${nm}: none played`); continue; }
+    const pays = L.filter((p: any) => p.delta >= 0);
+    console.log(`  ${nm}: ${L.length} played, complete ${L.filter((p: any) => p.status === 'COMPLETE').length}, paid its way ${pays.length} (avg ${Math.round(L.reduce((a: number, p: any) => a + p.delta, 0) / L.length)} cr; complete avg ${Math.round(L.filter((p: any) => p.status === 'COMPLETE').reduce((a: number, p: any) => a + p.delta, 0) / Math.max(1, L.filter((p: any) => p.status === 'COMPLETE').length))} cr) · ` + L.map((p: any) => `${p.len}h ${p.status[0]} ${p.delta >= 0 ? '+' : ''}${p.delta}`).join(', '));
+  }
+  console.log(`  contracts survived per company: ` + out.map(r => r.per.filter((p: any) => p.status === 'COMPLETE').length + '/' + r.played + (r.folded ? ' fold' : '')).join(' · '));
+  aarReport();
   console.log(`== ${k} COMPANIES × ${n} contracts: folded ${out.filter(r => r.folded).length} | contracts played ${sum('played')} (complete ${sum('complete')}) | KIA ${sum('kia')} | avg credits at the end ${Math.round(sum('cr') / k)}`);
 }
 

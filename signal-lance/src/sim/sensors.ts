@@ -11,6 +11,7 @@ import { raiseAlarm } from './pack.ts';
 import { rwrPaint } from './rwr.ts';
 import { noteEmit, notePulse, noteMoved, noteFired, reveal, emitBand, frozen, obsOf } from './ids.ts';
 import { isMech } from './state.ts';
+import { aarSeen } from './aar.ts';
 
 // ============================ SIGNATURE / DETECTION ===================
 // R13: electronic only. Moving and firing no longer reach passive sensors (they make Sound instead, see sound.ts).
@@ -76,6 +77,7 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, 
     const by = list === G.pc ? null : G.units.find(u => u.ec === list); // R18 (A12): who found it, how far away
     G.firstLog.push({ side: list === G.pc ? 'P' : 'E', src, turn: G.turn, tgt: id, by: by ? by.id : '', byType: by ? by.variant : '',
       d: by && tgt ? Math.hypot(by.x - tgt.x, by.y - tgt.y) / T : 0 }); // R13: every new contact and the sense that made it (runner)
+    if (list === G.pc) aarSeen('P', null, tgt, src, who); else aarSeen('E', by, tgt, src); // R22: the first time each side found the other
   }
   (c.seen || (c.seen = {}))[src] = G.time; // R18: every sense that has fixed it, and when (the stacked tags)
   if (who) { const B = (c.by || (c.by = {}))[src] || (c.by[src] = {}); for (const l of who.split('+')) B[l] = G.time; } // R18 fix list 13: which suit(s)

@@ -3,6 +3,7 @@
 // suits, each with its own fit and damage that carries between contracts; before each hunt, an operator per suit that drops). The view saves G.co (and the running
 // G.ct) to one localStorage slot; everything here is plain JSON so a save round-trips exactly.
 // Off (G.co null) = the R11 contract flow, byte-identical: suits have no operator, a lethal hit just destroys the suit.
+import { aarCarry } from './aar.ts';
 import { TUNE } from '../tune.ts';
 import { T } from './world.ts';
 import { G } from './state.ts';
@@ -313,7 +314,7 @@ export function onSuitDown(m) {
 // End of m's turn (or m extracting): it picks up every CRITICAL lancemate within OP_CARRY_RANGE.
 export function noteCarry(m) {
   if (!m || m.dead) return;
-  for (const d of G.lance) if (d !== m && d.crit && !d.carriedBy && Math.hypot(d.x - m.x, d.y - m.y) / T <= TUNE.OP_CARRY_RANGE) { d.carriedBy = m.id; G.carryLog = (G.carryLog || []).concat({ who: d.id, by: m.id, turn: G.turn }); }
+  for (const d of G.lance) if (d !== m && d.crit && !d.carriedBy && Math.hypot(d.x - m.x, d.y - m.y) / T <= TUNE.OP_CARRY_RANGE) { d.carriedBy = m.id; G.carryLog = (G.carryLog || []).concat({ who: d.id, by: m.id, turn: G.turn }); aarCarry(m, d); }
 }
 // How a CRITICAL operator's hunt ended: carried by a lancemate still standing (out or on the map), or the field cleared = SAVED;
 // otherwise KIA (cp4: the MEDBAY may still pull them out, rolled once in afterHunt and kept on m.fate). Not critical = OK.
@@ -356,7 +357,7 @@ export function afterHunt() {
   }
   // cp3: salvage. Every field unit destroyed puts parts in the hold, up to its cap
   const got = G.kills * TUNE.SALVAGE_PER_KILL, room = Math.max(0, holdCap() - C.parts), kept = Math.min(got, room);
-  C.parts += kept;
+  C.parts += kept; G.salvage = kept; // R22: WHAT IT COST
   if (got) C.news.push('Salvage: ' + kept + ' part' + (kept === 1 ? '' : 's') + ' into the hold (' + C.parts + '/' + holdCap() + ')' + (got > kept ? ', ' + (got - kept) + ' left behind: the hold is full' : '') + '.');
   // cp4: a painted ship may take a hull hit (paid when the contract ends); HULL ARMOUR soaks one per contract
   const S = G.scanCost;

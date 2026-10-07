@@ -5,6 +5,7 @@ import { TUNE } from '../tune.ts';
 import { T } from './world.ts';
 import { G, finishHunt, unitById } from './state.ts';
 import { observe } from './sensors.ts';
+import { aarObj } from './aar.ts';
 
 // Name and one-line goal, shown in the INTEL before you take the job (and in the HUD / result).
 export const MISSION_INFO = {
@@ -27,7 +28,9 @@ export function bountyOf(u) { return TUNE.BOUNTY[u.variant] || 0; }
 export function onKill(u) {
   if (!isType('BOUNTY')) return;
   const b = bountyOf(u);
+  const was = quotaMet();
   G.mission.earned += b;
+  if (!was && quotaMet()) aarObj('QUOTA', null, G.mission.earned + '/' + G.mission.quota + ' cr'); // R22
   G.mission.kills.push({ v: u.variant, b, turn: G.turn });
   G.pop = { x: u.x, y: u.y, b, v: u.variant, t: 2.5 }; // the view shows "+80 heavy" for a moment
 }
@@ -48,6 +51,7 @@ export function pickupBlock(m) {
 export function doPickup(m) {
   m.ap -= TUNE.RETRIEVE_PICKUP_AP;
   const M = G.mission; M.carrier = m.id; M.flipped = true; M.pickups++; M.pickTurn = M.pickTurn || G.turn;
+  aarObj('PICKUP', m); // R22
   const unc = (TUNE.UNC_ACQUIRE + TUNE.ALARM_UNC_ADD) * T;
   for (const u of G.units) if (!u.dead) observe(u.ec, m.id, m.x, m.y, unc, 0, 0, true, true, false, 'ALARM');
   G.alarmLog.push({ from: 'CARGO', to: G.units.filter(u => !u.dead).map(u => u.id), mech: m.id, turn: G.turn, t: G.time });
@@ -63,10 +67,10 @@ export function handoffBlock(m) {
   if (m.ap < TUNE.RETRIEVE_HANDOFF_AP) return 'AP';
   return '';
 }
-export function doHandoff(m) { const o = handoffTo(m); m.ap -= TUNE.RETRIEVE_HANDOFF_AP; G.mission.carrier = o.id; G.mission.handoffs++; }
+export function doHandoff(m) { const o = handoffTo(m); m.ap -= TUNE.RETRIEVE_HANDOFF_AP; G.mission.carrier = o.id; G.mission.handoffs++; aarObj('HANDOFF', m, o.id); } // R22
 // Called each sim step: the carrier destroyed = the cargo is lost and the hunt fails (a contract LOSS only if the lance is wiped)
 export function cargoLost() { const c = carrier(); return !!c && c.dead; }
-export function onCargoLost() { G.mission.endTurn = G.turn; G.mission.result = 'cargo lost'; finishHunt('FAIL'); }
+export function onCargoLost() { aarObj('CARGO_LOST', carrier()); G.mission.endTurn = G.turn; G.mission.result = 'cargo lost'; finishHunt('FAIL'); }
 
 // ---- R15 step 3: Escort ----
 export function onAllyLost() { G.mission.endTurn = G.turn; G.mission.result = 'transport lost'; finishHunt('FAIL'); }
