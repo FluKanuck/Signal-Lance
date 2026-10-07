@@ -70,6 +70,7 @@ svg.dial.f .bg{fill:currentColor;stroke:none} svg.dial.f circle,svg.dial.f path{
 #ui{position:fixed;inset:0;z-index:5;display:none;color:var(--ink);font:11px/1.5 var(--font);letter-spacing:.04em;text-transform:uppercase;-webkit-user-select:none;user-select:none}
 .ui-on #ui{display:block}
 .ui-on #hud{display:none}
+.ui-on #gl{opacity:var(--field,0);transition:opacity .3s}
 #ui .scrim{position:absolute;inset:0;background:radial-gradient(ellipse at 50% 40%,color-mix(in srgb,var(--bg) calc(var(--scrim) * 70%),transparent),color-mix(in srgb,var(--bg) calc(var(--scrim) * 100%),transparent));pointer-events:none}
 #ui .scrim:after{content:'';position:absolute;inset:0;background:radial-gradient(circle,color-mix(in srgb,var(--ink) 14%,transparent) .8px,transparent 1.2px) 0 0/16px 16px;opacity:.6}
 #ui .reg{position:absolute;width:14px;height:14px;border:0 solid var(--ink);opacity:.7;pointer-events:none}

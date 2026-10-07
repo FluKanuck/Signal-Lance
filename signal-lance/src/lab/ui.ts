@@ -20,7 +20,7 @@ let cur = 'TITLE', onLeave = () => {};
 export function applyUiCss() {
   const r = document.documentElement.style;
   r.setProperty('--stroke', UIK.stroke + 'px'); r.setProperty('--fillA', String(UIK.fillA));
-  r.setProperty('--glow', String(UIK.glow)); r.setProperty('--scrim', String(UIK.scrim));
+  r.setProperty('--glow', String(UIK.glow)); r.setProperty('--scrim', String(UIK.scrim)); r.setProperty('--field', String(UIK.field));
   redrawFrames();
 }
 
