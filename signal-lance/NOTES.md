@@ -994,6 +994,31 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Drop zones: the west edge always; an apron once RADAR band 1 at its spawn tile. A drop zone index is now its dropPts index.
    - Checkpoint 1 has no costs (SCAN_COSTS false): the result line says " · scan N min: pings, heat, EM fixes, zones".
    - Scenario "Where first": seed 2025, Ambush (sentry + hush: silent and cold; heavy + line patrols), 4×2 packed.
+ - Round 20 fix list 1–4 + checkpoint 2 (r20-s2):
+   - Sensors at once (fix 1, Jamie's call over the brief's NOT IN list): S.on per sensor, each with its own ring (S.aims) and FULL
+     MAP flag (S.wide). The view's "selected" sensor (outlined) is what a tap moves and FULL MAP acts on: the last turned on or
+     dragged. A sensor button: off → on (and selected); on → selected; selected → off. A drag grabs the ring whose centre is
+     nearest the touch (the selected one wins a tie). Commands: R/T/E 1|0, W sensor 1|0, a x.y.sensor, G, S.
+   - No clock cap (fix 3): START CLOCK / PAUSE / RESUME. Paused = nothing happens (a think pause, no cooling). Running with every
+     sensor off = waiting: the meter cools by SCAN_COOL. Opening the CARD or dropping pauses it.
+   - The risk meter (cp2, keyed as fix 3 asked): + Σ SCAN_LOUD of the sensors on, per ship-minute. Steps at SCAN_RISK_STEPS, then
+     one every SCAN_RISK_MORE (no ceiling). New keys (SCAN_RISK_EXTRA / _ALERT / _PAINT) rather than re-keying the dial's arrays,
+     so the dial still replays byte-identical.
+   - Reaching a step for the first time (S.peak) rolls SCAN_RISK_EXTRA: a unit "called in" (any variant), right then, on the scan
+     map (it can be scanned). Cooling and climbing back doesn't roll again; each new higher step does. The step at the DROP sets
+     the alert share and the painted chance (hunt RNG, as R19; no roll when the chance is 0 or nobody wakes, so an unscanned drop
+     plays as before). Radar-fitted units head the wake-up list when radar was used at all ("notice radar early").
+   - "Some things change as time goes on": patrols walk (r20-s1) and SCAN_ARRIVE_PER_MIN rolls each tick for a new patrol. Both
+     kinds of added unit are kept in S.adds with their id, re-spawned at the drop (takeJob rolls the field again).
+   - The side panel says the field has grown ("N called in by your scanning, M arrived"): simplest way to make the cost visible.
+   - Deadlines (fix 4, scan screen only): jobDeadline(seed, mission) = SCAN_DEADLINE_CHANCE of jobs get SCAN_DEADLINE_MIN ship-
+     minutes; shown on the job card and the clock; at the deadline the clock stops for good (S.over) and you drop. No in-hunt effect
+     (the mission clock stays parked #85).
+   - FULL MAP (fix 2): the WIDE button is now "FULL MAP · <sensor>" (dashed) beside the sensors; the selected sensor's frame is
+     drawn round the map; it reads RING to switch back.
+   - Phone layout: START / CARD / DROP and the drop zones sit right under the sensors; clock, risk and intel below (they scroll).
+   - Scenario "Loud and fast": the Where first job with "0W0.1_0G_11S" pre-run (radar full map 2.75 min: risk 2.75, step 1 at 3),
+     deadlines off.
 ```
 
 ## TWEAK LOG
@@ -1519,3 +1544,12 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            SCAN_WIDE_STRENGTH 0.25, SCAN_DRIFT_PER_MIN 0.5, SCAN_DRIFT_LEASH 8, SCAN_DROP_DELAY 2, SCAN_PING_UNC [3, 2, 1],
            SCAN_HEAT_UNC [3, 2, 1.5], SCAN_HOT_IR 4, SCAN_IR_LARGE 6, SCAN_BLIP_FLOOR 1, SCAN_COSTS false. Radar on the ring hits
            band 3 in 2 min, thermal 4, EM 8; wide radar band 1 in 1.3 min, wide EM never passes band 2 (aim it). BUILD r20-s1 | -
+   round20 fix list 1–4 (Jamie: "be able to pick certain types, aim independently, and run at the same time"; "cant see where to
+           scan full map instead of circle"; "the clock time, should be infinite, it just keeps adding threats … a cool down, that can
+           lower with no scanning … with the risk that some things may change as time goes on"; "some missions may have a time
+           restraint" → "just have it for in the SIGINT layer") + checkpoint 2 | sensors at once with their own rings; FULL MAP
+           button; SCAN_TIME_MAX 20 → none; NEW SCAN_COSTS true, SCAN_LOUD radar 1 / thermal 0.2 / EM 0.05, SCAN_COOL 0.5,
+           SCAN_RISK_STEPS [3, 6, 10], SCAN_RISK_MORE 5, SCAN_RISK_EXTRA [0, 0.35, 0.5, 0.5], SCAN_RISK_ALERT [0, 0.25, 0.5, 0.75],
+           SCAN_RISK_PAINT [0, 0, 0.25, 0.5], SCAN_ARRIVE_PER_MIN 0.02, SCAN_DEADLINE_CHANCE 0.5, SCAN_DEADLINE_MIN [8, 16].
+           Radar alone reaches step 1 in 3 min; all three sensors 1.25/min; cooling from step 1 to 0 takes 6 min. Runner (no scan):
+           same as r20-s1. BUILD r20-s2 | -

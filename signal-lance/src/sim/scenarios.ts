@@ -8,6 +8,7 @@ import { rollPacked } from './packed.ts';
 import { setSeed } from './rng.ts';
 import { G, newHunt, makeUnit, setActive, rollEnemy } from './state.ts';
 import { listen } from './scan.ts';
+import { replayScan, decodeCmds } from './livescan.ts';
 import { LOAD_DEFAULTS, fitFromLoad, has, makeFit, HANGAR_TEMPLATES } from './kit.ts';
 import { setZones, zoneAtTile } from './zones.ts';
 import { syncHits } from './combat.ts';
@@ -29,7 +30,7 @@ export type Scenario = {
   earned?: number | 'quota';             // R15 Bounty: credits already banked at the start ('quota' = exactly BOUNTY_QUOTA)
   map?: DistrictSpec;                    // R16: a fixed block district (no roll); none = the hive map
   packed?: { seed: number; grid: string }; // R17 (parked #65): a packed district rolled from this seed and grid (the same map every time)
-  job?: { seed: number; comp: string; listen: number }; // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen (R20: listen -1 = the live scan, yours to run)
+  job?: { seed: number; comp: string; listen: number; scan?: string }; // R20: scan = live-scan commands already run when it opens (encodeCmds) // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen (R20: listen -1 = the live scan, yours to run)
 };
 
 // R16 test-bed districts (fixed: no roll, no rotation). cells are row-major block names.
@@ -46,6 +47,13 @@ export const WARM_FIT = () => makeFit('warden', [['MAST', 'emarray'], ['MAST', '
 export const RWR_FIT = () => makeFit('warden', [['MAST', 'rwr'], ['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery']], ['CORE']);
 export const HEAVY_FIT = () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery'], ['BACK', 'mortar']], ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS']);
 export const SCENARIOS: Scenario[] = [
+  // R20 cp2: the same job, radar already on FULL MAP for 2.75 ship-minutes: the meter sits just under step 1 (at 3).
+  {
+    name: 'Loud and fast', round: 20, seed: 2025, mission: 'UPLINK', job: { seed: 2025, comp: 'Ambush', listen: -1, scan: '0W0.1_0G_11S' }, tune: { SCAN_MODE: 'active', SCAN_DEADLINE_CHANCE: 0 },
+    tryThis: 'The ship has had RADAR on the full map for almost 3 minutes: the RISK meter is just under step 1. Every step may call a unit in, and the step you drop at decides how much of the field wakes. Push on, switch to the quiet sensors, or wait for it to cool, then drop and take the uplink.',
+    uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
+    question: { q: 'Did you stop before the risk, or push?', a: ['Stopped before the step', 'Waited for it to cool', 'Pushed on: worth it', 'Pushed on: regretted it', 'Didn’t notice the meter'] },
+  },
   // ---- Round 20 (eyes from the ship): a real rolled job through the live scan. Seed 2025: a 4×2 packed district, an Ambush
   // field: two silent turrets (a sentry and a hush: no radio, cold) and two patrols (a heavy and a line: radio, warm). ----
   {
@@ -313,7 +321,7 @@ export function startScenario(s: Scenario, launch = true) {
   if (s.job) { // R19: a rolled job through the scan (the view shows the scan screen and launches it; the runner / tests go straight on)
     const m = TUNE.MAP_MODE, sc = TUNE.SCAN_ENABLED; TUNE.MAP_MODE = 'blocks'; TUNE.SCAN_ENABLED = true;
     try { rollEnemy(s.job.seed, s.job.comp, s.mission || 'UPLINK'); } finally { TUNE.MAP_MODE = m; TUNE.SCAN_ENABLED = sc; }
-    if (s.job.listen >= 0) listen(s.job.listen); G.tb = s; // R20: listen -1 = the live scan (the view runs it; tests and the runner drop straight in)
+    if (s.job.listen >= 0) listen(s.job.listen); else if (s.job.scan && G.scan) replayScan(decodeCmds(s.job.scan)); G.tb = s; // R20: listen -1 = the live scan (the view runs it; tests and the runner drop straight in)
     if (launch) launchJobScenario();
     return;
   }

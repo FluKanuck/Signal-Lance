@@ -441,13 +441,13 @@ export const TUNE = {
   // an aim mark you drag; every unit, zone and drop zone gathers dwell per sensor and its bands reveal that sensor's layer.
   SCAN_MODE: 'active',     // 'active' = the R20 live scan; 'dial' = the R19 listen dial (SKIP / SHORT / MEDIUM / LONG)
   SCAN_TIME_RATE: 1,       // ship-minutes per real second while the scan runs
-  SCAN_TIME_MAX: 20,       // ship-minutes; the clock stops itself here
+  // (R20 fix list 3, Jamie: "the clock time, should be infinite": no cap; time costs risk instead, see SCAN_LOUD)
   SCAN_TICK: 0.25,         // ship-minutes per sim step (the view sends commands; the sim steps; a seed + commands replay exactly)
   SCAN_SPEED: { RADAR: 3, THERMAL: 1.5, EM: 0.75 }, // dwell per ship-minute at full aim strength (radar fast, thermal medium, EM slow)
   SCAN_BANDS: { RADAR: [1, 3, 6], THERMAL: [1, 3, 6], EM: [1, 3, 6] }, // dwell needed for bands 1 / 2 / 3 of each sensor's layer
   SCAN_AIM_CORE: 4,        // tiles; full strength inside this radius of the aim mark...
   SCAN_AIM_EDGE: 10,       // ...fading linearly to zero at this radius
-  SCAN_WIDE_STRENGTH: 0.25, // WIDE: the whole map at this flat strength (no aim)
+  SCAN_WIDE_STRENGTH: 0.25, // FULL MAP: that sensor covers the whole map at this flat strength (no ring)
   SCAN_DRIFT_PER_MIN: 0.5, // tiles a patrol walks per ship-minute while the ship scans (replaces SCAN_DRIFT in 'active')
   SCAN_DRIFT_LEASH: 8,     // tiles; a patrol's scan-time walk stays this close to where it started
   SCAN_DROP_DELAY: 2,      // ship-minutes between STOP and landing: patrols keep walking (even a last-second look is a little stale)
@@ -456,7 +456,22 @@ export const TUNE = {
   SCAN_HOT_IR: 4,          // THERMAL sees a unit whose IR is at least this (patrol 5, emplacement 7; turrets 3 stay cold)
   SCAN_IR_LARGE: 6,        // a heat blob at THERMAL band 2+ reads LARGE at this IR or more, else MEDIUM
   SCAN_BLIP_FLOOR: 1,      // tiles; an EM blip's fuzz shrinks from SCAN_BLIP_UNC (band 2) to this (band 3)
-  SCAN_COSTS: false,       // R20 cp1: no costs yet (cp2 keys the cost ladder to the risk meter)
+  SCAN_COSTS: true,        // R20 cp2: the risk meter's costs (false = scanning is free, as r20-s1)
+  // R20 fix list 3 (with checkpoint 2): one risk meter. While the clock runs, every sensor that is on adds its loudness; with no
+  // sensor on the meter cools. Crossing a step (upwards, the first time) may call in a unit; the step you DROP at sets the alert
+  // share and the painted chance. Time also lets the field change: patrols walk, and now and then a unit arrives.
+  SCAN_LOUD: { RADAR: 1, THERMAL: 0.2, EM: 0.05 }, // risk per ship-minute while that sensor is on (radar loud, thermal low, EM near zero)
+  SCAN_COOL: 0.5,          // risk lost per ship-minute while the clock runs with every sensor off (waiting)
+  SCAN_RISK_STEPS: [3, 6, 10], // risk at which steps 1, 2, 3 start...
+  SCAN_RISK_MORE: 5,       // ...and past the last one, another step every this much risk (no ceiling: the threats keep coming)
+  SCAN_RISK_EXTRA: [0, 0.35, 0.5, 0.5], // chance a unit is called in when the meter first reaches step k (the last value past the list)
+  SCAN_RISK_ALERT: [0, 0.25, 0.5, 0.75], // share of the field awake at the drop, by the step you drop at (the dial's SCAN_ALERT_SHARE)
+  SCAN_RISK_PAINT: [0, 0, 0.25, 0.5], // chance the ship is painted at the drop, by step (then SCAN_AMBUSH patrols wait near the drop zone)
+  SCAN_ARRIVE_PER_MIN: 0.02, // chance per ship-minute on station that a new patrol arrives anyway (waiting isn't free)
+  // R20 fix list 4 (Jamie: "some missions may have a time restraint"): some jobs give the ship a window; at the deadline the
+  // scan ends and you drop. Scan screen only for now (the in-hunt mission clock is parked #85).
+  SCAN_DEADLINE_CHANCE: 0.5, // share of jobs with a window (seeded per job)
+  SCAN_DEADLINE_MIN: [8, 16], // ship-minutes of window (min, max)
   // R19 checkpoint 3: the RWR (src/sim/rwr.ts). A catalogue row ('rwr', S hardpoint, wt 1, draw 0), now in the hangar.
   RWR_ENABLED: true,       // false = no warnings (the row still fits but does nothing)
   RWR_BASELINE: true,      // R19 fix list 1 (Jamie: "All mechs have a baseline RWR, that shows only they been hit with radar"): every suit knows it was painted

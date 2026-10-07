@@ -1,14 +1,15 @@
 // Round 19: the pre-drop scan screen. Between the job pick and the drop: one listen dial (SKIP / SHORT / MEDIUM / LONG),
 // LISTEN, then what the ship heard on a map of the whole district (roster, zones, drop zones, blips). View only: it sends
 // listen() / chooseDrop() and draws G.scan.
-// Round 20 (TUNE.SCAN_MODE 'active'): the live scan. A sensor picker, WIDE, START / STOP and a clock; drag the aim ring on the
-// map. The view only sends commands (scanCmd) and turns real seconds into ship-minutes; the sim steps (scanStep).
+// Round 20 (TUNE.SCAN_MODE 'active'): the live scan. Sensor toggles (any mix at once), FULL MAP, the clock (START / PAUSE, no
+// cap) and the risk meter; drag a sensor's ring on the map. The view only sends commands (scanCmd) and turns real seconds into
+// ship-minutes; the sim steps (scanStep).
 import { TUNE } from '../tune.ts';
 import { G } from '../sim/state.ts';
 import { W, H, T, solid, clutter, anchors } from '../sim/world.ts';
 import { LISTEN, listen, chooseDrop, offeredDrops, zoneKnow, dropPts, scanDone } from '../sim/scan.ts';
 import { scanRisk } from '../sim/scan.ts';
-import { scanCmd, scanStep, unitIntel, zoneLayer, dropClear, liveSummary, SENSORS } from '../sim/livescan.ts';
+import { scanCmd, scanStep, unitIntel, zoneLayer, dropClear, liveSummary, SENSORS, sensorsOn, riskStep, riskAt, stepVal } from '../sim/livescan.ts';
 import { legPath } from '../sim/escort.ts';
 import { $ } from './hud.ts';
 import { showCard } from './card.ts';
@@ -31,6 +32,8 @@ const SHELP: Record<string, string> = {
   EM: '<b>WHO.</b> Passive and slow. Only things that transmit: first counted, then a bearing fix with the CARD’s best guess that firms up the longer you listen.',
 };
 const live = () => G.scan && G.scan.mode === 'active';
+let sel = 'RADAR'; // R20 fix list 1: the sensor whose ring a tap moves and FULL MAP acts on (the last one turned on or dragged)
+const sidx = (s: string) => SENSORS.indexOf(s as any);
 let pickLvl = 1, onGo: () => void = () => {}, goLabel = 'NEXT', locked = -1;
 
 // Open the scan for the current world (rollEnemy already ran). go = what NEXT does; force = a test-bed scan (dial locked to it).
@@ -42,12 +45,13 @@ export function showScan(title: string, go: () => void, label: string, force = -
   for (const id of ['load', 'jobs', 'res', 'tb', 'tbres']) $(id).hidden = true;
   $('scan').hidden = false; $('scan').scrollTop = 0;
   ($('scv') as HTMLCanvasElement).style.touchAction = live() ? 'none' : 'manipulation'; // R20: the ring drags
+  if (live()) sel = sensorsOn(G.scan)[0] || 'RADAR';
   renderScan();
   requestAnimationFrame(() => requestAnimationFrame(() => { if (!$('scan').hidden) drawMap(); })); // R19 fix: size the map again once the panel's scale has settled
 }
 export function renderScan() {
   const S = G.scan, act = live();
-  $('sDialBox').hidden = act; $('sLive').hidden = !act; $('bRun').hidden = !act;
+  $('sDialBox').hidden = act; for (const id of ['sLive', 'bRun', 'sClock', 'sRisk', 'sHelp']) $(id).hidden = !act; // R20: the clock and the buttons sit up top (phones)
   if (act) renderLive(); else renderDial();
   const D = offeredDrops(), done = scanDone();
   $('sDrops').innerHTML = done && D.length > 1 ? D.map(d => '<button class="sdz' + (d.i === S.drop ? ' on' : '') + '" data-d="' + d.i + '">' + (d.i + 1) + ' ' + esc(d.name.toUpperCase()) + '</button>').join('') : '';
@@ -66,21 +70,34 @@ function renderDial() {
 }
 // R20: the live side panel (rebuilt each tick while the clock runs)
 function renderLive() {
-  const S = G.scan, max = TUNE.SCAN_TIME_MAX;
-  $('sSens').innerHTML = SENSORS.map(s => '<button class="ss s-' + s + (S.sensor === s ? ' on' : '') + '" data-s="' + s + '">' + SNAME[s] + '</button>').join('') +
-    '<button class="ss' + (S.wide ? ' on' : '') + '" data-s="WIDE">WIDE</button>';
-  const m = S.t.toFixed(2).replace(/\.?0+$/, '') || '0';
-  $('sClock').innerHTML = (S.run ? '● ' : '') + 'CLOCK ' + m + ' / ' + max + ' ship-min · ' + SNAME[S.sensor] + (S.wide ? ' wide' : ' on the ring') +
-    '<span class="bar"><span style="width:' + Math.min(100, 100 * S.t / max) + '%;background:' + SCOL[S.sensor] + '"></span></span>';
-  $('sHelp').innerHTML = SHELP[S.sensor];
+  const S = G.scan, on = sensorsOn(S);
+  $('sSens').innerHTML = SENSORS.map(s => '<button class="ss s-' + s + (S.on[s] ? ' on' : '') + (S.on[s] && s === sel ? ' sel' : '') + '" data-s="' + s + '">' + SNAME[s] + '<small>' + (S.on[s] ? (S.wide[s] ? 'FULL MAP' : 'ON') : 'off') + '</small></button>').join('');
+  $('bWide').innerHTML = (S.on[sel] && S.wide[sel] ? 'RING' : 'FULL MAP') + '<small>' + SNAME[sel] + '</small>'; // R20 fix list 2: the whole map, said plainly
+  $('bWide').classList.toggle('on', !!S.wide[sel]); ($('bWide') as HTMLButtonElement).disabled = !S.on[sel];
+  const m = (x: number) => (Math.round(x * 4) / 4).toString();
+  const doing = !S.run ? (S.over ? 'WINDOW CLOSED: drop now' : 'paused') : on.length ? 'scanning: ' + on.map(x => SNAME[x]).join(' + ') : 'waiting: risk cooling';
+  $('sClock').innerHTML = (S.run ? '● ' : '') + 'CLOCK ' + m(S.t) + ' ship-min' + (S.deadline ? ' · <span class="' + (S.deadline - S.t <= 3 ? 'badt' : 'warnt') + '">DEADLINE ' + S.deadline + ' (' + m(Math.max(0, S.deadline - S.t)) + ' left)</span>' : '') + ' · ' + doing +
+    (S.deadline ? '<span class="bar"><span style="width:' + Math.min(100, 100 * S.t / S.deadline) + '%;background:#e0c050"></span></span>' : '');
+  $('sRisk').innerHTML = riskHtml(S);
+  $('sHelp').innerHTML = S.on[sel] ? '<b style="color:' + SCOL[sel] + '">' + SNAME[sel] + '</b> ' + SHELP[sel] : 'Turn a sensor on to aim it. Several can run at once, each with its own ring.';
   $('sIntel').innerHTML = liveLines().map(l => '<div>' + l + '</div>').join('');
-  const b = $('bRun'); b.textContent = S.run ? 'STOP' : S.t >= max - 1e-9 ? 'OUT OF TIME' : S.t > 0 ? 'START AGAIN' : 'START'; b.classList.toggle('run', !!S.run);
-  (b as HTMLButtonElement).disabled = !S.run && S.t >= max - 1e-9;
+  const b = $('bRun'); b.textContent = S.run ? 'PAUSE' : S.over ? 'WINDOW CLOSED' : S.t > 0 ? 'RESUME' : 'START CLOCK'; b.classList.toggle('run', !!S.run);
+  (b as HTMLButtonElement).disabled = !S.run && S.over;
+}
+// R20 cp2: the risk meter: where it is, what dropping now brings, what the next step adds
+function riskHtml(S) {
+  if (!TUNE.SCAN_COSTS) return '';
+  const k = riskStep(S.risk), nx = riskAt(k + 1), pc = (x: number) => Math.round(x * 100) + '%';
+  const lo = riskAt(k), fill = Math.min(100, 100 * (S.risk - lo) / Math.max(1e-6, nx - lo));
+  const now = k ? pc(stepVal(TUNE.SCAN_RISK_ALERT, k)) + ' of the field awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k)) + ' chance the ship is painted' : '') : 'nobody stirs';
+  const next = k + 1 > S.peak && stepVal(TUNE.SCAN_RISK_EXTRA, k + 1) ? pc(stepVal(TUNE.SCAN_RISK_EXTRA, k + 1)) + ' chance a unit is called in; ' : '';
+  return '<b class="' + (k ? 'badt' : 'okt') + '">RISK ' + S.risk.toFixed(1) + ' · STEP ' + k + '</b> <span class="bar"><span style="width:' + fill + '%;background:' + (k ? '#ff8a80' : '#70c080') + '"></span></span>' +
+    '<span style="opacity:.9">Drop now: ' + now + '. Step ' + (k + 1) + ' at ' + nx + ': ' + next + pc(stepVal(TUNE.SCAN_RISK_ALERT, k + 1)) + ' awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k + 1) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k + 1)) + ' painted' : '') + '. Radar is loud; with every sensor off the meter cools.</span>';
 }
 // R20: what the ship knows, one line per sensor (plain words, the CARD's names)
 function liveLines() {
   const S = G.scan, M = liveSummary(S), L: string[] = [];
-  if (!S.t) return ['Pick a sensor, drag the ring onto what matters (or WIDE for all of it), then START. STOP when you have enough. DROP lands with what you know.'];
+  if (!S.t) return ['Turn sensors on, drag each ring onto what matters (or FULL MAP), then START CLOCK. PAUSE to think; time only passes while the clock runs. DROP lands with what you know.'];
   const I = G.units.map(u => unitIntel(S, u)).filter(Boolean);
   L.push('<b style="color:' + SCOL.RADAR + '">RADAR:</b> ' + M.pings + ' ping' + (M.pings === 1 ? '' : 's') + ' (type unknown) · zones ' + M.zones + '/' + G.zones.length + ' outlined · drops ' + M.drops + '/' + dropPts().length + ' clear');
   const sz = I.filter(i => i.size), big = sz.filter(i => i.size === 'LARGE').length;
@@ -88,6 +105,7 @@ function liveLines() {
   const named = I.filter(i => i.guess).map(i => esc(i.guess) + '? ' + (i.fits.length > 1 ? '1 of ' + i.fits.length : 'sure'));
   L.push('<b style="color:' + SCOL.EM + '">EM:</b> ' + M.heard + ' heard' + (M.fixed ? ' · ' + M.fixed + ' fixed: ' + named.join(', ') : M.heard ? ' (no fix yet: keep listening)' : ''));
   const stale = I.filter(i => i.fix && i.mobile && S.t - i.fix.t >= 2).length;
+  if (S.adds.length) { const c = S.adds.filter(a => a.why === 'called in').length, a = S.adds.length - c; L.push('<span class="badt">The field has grown: ' + (c ? c + ' called in by your scanning' : '') + (c && a ? ', ' : '') + (a ? a + ' arrived while you were on station' : '') + '.</span>'); }
   if (stale) L.push('<span class="warnt">' + stale + ' moving contact' + (stale > 1 ? 's' : '') + ' last seen 2+ min ago: ' + (stale > 1 ? 'they have' : 'it has') + ' moved since.</span>');
   if (M.drops > 1) L.push('<b>Drop zone:</b> tap a numbered circle on the map or a button below.');
   else L.push('<span style="opacity:.75">Point RADAR at a dim “?” apron on the map edge to clear it as a drop zone.</span>');
@@ -123,9 +141,9 @@ function drawMap() {
   c.fillStyle = '#2c2d30'; c.fillRect(0, 0, W * T, H * T);
   const rb1 = TUNE.SCAN_BANDS.RADAR[0];
   c.fillStyle = '#4a4033'; for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) if (clutter[y * W + x] && (!act || S.cov.RADAR[y * W + x] >= rb1)) c.fillRect(x * T, y * T, T, T); // R20: rubble once radar has looked
-  if (act) { // R20: where the current sensor has looked (brighter = more dwell, full at band 3)
-    const cov = S.cov[S.sensor], top = TUNE.SCAN_BANDS[S.sensor][2];
-    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const v = cov[y * W + x]; if (v > 0) { c.fillStyle = 'rgba(' + SRGB[S.sensor] + ',' + (0.06 + 0.22 * Math.min(1, v / top)).toFixed(3) + ')'; c.fillRect(x * T, y * T, T, T); } }
+  if (act) for (const sn of sensorsOn(S)) { // R20: where each sensor that is on has looked (brighter = more dwell, full at band 3)
+    const cov = S.cov[sn], top = TUNE.SCAN_BANDS[sn][2];
+    for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const v = cov[y * W + x]; if (v > 0) { c.fillStyle = 'rgba(' + SRGB[sn] + ',' + (0.05 + 0.17 * Math.min(1, v / top)).toFixed(3) + ')'; c.fillRect(x * T, y * T, T, T); } }
   }
   c.fillStyle = 'rgba(60,200,90,0.3)'; c.fillRect((W - TUNE.EXTRACT_COLS) * T, 0, TUNE.EXTRACT_COLS * T, H * T);
   const zk = zoneKnow();
@@ -189,25 +207,31 @@ function drawContacts(c: CanvasRenderingContext2D, z: number, label: (t: string,
     label(what + (stale ? ' · ' + Math.round(age) + 'm ago' : ''), x, y, r, I.guess ? '#e3ccff' : I.tb ? '#ffc8a8' : '#bfeee5');
   }
 }
-// R20: the aim mark: a solid ring at the core (full strength), a dashed ring at the edge (zero); nothing over the middle.
-// WIDE: a frame round the whole map.
+// R20: one aim ring per sensor that is on: solid at the core (full strength), dashed at the edge (zero), the sensor's name on
+// it; nothing over the middle. The selected one is brighter. FULL MAP: a frame round the whole map in that sensor's colour.
 function drawAim(c: CanvasRenderingContext2D, z: number) {
-  const S = G.scan, col = SCOL[S.sensor];
-  c.strokeStyle = col; c.lineWidth = 2.5 / z;
-  if (S.wide) { c.setLineDash([10 / z, 6 / z]); c.strokeRect(2 / z, 2 / z, W * T - 4 / z, H * T - 4 / z); c.setLineDash([]); return; }
-  const x = (S.aim.x + 0.5) * T, y = (S.aim.y + 0.5) * T;
-  c.beginPath(); c.arc(x, y, TUNE.SCAN_AIM_CORE * T, 0, 6.2832); c.stroke();
-  c.lineWidth = 1.5 / z; c.setLineDash([6 / z, 5 / z]); c.beginPath(); c.arc(x, y, TUNE.SCAN_AIM_EDGE * T, 0, 6.2832); c.stroke(); c.setLineDash([]);
-  for (let a = 0; a < 4; a++) { const dx = Math.cos(a * 1.5708), dy = Math.sin(a * 1.5708), r0 = TUNE.SCAN_AIM_CORE * T; c.beginPath(); c.moveTo(x + dx * r0, y + dy * r0); c.lineTo(x + dx * (r0 + 10 / z), y + dy * (r0 + 10 / z)); c.stroke(); } // ticks outside the core
+  const S = G.scan;
+  sensorsOn(S).forEach((sn, j) => {
+    const col = SCOL[sn], me = sn === sel; c.globalAlpha = me ? 1 : 0.7;
+    c.strokeStyle = col; c.lineWidth = (me ? 3 : 2) / z;
+    if (S.wide[sn]) { const p = (2 + j * 4) / z; c.setLineDash([10 / z, 6 / z]); c.strokeRect(p, p, W * T - 2 * p, H * T - 2 * p); c.setLineDash([]); c.globalAlpha = 1; return; }
+    const A = S.aims[sn], x = (A.x + 0.5) * T, y = (A.y + 0.5) * T, r0 = TUNE.SCAN_AIM_CORE * T;
+    c.beginPath(); c.arc(x, y, r0, 0, 6.2832); c.stroke();
+    c.lineWidth = 1.5 / z; c.setLineDash([6 / z, 5 / z]); c.beginPath(); c.arc(x, y, TUNE.SCAN_AIM_EDGE * T, 0, 6.2832); c.stroke(); c.setLineDash([]);
+    for (let a = 0; a < 4; a++) { const dx = Math.cos(a * 1.5708), dy = Math.sin(a * 1.5708); c.beginPath(); c.moveTo(x + dx * r0, y + dy * r0); c.lineTo(x + dx * (r0 + 10 / z), y + dy * (r0 + 10 / z)); c.stroke(); } // ticks outside the core
+    const ang = -2.4 + j * 0.9; c.font = 'bold ' + (10 / z) + 'px monospace'; c.fillStyle = col; c.textAlign = 'center'; // the name, on the ring, spread so rings on one spot don't stack labels
+    c.fillText(SNAME[sn], x + Math.cos(ang) * (r0 + 8 / z), y + Math.sin(ang) * (r0 + 8 / z)); c.textAlign = 'left'; c.globalAlpha = 1;
+  });
 }
 // ---- the clock: real seconds → ship-minutes → sim steps ----
 let raf = 0, lastT = 0, acc = 0;
 function loop(now: number) {
   const S = G.scan; raf = 0;
-  if (!live() || !S.run || $('scan').hidden) { if (live() && S.run) scanCmd('S'); renderScan(); return; }
+  if (!live() || !S.run || $('scan').hidden) { if (live() && S.run) scanCmd('S'); if (!$('scan').hidden) renderScan(); return; }
   acc += Math.min(0.25, (now - lastT) / 1000) * TUNE.SCAN_TIME_RATE; lastT = now;
   let n = 0; while (acc >= TUNE.SCAN_TICK - 1e-9 && S.run) { scanStep(); acc -= TUNE.SCAN_TICK; n++; }
   if (n) renderScan();
+  if (!S.run) return; // a deadline closed the window
   raf = requestAnimationFrame(loop);
 }
 function startStop() {
@@ -215,29 +239,35 @@ function startStop() {
   if (S.run) scanCmd('S'); else { scanCmd('G'); acc = 0; lastT = performance.now(); if (!raf) raf = requestAnimationFrame(loop); }
   renderScan();
 }
-// ---- the map's pointer: R20 drags the ring (relative, so the thumb never covers what it aims at); a tap picks a drop zone
-// (R19 and R20) or, in the live scan, jumps the ring there ----
-let down: { x: number; y: number; ax: number; ay: number; drag: boolean } | null = null;
+// ---- the map's pointer: R20 drags a ring (the one nearest the touch, relative, so the thumb never covers what it aims at);
+// a tap picks a drop zone (R19 and R20) or, in the live scan, jumps the selected ring there ----
+let down: { x: number; y: number; ax: number; ay: number; s: string; drag: boolean } | null = null;
 const toTile = (ev: PointerEvent) => { const r = ($('scv') as HTMLCanvasElement).getBoundingClientRect(), k = r.width / W; return { x: (ev.clientX - r.left) / k, y: (ev.clientY - r.top) / k }; };
 function pDown(ev: PointerEvent) {
-  if (live()) { ($('scv') as HTMLCanvasElement).setPointerCapture(ev.pointerId); down = { x: ev.clientX, y: ev.clientY, ax: G.scan.aim.x, ay: G.scan.aim.y, drag: false }; return; }
-  tapDrop(toTile(ev));
+  if (!live()) { tapDrop(toTile(ev)); return; }
+  ($('scv') as HTMLCanvasElement).setPointerCapture(ev.pointerId);
+  const t = toTile(ev), S = G.scan, rings = sensorsOn(S).filter(sn => !S.wide[sn]);
+  const dist = (sn: string) => Math.hypot(S.aims[sn].x + 0.5 - t.x, S.aims[sn].y + 0.5 - t.y);
+  let s = S.on[sel] && !S.wide[sel] ? sel : rings[0] || sel, bd = (rings as string[]).includes(s) ? dist(s) : 1e9;
+  for (const sn of rings) if (dist(sn) < bd - 0.5) { bd = dist(sn); s = sn; } // the nearest ring's centre (the selected one wins a tie)
+  down = { x: ev.clientX, y: ev.clientY, ax: S.aims[s].x, ay: S.aims[s].y, s, drag: false };
 }
 function pMove(ev: PointerEvent) {
   if (!down || !live()) return;
-  const dx = ev.clientX - down.x, dy = ev.clientY - down.y;
+  const dx = ev.clientX - down.x, dy = ev.clientY - down.y, S = G.scan;
   if (!down.drag && Math.hypot(dx, dy) < 8) return;
-  down.drag = true; const k = ($('scv') as HTMLCanvasElement).getBoundingClientRect().width / W || mapK;
-  if (G.scan.wide) scanCmd('w');
-  const before = G.scan.aim.x + ',' + G.scan.aim.y; scanCmd('a', down.ax + dx / k, down.ay + dy / k);
-  if (G.scan.aim.x + ',' + G.scan.aim.y !== before) renderScan();
+  if (!down.drag) { down.drag = true; sel = down.s; if (!S.on[sel]) scanCmd(sel[0], 1); }
+  const k = ($('scv') as HTMLCanvasElement).getBoundingClientRect().width / W;
+  const before = S.aims[sel].x + ',' + S.aims[sel].y; scanCmd('a', down.ax + dx / k, down.ay + dy / k, sidx(sel));
+  if (S.aims[sel].x + ',' + S.aims[sel].y !== before) renderScan();
 }
 function pUp(ev: PointerEvent) {
   if (!down || !live()) return;
   const d = down; down = null; if (d.drag) return;
-  const t = toTile(ev); if (tapDrop(t)) return;
-  if (G.scan.wide) scanCmd('w');
-  scanCmd('a', Math.floor(t.x), Math.floor(t.y)); renderScan();
+  const t = toTile(ev), S = G.scan; if (tapDrop(t)) return;
+  if (!S.on[sel]) scanCmd(sel[0], 1);
+  if (S.wide[sel]) scanCmd('W', sidx(sel), 0);
+  scanCmd('a', Math.floor(t.x), Math.floor(t.y), sidx(sel)); renderScan();
 }
 function tapDrop(t: { x: number; y: number }) {
   if (!scanDone()) return false;
@@ -250,11 +280,14 @@ $('sDial').addEventListener('click', ev => {
   const b = (ev.target as any).closest('.sd'); if (!b || G.scan.lvl >= 0 || locked >= 0) return;
   pickLvl = +b.dataset.l; renderScan();
 });
+// R20 fix list 1: a sensor button turns it on (and selects its ring); tap a selected one to turn it off
 $('sSens').addEventListener('click', ev => {
   const b = (ev.target as any).closest('.ss'); if (!b || !live()) return;
-  const s = b.dataset.s; if (s === 'WIDE') scanCmd(G.scan.wide ? 'w' : 'W'); else scanCmd(s[0]); // R / T / E
+  const s = b.dataset.s, S = G.scan;
+  if (!S.on[s]) { scanCmd(s[0], 1); sel = s; } else if (sel !== s) sel = s; else { scanCmd(s[0], 0); sel = sensorsOn(S)[0] || s; }
   renderScan();
 });
+$('bWide').addEventListener('click', () => { const S = G.scan; if (!live() || !S.on[sel]) return; scanCmd('W', sidx(sel), S.wide[sel] ? 0 : 1); renderScan(); }); // R20 fix list 2
 $('bRun').addEventListener('click', startStop);
 $('bListen').addEventListener('click', () => { if (listen(pickLvl)) renderScan(); });
 $('sDrops').addEventListener('click', ev => { const b = (ev.target as any).closest('.sdz'); if (b) { chooseDrop(+b.dataset.d); renderScan(); } });

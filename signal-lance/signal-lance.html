@@ -106,7 +106,10 @@ button.lockd{opacity:.35}
 #sDialBox{display:flex;flex-direction:column;gap:6px}
 /* R20: the live scan. Sensor picker + WIDE (≥48 px), the clock, what the sensor answers */
 #sLive{display:flex;flex-direction:column;gap:5px}
-#sSens button{flex:1;min-width:0;min-height:48px;padding:0 2px;font-size:12px}
+#sLive>.zrow{gap:4px} #sSens{flex:3;gap:4px;min-width:0} #sSens button,#bWide{flex:1;min-width:0;min-height:48px;padding:0 2px;font-size:11px;line-height:1.15}
+#sSens button small,#bWide small{display:block;font-size:10px} #bWide{flex:1.1;border-style:dashed} #bWide.on{background:var(--btnOn)} #bWide:disabled{opacity:.4}
+#sSens button.sel{outline:2px solid #fff;outline-offset:-4px}
+#sRisk{font-size:12px;line-height:1.35} #sRisk .bar{display:block;height:6px;border:1px solid var(--line);margin:2px 0}#sRisk .bar span{display:block;height:100%}
 #sSens button.on.s-RADAR{background:#14594f;border-color:#4fd8c0} #sSens button.on.s-THERMAL{background:#6a3418;border-color:#ff8a50} #sSens button.on.s-EM{background:#4a2d6a;border-color:#c79bff}
 #sClock{font-weight:bold;font-size:14px} #sClock .bar{display:block;height:6px;border:1px solid var(--line);margin-top:3px} #sClock .bar span{display:block;height:100%;background:var(--fg)}
 #sHelp{font-size:12px;opacity:.85;border-left:3px solid var(--btnOn);padding-left:8px}
@@ -216,10 +219,12 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
     <div class="zrow" id="sDial"></div>
     <div id="sWhat"></div>
     <button id="bListen">LISTEN</button></div>
-    <div id="sLive" hidden><div class="zrow" id="sSens"></div><div id="sClock"></div><div id="sHelp"></div></div>
-    <div id="sIntel"></div>
-    <div class="zrow" id="sDrops"></div>
+    <div id="sLive" hidden><div class="zrow"><div class="zrow" id="sSens"></div><button id="bWide">FULL MAP</button></div></div>
     <div class="zrow"><button id="bRun" hidden>START</button><button id="bScanCard">CARD</button><button id="bScanGo">NEXT</button></div>
+    <div class="zrow" id="sDrops"></div>
+    <div id="sClock" hidden></div><div id="sRisk" hidden></div>
+    <div id="sIntel"></div>
+    <div id="sHelp" hidden></div>
   </div>
 </div>
 <div id="hsheet" class="sheet" hidden><div id="hsbox"><div id="hshead"><span id="hstitle"></span><button id="hsclose">CLOSE</button></div><div id="hopts"></div></div></div>
