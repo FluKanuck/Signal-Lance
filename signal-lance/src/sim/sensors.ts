@@ -54,17 +54,18 @@ export function inRadar(o, m) {
 // exact (eyes/radar): snaps to the fix. Otherwise (triangulation): blends toward it and
 // the circle shrinks toward measU while fixes keep coming.
 // src (R13): which sense made this fix: EYES, RADAR, PASSIVE, FLASH, SOUND, GHOST (first-contact stats; c.snd).
-export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, src = '') {
+export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, src = '', q = 0) { // R18: q = trust in a passive crossing (0..1)
   const tgt = unitById(id); // Signal: a loud target is pinned down tighter (not the ghost)
   if (tgt && !noSignal) measU *= emitUnc(tgt);
   // R10 NOISE: any fix on a unit standing in noise, except eyes, is fuzzier (× UNC_MULT, floor UNC_FLOOR) and its
   // centre carries a real error inside that circle (held RADAR_JIT_TIME, so a fix doesn't jump every frame).
   const noiseHits = !eyes && src !== 'ALARM' && (src !== 'RADAR' || TUNE.ZONE_NOISE_AFFECTS_RADAR); // R13 debrief: radar cuts through NOISE
-  if (tgt && noiseHits && zoneType(tgt) === 'NOISE') { // R13: a shared contact already carries the alarmer's noise
-    measU = noiseUnc(tgt, measU);
+  const noisy = !!tgt && noiseHits && zoneType(tgt) === 'NOISE';
+  if (noisy) { // R13: a shared contact already carries the alarmer's noise. R18 fix list 10: trusted crossings shrink NOISE's effect
+    const clean = measU; measU = noiseUnc(tgt, measU); measU = measU + (clean - measU) * q;
     const j = tgt.njit || (tgt.njit = { x: 0, y: 0, at: -1e9 });
     if (G.time - j.at >= TUNE.RADAR_JIT_TIME || j.at > G.time) { const a = rand() * 6.2832, r = 0.7 * Math.sqrt(rand()); j.x = Math.cos(a) * r; j.y = Math.sin(a) * r; j.at = G.time; }
-    x = tgt.x + j.x * measU; y = tgt.y + j.y * measU;
+    x = tgt.x + j.x * measU * (1 - q); y = tgt.y + j.y * measU * (1 - q);
   }
   let c = null, free = null;
   for (const k of list) { if (k.on && k.id === id) { c = k; break; } if (!k.on && !free) free = k; }
@@ -75,11 +76,11 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, 
     G.firstLog.push({ side: list === G.pc ? 'P' : 'E', src, turn: G.turn, tgt: id, by: by ? by.id : '', byType: by ? by.variant : '',
       d: by && tgt ? Math.hypot(by.x - tgt.x, by.y - tgt.y) / T : 0 }); // R13: every new contact and the sense that made it (runner)
   }
-  c.src = src; c.walls = 0; // R18 fix list 6: which sense holds the latest fix (radarFix adds the walls it went through)
+  c.src = src; c.walls = 0; c.q = q; c.noisy = noisy; // R18 fix list 10: trust, and whether NOISE is still blurring it // R18 fix list 6: which sense holds the latest fix (radarFix adds the walls it went through)
   c.snd = src === 'SOUND'; // R13: true while the latest fix is sound only (never a lock; "SOUND" label)
   c.shr = src === 'ALARM';  // R13 s2: true while the latest fix is a shared alarm contact (never a lock)
   if (exact) { c.unc = measU; c.tx = x; c.ty = y; }
-  else { c.tx += (x - c.tx) * TUNE.TRI_BLEND; c.ty += (y - c.ty) * TUNE.TRI_BLEND; }
+  else { const k = TUNE.TRI_BLEND + (1 - TUNE.TRI_BLEND) * q; c.tx += (x - c.tx) * k; c.ty += (y - c.ty) * k; } // R18: trusted = pulled right onto it
   c.vx = vx; c.vy = vy; c.minU = measU; c.lost = 0; c.gap = exact ? 0.1 : TUNE.TRACK_GAP;
   raiseAlarm(list, c, src); // R13 s2: no-op unless the pack is on and this is a field unit's own fix on a mech
   return c;
@@ -123,9 +124,28 @@ export function addBearing(pool, o, m, list, id, tri) {
     best = s; ix = a.x + dax * t1; iy = a.y + day * t1; dist = t2;
   }
   if (best > 0) {
-    const u = Math.max(TUNE.TRI_UNC_MIN * T, dist * Math.tan(TUNE.BEARING_ERR * Math.PI / 180) * 2 / best);
-    observe(list, id, ix, iy, u, 0, 0, false, false, false, 'PASSIVE');
+    // R18 fix list 10 (Jamie: "I don't understand how anything but that perfect cross over should be the suggested contact"):
+    // the fix is the best-fit point of EVERY live bearing on this unit (least squares on their perpendicular distances), not
+    // just the widest pair. Trust q = (different listening spots − 1) / (TRI_TRUST_N − 1), × the widest crossing ÷ TRI_TRUST_ANG.
+    const live = pool.filter(a => a.on && a.tri && a.id === id), fit = bestFit(live);
+    if (fit) { ix = fit.x; iy = fit.y; }
+    const spots: { x: number; y: number }[] = [];
+    for (const a of live) if (!spots.some(p => Math.hypot(p.x - a.x, p.y - a.y) < T)) spots.push({ x: a.x, y: a.y });
+    const ang = Math.asin(Math.min(1, best)) * 180 / Math.PI;
+    const q = Math.max(0, Math.min(1, (spots.length - 1) / Math.max(1, TUNE.TRI_TRUST_N - 1))) * Math.min(1, ang / TUNE.TRI_TRUST_ANG);
+    const u = Math.max(TUNE.TRI_UNC_MIN * T, dist * Math.tan(TUNE.BEARING_ERR * Math.PI / 180) * 2 / best * Math.sqrt(2 / Math.max(2, spots.length)));
+    observe(list, id, ix, iy, u, 0, 0, false, false, false, 'PASSIVE', q);
   }
+}
+// R18 fix list 10: the point closest to all the bearing lines (least squares; null if they are near parallel)
+export function bestFit(lines) {
+  let a = 0, b = 0, c = 0, d = 0, e = 0;
+  for (const l of lines) {
+    const nx = -Math.sin(l.ang), ny = Math.cos(l.ang), k = nx * l.x + ny * l.y; // the line: n · p = k
+    a += nx * nx; b += nx * ny; c += ny * ny; d += nx * k; e += ny * k;
+  }
+  const det = a * c - b * b;
+  return Math.abs(det) < 1e-6 ? null : { x: (c * d - b * e) / det, y: (a * e - b * d) / det };
 }
 // R14: compare with this mech's last bearing on the same unit, taken from (nearly) the same spot
 function bearingDrift(o, id, ang) {

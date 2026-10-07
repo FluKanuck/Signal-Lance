@@ -60,7 +60,11 @@ export const TUNE = {
   TRI_MIN_BASE: 3,      // tiles between the two positions the bearings were taken from
   TRI_MIN_ANG: 15,      // degrees; min crossing angle to triangulate
   TRI_UNC_MIN: 0.8,     // tiles, best possible triangulated uncertainty
-  TRI_BLEND: 0.5,       // how far each new triangulated fix pulls the contact (0..1)
+  TRI_BLEND: 0.5,       // how far each new triangulated fix pulls the contact (0..1). R18 fix list 10: the floor; with trust the pull rises to 1
+  TRI_TRUST_N: 4,       // R18 fix list 10 (Jamie: "that many EM signals … should trump the noise … a weighting"): bearings taken from this many
+                        // different spots (1+ tile apart) on one unit = full trust in their best-fit crossing...
+  TRI_TRUST_ANG: 60,    // ...and only once the widest pair crosses at this many degrees or more (narrower = less trust).
+                        // Trust pulls the contact onto the crossing and scales NOISE's error and floor down (0 trust = as before)
   // --- ECM ---
   ECM_MASK_MULT: 0.25,  // signature multiplier while masking
   SIG_JAM: 5,           // jamming emission (bearing only) while masking or a ghost is up

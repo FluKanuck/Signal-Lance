@@ -58,7 +58,7 @@ function soundRing(x, y, r, z, alpha, label?) {
 const TAGS = { EYES: ['EYE', '#fff'], RADAR: ['RDR', '#6af'], PASSIVE: ['EM', '#3dd'], THERMAL: ['IR', '#ff7043'], SOUND: ['SND', '#ddd'], FLASH: ['FLASH', '#fc6'], ALARM: ['ALARM', '#f9a'], GHOST: ['GHOST', '#b6f'] };
 export function sensorTag(c): [string, string] {
   const T0 = TAGS[c.src] || ['?', '#aaa'];
-  return [T0[0] + (c.src === 'RADAR' && c.walls ? ' ' + c.walls + 'W' : '') + (c.lost > c.gap ? ' old' : ''), T0[1]];
+  return [T0[0] + (c.src === 'RADAR' && c.walls ? ' ' + c.walls + 'W' : '') + (c.noisy && (c.q || 0) < 0.5 ? '·NOISE' : '') + (c.lost > c.gap ? ' old' : ''), T0[1]]; // R18 fix list 10: NOISE still blurring it
 }
 // R18 fix list 5: lay the labels out top to bottom; one that would overlap a label already placed moves down past it, and a
 // moved label gets a thin line back to its contact.

@@ -213,3 +213,34 @@ describe('R18 fix list', () => {
     const c = G.pc.find((c: any) => c.on && c.id === u.id); expect(c.src).toBe('RADAR'); expect(c.walls).toBe(0); // clear street
   });
 });
+
+describe('R18 fix list 10: trusted crossings beat NOISE', () => {
+  const setup = async () => {
+    const { rollEnemy, newHunt } = await import('../src/sim/state.ts'); const { setSeed } = await import('../src/sim/rng.ts');
+    rollEnemy(835900613, 'Mixed', 'BOUNTY'); newHunt([{}, {}]); setSeed(5);
+    const z = G.zones.find((z: any) => z.type === 'NOISE'), t = z.tiles[Math.floor(z.tiles.length / 2)], e = G.units[2];
+    e.x = (t.x + 0.5) * T; e.y = (t.y + 0.5) * T; for (const c of G.pc) c.on = false; for (const b of G.pb) b.on = false;
+    return e;
+  };
+  const listen = async (e, spots: [number, number][]) => {
+    const { addBearing } = await import('../src/sim/sensors.ts');
+    for (const [dx, dy] of spots) for (let k = 0; k < 2; k++) addBearing(G.pb, { x: e.x + dx * T, y: e.y + dy * T }, e, G.pc, e.id, true);
+    return G.pc.find((c: any) => c.on && c.id === e.id);
+  };
+  it('bearings from 4 spots well spread: the contact sits near the unit, its circle under the NOISE floor, no ·NOISE', async () => {
+    const e = await setup();
+    let c; for (let r = 0; r < 3; r++) c = await listen(e, [[-10, 0], [0, 10], [10, 2], [-7, -7]]);
+    expect(Math.hypot(c.tx - e.x, c.ty - e.y) / T).toBeLessThan(1.5);
+    expect(c.q).toBeGreaterThan(0.7); expect(c.unc / T).toBeLessThan(TUNE.ZONE_TYPES.NOISE.UNC_FLOOR);
+  });
+  it('two spots close together: NOISE still wins (low trust, floor kept)', async () => {
+    const e = await setup();
+    const c = await listen(e, [[-10, 0], [-10, 4]]);
+    expect(c.q).toBeLessThan(0.5); expect(c.noisy).toBe(true); expect(c.unc / T).toBeGreaterThanOrEqual(TUNE.ZONE_TYPES.NOISE.UNC_FLOOR - 1e-6);
+  });
+  it('the best fit of crossing lines is their crossing', async () => {
+    const { bestFit } = await import('../src/sim/sensors.ts');
+    const p = bestFit([{ x: 0, y: 0, ang: Math.PI / 4 }, { x: 10, y: 0, ang: 3 * Math.PI / 4 }]);
+    expect(p.x).toBeCloseTo(5); expect(p.y).toBeCloseTo(5);
+  });
+});

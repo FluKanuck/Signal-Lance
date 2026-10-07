@@ -1367,4 +1367,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            line carry "seed N MISSION"; PLAY SEED (hangar) takes a seed or a log line (comp, mission and [PACK] / [NO-IR] /
            [HIVE] read from it), plays it outside a contract with the current fits, logged [REPLAY]. Jamie's run =
            "835900613 Mixed BOUNTY [PACK]". BUILD r18-s8 | -
+   round18 fix list 10 (Jamie: "how off the suggested best guess can be … anything but that perfect cross over"; "that many
+           em signals … should trump the noise … There needs to be a weighting applied"; "Moved forward slightly and the track
+           moved even further") | a passive fix = the least-squares point of every live bearing on the unit (was the widest
+           pair, blended 50%). Trust q = (listening spots − 1) / (TRI_TRUST_N 4 − 1) × min(1, widest crossing / TRI_TRUST_ANG
+           60°). The blend rises from TRI_BLEND to 1 with q; NOISE's circle and floor shrink toward the clean fix by q, and its
+           re-rolled error by (1 − q); the circle × sqrt(2 / spots). Tag EM·NOISE while NOISE blurs it and q < 0.5. Both sides.
+           Runner 60 contracts: hunt wins 49% (s8 50%). BUILD r18-s9 | -
 ```
