@@ -63,10 +63,9 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, 
   const noiseHits = !eyes && src !== 'ALARM' && (src !== 'RADAR' || TUNE.ZONE_NOISE_AFFECTS_RADAR); // R13 debrief: radar cuts through NOISE
   const noisy = !!tgt && noiseHits && zoneType(tgt) === 'NOISE';
   if (noisy) { // R13: a shared contact already carries the alarmer's noise. R18 fix list 10: trusted crossings shrink NOISE's effect
+    // R18 fix list 16 (Jamie: "the position is still off from where it should triangulate to"): NOISE never moves the centre now;
+    // it only widens the circle (less the more you trust the crossing), so FIRE stays FUZZY until the fix is good
     const clean = measU; measU = noiseUnc(tgt, measU); measU = measU + (clean - measU) * q;
-    const j = tgt.njit || (tgt.njit = { x: 0, y: 0, at: -1e9 });
-    if (G.time - j.at >= TUNE.RADAR_JIT_TIME || j.at > G.time) { const a = rand() * 6.2832, r = 0.7 * Math.sqrt(rand()); j.x = Math.cos(a) * r; j.y = Math.sin(a) * r; j.at = G.time; }
-    x = tgt.x + j.x * measU * (1 - q); y = tgt.y + j.y * measU * (1 - q);
   }
   let c = null, free = null;
   for (const k of list) { if (k.on && k.id === id) { c = k; break; } if (!k.on && !free) free = k; }
@@ -93,7 +92,7 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, 
   c.snd = src === 'SOUND'; // R13: true while the latest fix is sound only (never a lock; "SOUND" label)
   c.shr = src === 'ALARM';  // R13 s2: true while the latest fix is a shared alarm contact (never a lock)
   if (exact) { c.unc = measU; c.tx = x; c.ty = y; }
-  else { const k = TUNE.TRI_BLEND + (1 - TUNE.TRI_BLEND) * q; c.tx += (x - c.tx) * k; c.ty += (y - c.ty) * k; } // R18: trusted = pulled right onto it
+  else { const k = src === 'PASSIVE' ? 1 : TUNE.TRI_BLEND + (1 - TUNE.TRI_BLEND) * q; c.tx += (x - c.tx) * k; c.ty += (y - c.ty) * k; } // R18 fix list 16: a passive fix IS the best fit of every live bearing: sit on it // R18: trusted = pulled right onto it
   c.vx = vx; c.vy = vy; c.minU = measU; c.lost = 0; c.gap = exact ? 0.1 : TUNE.TRACK_GAP;
   raiseAlarm(list, c, src); // R13 s2: no-op unless the pack is on and this is a field unit's own fix on a mech
   return c;

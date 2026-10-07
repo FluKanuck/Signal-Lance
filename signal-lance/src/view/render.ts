@@ -105,6 +105,13 @@ function drawLabels(labels, z) {
   }
   ctx.globalAlpha = 1;
 }
+// R18 fix list 14: a small shield (cover) centred at (x, y), half-height s (world units)
+function shield(x: number, y: number, s: number, col: string) {
+  ctx.beginPath(); ctx.moveTo(x - s * 0.8, y - s); ctx.lineTo(x + s * 0.8, y - s); ctx.lineTo(x + s * 0.8, y - s * 0.1);
+  ctx.quadraticCurveTo(x + s * 0.75, y + s * 0.7, x, y + s); ctx.quadraticCurveTo(x - s * 0.75, y + s * 0.7, x - s * 0.8, y - s * 0.1); ctx.closePath();
+  ctx.fillStyle = 'rgba(20,20,10,0.85)'; ctx.fill(); ctx.strokeStyle = col; ctx.lineWidth = s * 0.28; ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x, y - s * 0.6); ctx.lineTo(x, y + s * 0.55); ctx.stroke();
+}
 // R14: the contact's name on the map
 export function contactLabel(c) {
   const o = G.obs[c.id], d = G.ids[c.id], u = unitById(c.id);
@@ -474,13 +481,15 @@ export function render() {
     const c = playerTarget(), u = c && c.on ? unitById(c.id) : null;
     if (u && !u.dead && shootBlock(p, c, TUNE.PLAYER_FIRE_UNC, fireRange(p)) === '' && shotOdds(p, c)) {
       const ci = coverInfo(p.x, p.y, u.x, u.y);
-      const box = (L, col, lab) => {
+      const box = (L, col) => {
         if (!L.length) return;
         ctx.strokeStyle = col; ctx.lineWidth = 3 / z; ctx.beginPath(); for (const [x, y] of L) ctx.rect(x * T + 2, y * T + 2, T - 4, T - 4); ctx.stroke();
-        const [x, y] = L[0]; ctx.fillStyle = col; ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText(lab, x * T, y * T - 4 / z);
       };
-      box(ci.give, ci.kind === 'LOW' ? '#d9b27a' : '#ff6', ci.kind === 'LOW' ? 'LOW COVER −' + TUNE.HIT_COVER_LOW + '%' : 'COVER −' + TUNE.HIT_COVER + '%');
-      box(ci.cancelled, '#6f6', 'SHARED: no cover');
+      box(ci.give, ci.kind === 'LOW' ? '#d9b27a' : '#ff6');
+      box(ci.cancelled, '#6f6');
+      // R18 fix list 14 (Jamie: "a little symbol to show it has cover, but not its amount"): a shield left of the target (the
+      // tactics-game convention, XCOM's). One shape for wall or scrap; the ODDS line keeps the number.
+      if (ci.kind) shield(cx(c) - 18 * V.uiS / z, cy(c), 7 * V.uiS / z, '#ff6');
     }
   }
   // R17: the interrupt cue over the suit that stopped

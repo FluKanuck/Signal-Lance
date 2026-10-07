@@ -238,6 +238,12 @@ describe('R18 fix list 10: trusted crossings beat NOISE', () => {
     const c = await listen(e, [[-10, 0], [-10, 4]]);
     expect(c.q).toBeLessThan(0.5); expect(c.noisy).toBe(true); expect(c.unc / T).toBeGreaterThanOrEqual(TUNE.ZONE_TYPES.NOISE.UNC_FLOOR - 1e-6);
   });
+  it('16: with only two spots, NOISE no longer moves the centre: it sits on the crossing, only the circle is wide', async () => {
+    const e = await setup();
+    const c = await listen(e, [[-10, 0], [0, 10]]);
+    expect(Math.hypot(c.tx - e.x, c.ty - e.y) / T).toBeLessThan(1.2); // bearing error only (±3°), no noise offset
+    expect(c.noisy).toBe(true); expect(c.unc / T).toBeGreaterThan(2);
+  });
   it('the best fit of crossing lines is their crossing', async () => {
     const { bestFit } = await import('../src/sim/sensors.ts');
     const p = bestFit([{ x: 0, y: 0, ang: Math.PI / 4 }, { x: 10, y: 0, ang: 3 * Math.PI / 4 }]);

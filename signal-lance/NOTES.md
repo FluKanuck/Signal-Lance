@@ -1387,4 +1387,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            with the suit letter(s) that made it within TAG_KEEP (c.by; bearings carry their suit); noise = amber dashed box,
            not a word; the result screen and hangar use the same names. Runner 60 contracts: hunt wins 52% (s9 49%).
            BUILD r18-s10 | -
+   round18 fix list 14-16 (Jamie: "a little symbol to show it has cover, but not its amount"; "Tap to reload button isn't
+           tapping"; "the position is still off from where it should triangulate to") | 14: the COVER −N% / LOW COVER / SHARED
+           labels are gone; a small yellow shield sits left of the targeted contact when cover applies (XCOM's convention;
+           the outline stays, ODDS keeps the number). 15: NEW BUILD acts on pointerdown. 16: NOISE no longer moves a fix's
+           centre (no re-rolled offset), it only widens the circle (by 1 − trust); a passive fix is taken whole (it is already
+           the best fit of every live bearing). Runner 60 contracts: hunt wins 54% (s10 52%). BUILD r18-s11 | -
 ```
