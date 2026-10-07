@@ -1,0 +1,14 @@
+{
+  "name": "signal-lance",
+  "owner": {
+    "name": "FluKanuck"
+  },
+  "plugins": [
+    {
+      "name": "signal-lance",
+      "source": "./mods/signal-lance",
+      "description": "Round band, live runner pane and headless balance sweeps for Signal Lance"
+    }
+  ],
+  "description": "FluKanuck's Claude Code mods for the Signal Lance repo"
+}
