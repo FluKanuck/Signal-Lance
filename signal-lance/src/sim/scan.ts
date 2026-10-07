@@ -14,6 +14,8 @@ import { zoneAtTile } from './zones.ts';
 import { matchVariants } from './ids.ts';
 import { rand } from './rng.ts';
 import { has } from './kit.ts';
+import { liveInit, liveLand, dropClear, zoneLayer, liveSummary, emitter } from './livescan.ts';
+export { emitter };
 
 export const LISTEN = ['SKIP', 'SHORT', 'MEDIUM', 'LONG'];
 
@@ -63,17 +65,24 @@ export function addDropZones() {
   loadMap({ ...MAP, rows: rows.map(r => r.join('')), spawn: { x: spawnX, y: spawnY } }); // same streets, aprons cleared; the spawn stays west
   G.dropsGen = mapGen;
 }
-// The drop zones the player may pick: MEDIUM+ offers DROP_ZONES of them, below that only the default (west edge).
-export function offeredDrops() { const D = dropPts(); return G.scan && G.scan.lvl >= 2 ? D.slice(0, Math.max(1, TUNE.DROP_ZONES)) : D.slice(0, 1); }
-export function chooseDrop(i: number) { if (G.scan && i >= 0 && i < offeredDrops().length) G.scan.drop = i; }
+// The drop zones the player may pick, each with i = its index in dropPts(). Dial: MEDIUM+ offers DROP_ZONES of them, below
+// that only the default (west edge). R20 live scan: the west edge plus every apron RADAR has looked at (band 1).
+export function offeredDrops() {
+  const D = dropPts().map((d, i) => ({ ...d, i })), S = G.scan;
+  if (S && S.mode === 'active') return D.filter(d => dropClear(S, d.i));
+  return S && S.lvl >= 2 ? D.slice(0, Math.max(1, TUNE.DROP_ZONES)) : D.slice(0, 1);
+}
+export function chooseDrop(i: number) { if (G.scan && offeredDrops().some(d => d.i === i)) G.scan.drop = i; }
+// R20: may the lance drop now? (dial: once it has listened; live: whenever the clock is stopped)
+export function scanDone() { const S = G.scan; return !!S && (S.mode === 'active' ? !S.run : S.lvl >= 0); }
 
 // ============================ THE LISTEN ==============================
 // A fresh scan for this job (rollEnemy). The same job rolled again (previewed, then taken) keeps what was chosen.
 export function freshScan(seed: number, mtype: string) {
   if (G.scan && G.scan.seed === seed && G.scan.mtype === mtype) return;
   G.scan = { seed, mtype, lvl: -1, drop: 0, roster: [], blips: [] };
+  if (TUNE.SCAN_MODE === 'active') liveInit(G.scan, dropPts()); // R20: the live scan (livescan.ts)
 }
-export function emitter(u) { return (u.comms || 0) > 0 || has(u, 'RADAR'); }
 // The ship listens at level lvl (once per job). Returns false if it already listened.
 export function listen(lvl: number) {
   const S = G.scan; if (!S || S.lvl >= 0) return false;
@@ -109,6 +118,7 @@ function blip(u, r: () => number) {
 // newHunt, after the field is placed and the hunt's state reset: patrols drift, the blips become stale contacts, the notes carry.
 export function applyScan() {
   const S = G.scan;
+  if (S.mode === 'active') { landLive(); return; } // R20
   for (const u of G.units) if (u.mobile && !u.dead) drift(u); // every listen level: the same field lands, whatever you heard
   payCosts(Math.max(0, S.lvl));
   for (const b of S.blips || []) {
@@ -118,6 +128,20 @@ export function applyScan() {
     Object.assign(c, { on: true, id: b.id, type: '', tx: b.x, ty: b.y, vx: 0, vy: 0, unc: b.unc, minU: b.unc, gap: TUNE.TRACK_GAP, lost: TUNE.TRACK_GAP + 0.01,
       fresh: false, seen: { SCAN: G.time }, by: {}, src: 'SCAN', snd: false, shr: false, dmg: '', walls: 0, q: 0, noisy: false, keep: TUNE.SCAN_BLIP_KEEP });
   }
+}
+// R20: the live scan lands: the field where its walk left it, a stale SHIP contact for every unit the ship has a fix on.
+function landLive() {
+  const S = G.scan;
+  for (const I of liveLand()) {
+    const u = G.units.find(x => x.id === I.id); if (!u || u.dead) continue;
+    if (I.obs) G.obs[I.id] = structuredClone(I.obs);
+    const c = G.pc.find(k => !k.on); if (!c) continue;
+    const unc = I.fix.unc * T;
+    Object.assign(c, { on: true, id: I.id, type: '', tx: I.fix.x * T, ty: I.fix.y * T, vx: 0, vy: 0, unc, minU: unc, gap: TUNE.TRACK_GAP, lost: TUNE.TRACK_GAP + 0.01,
+      fresh: false, seen: { SCAN: G.time }, by: {}, src: 'SCAN', snd: false, shr: false, dmg: '', walls: 0, q: 0, noisy: false, keep: TUNE.SCAN_BLIP_KEEP });
+  }
+  const M = liveSummary(S);
+  G.scanCost = { lvl: 0, live: true, t: S.t, sum: M, extra: [] as string[], painted: false, ambush: [] as string[], alert: [] as string[] };
 }
 // ============================ THE COST LADDER (checkpoint 2) ===========
 // The ship emitted for as long as it listened. Rolled at the drop with the hunt's RNG (same seed + level = same result), in
@@ -189,7 +213,10 @@ export function scanRisk(lvl: number) {
 // " · scan LONG: +2 units, 3 alert, painted (ambush 2)" for the log line and the result screen ('' with no scan)
 export function scanText() {
   const C = G.scanCost; if (!C) return '';
+  if (C.live) return ' · scan ' + Math.round(C.t * 4) / 4 + ' min: ' + C.sum.pings + ' pings, ' + C.sum.heat + ' heat, ' + C.sum.fixed + ' EM fixes, zones ' + C.sum.typed + '/' + C.sum.zones; // R20
   return ' · scan ' + LISTEN[C.lvl] + (C.lvl ? ': +' + C.extra.length + ' unit' + (C.extra.length === 1 ? '' : 's') + ', ' + C.alert.length + ' alert' + (C.painted ? ', painted (ambush ' + C.ambush.length + ')' : '') : '');
 }
 // What the lance knows of the zones: 0 nothing, 1 outlines, 2 outlines and types. With the scan off, everything (the R18 map).
-export function zoneKnow() { if (!G.scan || (G.tb && !G.tb.job)) return 2; return Math.min(2, Math.max(0, G.scan.lvl)); } // no scan (scan off, or a hand-placed test bed) = the R18 map
+export function zoneKnow() { if (!G.scan || (G.tb && !G.tb.job)) return 2; if (G.scan.mode === 'active') return Math.max(0, ...G.zones.map(z => zoneKnowOf(z))); return Math.min(2, Math.max(0, G.scan.lvl)); } // no scan (scan off, or a hand-placed test bed) = the R18 map
+// R20: what the lance knows of one zone (the live scan learns zone by zone; the dial knows them all alike)
+export function zoneKnowOf(zn) { const S = G.scan; if (!S || S.mode !== 'active' || (G.tb && !G.tb.job)) return zoneKnow(); return zoneLayer(S, G.zones.indexOf(zn)); }

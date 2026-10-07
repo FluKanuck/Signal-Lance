@@ -971,6 +971,29 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      after RWR_LIFE rounds (fading). Log: " · RWR n" = warnings received. The scripted lance never fits it.
    - Scenario "Painted on the move": packed 4×2 (seed 1701), A on the street at [20,13], a search emplacement out of sight at [11,16]
      (3 walls, ~9.5 tiles), its sweep set so the first pulse (round 2) covers A.
+ - Round 20 (eyes from the ship), the live scan (src/sim/livescan.ts):
+   - SCAN_MODE 'active' is the default; 'dial' keeps R19 (Long listen / Quiet drop pin it; the runner's --listen / --listensweep
+     switch to it). Dial runs are byte-identical to r19-s7.
+   - Commands, not time: the view sends start / stop / sensor / wide / aim and turns real seconds × SCAN_TIME_RATE into SCAN_TICK
+     steps. Each command is logged with its tick; the log line carries them ("scan 0R_3a20.9_3G_40S drop 2"), PLAY SEED replays
+     them. A drag records at most one aim per tick. The scan has its own RNG (state in the scan), so it never moves the hunt's rolls.
+   - One fused mark per unit (the ship merges its own sensors), not one contact per sensor. Its position = the latest look for a
+     patrol, the tightest for a static, offset by a fixed seeded fraction (≤0.7) of its fuzz so it doesn't flicker.
+   - Dwell gathers at a unit's current spot (a patrol's scan-time walk), a zone's centre and a drop zone's spawn tile. The map's
+     tint is a per-tile dwell grid for each sensor (also the "rubble" reveal: radar band 1 on the tile).
+   - Layers: RADAR band 1/2/3 = a ping with fuzz SCAN_PING_UNC (no type); THERMAL only units with IR ≥ SCAN_HOT_IR (patrols 5,
+     emplacements 7; turrets 3 stay cold): band 1 a heat blob, band 2 its size (LARGE at IR ≥ SCAN_IR_LARGE), band 3 tighter;
+     EM only emitters: band 1 counted, no fix; band 2 a fix (SCAN_BLIP_UNC) with emit + moves, band 3 adds pulse rhythm / stillness,
+     the fuzz shrinking to SCAN_BLIP_FLOOR. The CARD guess is the R19 matcher on those notes (a fixed seeded pick among the fits).
+   - Zones: radar band 1 = outline, thermal band 1 = type (either order); the hunt map, tips and INTEL learn zone by zone.
+   - The aim mark is a tile; strength from tile centre to tile centre. Drag is relative (the ring moves with the finger, wherever
+     you touch); a tap jumps it (or picks an offered drop zone within 3 tiles). Touching the map turns WIDE off.
+   - Patrols walk 4-way along streets at SCAN_DRIFT_PER_MIN to seeded goals within SCAN_DRIFT_LEASH of home, never onto another
+     unit or within UPLINK_MIN_DIST of a drop zone; at the drop they walk SCAN_DROP_DELAY more (on a copy: RETRY lands the same).
+     Statics never move. The R19 SCAN_DRIFT is the dial's only.
+   - Drop zones: the west edge always; an apron once RADAR band 1 at its spawn tile. A drop zone index is now its dropPts index.
+   - Checkpoint 1 has no costs (SCAN_COSTS false): the result line says " · scan N min: pings, heat, EM fixes, zones".
+   - Scenario "Where first": seed 2025, Ambush (sentry + hush: silent and cold; heavy + line patrols), 4×2 packed.
 ```
 
 ## TWEAK LOG
@@ -1491,3 +1514,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round19 wrap | read-and-connect check: "Not sure". Biggest missing: "The active scan" (timer, area focus, sensor type). Round 19 moved
            to the splash HISTORY. BUILD r19-s7 | -
 ```
+   round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
+           SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,
+           SCAN_WIDE_STRENGTH 0.25, SCAN_DRIFT_PER_MIN 0.5, SCAN_DRIFT_LEASH 8, SCAN_DROP_DELAY 2, SCAN_PING_UNC [3, 2, 1],
+           SCAN_HEAT_UNC [3, 2, 1.5], SCAN_HOT_IR 4, SCAN_IR_LARGE 6, SCAN_BLIP_FLOOR 1, SCAN_COSTS false. Radar on the ring hits
+           band 3 in 2 min, thermal 4, EM 8; wide radar band 1 in 1.3 min, wide EM never passes band 2 (aim it). BUILD r20-s1 | -

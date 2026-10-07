@@ -1,5 +1,5 @@
 // Round 19: listen before you land. The pre-drop scan (src/sim/scan.ts): the reveal ladder, drop zones, the drop.
-import { describe, it, expect, afterEach } from 'vitest';
+import { describe, it, expect, afterEach, beforeAll, afterAll } from 'vitest';
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt } from '../src/sim/state.ts';
 import { T, H, loadMap, HIVE, canReach, spawnX, spawnY } from '../src/sim/world.ts';
@@ -10,6 +10,7 @@ import { leaveScenario } from '../src/sim/scenarios.ts';
 import { LOAD, LOAD_A } from './helpers.ts';
 
 afterEach(() => { leaveScenario(); G.scan = null; G.drops = null; loadMap(HIVE); });
+beforeAll(() => { TUNE.SCAN_MODE = 'dial'; }); afterAll(() => { TUNE.SCAN_MODE = 'active'; }); // R20: these are the R19 dial's rules
 // a job's world with the scan on (packed district)
 function job(seed: number, mission = 'UPLINK', comp?: string, keep = false) {
   const m = TUNE.MAP_MODE; TUNE.MAP_MODE = 'blocks'; if (!keep) G.scan = null; // keep = the same job rolled again (preview, then take)

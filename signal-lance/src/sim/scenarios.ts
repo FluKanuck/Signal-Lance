@@ -29,7 +29,7 @@ export type Scenario = {
   earned?: number | 'quota';             // R15 Bounty: credits already banked at the start ('quota' = exactly BOUNTY_QUOTA)
   map?: DistrictSpec;                    // R16: a fixed block district (no roll); none = the hive map
   packed?: { seed: number; grid: string }; // R17 (parked #65): a packed district rolled from this seed and grid (the same map every time)
-  job?: { seed: number; comp: string; listen: number }; // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen
+  job?: { seed: number; comp: string; listen: number }; // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen (R20: listen -1 = the live scan, yours to run)
 };
 
 // R16 test-bed districts (fixed: no roll, no rotation). cells are row-major block names.
@@ -46,16 +46,24 @@ export const WARM_FIT = () => makeFit('warden', [['MAST', 'emarray'], ['MAST', '
 export const RWR_FIT = () => makeFit('warden', [['MAST', 'rwr'], ['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery']], ['CORE']);
 export const HEAVY_FIT = () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery'], ['BACK', 'mortar']], ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS']);
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 20 (eyes from the ship): a real rolled job through the live scan. Seed 2025: a 4×2 packed district, an Ambush
+  // field: two silent turrets (a sentry and a hush: no radio, cold) and two patrols (a heavy and a line: radio, warm). ----
+  {
+    name: 'Where first', round: 20, seed: 2025, mission: 'UPLINK', job: { seed: 2025, comp: 'Ambush', listen: -1 }, tune: { SCAN_MODE: 'active' },
+    tryThis: 'Scan before you land. Pick a sensor, drag the aim ring, START, STOP when you have enough. RADAR finds everything (even silent units) but not what it is; THERMAL shows what is warm; EM LISTEN names what talks. Two units here never talk. Then pick a drop zone and take the uplink.',
+    uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
+    question: { q: 'Which sensor told you the most for this job?', a: ['RADAR', 'THERMAL', 'EM LISTEN', 'They worked best together', 'Not sure'] },
+  },
   // ---- Round 19 (listen before you land): a real rolled job on seed 1909 (4×2 packed district, Mixed field: a silent sentry, a
   // fire-control emplacement, two patrols), through the scan screen with the dial forced. Same seed both times. ----
   {
-    name: 'Long listen', round: 19, seed: 1909, mission: 'UPLINK', job: { seed: 1909, comp: 'Mixed', listen: 3 }, tune: { SCAN_PAINT_CHANCE: 1 },
+    name: 'Long listen', round: 19, seed: 1909, mission: 'UPLINK', job: { seed: 1909, comp: 'Mixed', listen: 3 }, tune: { SCAN_PAINT_CHANCE: 1, SCAN_MODE: 'dial' }, // R20: the R19 dial
     tryThis: 'The ship listens LONG: the roster, the zones, three drop zones and blips for everything that emits. But it listened too long: the ship is painted, so patrols wait near wherever you land, and part of the field is awake. Read the map, pick where to land, then take the uplink. Then try Quiet drop: the same job with no scan.',
     uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
     question: { q: 'Did what you heard change where you landed?', a: ['Yes, I picked another drop zone', 'Yes, it changed my route', 'No, I’d have done the same', 'Not sure'] },
   },
   {
-    name: 'Quiet drop', round: 19, seed: 1909, mission: 'UPLINK', job: { seed: 1909, comp: 'Mixed', listen: 0 },
+    name: 'Quiet drop', round: 19, seed: 1909, mission: 'UPLINK', job: { seed: 1909, comp: 'Mixed', listen: 0 }, tune: { SCAN_MODE: 'dial' },
     tryThis: 'The same job as Long listen, but the ship skips the scan: no roster, no zones, no blips, and you land on the west edge. Take the uplink.',
     uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
     question: { q: 'Did you miss the intel?', a: ['Yes, I felt blind', 'A little', 'No, I managed fine', 'Not sure'] },
@@ -305,7 +313,7 @@ export function startScenario(s: Scenario, launch = true) {
   if (s.job) { // R19: a rolled job through the scan (the view shows the scan screen and launches it; the runner / tests go straight on)
     const m = TUNE.MAP_MODE, sc = TUNE.SCAN_ENABLED; TUNE.MAP_MODE = 'blocks'; TUNE.SCAN_ENABLED = true;
     try { rollEnemy(s.job.seed, s.job.comp, s.mission || 'UPLINK'); } finally { TUNE.MAP_MODE = m; TUNE.SCAN_ENABLED = sc; }
-    listen(s.job.listen); G.tb = s;
+    if (s.job.listen >= 0) listen(s.job.listen); G.tb = s; // R20: listen -1 = the live scan (the view runs it; tests and the runner drop straight in)
     if (launch) launchJobScenario();
     return;
   }

@@ -437,6 +437,26 @@ export const TUNE = {
   SCAN_AMBUSH: 2,          // ...and then this many patrols wait toward your drop zone, alert...
   SCAN_AMBUSH_DIST: [6, 10], // ...this many tiles from where you land (min, max: outside the apron)
   DROP_X: { N: 0.35, S: 0.55 },
+  // --- Round 20: eyes from the ship. The live scan (src/sim/livescan.ts): a clock you START / STOP, one sensor at a time,
+  // an aim mark you drag; every unit, zone and drop zone gathers dwell per sensor and its bands reveal that sensor's layer.
+  SCAN_MODE: 'active',     // 'active' = the R20 live scan; 'dial' = the R19 listen dial (SKIP / SHORT / MEDIUM / LONG)
+  SCAN_TIME_RATE: 1,       // ship-minutes per real second while the scan runs
+  SCAN_TIME_MAX: 20,       // ship-minutes; the clock stops itself here
+  SCAN_TICK: 0.25,         // ship-minutes per sim step (the view sends commands; the sim steps; a seed + commands replay exactly)
+  SCAN_SPEED: { RADAR: 3, THERMAL: 1.5, EM: 0.75 }, // dwell per ship-minute at full aim strength (radar fast, thermal medium, EM slow)
+  SCAN_BANDS: { RADAR: [1, 3, 6], THERMAL: [1, 3, 6], EM: [1, 3, 6] }, // dwell needed for bands 1 / 2 / 3 of each sensor's layer
+  SCAN_AIM_CORE: 4,        // tiles; full strength inside this radius of the aim mark...
+  SCAN_AIM_EDGE: 10,       // ...fading linearly to zero at this radius
+  SCAN_WIDE_STRENGTH: 0.25, // WIDE: the whole map at this flat strength (no aim)
+  SCAN_DRIFT_PER_MIN: 0.5, // tiles a patrol walks per ship-minute while the ship scans (replaces SCAN_DRIFT in 'active')
+  SCAN_DRIFT_LEASH: 8,     // tiles; a patrol's scan-time walk stays this close to where it started
+  SCAN_DROP_DELAY: 2,      // ship-minutes between STOP and landing: patrols keep walking (even a last-second look is a little stale)
+  SCAN_PING_UNC: [3, 2, 1], // tiles; a RADAR ping's fuzz at bands 1 / 2 / 3
+  SCAN_HEAT_UNC: [3, 2, 1.5], // tiles; a THERMAL heat blob's fuzz at bands 1 / 2 / 3
+  SCAN_HOT_IR: 4,          // THERMAL sees a unit whose IR is at least this (patrol 5, emplacement 7; turrets 3 stay cold)
+  SCAN_IR_LARGE: 6,        // a heat blob at THERMAL band 2+ reads LARGE at this IR or more, else MEDIUM
+  SCAN_BLIP_FLOOR: 1,      // tiles; an EM blip's fuzz shrinks from SCAN_BLIP_UNC (band 2) to this (band 3)
+  SCAN_COSTS: false,       // R20 cp1: no costs yet (cp2 keys the cost ladder to the risk meter)
   // R19 checkpoint 3: the RWR (src/sim/rwr.ts). A catalogue row ('rwr', S hardpoint, wt 1, draw 0), now in the hangar.
   RWR_ENABLED: true,       // false = no warnings (the row still fits but does nothing)
   RWR_BASELINE: true,      // R19 fix list 1 (Jamie: "All mechs have a baseline RWR, that shows only they been hit with radar"): every suit knows it was painted

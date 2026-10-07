@@ -20,12 +20,13 @@ import { foundLines, foundText } from '../sim/found.ts';
 import { fitHasGun, fitHasMortar } from '../sim/contract.ts';
 import { frameOf } from '../sim/fit.ts';
 import { relockLoads, fitsOpen } from '../sim/contract.ts';
-import { LISTEN, listen, chooseDrop, zoneKnow, offeredDrops, scanText } from '../sim/scan.ts';
+import { LISTEN, listen, chooseDrop, zoneKnow, zoneKnowOf, offeredDrops, scanText, dropPts } from '../sim/scan.ts';
+import { replayScan, encodeCmds, decodeCmds } from '../sim/livescan.ts';
 import { showScan } from './scan.ts';
 import { rwrText } from '../sim/rwr.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r19-s7';  // r19-s7: R19 wrap: Round 19 on the splash round history. r19-s6: R19 fix list 1: every suit has a built-in RWR (PAINTED, the round, no bearing); the module adds the readout. r19-s5: R19 fix list 2: the scan map never stretches (height follows width, redrawn once the panel scale settles, drawn sharp). r19-s4: readability pass (Jamie: iPhone text too small): menus stop shrinking at 0.92 and scroll, UI floor 0.85, bigger scan map, shorter scan text, stacked blip labels. r19-s3: R19 checkpoint 3: the RWR (scope rings, spokes, heard-moving wedge), Painted on the move scenario. r19-s2: R19 checkpoint 2: the cost ladder (extra units, the field wakes, the ship painted → ambush), runner --listensweep. r19-s1: R19 checkpoint 1: the pre-drop scan (listen dial, roster, zones, drop zones, blips), hunt 1 builds after its scan. r18-s13: R18 wrap: Round 18 on the splash round history. r18-s12: R18 fix list 17: a thermal look with no heat marks the contact (struck IR tag, 'no heat at N' trait). r18-s11: R18 fix list 14-16: cover shield, NEW BUILD works on iPad, NOISE never moves a passive centre. r18-s10: R18 fix list 11-13: vague fixes keep good tracks, blind lob scales with range, EO/ESM/ACO/MZL tags + suit letters. r18-s9: R18 fix list 10: passive fixes = best fit of every bearing, weighted by trust; trusted crossings beat NOISE. r18-s8: R18 fix list 5-9: stacked contact labels, sensor tags, cover pieces by kind, interrupt only on new contacts, PLAY SEED + seed in the log. r18-s7: R18 fix list 1-4: clear hangar highlight, autoscale to the window (iPad split screen), top buffer, sheet acts on touch; new-build check; quit-Escort crash. r18-s6: R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
+export const BUILD = 'r20-s1';  // r20-s1: R20 checkpoint 1: the live scan (START / STOP clock, RADAR / THERMAL / EM, a draggable aim ring, bands per unit and zone, patrols walk, drop zones need radar), Where first. r19-s7: R19 wrap: Round 19 on the splash round history. r19-s6: R19 fix list 1: every suit has a built-in RWR (PAINTED, the round, no bearing); the module adds the readout. r19-s5: R19 fix list 2: the scan map never stretches (height follows width, redrawn once the panel scale settles, drawn sharp). r19-s4: readability pass (Jamie: iPhone text too small): menus stop shrinking at 0.92 and scroll, UI floor 0.85, bigger scan map, shorter scan text, stacked blip labels. r19-s3: R19 checkpoint 3: the RWR (scope rings, spokes, heard-moving wedge), Painted on the move scenario. r19-s2: R19 checkpoint 2: the cost ladder (extra units, the field wakes, the ship painted → ambush), runner --listensweep. r19-s1: R19 checkpoint 1: the pre-drop scan (listen dial, roster, zones, drop zones, blips), hunt 1 builds after its scan. r18-s13: R18 wrap: Round 18 on the splash round history. r18-s12: R18 fix list 17: a thermal look with no heat marks the contact (struck IR tag, 'no heat at N' trait). r18-s11: R18 fix list 14-16: cover shield, NEW BUILD works on iPad, NOISE never moves a passive centre. r18-s10: R18 fix list 11-13: vague fixes keep good tracks, blind lob scales with range, EO/ESM/ACO/MZL tags + suit letters. r18-s9: R18 fix list 10: passive fixes = best fit of every bearing, weighted by trust; trusted crossings beat NOISE. r18-s8: R18 fix list 5-9: stacked contact labels, sensor tags, cover pieces by kind, interrupt only on new contacts, PLAY SEED + seed in the log. r18-s7: R18 fix list 1-4: clear hangar highlight, autoscale to the window (iPad split screen), top buffer, sheet acts on touch; new-build check; quit-Escort crash. r18-s6: R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
 declare const __BUILT__: string;
 declare const __MARK__: string;
 // R18 fix (Jamie's iPad kept an old build): fetch the published page fresh; if its build stamp differs, offer a reload.
@@ -104,6 +105,11 @@ export function listenIntel(C) {
 // R10: " Quiet ground: rail cut (NW). Noise: sump (S), SE apron."
 function zoneIntel() {
   let s = '';
+  if (G.scan && G.scan.mode === 'active') { // R20: zone by zone
+    const out = G.zones.filter(z => zoneKnowOf(z) === 1).length;
+    for (const k of ['QUIET', 'NOISE']) { const zs = G.zones.filter(z => z.type === k && zoneKnowOf(z) >= 2); if (zs.length) s += ' ' + TUNE.ZONE_TYPES[k].NAME + ': ' + zs.map(z => z.name).join(', ') + '.'; }
+    return s + (out ? ' Zones: ' + out + ' more seen, type unknown.' : '');
+  }
   if (zoneKnow() < 2) return zoneKnow() ? ' Zones: ' + G.zones.length + ' heard, type unknown.' : ''; // R19: the scan tells you the zones
   for (const k of ['QUIET', 'NOISE']) { const zs = G.zones.filter(z => z.type === k); if (zs.length) s += ' ' + TUNE.ZONE_TYPES[k].NAME + ': ' + zs.map(z => z.name).join(', ') + '.'; }
   return s;
@@ -245,8 +251,8 @@ function goJob(i) {
 function preMode(on: boolean) { $('lpre').hidden = !on; $('lnorm').hidden = on; }
 function showPreHangar() {
   preMode(true);
-  const [job, intel] = intelText().split('\n'), S = G.scan, D = offeredDrops()[S.drop] || offeredDrops()[0];
-  $('pintel').innerHTML = '<b style="color:#fc3">' + escH(job) + '</b><br>' + escH(intel) + '<br><b>Scan: ' + LISTEN[S.lvl] + ' · drop: ' + escH(D.name || 'west edge') + '</b><br>Build both ExoS for what you heard. The fits lock when you launch.';
+  const [job, intel] = intelText().split('\n'), S = G.scan, D = dropPts()[S.drop] || dropPts()[0];
+  $('pintel').innerHTML = '<b style="color:#fc3">' + escH(job) + '</b><br>' + escH(intel) + '<br><b>Scan: ' + (S.mode === 'active' ? Math.round(S.t * 4) / 4 + ' min' : LISTEN[S.lvl]) + ' · drop: ' + escH(D.name || 'west edge') + '</b><br>Build both ExoS for what you heard. The fits lock when you launch.';
   $('load').hidden = false; renderHangar();
 }
 const escH = (t: string) => String(t).replace(/[&<>]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]));
@@ -293,7 +299,8 @@ export function copyLog() {
 // every log line carries "seed N <MISSION>"; PLAY SEED takes a seed or a pasted log line and starts that same hunt (same
 // district, field, placements, job type) with the current fits, outside any contract. The RNG is seeded, so the same moves
 // replay the same hunt. The line's [PACK] / [NO-IR] / [HIVE] tags set those toggles for the replay.
-export function seedText() { return 'seed ' + G.seed + ' ' + G.mtype + (G.scan && G.scan.lvl >= 0 ? ' listen ' + LISTEN[G.scan.lvl] + ' drop ' + (G.scan.drop + 1) : ''); } // R19: the scan's choices replay too
+export function seedText() { if (G.scan && G.scan.mode === 'active') return 'seed ' + G.seed + ' ' + G.mtype + ' scan ' + encodeCmds(G.scan.cmds) + ' drop ' + (G.scan.drop + 1); // R20: the live scan's commands replay it
+  return 'seed ' + G.seed + ' ' + G.mtype + (G.scan && G.scan.lvl >= 0 ? ' listen ' + LISTEN[G.scan.lvl] + ' drop ' + (G.scan.drop + 1) : ''); } // R19: the scan's choices replay too
 export function parseSeed(text: string) {
   const t = text.trim(), m = /seed (\d+)/.exec(t) || /^(\d+)$/.exec(t) || /\b(\d{6,})\b/.exec(t);
   if (!m) return null;
@@ -303,7 +310,7 @@ export function parseSeed(text: string) {
   const up = t.toUpperCase(), tags = /\[(PACK|NO-IR|HIVE)\]/.test(up);
   const li = /LISTEN (SKIP|SHORT|MEDIUM|LONG)/.exec(up), dr = /DROP (\d)/.exec(up); // R19
   return { seed: Number(m[1]) >>> 0, comp, mission, pack: up.includes('[PACK]'), noIr: up.includes('[NO-IR]'), hive: up.includes('[HIVE]'), line: /\|/.test(t) || tags,
-    listen: li ? LISTEN.indexOf(li[1]) : -1, drop: dr ? Number(dr[1]) - 1 : 0 };
+    listen: li ? LISTEN.indexOf(li[1]) : -1, drop: dr ? Number(dr[1]) - 1 : 0, cmds: (/ scan (\d+[RTEWwGSa][0-9A-Za-z._]*|-)(?= |$)/.exec(t) || [])[1] || '' }; // R20 (not the result's " · scan 12 min")
 }
 function playSeed() {
   const P = parseSeed(($('seedIn') as HTMLInputElement).value);
@@ -313,7 +320,8 @@ function playSeed() {
   G.ct = null; G.replay = P.seed; G.scan = null;
   rollEnemy(P.seed, P.comp, P.mission);
   $('load').hidden = true;
-  if (G.scan && P.listen >= 0) { listen(P.listen); chooseDrop(P.drop); } // R19: a log line replays its scan choices
+  if (G.scan && G.scan.mode === 'active' && P.cmds) { replayScan(decodeCmds(P.cmds)); chooseDrop(P.drop); } // R20: a log line replays its live scan
+  else if (G.scan && G.scan.mode !== 'active' && P.listen >= 0) { listen(P.listen); chooseDrop(P.drop); } // R19: a log line replays its scan choices
   else if (G.scan) { showScan('PLAY SEED ' + P.seed + ' · ' + P.mission, () => launch(), 'DROP'); return; } // a bare seed: listen again
   launch();
 }

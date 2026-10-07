@@ -39,7 +39,7 @@ import { CHANNEL } from '../src/sim/found.ts';
 import { ITEMS } from '../src/sim/items.ts';
 import { listen, chooseDrop, offeredDrops } from '../src/sim/scan.ts';
 // R19 --drop auto: the scripted lance lands on the offered drop zone nearest the objective (straight line)
-const nearestDrop = () => { const D = offeredDrops(), ux = G.up.x / 32, uy = G.up.y / 32; let b = 0; D.forEach((d, i) => { if (Math.hypot(d.x - ux, d.y - uy) < Math.hypot(D[b].x - ux, D[b].y - uy)) b = i; }); return b; };
+const nearestDrop = () => { const D = offeredDrops(), ux = G.up.x / 32, uy = G.up.y / 32; let b = 0; D.forEach((d, i) => { if (Math.hypot(d.x - ux, d.y - uy) < Math.hypot(D[b].x - ux, D[b].y - uy)) b = i; }); return D[b].i; }; // R20: a dropPts index
 import { previewJob } from '../src/sim/contract.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
@@ -78,7 +78,7 @@ argv.forEach((k, i) => {
   console.log(`  (--item ${path} = ${o[last]})`);
 });
 const JSON_OUT = argv.includes('--json'), FROM = arg('--from', 1);
-let LISTEN_LVL = arg('--listen', -1); const DROP = sarg('--drop') === 'auto' || argv.includes('--listensweep') ? -1 : arg('--drop', 1) - 1; // R19: auto = the offered drop zone nearest the objective
+let LISTEN_LVL = arg('--listen', -1); if (LISTEN_LVL >= 0 || argv.includes('--listensweep')) TUNE.SCAN_MODE = 'dial'; const DROP = sarg('--drop') === 'auto' || argv.includes('--listensweep') ? -1 : arg('--drop', 1) - 1; // R19: auto = the offered drop zone nearest the objective (R20: --listen / --listensweep run the R19 dial; the live scan's presets come in cp3)
 const MAX_TURNS = 80;
 // --check: remember every FLAG / WARNING line, exit 1 at the end if there were any
 const FLAGS: string[] = [], log0 = console.log;

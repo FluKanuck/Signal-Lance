@@ -14,7 +14,7 @@ import { traitLines, frozen, matchVariants, hasReading } from '../sim/ids.ts';
 import { isType, carrier } from '../sim/mission.ts';
 import { legButton, legPath, forksAhead, allyNextStop } from '../sim/escort.ts';
 import { anchors } from '../sim/world.ts';
-import { zoneKnow } from '../sim/scan.ts';
+import { zoneKnow, zoneKnowOf } from '../sim/scan.ts';
 import { BANDS, heardMoving, rwrWedge, rwrFade, rwrGuess, paintFade } from '../sim/rwr.ts';
 import { active } from '../sim/kit.ts';
 import { pathLen } from '../sim/turns.ts';
@@ -258,7 +258,8 @@ export function render() {
   // NOISE = amber, diagonal hatching + dashed edge. Faint, under everything else.
   const zk = zoneKnow(); // R19: what the scan told you: 0 nothing, 1 grey outlines (type unknown), 2 the zones as before
   for (const zn of zk ? G.zones || [] : []) {
-    if (zk < 2) { zoneOutline(zn, z); continue; }
+    const k = zoneKnowOf(zn); if (!k) continue; // R20: the live scan learns zone by zone
+    if (k < 2) { zoneOutline(zn, z); continue; }
     const q = zn.type === 'QUIET';
     ctx.fillStyle = q ? 'rgba(90,150,255,0.24)' : 'rgba(255,200,70,0.12)';
     ctx.beginPath(); for (const t of zn.tiles) ctx.rect(t.x * T, t.y * T, T, T); ctx.fill();

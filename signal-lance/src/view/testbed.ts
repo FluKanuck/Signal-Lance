@@ -19,7 +19,7 @@ export function showTestBed() {
 }
 function play(s) {
   $('tb').hidden = $('tbres').hidden = true;
-  if (s.job) { startScenario(s, false); showScan('TEST BED · ' + s.name + ' · listen forced: ' + LISTEN[s.job.listen], () => { launchJobScenario(); camera(); }, 'DROP', s.job.listen); return; } // R19
+  if (s.job) { startScenario(s, false); showScan('TEST BED · ' + s.name + (s.job.listen >= 0 ? ' · listen forced: ' + LISTEN[s.job.listen] : ' · scan it yourself'), () => { launchJobScenario(); camera(); }, 'DROP', s.job.listen); return; } // R19 (R20: listen -1 = the live scan)
   startScenario(s);
   camera();
 }
