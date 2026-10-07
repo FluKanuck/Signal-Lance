@@ -8,16 +8,19 @@
 <link rel="manifest" href="manifest.webmanifest">
 <title>Signal Lance</title>
 <script>/* Not inside the Claude viewer (e.g. GitHub Pages / home-screen app): no title bar to dodge. */
-try{if(window.self===window.top)document.documentElement.style.setProperty('--top','0px')}catch(e){}</script>
+try{if(window.self===window.top)document.documentElement.style.setProperty('--top','14px')}catch(e){} /* R18 fix (Jamie): a small buffer at the top outside the viewer too */</script>
 <style>
 /* --top: strip kept clear because the Claude app's artifact viewer overlays its title bar there. */
 /* Single dark look on purpose: grey primitives, colour only for information. */
-:root{--top:56px;--bg:#1b1c1e;--fg:#d8d8d8;--btn:#3a3b3e;--btnOn:#6a7684;--line:#666;color-scheme:dark}
+:root{--s:1;--top:56px;--bg:#1b1c1e;--fg:#d8d8d8;--btn:#3a3b3e;--btnOn:#6a7684;--line:#666;color-scheme:dark}
 html,body{-webkit-text-size-adjust:100%;text-size-adjust:100%;height:100%;margin:0;overflow:hidden;background:var(--bg);color:var(--fg);touch-action:none;overscroll-behavior:none;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;font:13px monospace}
 #cv{position:fixed;inset:0;width:100%;height:100%;display:block;touch-action:none}
 .col{position:fixed;display:flex;flex-direction:column;gap:6px;z-index:2}
-#rcol{right:calc(6px + env(safe-area-inset-right,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px))}
+#rcol{right:calc(6px + env(safe-area-inset-right,0px));bottom:calc(6px + env(safe-area-inset-bottom,0px));flex-wrap:wrap-reverse;align-content:flex-end;justify-content:flex-end}
+/* R18 fix (iPad split screen): the in-hunt controls scale with the window (--s, set in resize) */
+#rcol,#lcol,#brow,#hud,#init,#bDbg,#ver{zoom:var(--s)}
 #lcol{left:calc(6px + env(safe-area-inset-left,0px));bottom:calc(36px + env(safe-area-inset-bottom,0px))}
+#bNew{position:fixed;left:50%;transform:translateX(-50%);top:calc(var(--top) + env(safe-area-inset-top,0px));z-index:20;background:#7a5a18;border-color:#fc3;color:#fff}
 #bDbg{position:fixed;left:calc(4px + env(safe-area-inset-left,0px));bottom:calc(2px + env(safe-area-inset-bottom,0px));min-width:40px;min-height:26px;font-size:10px;padding:0 4px;z-index:2;opacity:.6}
 button{min-width:60px;min-height:52px;font:bold 13px monospace;background:var(--btn);color:var(--fg);border:1px solid var(--line);border-radius:6px;touch-action:manipulation;padding:0 8px}
 button.on{background:var(--btnOn)}
@@ -25,7 +28,7 @@ button.on{background:var(--btnOn)}
 #hud{white-space:nowrap;font-size:13px;position:fixed;top:calc(var(--top) + env(safe-area-inset-top,0px));left:calc(8px + env(safe-area-inset-left,0px));z-index:2;pointer-events:none;line-height:1.5;text-shadow:0 0 3px #000}
 #pbar{display:inline-block;width:80px;height:8px;border:1px solid var(--fg);vertical-align:middle}
 #pfill{height:100%;background:var(--fg)}
-.panel{position:fixed;inset:0;z-index:5;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:calc(var(--top) + 4px) calc(16px + env(safe-area-inset-right,0px)) 12px calc(16px + env(safe-area-inset-left,0px));text-align:center;overflow-y:auto;touch-action:pan-y}
+.panel{position:fixed;inset:0;z-index:5;background:var(--bg);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:calc(var(--top) + 4px + env(safe-area-inset-top,0px)) calc(16px + env(safe-area-inset-right,0px)) 12px calc(16px + env(safe-area-inset-left,0px));text-align:center;overflow-y:auto;touch-action:pan-y}
 #load{flex-direction:row;align-items:flex-start;justify-content:flex-start;text-align:left;gap:16px}
 #mods{flex:1.3;min-width:0;display:flex;flex-direction:column;gap:4px}
 /* R18: the hangar (loadout screen). Jamie's ExoS wireframe: cyan lines, panels tinted by what is fitted / selected */
@@ -36,10 +39,11 @@ button.on{background:var(--btnOn)}
 #hbody{display:flex;gap:10px;align-items:flex-start}
 #hsuit{flex:0 0 150px} #hsvg{width:150px;height:auto;display:block;background:#05090a;border:1px solid #234;border-radius:6px;touch-action:manipulation}
 .hline path{fill:#00f2fb}
-#hsvg .hp{fill:#070c0d} #hsvg .hp.fit{fill:#0d3436} #hsvg .hp.sel{fill:#167074}
-#hsvg .hback{stroke:#00f2fb;stroke-width:5;stroke-dasharray:12 8} #hsvg g.hp .hback{fill:#070c0d} #hsvg g.hp.fit .hback{fill:#0d3436} #hsvg g.hp.sel .hback{fill:#167074}
+#hsvg .hp{fill:#070c0d} #hsvg .hp.fit{fill:#0d3436} #hsvg .hp.sel{fill:#2bd4db}
+#hsvg .hback{stroke:#00f2fb;stroke-width:5;stroke-dasharray:12 8} #hsvg g.hp .hback{fill:#070c0d} #hsvg g.hp.fit .hback{fill:#0d3436} #hsvg g.hp.sel .hback{fill:#2bd4db}
 #hsvg .hbtxt{fill:#00f2fb;font:bold 30px monospace;text-anchor:middle}
 #hsvg .hhit rect{fill:transparent;cursor:pointer}
+#hsvg .hselbox rect{fill:none;stroke:#fff;stroke-width:7;stroke-dasharray:18 10;rx:12} #hsvg .hseltxt{fill:#fff;font:bold 44px monospace;text-anchor:middle;paint-order:stroke;stroke:#000;stroke-width:8}
 #hside{flex:1;min-width:0;display:flex;flex-direction:column;gap:8px;font-size:12px;line-height:1.4}
 .hlhead{font-weight:bold} .hlhead small{font-weight:normal;opacity:.7}
 .hslots{display:flex;flex-wrap:wrap;gap:4px;margin:4px 0}
@@ -49,7 +53,7 @@ button.on{background:var(--btnOn)}
 .hbar{display:inline-block;width:70px;height:8px;border:1px solid var(--line);vertical-align:middle;position:relative}
 .hbar span{display:block;height:100%;background:var(--fg)} .hbar .warn{background:#e0c050} .hbar .bad{background:#ff8a80} .hbar .em{background:#e0a040} .hbar .snd{background:#cfd8dc} .hbar .ir{background:#ff7043}
 .warnt{color:#e0c050} .badt{color:#ff8a80} .okt{color:#70c080}
-#hsheet{position:fixed;inset:0;background:#000a;z-index:8;display:flex;align-items:flex-end;justify-content:center}
+#hsheet{position:fixed;inset:0;background:#000a;z-index:8;display:flex;align-items:flex-end;justify-content:center;touch-action:pan-y}
 #hsheet[hidden]{display:none}
 #hsbox{background:var(--bg);border-top:1px solid var(--line);width:100%;max-width:720px;max-height:80vh;display:flex;flex-direction:column;padding-bottom:env(safe-area-inset-bottom,0px)}
 #hshead{display:flex;justify-content:space-between;align-items:center;padding:6px 12px;font-weight:bold}
@@ -158,6 +162,7 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
   <button id="bHurry" hidden>HURRY</button>
   <button id="bExtract" hidden>EXTRACT</button>
 </div>
+<button id="bNew" hidden>NEW BUILD · TAP TO RELOAD</button>
 <button id="bDbg">DBG</button>
 <div id="ver"></div>
 <div id="load" class="panel" hidden>

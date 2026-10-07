@@ -6,6 +6,10 @@ export const TUNE = {
   CREEP_SPEED: 0.9,     // CREEP move speed (both mechs), tiles per second
   PLAYER_HITS: 3,       // base hits before destruction
   ZOOMS: [1.0, 0.55],   // the two zoom levels (screen px per world unit)
+  UI_REF_W: 844,        // R18 fix (iPad split screen): the window the layout was made for (phone landscape, CSS px); UI scale = window ÷ this...
+  UI_REF_H: 390,
+  UI_MIN: 0.7,          // ...never smaller than this (a panel that still doesn't fit scrolls)...
+  UI_MAX: 1.6,          // ...nor bigger than this (iPad Pro full screen)
   DRAG_PX: 12,          // finger travel (px) before a touch counts as a pan
   EXTRACT_COLS: 3,      // rightmost map columns that count as extraction
   CAM_LERP: 6,          // camera follow stiffness (higher = snappier)

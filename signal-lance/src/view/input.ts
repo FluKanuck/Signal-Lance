@@ -5,7 +5,7 @@ import { G } from '../sim/state.ts';
 import { cx, cy } from '../sim/sensors.ts';
 import { forksAhead } from '../sim/escort.ts';
 import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdExtract, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect, cmdDraw, cmdWaypoint, cmdClearWaypoint, waypointNear, along, nearestAlong } from '../sim/turns.ts';
-import { V } from './state.ts';
+import { V, camZ } from './state.ts';
 import { cv, vw, vh, resize, routeBtn, markerPos } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
 import { showTip, hideTip, TIP_HOLD_MS } from './tip.ts';
@@ -53,7 +53,7 @@ function pressKind(wx: number, wy: number) {
   if (!TUNE.DRAW_PATH_ENABLED || !playerFree() || V.mortarArm || V.ghostArm || V.faceArm) return '';
   const mk = markerAt(wx, wy); if (mk) { ptr.d = mk.d; return 'marker'; } // r17-s3: a look marker: drag = move it, tap = pick it
   if (V.lookArm !== null && drawnPlan()) return 'aim';
-  const z = TUNE.ZOOMS[V.zoomI], pl = drawnPlan();
+  const z = camZ(), pl = drawnPlan();
   if (pl) { const e = pl.full[pl.full.length - 1]; if (Math.hypot(wx - e.x, wy - e.y) <= TUNE.DRAW_END_GRAB_PX / z) { ptr.d = pl.length; return 'extend'; } }
   if (Math.hypot(wx - G.p.x, wy - G.p.y) <= TUNE.DRAW_GRAB_PX / z) return 'new';
   if (pl) { const n = nearestAlong(pl.full, wx, wy); if (n.off * T <= TUNE.WAYPOINT_GRAB_PX / z) { ptr.d = n.d; return 'path'; } }
@@ -61,7 +61,7 @@ function pressKind(wx: number, wy: number) {
 }
 function markerAt(wx: number, wy: number) {
   const pl = drawnPlan(); if (!pl || !G.planD) return null;
-  const r = TUNE.DRAW_END_GRAB_PX / TUNE.ZOOMS[V.zoomI];
+  const r = TUNE.DRAW_END_GRAB_PX / camZ();
   for (const w of G.planD.wps) { const m = markerPos(w, pl.full); if (m && Math.hypot(wx - m.x, wy - m.y) <= r) return w; }
   return null;
 }
@@ -78,7 +78,7 @@ function strokeTo(wx: number, wy: number) {
 // LOOK / ✕ menu beside a point on the path
 export function showWpMenu(d: number) {
   const pl = drawnPlan(), q = pl && along(pl.full, d); if (!q) return;
-  const z = TUNE.ZOOMS[V.zoomI], sx = vw / 2 + (q.x - V.camX) * z, sy = vh / 2 + (q.y - V.camY) * z, M = $('wpMenu');
+  const z = camZ(), sx = vw / 2 + (q.x - V.camX) * z, sy = vh / 2 + (q.y - V.camY) * z, M = $('wpMenu');
   V.wpMenu = d; M.hidden = !waypointNear(d); // r17-s3: only ✕ (remove), and only on a point that already looks somewhere
   M.style.left = Math.max(8, Math.min(vw - 150, sx - 60)) + 'px'; M.style.top = Math.max(70, Math.min(vh - 120, sy - 80)) + 'px';
 }
@@ -91,7 +91,7 @@ function aimAt(wx: number, wy: number) {
   const fx = wx - q.x, fy = wy - q.y;
   if (Math.hypot(fx, fy) > T * 0.4) { V.wpWhy = cmdWaypoint(V.lookArm, fx, fy, wx, wy) ? '' : 'MAX ' + TUNE.FACE_WAYPOINTS_MAX; syncButtons(); }
 }
-const toWorld = (sx, sy) => { const z = TUNE.ZOOMS[V.zoomI]; return [(sx - vw / 2) / z + V.camX, (sy - vh / 2) / z + V.camY]; };
+const toWorld = (sx, sy) => { const z = camZ(); return [(sx - vw / 2) / z + V.camX, (sy - vh / 2) / z + V.camY]; };
 const tipHere = (sx, sy) => { const [wx, wy] = toWorld(sx, sy); showTip(sx, sy, wx, wy); };
 cv.addEventListener('pointerdown', e => {
   e.preventDefault();
@@ -127,7 +127,7 @@ cv.addEventListener('pointermove', e => {
   }
   if (ptr.mode === 'aim') { const [wx, wy] = toWorld(e.clientX, e.clientY); aimAt(wx, wy); ptr.lx = e.clientX; ptr.ly = e.clientY; return; } // R17: LOOK, dragging
   if (ptr.pan) {
-    const z = TUNE.ZOOMS[V.zoomI];
+    const z = camZ();
     V.camX = Math.max(0, Math.min(W * T, V.camX - (e.clientX - ptr.lx) / z));
     V.camY = Math.max(0, Math.min(H * T, V.camY - (e.clientY - ptr.ly) / z));
   }
@@ -152,7 +152,7 @@ cv.addEventListener('pointercancel', ptrEnd);
 
 export function onTap(sx, sy) {
   if (!playerFree()) return;
-  const z = TUNE.ZOOMS[V.zoomI];
+  const z = camZ();
   const wx = (sx - vw / 2) / z + V.camX, wy = (sy - vh / 2) / z + V.camY;
   const onSelf = Math.hypot(wx - G.p.x, wy - G.p.y) <= TUNE.SELF_TAP_PX / z;
   // R9 run1: armed mortar: tap a contact = aimed lob on its fix (if it qualifies), anywhere else = blind lob there

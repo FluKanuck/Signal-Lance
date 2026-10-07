@@ -21,8 +21,21 @@ import { fitHasGun, fitHasMortar } from '../sim/contract.ts';
 import { frameOf } from '../sim/fit.ts';
 
 // bump on every publish: a new build clears the run log
-export const BUILD = 'r18-s6';  // R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
+export const BUILD = 'r18-s7';  // R18 fix list 1-4: clear hangar highlight, autoscale to the window (iPad split screen), top buffer, sheet acts on touch; new-build check; quit-Escort crash. r18-s6: R18 fix: the hangar's pick sheet takes taps on iPad (touch default kept inside .sheet); empty hardpoints say why. r18-s5: QUIT button back to the hangar. r18-s4: R18 debrief 1: overload costs Energy per tile, every mode (OVERLOAD_EN_PER_TILE 0.5). r18-s3: R18 checkpoint 3: THERMAL (heat from reactor, size, firing, sprinting; turrets' thermal sights; Thermal optics). r18-s2: R18 checkpoint 2: the hangar (Jamie's wireframe), parts take modules offline, rear arc, power, weight, signature from items, the Cold processor, INTEL listens on, what found you. r18-s1: R18 checkpoint 1: same game, new insides (item rows, one fit for both sides, stats from the row). r17-s5: R17 wrap: Round 17 on the splash round history. s4: facing is free (AP_TURN 0). s3: tap the path, then tap where to look (a draggable look marker). s2: freehand drawn paths, end handle / redraw from a point, LOOK menu for facing (s1: drawn paths, waypoints, interrupt, low cover)
 declare const __BUILT__: string;
+declare const __MARK__: string;
+// R18 fix (Jamie's iPad kept an old build): fetch the published page fresh; if its build stamp differs, offer a reload.
+function checkNewBuild() {
+  if (typeof __MARK__ !== 'string') return;
+  const url = location.href.split('#')[0];
+  try {
+    fetch(url + (url.includes('?') ? '&' : '?') + 'v=' + Date.now(), { cache: 'no-store' }).then(r => r.ok ? r.text() : '').then(t => {
+      const m = new RegExp('SL' + 'BUILD@[0-9]{2}-[0-9]{2} [0-9]{2}:[0-9]{2}').exec(t || ''); // split so this line never matches itself
+      if (!m || m[0] === __MARK__) return;
+      $('bNew').hidden = false;
+    }).catch(() => {});
+  } catch (_) {}
+}
 // Version tag shown on screen: build label + build time (Vancouver). Changes on every build.
 export const VERSION = BUILD + ' · ' + (typeof __BUILT__ === 'string' ? __BUILT__ : 'dev');
 // ============================ LOADOUT / RESULT / RUN LOG ==============
@@ -289,4 +302,6 @@ $('bBack').addEventListener('click', () => { $('basics').hidden = true; if (basi
 buildBrief(BUILD);
 buildQuestions();
 buildHangar();
+checkNewBuild(); setInterval(checkNewBuild, 5 * 60 * 1000);
+$('bNew').addEventListener('click', () => { const u = location.href.split('#')[0].replace(/[?&]v=\d+/, ''); location.replace(u + (u.includes('?') ? '&' : '?') + 'v=' + Date.now() + location.hash); });
 $('ver').textContent = $('lver').textContent = VERSION;

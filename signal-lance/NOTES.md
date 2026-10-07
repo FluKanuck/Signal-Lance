@@ -1345,4 +1345,15 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            I couldn't close out of after selecting an item" | the document touchstart guard (noTouch) blocked every touch
            outside a .panel, and the pick sheet sits outside one, so iOS never made the click. Touches inside .sheet keep
            their default now. A hardpoint nothing in the set fits (LEGS: MOBILITY) says so in the sheet. BUILD r18-s6 | -
+   round18 fix list 1-4 (Jamie: "lets roll these fixes") | 1 "The highlighted body part isn't obvious enough … not the mast";
+           2 iPad Pro split screen, "have the game in correct aspect … autoscale correctly"; 3 "a bit of a buffer from the top of
+           the screen"; 4 "close button still not working" (his iPad was still on r18-s4: the page was cached) | 1: the selected
+           location is outlined (white dashed box) and named on the wireframe, its panels bright cyan. 2: NEW UI_REF_W 844,
+           UI_REF_H 390, UI_MIN 0.7, UI_MAX 1.6: in-hunt controls zoom by window ÷ phone (split ≈ 0.95, iPad Pro full 1.6), the
+           map zoom scales the same way, every open panel is zoomed to fit the window height (re-fitted when any panel opens
+           and when the hangar re-renders), the right column wraps into a 2nd column when short. 3: --top 14 px outside the
+           Claude viewer (was 0) + the safe-area inset on panels. 4: the sheet acts on pointerup (a tap that didn't move
+           12 px), not on iOS's synthesised click; plus a NEW BUILD · TAP TO RELOAD button when the published page's build
+           stamp differs (fetched fresh at start and every 5 min). Also fixed: quitting an Escort hunt crashed the map drawing
+           (the old transport kept the old route legs; enterLoadout clears G.ally). BUILD r18-s7 | -
 ```

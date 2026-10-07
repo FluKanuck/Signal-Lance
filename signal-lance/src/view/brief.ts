@@ -16,6 +16,7 @@ export const TEST = {
     'NEW (r18-s3): THERMAL. Every ExoS gives off heat: its reactor (Hot core 4, Cold-burn 0) plus its size (Wisp 1, Warden 3, Bulwark 5). Firing (+' + TUNE.IR_FIRE + ') and sprinting (+' + TUNE.IR_SPRINT + ') add heat that lingers and cools ' + TUNE.IR_COOL_PER_TURN + ' a turn. Turrets carry thermal sights: they see heat in line of sight, further the hotter you run (the HUD shows IR and how far). Fit Thermal optics on your mast to see heat too.',
     'NEW (Jamie’s ask): a SNIPER turret. Its Long gun hits out to 20 tiles and barely loses accuracy with range, with a very loud crack. It still needs a firm lock: past eye range that means its thermal sight, so a hot suit is the one it can reach. It’s on the CARD (10 variants now).',
     'NEW (r18-s4): weight costs Energy too. Every point over your rated load adds +' + TUNE.OVERLOAD_EN_PER_TILE + ' Energy to every tile you move, creeping included (on top of the louder moves). A heavy suit drains its battery just walking; a Hot core’s extra output can pay for it.',
+    'FIXED (r18-s7): the game scales to its window (phone, iPad split screen, iPad full screen) and keeps a gap at the top; the hangar’s selected body part is outlined and named; the pick sheet answers taps on iPad; a NEW BUILD button appears when a newer build is published.',
     'NEW (r18-s5): QUIT, next to CTR: tap it twice to drop the hunt (and its contract) and go back to the hangar.',
     'TEST BED: "Heavy load", "Back door" and "Warm core".',
   ],

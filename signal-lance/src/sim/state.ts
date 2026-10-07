@@ -251,7 +251,7 @@ export function rollEnemy(seed: number, force?: string, mtype = 'UPLINK') {
   rollZones(); // R10: then the signal terrain (named in INTEL, so it's rolled before the loadout)
 }
 // Loadout screen open: back to 'loadout' and roll the next setup.
-export function enterLoadout(seed: number, force?: string) { G.mode = 'loadout'; rollEnemy(seed, force); } // R8: force = the view's shuffled-set pick
+export function enterLoadout(seed: number, force?: string) { G.mode = 'loadout'; G.ally = null; rollEnemy(seed, force); } // R18 fix: an Escort transport from a quit hunt pointed at the old map's route legs // R8: force = the view's shuffled-set pick
 // End of the hunt (the result screen is the view's hooks.end).
 export function finishHunt(outcome: string) {
   G.mode = 'result'; G.outcome = outcome;

@@ -10,6 +10,7 @@ import type { Fit } from '../sim/kit.ts';
 import { splitHits, PART_ABBR } from '../sim/combat.ts';
 import { EXOS_VIEWBOX, EXOS_LINES, EXOS_PANELS } from './exos.ts';
 import { $ } from './hud.ts';
+import { fitPanels } from './render.ts';
 
 const KEYS = ['signalLance.fitA', 'signalLance.fitB'];
 const SLOT_WORD: Record<HP, string> = { S: 'SENSOR', W: 'WEAPON', I: 'INTERNAL', U: 'UTILITY', M: 'MOBILITY', O: 'OPEN' };
@@ -45,6 +46,7 @@ const HIT: Record<Loc, string> = { // tap areas in the drawing's coordinates
   CORE: '<rect x="395" y="205" width="238" height="250"/><rect x="450" y="452" width="125" height="90"/>',
   BACK: '<rect x="556" y="125" width="80" height="90"/>',
 };
+const LABEL: Record<Loc, [number, number]> = { MAST: [330, 130], ARMS: [512, 600], CORE: [512, 200], BACK: [700, 140], LEGS: [512, 965] };
 function suitSvg() {
   const f = fits[cur], filled = (l: Loc) => itemsIn(f, l).length > 0 || !!f.plate[l];
   const cls = (l: Loc) => 'hp' + (l === sel ? ' sel' : filled(l) ? ' fit' : '');
@@ -52,6 +54,7 @@ function suitSvg() {
     '<g class="hline">' + EXOS_LINES.map(d => '<path d="' + d + '"/>').join('') + '</g>' +
     EXOS_PANELS.map(([l, d]) => '<path class="' + cls(l as Loc) + '" d="' + d + '"/>').join('') +
     '<g class="' + cls('BACK') + '">' + BACK_SHAPE + '</g>' +
+    '<g class="hselbox">' + HIT[sel] + '</g><text class="hseltxt" x="' + LABEL[sel][0] + '" y="' + LABEL[sel][1] + '">' + sel + '</text>' + // R18 fix (Jamie): the selected location, outlined and named
     LOCS.map(l => '<g class="hhit" data-loc="' + l + '">' + HIT[l] + '</g>').join('') + '</svg>';
 }
 
@@ -104,6 +107,7 @@ function render() {
   $('hloc').innerHTML = locPanel();
   $('hread').innerHTML = readout();
   $('bLaunch').classList.toggle('lockd', !!hangarBlock());
+  fitPanels(); // R18 fix: the hangar's height changes with what's selected; keep it fitted to the window
 }
 export function renderHangar() { render(); }
 
@@ -131,7 +135,7 @@ function openPick(idx: number) {
   }
   if (!rows.length) rows.push('<div class="hopt">Nothing in this round’s set fits a ' + SLOT_WORD[slot].toLowerCase() + ' hardpoint yet' + (slot === 'M' ? ' (moving is the frame’s own legs; mobility modules come later)' : '') + '.</div>');
   $('hopts').innerHTML = rows.join('');
-  $('hsheet').hidden = false; $('hopts').scrollTop = 0;
+  $('hsheet').hidden = false; $('hopts').scrollTop = 0; fitPanels();
 }
 function closePick() { $('hsheet').hidden = true; pickIdx = -1; }
 
@@ -157,9 +161,14 @@ export function buildHangar() {
     else if (d.plate) { const f = structuredClone(fits[cur]); f.plate[sel] = f.plate[sel] ? null : TUNE.HANGAR_PLATES[0]; set(f); }
     else if (d.idx !== undefined) { const raw = fits[cur].mounts[sel][+d.idx]; openPick(isCont(raw) ? +raw.slice(1) : +d.idx); }
   });
-  $('hsheet').addEventListener('click', ev => {
-    const b = (ev.target as Element).closest('button') as HTMLButtonElement;
-    if (ev.target === $('hsheet') || (b && b.id === 'hsclose')) { closePick(); return; }
+  // R18 fix (Jamie, iPad: CLOSE did nothing): the sheet acts on pointerup (a tap that didn't scroll), not on the click iOS may never send
+  let down: { x: number; y: number; t: EventTarget } | null = null;
+  $('hsheet').addEventListener('pointerdown', ev => { down = { x: ev.clientX, y: ev.clientY, t: ev.target }; });
+  $('hsheet').addEventListener('pointerup', ev => {
+    const d = down; down = null;
+    if (!d || Math.hypot(ev.clientX - d.x, ev.clientY - d.y) > 12) return; // a scroll of the list, not a tap
+    const b = (d.t as Element).closest('button') as HTMLButtonElement;
+    if (d.t === $('hsheet') || (b && b.id === 'hsclose')) { closePick(); return; }
     if (!b || b.disabled || b.dataset.pick === undefined) return;
     const f = fits[cur], id = b.dataset.pick;
     set(id ? mount(f, sel, pickIdx, byId(ITEMS, id) as Item) : unmount(f, sel, pickIdx));

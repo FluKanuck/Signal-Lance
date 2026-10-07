@@ -10,7 +10,7 @@ import { partsRead } from '../sim/combat.ts';
 import { isType, carrier } from '../sim/mission.ts';
 import { forksAhead, allyNextStop } from '../sim/escort.ts';
 import { contactLabel, routeBtn } from './render.ts';
-import { V } from './state.ts';
+import { V, camZ } from './state.ts';
 import { $ } from './hud.ts';
 
 export const TIP_HOLD_MS = 450; // touch: how long a still finger waits before the tip shows
@@ -19,7 +19,7 @@ const tiles = (u) => (u / T).toFixed(1);
 
 // What is at world point (wx, wy)? [title, effect lines], or null. Things first, then the ground under them.
 export function tipAt(wx: number, wy: number): [string, string[]] | null {
-  const z = TUNE.ZOOMS[V.zoomI], R = 18 / z;
+  const z = camZ(), R = 18 / z;
   for (const f of forksAhead()) for (const l of f.legs) { const b = routeBtn(l.i); if (near(wx, wy, b.x, b.y, 30 / z)) return [l.name + ' route' + (f.set === l.i ? ' (set)' : ''), [
     G.ally.leg < 0 && G.ally.node === f.node ? 'The transport is waiting here: tap to send it this way.' : 'A lever for a fork ahead: tap to set it (tap again to clear). Reaching a set fork, the transport carries straight on, even mid-move; an unset fork stops it until you choose.',
     'It walks ' + TUNE.ESCORT_MOVE + ' tiles a round (' + TUNE.ESCORT_SPRINT + ' on a HURRY).']]; }

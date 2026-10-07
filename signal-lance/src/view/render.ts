@@ -7,7 +7,7 @@ import { G, unitById } from '../sim/state.ts';
 import { bestContact } from '../sim/bot.ts';
 import { heardRange, canSee, cx, cy } from '../sim/sensors.ts';
 import { upDist, playerTarget, mortarBlock, mortarScatter, shootBlock, shotOdds, along } from '../sim/turns.ts';
-import { V } from './state.ts';
+import { V, camZ } from './state.ts';
 import { zoneAtTile, effEmit, zoneType } from '../sim/zones.ts';
 import { soundRadius } from '../sim/sound.ts';
 import { traitLines, frozen, matchVariants, hasReading } from '../sim/ids.ts';
@@ -19,7 +19,7 @@ import { pathLen } from '../sim/turns.ts';
 // R17 (parked #59): where a route button sits: along its leg, at the first spot (6 tiles in, then every 2) that isn't under
 // the HUD text or the turn strip on screen. Input and tooltips read the same spot.
 export function routeBtn(i: number) {
-  const P = legPath(i), z = TUNE.ZOOMS[V.zoomI], r = 30, L = pathLen(P) * T;
+  const P = legPath(i), z = camZ(), r = 30, L = pathLen(P) * T;
   const rects = ['hud', 'init'].map(id => document.getElementById(id)).filter(Boolean).map(el => el.getBoundingClientRect()).filter(b => b.width > 0);
   const clear = (q) => { const sx = vw / 2 + (q.x - V.camX) * z, sy = vh / 2 + (q.y - V.camY) * z; return rects.every(b => sx < b.left - r || sx > b.right + r || sy < b.top - r || sy > b.bottom + r); };
   for (let want = Math.min(6 * T, L / 2); want <= L; want += 2 * T) { const q = alongPath(P, want); if (clear(q)) return q; }
@@ -67,11 +67,34 @@ export function resize() {
   dpr = Math.min(window.devicePixelRatio || 1, TUNE.DPR_MAX);
   vw = window.innerWidth; vh = window.innerHeight;
   cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
+  // R18 fix (Jamie: iPad split screen, "autoscale correctly"): the in-hunt controls scale with the window (phone landscape = 1;
+  // an iPad Pro full screen ≈ 1.6; never below UI_MIN), and every open panel is fitted to the window height.
+  V.uiS = Math.max(TUNE.UI_MIN, Math.min(TUNE.UI_MAX, vh / TUNE.UI_REF_H, vw / TUNE.UI_REF_W));
+  document.documentElement.style.setProperty('--s', String(V.uiS));
+  const top = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--top')) || 0;
+  const rc = document.getElementById('rcol'); if (rc) rc.style.maxHeight = Math.max(200, (vh - top - 16) / V.uiS) + 'px'; // wraps into a 2nd column when short
+  fitPanels();
 }
+// Fit each open panel: as big as the window scale allows, shrunk until its content fits the height (it scrolls below UI_MIN).
+export function fitPanels() {
+  for (const el of Array.from(document.querySelectorAll('.panel, #hsbox')) as HTMLElement[]) {
+    if (el.hidden || (el.id === 'hsbox' && document.getElementById('hsheet').hidden)) continue;
+    (el.style as any).zoom = '1';
+    const need = el.id === 'hsbox' ? el.scrollHeight / 0.8 : contentHeight(el); // the sheet may take 80% of the height
+    (el.style as any).zoom = String(Math.max(TUNE.UI_MIN, Math.min(V.uiS, need > 0 ? window.innerHeight / need : V.uiS)));
+  }
+}
+function contentHeight(el: HTMLElement) { // the panel's own height at zoom 1 if nothing were cut: its children plus padding
+  const cs = getComputedStyle(el), kids = Array.from(el.children) as HTMLElement[];
+  if (cs.flexDirection === 'row') return Math.max(...kids.map(k => k.scrollHeight)) + parseFloat(cs.paddingTop) + parseFloat(cs.paddingBottom);
+  return el.scrollHeight;
+}
+// Re-fit whenever a panel opens or closes (any screen), without touching every place that shows one
+new MutationObserver(() => fitPanels()).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
 export function render() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = '#111'; ctx.fillRect(0, 0, vw, vh);
-  const z = TUNE.ZOOMS[V.zoomI];
+  const z = camZ();
   ctx.setTransform(dpr * z, 0, 0, dpr * z, dpr * (vw / 2 - V.camX * z), dpr * (vh / 2 - V.camY * z));
   // ground
   ctx.fillStyle = '#2c2d30'; ctx.fillRect(0, 0, W * T, H * T);
