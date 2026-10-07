@@ -1374,4 +1374,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            60°). The blend rises from TRI_BLEND to 1 with q; NOISE's circle and floor shrink toward the clean fix by q, and its
            re-rolled error by (1 − q); the circle × sqrt(2 / spots). Tag EM·NOISE while NOISE blurs it and q < 0.5. Both sides.
            Runner 60 contracts: hunt wins 49% (s8 50%). BUILD r18-s9 | -
+   round18 request (r18-s9) | Jamie: "change eye to vis. Also have the types stack, all in cyan, and the one that's winning is
+           highlighted gold" | EYE → VIS; one tag per sense that fixed the contact within NEW TAG_KEEP 6 s (c.seen), stacked,
+           cyan; the sense behind the current fix (c.src) gold, on top. Contact labels and tags also scale with the window
+           (V.uiS), like the rest of the UI. BUILD r18-s9 | -
 ```

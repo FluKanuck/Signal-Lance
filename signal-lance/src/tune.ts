@@ -63,6 +63,7 @@ export const TUNE = {
   TRI_BLEND: 0.5,       // how far each new triangulated fix pulls the contact (0..1). R18 fix list 10: the floor; with trust the pull rises to 1
   TRI_TRUST_N: 4,       // R18 fix list 10 (Jamie: "that many EM signals … should trump the noise … a weighting"): bearings taken from this many
                         // different spots (1+ tile apart) on one unit = full trust in their best-fit crossing...
+  TAG_KEEP: 6,          // R18 (Jamie: stack the sense tags): seconds of sim time a sense's tag stays on a contact after its last fix
   TRI_TRUST_ANG: 60,    // ...and only once the widest pair crosses at this many degrees or more (narrower = less trust).
                         // Trust pulls the contact onto the crossing and scales NOISE's error and floor down (0 trust = as before)
   // --- ECM ---

@@ -71,11 +71,12 @@ export function observe(list, id, x, y, measU, vx, vy, exact, noSignal?, eyes?, 
   for (const k of list) { if (k.on && k.id === id) { c = k; break; } if (!k.on && !free) free = k; }
   if (!c) {
     if (!free) return null;
-    c = free; c.on = true; c.id = id; c.dmg = ''; c.type = ''; c.unc = Math.max(TUNE.UNC_ACQUIRE * T, measU); c.tx = x; c.ty = y;
+    c = free; c.on = true; c.seen = {}; c.id = id; c.dmg = ''; c.type = ''; c.unc = Math.max(TUNE.UNC_ACQUIRE * T, measU); c.tx = x; c.ty = y;
     const by = list === G.pc ? null : G.units.find(u => u.ec === list); // R18 (A12): who found it, how far away
     G.firstLog.push({ side: list === G.pc ? 'P' : 'E', src, turn: G.turn, tgt: id, by: by ? by.id : '', byType: by ? by.variant : '',
       d: by && tgt ? Math.hypot(by.x - tgt.x, by.y - tgt.y) / T : 0 }); // R13: every new contact and the sense that made it (runner)
   }
+  (c.seen || (c.seen = {}))[src] = G.time; // R18: every sense that has fixed it, and when (the stacked tags)
   c.src = src; c.walls = 0; c.q = q; c.noisy = noisy; // R18 fix list 10: trust, and whether NOISE is still blurring it // R18 fix list 6: which sense holds the latest fix (radarFix adds the walls it went through)
   c.snd = src === 'SOUND'; // R13: true while the latest fix is sound only (never a lock; "SOUND" label)
   c.shr = src === 'ALARM';  // R13 s2: true while the latest fix is a shared alarm contact (never a lock)
