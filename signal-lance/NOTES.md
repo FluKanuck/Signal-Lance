@@ -955,6 +955,22 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      what was rolled ("scan LONG: +1 unit, 4 alert, painted (ambush 2)").
    - Runner --listensweep N: N contracts per level, same seeds, drop auto. The scripted lance can't read the roster or blips, so
      the sweep shows the costs fully and the benefits barely (only the drop zone and Escort leg choice).
+   R19 checkpoint 3 (the RWR) ASSUMPTIONS
+   - Jamie (build chat): "heard moving" = heard on a tile you have since left. Radar only pulses on the emitter's own turn, so a
+     paint always lands while the suit stands; the warning records that spot (P0). Still within 0.5 tile of P0 = heard standing.
+   - A paint = a field unit's radar on and inRadar() covering the suit (cone, range, ≤ RADAR_MAX_WALLS), the suit carrying a working
+     'rwr' (active(): its MAST part up). One warning per emitter, refreshed by each new pulse (pulseSeq) with a new P0, bearing and
+     band; the bearing error (± RWR_BEARING_ERR) is rolled once per pulse (hunt RNG; only with an RWR fitted, so runs without one
+     don't change). LOCK = at paint time the emitter holds a live fix on that suit at least as tight as its own FIRE_UNC; else SEARCH.
+   - Band from strength: the RWR assumes the radar is RWR_REF_SIG (16, an emplacement mid-pulse) and solves the detection falloff for
+     a distance; the band whose span is nearest wins. Louder = reads closer; walls (DET_WALL) = reads further.
+   - The wedge (checked against the brief's worked case): from P1, the angles to the strip's near and far ends along θ, then ± the
+     bearing error; centre = the strip's middle. Stale = P1's distance along θ from P0 ≥ the band's near edge.
+   - The scope is a fixed size on screen (far ring 70 px × UI scale) round the selected suit; spoke length = its band's ring. The
+     "heard here" tick and bearing line (dashed, strip thicker) are on the map, shown once moving or when tapped. Warnings age out
+     after RWR_LIFE rounds (fading). Log: " · RWR n" = warnings received. The scripted lance never fits it.
+   - Scenario "Painted on the move": packed 4×2 (seed 1701), A on the street at [20,13], a search emplacement out of sight at [11,16]
+     (3 walls, ~9.5 tiles), its sweep set so the first pulse (round 2) covers A.
 ```
 
 ## TWEAK LOG
@@ -1450,4 +1466,6 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            0.5], SCAN_PAINT_CHANCE 0.5, SCAN_AMBUSH 2, SCAN_AMBUSH_DIST [6, 10]. Runner --listensweep 60 (hunt wins / contracts
            complete): SKIP 54% 15, SHORT 50% 10, MEDIUM 54% 15, LONG 41% 6; LONG costs per hunt: +1.1 units, 3.6 alert, painted
            44% (SKIP draws no cost rolls: same as r19-s1). No level dominates; LONG costs the scripted lance most (it can't use the intel). BUILD r19-s2 | -
+   round19 cp3 (r19-s3) | the RWR | NEW RWR_ENABLED true, RWR_BEARING_ERR 10, RWR_BANDS close 3–6 / medium 9–15 / far 15–25, RWR_REF_SIG
+           16, RWR_LIFE 3; 'rwr' added to HANGAR_ITEMS. BUILD r19-s3 | -
 ```

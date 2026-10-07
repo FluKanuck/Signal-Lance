@@ -6,7 +6,7 @@ import { cx, cy } from '../sim/sensors.ts';
 import { forksAhead } from '../sim/escort.ts';
 import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdExtract, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect, cmdDraw, cmdWaypoint, cmdClearWaypoint, waypointNear, along, nearestAlong } from '../sim/turns.ts';
 import { V, camZ } from './state.ts';
-import { cv, vw, vh, resize, routeBtn, markerPos } from './render.ts';
+import { cv, vw, vh, resize, routeBtn, markerPos, rwrTips } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
 import { showTip, hideTip, TIP_HOLD_MS } from './tip.ts';
 
@@ -178,6 +178,8 @@ export function onTap(sx, sy) {
   }
   // R15 Escort: a route button (shown while the transport holds at a fork) picks that leg
   for (const f of forksAhead()) for (const l of f.legs) { const b = routeBtn(l.i); if (Math.hypot(wx - b.x, wy - b.y) <= ROUTE_BTN_PX / z) { cmdLeg(l.i); syncButtons(); return; } } // R17: placed clear of the HUD // R16: levers at every fork ahead
+  // R19 cp3: tap an RWR spoke / wedge tip = light up its "heard here" tick and ID line (again = off)
+  for (const t of rwrTips(G.p, z)) if (Math.hypot(wx - t.x, wy - t.y) <= 22 / z) { V.rwrSel = V.rwrSel === t.w.id ? '' : t.w.id; return; }
   // tap on a contact = select it
   for (const c of G.pc) {
     if (!c.on) continue;

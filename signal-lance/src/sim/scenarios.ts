@@ -42,6 +42,8 @@ const D1701 = { seed: 1701, grid: '4x2' };
 // R18: a Bulwark with a plate on every location: load 20 / rated 18, so every move is OVERLOAD_SND_PER_PT × 2 louder
 // R18 cp3: the Line suit on a Hot core (IR 4 + Warden size 3 = 7: a thermal sight sees it at ~17 tiles)
 export const WARM_FIT = () => makeFit('warden', [['MAST', 'emarray'], ['MAST', 'mask'], ['ARMS', 'autocannon'], ['CORE', 'hotcore'], ['CORE', 'ghost']], ['CORE']);
+// R19 cp3: a Warden with the RWR beside its EM array
+export const RWR_FIT = () => makeFit('warden', [['MAST', 'rwr'], ['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery']], ['CORE']);
 export const HEAVY_FIT = () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery'], ['BACK', 'mortar']], ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS']);
 export const SCENARIOS: Scenario[] = [
   // ---- Round 19 (listen before you land): a real rolled job on seed 1909 (4×2 packed district, Mixed field: a silent sentry, a
@@ -57,6 +59,14 @@ export const SCENARIOS: Scenario[] = [
     tryThis: 'The same job as Long listen, but the ship skips the scan: no roster, no zones, no blips, and you land on the west edge. Take the uplink.',
     uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
     question: { q: 'Did you miss the intel?', a: ['Yes, I felt blind', 'A little', 'No, I managed fine', 'Not sure'] },
+  },
+  {
+    name: 'Painted on the move', round: 19, seed: 1901, mission: 'UPLINK', packed: D1701,
+    tryThis: 'A carries an RWR. A search emplacement sits out of sight behind the blocks to the south-west; its radar pulses every 2nd round. Wait for a warning (a spoke on the rings round A), then walk east along the street and watch the spoke freeze and the wedge swing round to where it must be. Tap the spoke or wedge for its tick and ID. Then go and find it.',
+    uplink: [41, 13],
+    lance: [{ tile: [20, 13], face: [41, 13], fit: 'RWR' }, { tile: [12, 12], face: [41, 13], lost: true }],
+    field: [{ type: 'EMPLACEMENT', variant: 'search', tile: [11, 16], face: [6, 7] }], // its sweep turns 100° before the first pulse (round 2): that one covers A
+    question: { q: 'Heard while moving: could you tell where the radar was?', a: ['Yes, the wedge showed me', 'Roughly', 'No, it confused me', 'Never got a warning'] },
   },
   // ---- Round 18 (fit for the job). Pack off. Same packed district as R17. ----
   {
@@ -306,7 +316,7 @@ export function startScenario(s: Scenario, launch = true) {
   G.comp = { NAME: 'Test bed', staticPlacement: 'uplink' }; // no type counts: newHunt builds no field, prep below places it
   setZones(s.zones || []);
   G.mtype = s.mission || 'UPLINK'; // R15
-  const loads = s.lance.map(l => l.fit === 'HEAVY' ? HEAVY_FIT() : l.fit === 'WARM' ? WARM_FIT() : typeof l.fit === 'string' ? HANGAR_TEMPLATES.find(t => t.id === l.fit).fit() : l.fit || fitFromLoad({ ...LOAD_DEFAULTS, ...(l.load || {}) })); // R18: a template id, HEAVY, a fit, or the old load numbers
+  const loads = s.lance.map(l => l.fit === 'HEAVY' ? HEAVY_FIT() : l.fit === 'WARM' ? WARM_FIT() : l.fit === 'RWR' ? RWR_FIT() : typeof l.fit === 'string' ? HANGAR_TEMPLATES.find(t => t.id === l.fit).fit() : l.fit || fitFromLoad({ ...LOAD_DEFAULTS, ...(l.load || {}) })); // R18: a template id, HEAVY, a fit, or the old load numbers
   newHunt(loads, () => {
     G.lance.forEach((m, i) => {
       const L = s.lance[i], p = ctr(L.tile); m.x = p.x; m.y = p.y; face(m, L.face, up);

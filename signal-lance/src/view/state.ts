@@ -9,6 +9,7 @@ export const V = {
   wpWhy: '',                                // R17: why the last waypoint wasn't set (MAX)
   wpMenu: null as null | number,            // r17-s2: the LOOK / ✕ menu is open for the path point this far along (tiles)
   lookArm: null as null | number,           // r17-s2: LOOK chosen: the next tap (or drag) aims the point this far along
+  rwrSel: '' as string,                     // R19 cp3: the RWR warning tapped (its emitter id)
   uiS: 1,                                   // R18 fix (Jamie, iPad split screen): UI scale for this window (1 = the phone the game was laid out on)
 };
 // R18 fix: the map's zoom (screen px per world unit) scales with the window too, so a big screen shows the same district bigger

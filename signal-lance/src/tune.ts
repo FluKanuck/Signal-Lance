@@ -405,7 +405,7 @@ export const TUNE = {
   OVERLOAD_AP_FRAC: 0.5,   // A7: past this fraction of the way from rated to max load, every move costs +1 AP (toy placeholder)
   SIG_EM_PER_PT: 0.5,      // A8: standing EM signature per point of the fit's always-on EM emit + EM visibility (Warden 3 → 1.5 = the R17 default)
   HANGAR_FRAMES: ['wisp', 'warden', 'bulwark'], // A10: the cheap-test set, the only things the in-game hangar offers (build-toy.html keeps them all)
-  HANGAR_ITEMS: ['coldburn', 'hotcore', 'lamp', 'emarray', 'mask', 'ghost', 'autocannon', 'mortar', 'battery', 'm_cold', 'thermal'], // thermal optics only with THERMAL_ENABLED
+  HANGAR_ITEMS: ['coldburn', 'hotcore', 'lamp', 'emarray', 'mask', 'ghost', 'autocannon', 'mortar', 'battery', 'm_cold', 'thermal', 'rwr'], // thermal optics only with THERMAL_ENABLED. R19 cp3: + the RWR
   HANGAR_PLATES: ['p_steel'],
   // --- R18 checkpoint 3: THERMAL (IR). Heat = a steady part (reactor IR emit + frame size) + heat that builds and cools ---
   THERMAL_ENABLED: true,   // B1/B2 master switch: false = no heat is read by anyone and thermal optics leaves the hangar (checkpoint 2 on its own)
@@ -435,7 +435,13 @@ export const TUNE = {
   SCAN_PAINT_CHANCE: 0.5,  // at LONG, the chance the field reads where you'll land (the ship is painted)...
   SCAN_AMBUSH: 2,          // ...and then this many patrols wait toward your drop zone, alert...
   SCAN_AMBUSH_DIST: [6, 10], // ...this many tiles from where you land (min, max: outside the apron)
-  DROP_X: { N: 0.35, S: 0.55 }, // where along the edge each extra apron is wanted (fraction of the width); the most open spot near it wins
+  DROP_X: { N: 0.35, S: 0.55 },
+  // R19 checkpoint 3: the RWR (src/sim/rwr.ts). A catalogue row ('rwr', S hardpoint, wt 1, draw 0), now in the hangar.
+  RWR_ENABLED: true,       // false = no warnings (the row still fits but does nothing)
+  RWR_BEARING_ERR: 10,     // degrees, max random error on a warning's bearing (passive ESM is BEARING_ERR 3)
+  RWR_BANDS: { CLOSE: [3, 6], MEDIUM: [9, 15], FAR: [15, 25] }, // tiles each range ring stands for; the band is a guess from strength
+  RWR_REF_SIG: 16,         // the radar the RWR assumes it hears (≈ an emplacement mid-pulse): a louder one reads closer, walls read further
+  RWR_LIFE: 3,             // rounds a warning lasts (fading) unless the same radar paints you again // where along the edge each extra apron is wanted (fraction of the width); the most open spot near it wins
   PART_MIN: { LEGS: 2 },       // R13 test 2 (Jamie): at least this many hits on a part (added on top of the pool): two legs
   LEGS_GONE_MULT: 0.5,         // R13 test 2: one leg gone = CREEP only; both gone = CREEP at this × distance per AP and speed
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---

@@ -15,6 +15,8 @@ import { isType, carrier } from '../sim/mission.ts';
 import { legButton, legPath, forksAhead, allyNextStop } from '../sim/escort.ts';
 import { anchors } from '../sim/world.ts';
 import { zoneKnow } from '../sim/scan.ts';
+import { BANDS, heardMoving, rwrWedge, rwrFade, rwrGuess } from '../sim/rwr.ts';
+import { active } from '../sim/kit.ts';
 import { pathLen } from '../sim/turns.ts';
 
 // R17 (parked #59): where a route button sits: along its leg, at the first spot (6 tiles in, then every 2) that isn't under
@@ -128,6 +130,60 @@ function zoneOutline(zn, z: number) {
   }
   ctx.stroke(); ctx.setLineDash([]);
   ctx.fillStyle = 'rgba(220,220,220,0.75)'; ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText('ZONE ?', (zn.x - 1.5) * T, (zn.y + 0.5) * T + 4 / z);
+}
+// ============================ R19 cp3: THE RWR SCOPE ============================
+// Around the selected ExoS: three range rings (close / medium / far, a fixed size on screen: a guess from signal strength, not a
+// map distance). Heard standing = a sharp spoke to its band's ring. Heard moving = a faint frozen spoke as received, a dashed
+// re-aimed wedge over the guessed emitter strip, an arc between; and on the map a "heard here" tick with its world-fixed
+// bearing line. Tap a spoke or wedge: its tick lights up and an ID line shows.
+const RWR_R = 70; // screen px of the far ring
+const rwrCol = (w) => w.kind === 'LOCK' ? '255,70,70' : '255,177,74';
+// where each warning's tip sits now (world coords): the spoke's tip, or the wedge's centre on its ring
+export function rwrTips(p, z: number) {
+  if (!p || p.dead || !p.rwr || !active(p, 'rwr')) return [];
+  const R = RWR_R * V.uiS / z;
+  return p.rwr.map(w => {
+    const r = R * (BANDS.indexOf(w.band) + 1) / 3, mv = heardMoving(w, p.x, p.y), W = mv ? rwrWedge(w, p.x, p.y) : null;
+    const a = mv && !W.stale ? W.centre : w.ang;
+    return { w, r, mv, W, a, x: p.x + Math.cos(a) * r, y: p.y + Math.sin(a) * r };
+  });
+}
+function drawRwr(p, z: number) {
+  if (!p || p.dead || !active(p, 'rwr') || !TUNE.RWR_ENABLED) return;
+  const R = RWR_R * V.uiS / z, tips = rwrTips(p, z);
+  ctx.strokeStyle = 'rgba(255,177,74,0.28)'; ctx.lineWidth = 1.5 / z; // the rings
+  for (let k = 1; k <= 3; k++) { ctx.beginPath(); ctx.arc(p.x, p.y, R * k / 3, 0, 6.2832); ctx.stroke(); }
+  for (const t of tips) {
+    const w = t.w, al = rwrFade(w), col = rwrCol(w), sel = V.rwrSel === w.id;
+    // on the map: the "heard here" tick and its world-fixed bearing line (moving, or picked)
+    if (t.mv || sel) {
+      const [near, far] = TUNE.RWR_BANDS[w.band], ux = Math.cos(w.ang), uy = Math.sin(w.ang);
+      ctx.strokeStyle = 'rgba(' + col + ',' + (sel ? 0.9 : 0.4) * al + ')'; ctx.lineWidth = (sel ? 3 : 2) / z; ctx.setLineDash([6 / z, 5 / z]);
+      ctx.beginPath(); ctx.moveTo(w.x, w.y); ctx.lineTo(w.x + ux * far * T, w.y + uy * far * T); ctx.stroke(); ctx.setLineDash([]);
+      ctx.lineWidth = (sel ? 7 : 5) / z; ctx.strokeStyle = 'rgba(' + col + ',' + 0.35 * al + ')'; // the guessed strip
+      ctx.beginPath(); ctx.moveTo(w.x + ux * near * T, w.y + uy * near * T); ctx.lineTo(w.x + ux * far * T, w.y + uy * far * T); ctx.stroke();
+      const k = (sel ? 10 : 7) / z; ctx.strokeStyle = sel ? '#fff' : 'rgba(' + col + ',' + al + ')'; ctx.lineWidth = (sel ? 3 : 2) / z; // the tick: across the bearing
+      ctx.beginPath(); ctx.moveTo(w.x - uy * k, w.y + ux * k); ctx.lineTo(w.x + uy * k, w.y - ux * k); ctx.stroke();
+    }
+    // on the scope
+    ctx.strokeStyle = 'rgba(' + col + ',' + (t.mv ? 0.35 : 1) * al + ')'; ctx.lineWidth = (t.mv ? 1.5 : 3) / z; // the spoke (frozen when moving)
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.x + Math.cos(w.ang) * t.r, p.y + Math.sin(w.ang) * t.r); ctx.stroke();
+    if (t.mv && !t.W.stale) {
+      ctx.strokeStyle = 'rgba(' + col + ',' + 0.9 * al + ')'; ctx.fillStyle = 'rgba(' + col + ',' + 0.12 * al + ')'; ctx.lineWidth = 2 / z; ctx.setLineDash([5 / z, 4 / z]);
+      ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.arc(p.x, p.y, t.r, t.W.from, t.W.to); ctx.closePath(); ctx.fill(); ctx.stroke(); ctx.setLineDash([]);
+      const d = Math.atan2(Math.sin(t.W.centre - w.ang), Math.cos(t.W.centre - w.ang)); // the arc: frozen spoke → wedge centre
+      ctx.lineWidth = 1.5 / z; ctx.beginPath(); ctx.arc(p.x, p.y, t.r, w.ang, w.ang + d, d < 0); ctx.stroke();
+    }
+    // the tip: the warning type (open sweep arc = SEARCH, filled diamond = LOCK) and the best-guess ID
+    const s = 6 / z; ctx.fillStyle = ctx.strokeStyle = 'rgba(' + col + ',' + al + ')'; ctx.lineWidth = 2 / z;
+    if (w.kind === 'LOCK') { ctx.beginPath(); ctx.moveTo(t.x, t.y - s); ctx.lineTo(t.x + s, t.y); ctx.lineTo(t.x, t.y + s); ctx.lineTo(t.x - s, t.y); ctx.closePath(); ctx.fill(); }
+    else { ctx.beginPath(); ctx.arc(t.x, t.y, s, t.a - 1.2, t.a + 1.2); ctx.stroke(); ctx.beginPath(); ctx.arc(t.x, t.y, 1.5 / z, 0, 6.2832); ctx.fill(); }
+    if (sel) { ctx.strokeStyle = '#fff'; ctx.beginPath(); ctx.arc(t.x, t.y, 11 / z, 0, 6.2832); ctx.stroke(); }
+    const zl = z / V.uiS; ctx.font = 'bold ' + (11 / zl) + 'px monospace'; ctx.fillStyle = 'rgba(' + col + ',' + al + ')';
+    const lab = rwrGuess(w.id) + (t.mv && t.W.stale ? ' · stale' : '');
+    ctx.fillText(lab, t.x + 9 / z, t.y - 6 / z);
+    if (sel) { ctx.font = (11 / zl) + 'px monospace'; ctx.fillText(w.kind + ' · ' + w.band.toLowerCase() + ' ' + TUNE.RWR_BANDS[w.band].join('–') + 't · ' + (t.mv ? 'heard moving' : 'heard here') + ' · round ' + w.turn, t.x + 9 / z, t.y + 8 / z); }
+  }
 }
 // R14: the contact's name on the map
 export function contactLabel(c) {
@@ -536,6 +592,7 @@ export function render() {
     if (act) { ctx.strokeStyle = '#9cf'; ctx.lineWidth = 2 / z; ctx.beginPath(); ctx.arc(m.x, m.y, 15, 0, 6.2832); ctx.stroke(); }
     ctx.fillStyle = act ? '#9cf' : '#a9b0b8'; ctx.fillText(m.id, m.x + 12, m.y - 10);
   }
+  if (G.mode === 'hunt') drawRwr(G.p, z); // R19 cp3
   // took a hit: red screen border
   if (V.hitFlash > 0) {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.strokeStyle = 'rgba(255,40,40,' + (V.hitFlash / 0.4) + ')';

@@ -9,6 +9,7 @@ import { effEmit, zoneType } from './zones.ts';
 import { hitChance, rollPart, damagePart, partGone, partHurt, eyesRange, fromBehind } from './combat.ts';
 import { makeSound, clearSound } from './sound.ts';
 import { noteActEnd } from './ids.ts';
+import { ageRwr } from './rwr.ts';
 import { has, fitted, gunOf, radarOf, mortarOf, offWhy, addHeat } from './kit.ts';
 import { onKill, onAllOut, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
@@ -127,7 +128,7 @@ export function startRound() {
   for (const m of all) m.init = initOf(m) + Math.floor(rand() * (TUNE.INIT_ROLL + 1));
   all.forEach((m, i) => { m.ord = i; });
   G.order = all.sort((a, b) => b.init - a.init || (isMech(b) ? 1 : 0) - (isMech(a) ? 1 : 0) || a.ord - b.ord);
-  G.oi = -1;
+  G.oi = -1; ageRwr(); // R19 cp3: old radar warnings fade out
   nextActivation();
 }
 export function nextActivation() {
@@ -430,7 +431,7 @@ export function doPulse(m, x, y) { // R18: costs and EMIT from its radar row
   const R = radarOf(m);
   pay(m, R.ap, R.en); addEmit(m, R.emit);
   if (x !== null && x !== undefined) faceTo(m, x, y);
-  m.radarOn = true;
+  m.radarOn = true; m.pulseSeq = (m.pulseSeq || 0) + 1; // R19: one RWR warning per pulse
   startAct({ k: 'PULSE', m, t: TUNE.RADAR_PULSE_TIME });
 }
 // ---- shots (same lock rule shape for both mechs) ----

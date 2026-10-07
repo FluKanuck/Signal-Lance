@@ -8,6 +8,7 @@ import { eyesRange } from './combat.ts';
 import { hearSounds } from './sound.ts';
 import { has, radarOf, readsIR, irRange } from './kit.ts';
 import { raiseAlarm } from './pack.ts';
+import { rwrPaint } from './rwr.ts';
 import { noteEmit, notePulse, noteMoved, noteFired, reveal, emitBand, frozen, obsOf } from './ids.ts';
 import { isMech } from './state.ts';
 
@@ -233,6 +234,7 @@ export function updateSensors(dt) {
       if (canSee(e, p, eyesRange(e))) observe(e.ec, p.id, p.x, p.y, TUNE.UNC_EYES * T, p.fx * pv, p.fy * pv, true, false, true, 'EYES');
       else if (irSees(e, p)) observe(e.ec, p.id, p.x, p.y, TUNE.IR_UNC * T, p.fx * pv, p.fy * pv, true, true, true, 'THERMAL'); // R18 cp3
       else if (e.radarOn) radarFix(e, p, e.ec, p.id, e.ejit, p.fx * pv, p.fy * pv, dt);
+      if (e.radarOn) rwrPaint(e, p); // R19 cp3: a radar warning receiver on p hears this pulse cover it
       const radarNew = p.radarOn && !(e.heard && e.heard[p.id]);
       (e.heard || (e.heard = {}))[p.id] = p.radarOn;
       if (passive && (tick || radarNew)) {
