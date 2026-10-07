@@ -166,3 +166,4 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 70. "Wait here" waypoint / go codes, Door Kickers style (R17) — combat
 71. Facing is free for man-sized ExoS; frame size could later bring turn cost and size-based cover back (R17; feeds suit building) — suit building
 72. **Build on the ship, deploy prebuilt (Jamie, R18 scoping):** the hangar is separate from the mission; ExoS are built aboard the ship and deploy as built. Changing a suit takes time, and mission parameters may change while you refit — ship / campaign (Gate 2)
+73. A trigram that shows your suit's emission and its ability to see that type of emission on the same bar (Jamie, R18 play) — strand: hunt · parked 2026-10-06
