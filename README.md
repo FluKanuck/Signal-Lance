@@ -30,6 +30,7 @@ An ex-military company of exosuit operators lives aboard a flying ship over a gr
 | `docs/` | GitHub Pages copy of the build, written by `npm run build` |
 | `legacy/signal-lance.html` | The single-file game from before Round 6, kept for reference |
 | `mods/signal-lance/` | Claude Code mod: round band, live runner pane, balance sweeps. Install with `/plugin install signal-lance --marketplace FluKanuck/Signal-Lance` ([details](mods/signal-lance/README.md)) |
+| `mods/flu-statusline/` | Claude Code mod: colour-coded status line (repo/branch, context, 5h and weekly usage with resets). `/plugin install flu-statusline --marketplace FluKanuck/Signal-Lance` |
 
 ```sh
 cd signal-lance

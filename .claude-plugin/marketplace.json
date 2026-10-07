@@ -1,5 +1,5 @@
 {
-  "name": "signal-lance",
+  "name": "flukanuck-mods",
   "owner": {
     "name": "FluKanuck"
   },
@@ -8,7 +8,12 @@
       "name": "signal-lance",
       "source": "./mods/signal-lance",
       "description": "Round band, live runner pane and headless balance sweeps for Signal Lance"
+    },
+    {
+      "name": "flu-statusline",
+      "source": "./mods/flu-statusline",
+      "description": "Colour-coded status line: repo/branch, model, context %, 5h and weekly usage with resets and pace, cost, session time"
     }
   ],
-  "description": "FluKanuck's Claude Code mods for the Signal Lance repo"
+  "description": "FluKanuck's Claude Code mods"
 }
