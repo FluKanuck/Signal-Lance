@@ -597,13 +597,23 @@ export function render() {
     if (m.dead) {
       ctx.strokeStyle = ctx.fillStyle = '#888'; ctx.lineWidth = 4 / z; ctx.beginPath();
       ctx.moveTo(m.x - 10, m.y - 10); ctx.lineTo(m.x + 10, m.y + 10); ctx.moveTo(m.x + 10, m.y - 10); ctx.lineTo(m.x - 10, m.y + 10); ctx.stroke();
+      if (m.crit) { // R21: the suit is down, its operator CRITICAL: a pulsing ring until a lancemate ends a turn beside it
+        const carried = !!m.carriedBy, a = carried ? 0.9 : 0.55 + 0.45 * Math.sin(performance.now() / 250);
+        ctx.strokeStyle = ctx.fillStyle = carried ? 'rgba(112,192,128,' + a + ')' : 'rgba(255,90,90,' + a + ')'; ctx.lineWidth = 3 / z;
+        ctx.beginPath(); ctx.arc(m.x, m.y, TUNE.OP_CARRY_RANGE * T, 0, 6.2832); ctx.stroke();
+        const R = TUNE.OP_CARRY_RANGE * T; ctx.textAlign = 'center'; // above / below the ring, clear of the lancemate's label
+        ctx.fillText(m.id + ' ' + (m.op ? m.op.name.split(' ')[0] + ' ' : '') + (carried ? 'CARRIED BY ' + m.carriedBy : 'CRITICAL'), m.x, m.y - R - 6 / z);
+        if (!carried) { ctx.font = (10 / z) + 'px monospace'; ctx.fillText('end a turn in the ring to carry', m.x, m.y + R + 12 / z); }
+        ctx.textAlign = 'left'; continue;
+      }
       ctx.fillText(m.id + ' ✕', m.x + 12, m.y - 10); continue;
     }
     const act = m === p && G.phase === 'PLAYER';
     ctx.fillStyle = act ? '#ffffff' : '#a9b0b8'; ctx.beginPath(); ctx.arc(m.x, m.y, 9, 0, 6.2832); ctx.fill();
     ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x + m.fx * 16, m.y + m.fy * 16); ctx.stroke();
     if (act) { ctx.strokeStyle = '#9cf'; ctx.lineWidth = 2 / z; ctx.beginPath(); ctx.arc(m.x, m.y, 15, 0, 6.2832); ctx.stroke(); }
-    ctx.fillStyle = act ? '#9cf' : '#a9b0b8'; ctx.fillText(m.id, m.x + 12, m.y - 10);
+    ctx.fillStyle = act ? '#9cf' : '#a9b0b8'; ctx.fillText(m.id + (m.op ? ' ' + m.op.name.split(' ')[0] + (m.op.lvl >= 2 ? '★' : '') : ''), m.x + 12, m.y - 10); // R21: the operator (★ = veteran)
+    if (G.lance.some(d => d.carriedBy === m.id)) { ctx.fillStyle = '#70c080'; ctx.fillText('carrying ' + G.lance.filter(d => d.carriedBy === m.id).map(d => d.id).join(' '), m.x + 12, m.y + 4 / z); }
   }
   if (G.mode === 'hunt') { drawPainted(z); drawRwr(G.p, z); } // R19 cp3; fix list 1: the built-in warning on every suit
   // took a hit: red screen border

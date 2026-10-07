@@ -6,6 +6,7 @@ import { G } from './state.ts';
 import { effEmit } from './zones.ts';
 import { idBonus } from './ids.ts';
 import { gunOf, radarOf, has } from './kit.ts';
+import { skillVal } from './company.ts';
 
 // ============================ PARTS ===================================
 // u.kind: 'MECH' or a FIELD_TYPES key. u.parts / u.pmax: hits left / at full, per part. u.hits stays the
@@ -152,14 +153,15 @@ export function hitChance(sh, tgt, c) {
   const ck = coverKind(sh.x, sh.y, tgt.x, tgt.y), cover = ck === 'WALL' ? -TUNE.HIT_COVER : ck === 'LOW' ? -TUNE.HIT_COVER_LOW : 0; // R17: scrap is low cover
   const id = G.lance.includes(sh) ? idBonus(tgt) : 0; // R14: a right call before eyes (the lance only)
   const base = gunOf(sh)?.hit ?? 0; // R18: the shooter's gun row
-  const raw = base + sig + range + moved + cover + id;
+  const aim = skillVal(sh, 'AIM') ?? 0; // R21: STEADY AIM (the operator's skill at its level)
+  const raw = base + sig + range + moved + cover + id + aim;
   const pct = Math.round(Math.max(TUNE.HIT_MIN, Math.min(TUNE.HIT_MAX, raw)));
-  return { pct, base, sig: Math.round(sig), range: Math.round(range), moved: Math.round(moved), cover, coverKind: ck, id, rangeT, movedT: tgt.movedT || 0 };
+  return { pct, base, sig: Math.round(sig), range: Math.round(range), moved: Math.round(moved), cover, coverKind: ck, id, aim, rangeT, movedT: tgt.movedT || 0 };
 }
 // "base 75 · sig +6 · range −12 · moved −8 · cover −25" (only the terms that apply, base always; R17: "low cover −15" for scrap)
 export function hitText(h) {
   const f = (k, v) => v ? ' · ' + k + ' ' + (v > 0 ? '+' : '−') + Math.abs(v) : '';
-  return 'base ' + h.base + f('sig', h.sig) + f('range', h.range) + f('moved', h.moved) + f(h.coverKind === 'LOW' ? 'low cover' : 'cover', h.cover) + f('ID', h.id || 0);
+  return 'base ' + h.base + f('sig', h.sig) + f('range', h.range) + f('moved', h.moved) + f(h.coverKind === 'LOW' ? 'low cover' : 'cover', h.cover) + f('ID', h.id || 0) + f('aim', h.aim || 0);
 }
 
 // ============================ REPORTING ===============================

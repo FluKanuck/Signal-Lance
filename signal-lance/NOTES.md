@@ -1031,6 +1031,32 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      ladder biting. Drop zone nearest the objective. --scansweep N runs all five on the same contract seeds.
    - Scenario "Loud and fast": the Where first job with "0W0.1_0G_11S" pre-run (radar full map 2.75 min: risk 2.75, step 1 at 3),
      deadlines off.
+   R21 cp1 (the company: people)
+   - One company, one localStorage slot (view side, try/catch + memory fallback): { co, ct }. The running contract is saved
+     with it, so a reload goes back to that contract's job pick (a hunt in progress is not saved: a reload replays its
+     hunt from the job pick). A save whose shape doesn't match CO_VERSION offers only NEW COMPANY (no migrations).
+   - The company code is its seed in base 36 (on the company screen and in every [COMPANY] log line). Each hunt still
+     logs its own seed, so any one hunt replays with PLAY SEED; rebuilding a whole company from its code is not built.
+   - Carry rule (simplest): a lancemate that ENDS ITS TURN (or extracts) within OP_CARRY_RANGE (1.5 tiles: adjacent,
+     diagonals included) of a CRITICAL suit carries its operator. No AP cost, no slowdown, any number at once. If the
+     carrier goes down, whoever it carried is dropped (uncarried again).
+   - Fate at the hunt's end: carried by a lancemate still standing (extracted, or on the map when an uplink win / job
+     fail ends the hunt at once) = lives, benched OP_BENCH contracts; the whole field destroyed = everyone lives (the
+     ground is yours); otherwise KIA. A LOSS (every suit down) = every CRITICAL operator KIA.
+   - XP goes only to operators who came back without going CRITICAL. The bench ticks down at the end of each contract,
+     except the contract it was earned in.
+   - In cp1 a suit lost in a contract stays lost for that contract (R11 rules; REBUILD still works). Seats refill before
+     every hunt: an operator that can't drop (benched / KIA) gives up its seat to the first free reserve. A suit with no
+     operator free to drive it stays aboard for that hunt (its carry is untouched). If no seat can be filled, the
+     contract fails.
+   - QUIT during a company contract ends that contract (counted as failed); nobody is hurt by a quit.
+   - Hiring is free until cp3 (COST_HIRE 0) and only between contracts. Recruits not hired are replaced after each
+     contract. No dismissing operators (not in the brief).
+   - SENSOR TECH's hook is the ID trait counter: each watched enemy activation counts × SKILL_TECH toward "still" and
+     "no pulse", for the whole lance while the tech's suit is on the map (best tech counts, not stacked).
+   - QUIET MOVER scales creep / walk / sprint sound (and clutter crunch on those moves), never shots or mortar.
+   - COMPANY_MODE is also a splash toggle (COMPANY: ON / OFF, remembered). Off = the R11 contract flow with no operators.
+     The runner and the old scenarios never make a company, so their numbers are byte-identical (checked r21-s1).
 ```
 
 ## TWEAK LOG
@@ -1550,6 +1576,12 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            you read where the radar was?" → "Yes, the wedge showed me" | -
    round19 wrap | read-and-connect check: "Not sure". Biggest missing: "The active scan" (timer, area focus, sensor type). Round 19 moved
            to the splash HISTORY. BUILD r19-s7 | -
+   round21 cp1 (r21-s1) | brief: the company, checkpoint 1 (people) | named operators (OP_SKILLS AIM / QUIET / EARS / TECH,
+           SKILL_* per level), XP (OP_XP_HUNT 1, OP_XP_WIN 1, OP_LEVELS [3, 7]), CRITICAL + carry (OP_CARRY_RANGE 1.5),
+           bench (OP_BENCH 2), KIA + memorial (OP_MEMORIAL 8), recruits (RECRUITS_OFFERED 2, COST_HIRE 0), START_OPS 4,
+           OP_CAP 4; the company screen + one save slot; test bed Carry them out. Runner --company 10 (seeds 1-3): complete
+           2 / 3 / 0 of 10, KIA 14 / 14 / 18, CRITICAL carried out 0 / 3 / 2 (the scripted lance never goes back, #42).
+           BUILD r21-s1 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

@@ -7,6 +7,7 @@ import { G, rollEnemy, newHunt, setActive } from './state.ts';
 import { splitHits, syncHits, partsRead } from './combat.ts';
 import { huntPay } from './mission.ts';
 import { fitHits, fitRounds, fitShells, kitOf, toFit } from './kit.ts';
+import { afterHunt, endContract, crewForHunt } from './company.ts';
 
 // Contract-level RNG (mulberry32 on its own state), so job rolls never disturb a hunt's seeded RNG.
 function crand(): number {
@@ -78,11 +79,13 @@ export function takeJob(i: number) {
   C.taken = i; C.huntSeed = j.seed;
   for (const id of ['A', 'B']) { const c = C.carry[id]; if (!c.dead) C.ref[id] = { hits: c.hits, ammo: c.ammo, shells: c.shells }; } // R11 s2: the start the next refit cap is taken from
   rollEnemy(j.seed, j.comp, j.mission);
+  G.crew = G.co ? crewForHunt() : null; // R21: the company's operators take their seats (none = no company)
   newHunt(C.loads, () => {
     for (const m of G.lance) {
       const c = C.carry[m.id];
       m.parts = { ...c.parts }; syncHits(m); m.ammo = c.ammo; m.shells = c.shells; // R12: damage carries per part
       if (c.dead) { m.dead = true; m.hits = 0; m.x = m.y = -10 * T; } // lost for the contract: off the map, out of the order
+      else if (G.co && !m.op) { m.dead = true; m.noOp = true; m.x = m.y = -10 * T; } // R21: no operator free to drive it: it stays aboard
     }
     const live = G.lance.find(m => !m.dead); if (live) setActive(live);
   });
@@ -92,7 +95,7 @@ export function recordHunt() {
   const C = G.ct; if (!C || C.status !== 'ACTIVE' || C.results.length >= C.hunt) return; // once per hunt
   const before = C.carry;
   C.carry = {};
-  for (const m of G.lance) C.carry[m.id] = { hits: Math.max(0, m.hits), maxHits: m.maxHits, parts: { ...m.parts }, pmax: { ...m.pmax }, ammo: m.ammo, shells: m.shells, dead: m.dead };
+  for (const m of G.lance) C.carry[m.id] = m.noOp ? before[m.id] : { hits: Math.max(0, m.hits), maxHits: m.maxHits, parts: { ...m.parts }, pmax: { ...m.pmax }, ammo: m.ammo, shells: m.shells, dead: m.dead }; // R21: a suit with no operator stayed aboard as it was
   const kind = G.outcome.split(' ')[0];
   const won = kind === 'WIN';
   if (won) C.wins++;
@@ -101,13 +104,14 @@ export function recordHunt() {
   C.results.push({
     n: C.hunt, job: C.taken + 1, mission: G.mission.type, earned: G.mission.earned, comp: G.comp.NAME, up: G.up.name, outcome: G.outcome, turns: G.turn,
     kills: G.kills, total: G.units.length,
-    lost: G.lance.filter(m => m.dead && !before[m.id].dead).map(m => m.id),
+    lost: G.lance.filter(m => m.dead && !m.noOp && !before[m.id].dead).map(m => m.id),
     out: G.lance.map(m => m.id + ' ' + dmgWord(C.carry[m.id]) + (m.dead ? '' : ' (' + partsRead(C.carry[m.id]) + ')')), // R12: per-part read
     pay, buys: C.buys.slice(), // what was bought before this hunt
   });
   C.buys = [];
   if (kind === 'LOSS') C.status = 'FAILED';
   else if (C.hunt >= C.hunts) C.status = C.wins >= C.need ? 'COMPLETE' : 'FAILED';
+  if (G.co) { afterHunt(); if (C.status !== 'ACTIVE') endContract(C.status); } // R21: the company: XP, CRITICAL fates; the contract's end
 }
 // "A BLOODIED, B LOST" from the current carry.
 export function lanceText() { return Object.keys(G.ct.carry).map(k => k + ' ' + dmgWord(G.ct.carry[k])).join(', '); }

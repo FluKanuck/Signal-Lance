@@ -6,7 +6,7 @@ import { partHurt } from './sim/combat.ts';
 import { V } from './view/state.ts';
 import { vw, vh, resize, render } from './view/render.ts';
 import { updateHud, syncButtons } from './view/hud.ts';
-import { launch, showLoadout, showResult } from './view/screens.ts';
+import { launch, showStart, showResult } from './view/screens.ts';
 import { hideWpMenu } from './view/input.ts';
 import { showTbResult } from './view/testbed.ts';
 import './view/card.ts';
@@ -39,5 +39,5 @@ function frame(now) {
 }
 resize();
 launch();
-showLoadout();
+showStart();
 requestAnimationFrame(frame);

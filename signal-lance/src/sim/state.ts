@@ -48,6 +48,8 @@ export const G: any = {
   alarmLog: [], // R13 s2: every alarm { from, to: [ids], mech, turn, t } (log line, DBG lines, runner)
   firstLog: [], // R13: every new contact { side 'P'|'E', src (the sense), turn } (runner)
   shotLog: [], partLog: [], lastShot: { P: null, E: null }, // R12: every gun shot (runner/log), parts destroyed, last shot per side (DBG)
+  co: null,   // R21: the company (sim/company.ts); null = no company (the R11 contract flow)
+  crew: null, // R21: this hunt's operators per suit id (newHunt puts them on the suits); null = suits have no operator
   seed: 1, // R6: this run's RNG seed (shown in DBG for replay in the runner)
   obs: {}, ids: {}, idStat: {}, eyesAny: false, // R14: per field unit id: what the lance observed, its committed ID, runner stats
   tb: null, // R14: the test-bed scenario being played (null = a normal hunt)
@@ -219,6 +221,8 @@ export function newHunt(loads?, prep?: () => void) {
   A.x = (spawnX + 0.5) * T; A.y = (spawnY + 0.5) * T;
   B.x = (b.x + 0.5) * T; B.y = (b.y + 0.5) * T;
   G.lance = [A, B]; setActive(A);
+  for (const m of G.lance) m.op = G.crew ? G.crew[m.id] || null : null; // R21: the operator driving it (skills, CRITICAL)
+  G.carryLog = [];
   G.ghost.on = false; G.ghost.owner = null;
   for (const bb of G.pb) bb.on = false;
   // R7: build and place the field (seeded: same seed, same positions)

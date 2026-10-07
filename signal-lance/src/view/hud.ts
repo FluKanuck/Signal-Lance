@@ -43,7 +43,7 @@ export function updateHud(dt) {
   $('init').innerHTML = initStrip();
   const p = G.p, mine = G.phase === 'PLAYER';
   const other = G.lance.find(m => m !== p);
-  const turn = 'ROUND ' + G.turn + '  ' + (mine ? '<b>MECH ' + p.id + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>TAP WHERE TO FACE</b>' : '') + (V.lookArm !== null ? '  <b style="color:#ff6">TAP WHERE IT SHOULD LOOK</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine && TUNE.AP_TURN > 0 ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') + // r17-s4: turning costs nothing (AP_TURN 0): no cost shown
+  const turn = 'ROUND ' + G.turn + '  ' + (mine ? '<b>MECH ' + p.id + (p.op ? ' · ' + p.op.name + ' (' + TUNE.OP_SKILL_NAMES[p.op.skill] + ' ' + p.op.lvl + (p.op.lvl >= 2 ? '★' : '') + ')' : '') + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>TAP WHERE TO FACE</b>' : '') + (V.lookArm !== null ? '  <b style="color:#ff6">TAP WHERE IT SHOULD LOOK</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine && TUNE.AP_TURN > 0 ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') + // r17-s4: turning costs nothing (AP_TURN 0): no cost shown
     (mine ? '  shots ' + p.turnShots + '/' + TUNE.SHOTS_PER_TURN : '') +
     (mine && G.plan && G.plan.drawn ? '  <b style="color:#8fe3ff">DRAWN PATH · looks ' + G.plan.wps.length + '/' + TUNE.FACE_WAYPOINTS_MAX + (V.wpWhy ? ' (' + V.wpWhy + ')' : '') + '</b>' : '') + // R17
     (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">MOVE STOPPED: CONTACT (' + G.intr.ap + 'AP kept)</b>' : '');
@@ -53,7 +53,7 @@ export function updateHud(dt) {
     '<br>EMIT <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.emit / TUNE.SIGNAL_MAX) + '%;background:#f93"></div></span> ' + Math.round(p.emit) + '  (−' + TUNE.SIGNAL_DECAY + '/turn)' +
       '  <b style="color:' + (p.sound ? '#e8f4ff' : '#778') + '">SOUND ' + (p.sound ? Math.round(soundRadius(p) * 10) / 10 : '–') + '</b>' + // R13: this activation's sound radius
 
-    '<br><b>' + p.id + '</b> ' + partsRead(p) + (other ? '  <span style="color:#aab">' + other.id + ' ' + (other.dead ? 'destroyed' : other.out ? 'EXTRACTED' : partsRead(other)) + '</span>' : '') + // R12: per-part read
+    '<br><b>' + p.id + '</b> ' + partsRead(p) + (other ? '  <span style="color:#aab">' + other.id + ' ' + (other.dead ? (other.crit ? (other.carriedBy ? 'CRITICAL, carried by ' + other.carriedBy : '<b style="color:#ff8a80">CRITICAL: end a turn next to it</b>') : 'destroyed') : other.out ? 'EXTRACTED' : partsRead(other)) + '</span>' : '') + // R12: per-part read
     '<br>' + (has(p, 'GUN') ? '  AMMO ' + p.ammo : '') + (has(p, 'MORTAR') ? '  SHELLS ' + p.shells : '') + '  KILLS ' + G.kills + '/' + G.units.length + '  T ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  EMIT heard ~' + Math.round(heardRange(p)) + 't' : '  EMIT silent') + (TUNE.THERMAL_ENABLED ? '  IR ' + Math.round(irOf(p)) + ' (~' + Math.round(irRange(p)) + 't)' : '') + zoneHud(p) + // R18 cp3: heat, and how far a thermal sight sees it
     (has(p, 'MASK') ? '  ECM ' + (p.mask ? 'ON' : 'off') : '') + (has(p, 'GHOST') && G.ghost.on ? '  GHOST ' + G.ghost.turns + 't' : '') +
     oddsLine(p) + shotLine('P') + shotLine('E') +

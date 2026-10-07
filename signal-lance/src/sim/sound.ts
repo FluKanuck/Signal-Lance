@@ -10,12 +10,14 @@ import { G, isMech, isFriend, friends } from './state.ts';
 import { observe } from './sensors.ts';
 import { zoneType } from './zones.ts';
 import { noteSound } from './ids.ts';
+import { skillVal } from './company.ts';
 
 // Raise m's sound for this activation to event `kind` (a SOUND_RANGE key) if that is louder. The offset that
 // listeners' contacts sit at is rolled when the sound grows, then held (so the contact doesn't jitter).
 // R16: extra = tiles added on top (a move that crunches through clutter: CLUTTER_SOUND).
 export function makeSound(m, kind: string, extra = 0) {
-  const r = ((m.snd || TUNE.SOUND_RANGE)[kind] || 0) + extra; // R14: a field unit's variant sets its own radii
+  const q = kind === 'CREEP' || kind === 'NORMAL' || kind === 'SPRINT' ? skillVal(m, 'QUIET') ?? 1 : 1; // R21: QUIET MOVER muffles its moves (not its shots)
+  const r = (((m.snd || TUNE.SOUND_RANGE)[kind] || 0) + extra) * q; // R14: a field unit's variant sets its own radii
   if (kind === 'SPRINT' && isMech(m)) m.sprints = (m.sprints || 0) + 1; // log line: sprints this hunt
   if (r <= (m.sound || 0)) return;
   m.sound = r; m.sndKind = kind; // R14: what made it (a step or a shot: the lance writes it down)
@@ -34,7 +36,7 @@ export function hearSounds() {
     if (s.dead || !(s.sound > 0)) continue;
     const r = soundRadius(s) * T, u = TUNE.SOUND_UNC * T;
     for (const l of isFriend(s) ? G.units : G.lance) {
-      if (l.dead || Math.hypot(l.x - s.x, l.y - s.y) > r) continue;
+      if (l.dead || Math.hypot(l.x - s.x, l.y - s.y) > r * (skillVal(l, 'EARS') ?? 1)) continue; // R21: SHARP EARS hears further
       const list = isMech(l) ? G.pc : l.ec;
       // never loosen a better live fix: sound only says "something is over there"
       const have = list.find(c => c.on && c.id === s.id);

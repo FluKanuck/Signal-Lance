@@ -5,6 +5,7 @@ import { scenarioList, startScenario, leaveScenario, launchJobScenario } from '.
 import { showScan } from './scan.ts';
 import { LISTEN, scanReport } from '../sim/scan.ts';
 import { V } from './state.ts';
+import { crewLines } from '../sim/company.ts';
 import { $, fmtTime } from './hud.ts';
 import { killText, dmgSummary, loadSummary, logLine, showLoadout } from './screens.ts';
 
@@ -30,7 +31,7 @@ function camera() {
 export function showTbResult() {
   const s = G.tb; answer = '';
   $('tbTitle').textContent = 'TEST BED · ' + s.name + ' · ' + G.outcome;
-  $('tbTxt').innerHTML = esc(killText()) + ' — ' + fmtTime(G.time) + ' (' + G.turn + ' turns)<br>' + esc(dmgSummary()) + (scanReport().length ? '<div class="scanlog"><b>THE SCAN:</b>' + scanReport().map(l => '<div>' + esc(l) + '</div>').join('') + '</div>' : ''); // R20 cp3
+  $('tbTxt').innerHTML = esc(killText()) + ' — ' + fmtTime(G.time) + ' (' + G.turn + ' turns)<br>' + esc(dmgSummary()) + (crewLines().length ? '<div class="colog">' + crewLines().map(l => '<div>' + esc(l) + '</div>').join('') + '</div>' : '') + /* R21 */ (scanReport().length ? '<div class="scanlog"><b>THE SCAN:</b>' + scanReport().map(l => '<div>' + esc(l) + '</div>').join('') + '</div>' : ''); // R20 cp3
   const Q = s.question;
   $('tbQ').innerHTML = Q ? '<div class="qrow"><span>' + esc(Q.q) + '</span>' + Q.a.map(a => '<button class="qa" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('') + '</div>' : '';
   $('tbres').hidden = false; $('tbres').scrollTop = 0;
@@ -38,7 +39,7 @@ export function showTbResult() {
 // "[TESTBED Earshot] WIN UPLINK · kills 1/2 · ... | A: ... | answer"
 function logIt() {
   const s = G.tb;
-  logLine('[TESTBED ' + s.name + '] ' + G.outcome + ' · ' + killText() + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + loadSummary() + ' | ' + dmgSummary() + (answer ? ' | q ' + answer : ''));
+  logLine('[TESTBED ' + s.name + '] ' + G.outcome + ' · ' + killText() + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + loadSummary() + ' | ' + dmgSummary() + (crewLines().length ? ' | ' + crewLines().join('; ') : '') + (answer ? ' | q ' + answer : ''));
   for (const l of scanReport()) logLine('[TESTBED ' + s.name + '] [SCAN] ' + l); // R20 cp3
 }
 $('bTB').addEventListener('click', showTestBed);

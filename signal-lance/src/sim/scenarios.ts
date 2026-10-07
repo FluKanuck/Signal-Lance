@@ -13,6 +13,7 @@ import { LOAD_DEFAULTS, fitFromLoad, has, makeFit, HANGAR_TEMPLATES } from './ki
 import { setZones, zoneAtTile } from './zones.ts';
 import { syncHits } from './combat.ts';
 import { makeAlly } from './escort.ts';
+import { onSuitDown } from './company.ts';
 
 type Tile = [number, number];
 export type Scenario = {
@@ -20,7 +21,7 @@ export type Scenario = {
   tryThis: string;                       // one plain line: what Jamie should do
   seed: number;                          // RETRY replays it exactly
   uplink: Tile;
-  lance: { load?: any; fit?: any; tile: Tile; face?: Tile; legsLost?: number; en?: number; lost?: boolean }[]; // [A, B]; face = a tile to face (default: the uplink); R16: lost = out before it starts (one suit)
+  lance: { load?: any; fit?: any; tile: Tile; face?: Tile; legsLost?: number; en?: number; lost?: boolean; op?: [string, string, number]; downed?: boolean }[]; // [A, B]; face = a tile to face (default: the uplink); R16: lost = out before it starts (one suit). R21: op = [name, skill, level] (an operator aboard); downed = CRITICAL on the board from the start
   field: { type: string; variant?: string; tile: Tile; face?: Tile; state?: string }[];
   zones?: { type: 'QUIET' | 'NOISE'; x: number; y: number; name?: string }[];
   tune?: Record<string, any>;            // TUNE overrides for this scenario only (top-level keys); restored afterwards
@@ -47,6 +48,16 @@ export const WARM_FIT = () => makeFit('warden', [['MAST', 'emarray'], ['MAST', '
 export const RWR_FIT = () => makeFit('warden', [['MAST', 'rwr'], ['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery']], ['CORE']);
 export const HEAVY_FIT = () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery'], ['BACK', 'mortar']], ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS']);
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 21 (the company): operators aboard. B is down two tiles behind A, its operator CRITICAL; a patrol walks in from
+  // the east, between A and the uplink / extraction. End a turn next to B to carry Jok, then get out (or leave Jok). ----
+  {
+    name: 'Carry them out', round: 21, seed: 2101, mission: 'UPLINK', packed: D1701,
+    tryThis: 'B is down and Jok, its operator, is CRITICAL. End A’s turn next to B (it’s 2 tiles behind you) to carry Jok, then extract on the east edge, or take the uplink. Leave Jok behind and Jok is KIA. A patrol is walking up the street toward you.',
+    uplink: [41, 13],
+    lance: [{ tile: [22, 13], face: [41, 13], fit: 'line', op: ['Mara Voss', 'AIM', 2] }, { tile: [20, 13], face: [41, 13], fit: 'scout', op: ['Jok Okafor', 'QUIET', 1], downed: true }],
+    field: [{ type: 'PATROL', variant: 'line', tile: [33, 13], face: [22, 13], state: 'PATROL' }],
+    question: { q: 'Was it worth going back for them?', a: ['Yes, worth it', 'Yes, but it cost me', 'No, too risky: left them', 'Didn’t know I could'] },
+  },
   // R20 cp2: the same job, radar already on FULL MAP for 2.75 ship-minutes: the meter sits just under step 1 (at 3).
   {
     name: 'Loud and fast', round: 20, seed: 2025, mission: 'UPLINK', job: { seed: 2025, comp: 'Ambush', listen: -1, scan: '0W0.1_0G_11S' }, tune: { SCAN_MODE: 'active', SCAN_DEADLINE_CHANCE: 0 },
@@ -339,6 +350,8 @@ export function startScenario(s: Scenario, launch = true) {
       if (L.legsLost) { m.parts.LEGS = Math.max(0, m.parts.LEGS - L.legsLost); if (!m.parts.LEGS) m.partsLost.push('LEGS'); syncHits(m); }
       if (L.en !== undefined) m.en = L.en;
       if (L.lost) { m.dead = true; m.hits = 0; m.x = m.y = -10 * T; } // R16: off the map, out of the order (as a contract's lost mech)
+      if (L.op) m.op = { id: 'T' + i, name: L.op[0], skill: L.op[1], lvl: L.op[2], xp: 0, status: 'OK', bench: 0, hunts: 0, hurtIn: -1 }; // R21
+      if (L.downed) { m.parts.CORE = 0; syncHits(m); m.dead = true; onSuitDown(m); } // R21: down on the board, operator CRITICAL
     });
     setActive(G.lance.find(m => !m.dead));
     G.units = s.field.map((f, i) => {

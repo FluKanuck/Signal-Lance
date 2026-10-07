@@ -1,5 +1,6 @@
 import { TUNE } from '../tune.ts';
 import { W, T, isSolid, isClutter, canReach, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter, clearWide, segCost } from './world.ts';
+import { onSuitDown, noteCarry } from './company.ts';
 import { G, hooks, finishHunt, unitById, livingMechs, activeMechs, isMech, isFriend, friends, setActive } from './state.ts';
 import { allyStep, pickLeg, giveOrder } from './escort.ts';
 import { rand } from './rng.ts';
@@ -82,6 +83,7 @@ export function updateShells(dt) {
   if (G.ally && G.ally.hits <= 0 && !G.ally.dead) { G.ally.dead = true; G.ally.path = null; G.ally.moving = false; for (const u of G.units) killContact(u.ec, G.ally.id); } // R15 s3
   for (const m of G.lance) if (m.hits <= 0 && !m.dead) { // R7 s2: a destroyed mech is out (skipped in the order)
     m.dead = true; m.radarOn = false; m.mask = false; m.path = null; m.moving = false;
+    onSuitDown(m); // R21: with an operator aboard, the suit is down and its operator CRITICAL (stays on the board)
     for (const u of G.units) killContact(u.ec, m.id);
   }
 }
@@ -170,6 +172,7 @@ export function enemyUnseen() {
 }
 export function endPlayerTurn() {
   if (G.mode !== 'hunt' || G.phase !== 'PLAYER' || G.act) return;
+  noteCarry(G.p); // R21: ending a turn next to a CRITICAL lancemate picks its operator up
   nextActivation();
 }
 export function enemyStep() {
@@ -221,6 +224,7 @@ export function cmdExtract() {
   const m = G.p;
   if (isCarrier(m)) { G.mission.cargoOut = true; G.mission.result = 'cargo out'; } // R15 Retrieve: the cargo leaves with it
   G.mission.out = (G.mission.out || []).concat(m.id);
+  noteCarry(m); // R21: extracting next to a CRITICAL lancemate takes its operator along
   leaveMap(m);
   if (allOut()) { onAllOut(); return; }
   nextActivation();

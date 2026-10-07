@@ -121,6 +121,16 @@ button.lockd{opacity:.35}
 #bListen,#bScanGo{min-height:56px;font-size:16px;background:var(--btnOn)}
 #lpre{display:flex;flex-direction:column;gap:8px}
 #pintel{font-size:13px;line-height:1.35;border-left:3px solid #fc3;padding-left:8px}
+.colog{margin-top:6px;border-left:3px solid #e0c050;padding-left:8px;text-align:left;font-size:12px;line-height:1.4} .colog div{margin-top:2px}
+/* R21: the company screen: short tabs, one panel at a time (never one long scroll) */
+#co{justify-content:flex-start;gap:8px}
+#coTabs button{min-width:0;flex:1;min-height:48px} #coTabs{width:100%;max-width:900px}
+#coBody{width:100%;max-width:900px;display:flex;flex-wrap:wrap;gap:8px;align-items:stretch;text-align:left;font-size:12px;line-height:1.4}
+.opc{flex:1 1 170px;min-width:0;border:1px solid var(--line);border-radius:6px;padding:4px 6px;display:flex;flex-direction:column;gap:2px} .opc.help{flex-basis:100%;opacity:.75}
+.opc.vet{border-color:#e0c050} .opc.bench{opacity:.65} .opc b{font-size:13px}
+.opc .zrow button{flex:1;min-width:48px;min-height:48px}
+.opc .xp{display:inline-block;width:70px;height:7px;border:1px solid var(--line);vertical-align:middle} .opc .xp span{display:block;height:100%;background:#e0c050}
+#coFoot{width:100%;max-width:900px;position:sticky;bottom:0;background:var(--bg);padding-top:4px} #coFoot button{flex:1;min-width:0}
 .scanlog{margin-top:6px;border-left:3px solid #4fd8c0;padding-left:8px;text-align:left;font-size:12px;line-height:1.4} .scanlog div{margin-top:2px}
 #bPreGo{min-height:64px;font-size:18px;background:var(--btnOn)}
 .jrow{display:flex;gap:12px;width:100%;max-width:900px;align-items:stretch}
@@ -256,6 +266,12 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
   <div id="cHunts" class="jrow"></div>
   <div class="zrow"><button id="bSend2">SEND LOG</button><button id="bNewC">NEW CONTRACT</button></div>
 </div>
+<div id="co" class="panel" hidden>
+  <div id="coHead" style="font-size:16px;font-weight:bold"></div>
+  <div class="zrow" id="coTabs"></div>
+  <div id="coBody"></div>
+  <div class="zrow" id="coFoot"><button id="bCoGo" class="go">START CONTRACT</button><button id="bCoTools">HANGAR · TOOLS</button><button id="bCoNew">NEW COMPANY</button></div>
+</div>
 <div id="tb" class="panel doc" hidden>
   <div class="dtitle">TEST BED <small style="font-size:12px;opacity:.7">· one mechanic, one hunt · no pay, no carry-over</small></div>
   <div id="tbList" class="dtext"></div>
@@ -280,7 +296,7 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
   <div id="spTitle" class="dtitle"></div>
   <div id="spBody" class="dtext"></div>
   <input id="tester" type="text" maxlength="30" placeholder="Your name (for the log)" autocomplete="off">
-  <div class="zrow"><button id="bPack">THE PACK: OFF</button><button id="bMap">MAP: NEW DISTRICTS</button><button id="bHeat">THERMAL: ON</button></div>
+  <div class="zrow"><button id="bPack">THE PACK: OFF</button><button id="bMap">MAP: NEW DISTRICTS</button><button id="bHeat">THERMAL: ON</button><button id="bCoMode">COMPANY: ON</button></div>
   <div class="zrow"><button id="bBasics">GAMEPLAY BASICS</button><button id="bCont" class="go">CONTINUE</button></div>
 </div>
 <div id="basics" class="panel doc" hidden>

@@ -491,6 +491,24 @@ export const TUNE = {
   RWR_LIFE: 3,             // rounds a warning lasts (fading) unless the same radar paints you again // where along the edge each extra apron is wanted (fraction of the width); the most open spot near it wins
   PART_MIN: { LEGS: 2 },       // R13 test 2 (Jamie): at least this many hits on a part (added on top of the pool): two legs
   LEGS_GONE_MULT: 0.5,         // R13 test 2: one leg gone = CREEP only; both gone = CREEP at this × distance per AP and speed
+  // --- Round 21: the company (see sim/company.ts). Placeholder numbers to show the shape, not balanced ---
+  COMPANY_MODE: true,          // R21: contracts run inside one saved company (operators, roster, books, ship). false = the R11 contract flow (runner default, old scenarios)
+  START_OPS: 4,                // R21 cp1: operators a new company starts with
+  OP_CAP: 4,                   // R21 cp1: most operators on the roster (cp4: OPERATOR BERTHS +2)
+  OP_SKILLS: ['AIM', 'QUIET', 'EARS', 'TECH'], // R21 cp1: one skill per operator, rolled from this list
+  OP_SKILL_NAMES: { AIM: 'STEADY AIM', QUIET: 'QUIET MOVER', EARS: 'SHARP EARS', TECH: 'SENSOR TECH' },
+  SKILL_AIM: [10, 15, 20],     // R21: STEADY AIM, + to-hit per level (1, 2, 3)
+  SKILL_QUIET: [0.7, 0.6, 0.5], // R21: QUIET MOVER, × the suit's move sound (creep, walk, sprint; not shots) per level
+  SKILL_EARS: [1.3, 1.45, 1.6], // R21: SHARP EARS, × how far this suit hears sounds per level
+  SKILL_TECH: [1.5, 2, 2.5],   // R21: SENSOR TECH, × how fast watched rounds count toward an ID trait ("still", "no pulse") per level, while it's on the map
+  OP_XP_HUNT: 1,               // R21: XP for each hunt an operator comes back from without going CRITICAL
+  OP_XP_WIN: 1,                // R21: + this when that hunt was a win
+  OP_LEVELS: [3, 7],           // R21: XP for level 2, then level 3 (the skill steps up; level 2+ = veteran)
+  OP_BENCH: 2,                 // R21: contracts an operator sits out after being carried out CRITICAL
+  OP_CARRY_RANGE: 1.5,         // R21: tiles; a lancemate that ends its turn this close to a CRITICAL suit carries its operator (adjacent, diagonals included)
+  OP_MEMORIAL: 8,              // R21: KIA names kept on the memorial list
+  RECRUITS_OFFERED: 2,         // R21: recruits on offer between contracts (level 1, random skill)
+  COST_HIRE: 0,                // R21: credits to hire a recruit (free until cp3's books)
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

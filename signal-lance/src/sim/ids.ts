@@ -5,6 +5,7 @@ import { TUNE } from '../tune.ts';
 import { G, unitById } from './state.ts';
 import { effEmit } from './zones.ts';
 import { ITEMS, byId } from './items.ts';
+import { lanceTech } from './company.ts';
 
 // ============================ OBSERVED TRAITS ==========================
 // emit: bands seen ('none' | 'low' | 'high'), pulses: rounds a radar pulse was heard, moved: a move was seen or heard,
@@ -25,7 +26,7 @@ export function noteSound(e, r: number) {
   else if (e.sndKind !== 'MORTAR') { o.moved = true; o.step = Math.max(o.step, r); }
 }
 // e's activation is over: one more watched activation if the lance holds a contact or a live bearing on it
-export function noteActEnd(e) { if (G.pc.some(c => c.on && c.id === e.id) || G.pb.some(b => b.on && b.id === e.id)) obsOf(e.id).acts++; } // a contact or a live bearing on it
+export function noteActEnd(e) { if (G.pc.some(c => c.on && c.id === e.id) || G.pb.some(b => b.on && b.id === e.id)) obsOf(e.id).acts += lanceTech(); } // a contact or a live bearing on it. R21: SENSOR TECH counts each one for more
 
 // Derived readings (the contact panel shows these, the matcher uses them)
 export function pulseGap(o) { let g = 0; for (let i = 1; i < o.pulses.length; i++) { const d = o.pulses[i] - o.pulses[i - 1]; if (d > 0 && (!g || d < g)) g = d; } return g; }
@@ -40,7 +41,7 @@ export function traitLines(o) {
   const g = pulseGap(o);
   if (o.pulses.length) L.push(g ? 'pulses every ' + g : 'pulsed (once so far)');
   else if (o.emit.some(b => b !== 'none')) L.push('steady (no pulse heard)');
-  if (o.moved) L.push('moved'); else if (isStill(o)) L.push('still (' + o.acts + ' rounds)');
+  if (o.moved) L.push('moved'); else if (isStill(o)) L.push('still (' + Math.floor(o.acts) + ' rounds)');
   if (o.step) L.push('steps heard at ' + Math.round(o.step * 10) / 10 + ' (' + stepBand(o.step) + ')');
   if (o.shot) L.push('shot heard at ' + Math.round(o.shot * 10) / 10 + ' (' + shotBand(o.shot) + ')');
   else if (o.fired) L.push('fired');

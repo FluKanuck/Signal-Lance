@@ -26,11 +26,13 @@
 //   --scan quiet|fast|mixed|loud|none       R20: the live scan's preset before every hunt (quiet = EM on the objective 8 min; fast = radar
 //                                      full map 2 min; mixed = radar wide 2 → thermal on the objective 3 → EM there 5); drop nearest
 //   --scansweep 40                     R20: 40 contracts per preset: wins, risk / step / painted / joined at the drop, per mission
+//   --company 10                       R21: 10 contracts back to back on one company (seed --from): operators, XP, CRITICAL / KIA, bench
 //   --listensweep 40                   R19: 40 contracts at each listen level (drop auto): win rate per level and per mission, and what
 //                                      the listen cost on average (extra units, alert units, painted)
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
+import { newCompany, hire, hireBlock, companyLine } from '../src/sim/company.ts';
 import { playOut as autoPlayOut, AUTO } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
 import { idTick, idSummary } from '../src/sim/ids.ts';
@@ -246,6 +248,34 @@ function contracts(n: number) {
   if (VERBOSE) for (const r of res) console.log(`    contract ${r.c}: ${r.status} ` + r.results.map((h: any) => `H${h.n} ${h.comp} ${h.outcome} ${h.kills}/${h.total} [${h.out.join(', ')}]`).join(' | '));
   foundReport(hunts);
   return { res, hunts };
+}
+
+// R21: N contracts back to back on one company. The scripted lance takes job 1, repairs greedily (R11 refit), hires every
+// recruit it has room for, and never goes back for a CRITICAL suit (it only carries one by chance: #42). Cp3 adds the books.
+function companyRun(n: number) {
+  newCompany(FROM);
+  const per: any[] = []; let crits = 0, carried = 0, hired = 0;
+  for (let c = 0; c < n; c++) {
+    while (hireBlock(0) === '') { hire(0); hired++; }
+    if (!Object.values(G.co.crew).some(Boolean)) { console.log(`  contract ${c + 1}: nobody can drop (all benched) — skipped`); G.co.n++; continue; }
+    newContract(FROM * 1000 + c, [loadA(), loadB()]);
+    while (G.ct.status === 'ACTIVE') {
+      takeJob(0); playOut(G.ct.huntSeed);
+      for (const m of G.lance) if (m.crit) { crits++; if (m.carriedBy) carried++; }
+      if (G.mode === 'hunt') { G.ct.status = 'FAILED'; break; } // a stall ends the contract
+      if (G.ct.status === 'ACTIVE') { rollJobs(); greedy(); }
+    }
+    per.push({ c: c + 1, status: G.ct.status, wins: G.ct.wins, hunts: G.ct.results.length, line: companyLine() });
+    if (VERBOSE) console.log(`  C${c + 1} ${G.ct.status} ${G.ct.wins}/${G.ct.results.length} | ${companyLine()} | ${G.co.news.join(' ')}`);
+    G.co.news = [];
+  }
+  const C = G.co, R = C.rec, lv = [1, 2, 3].map(l => C.ops.filter((o: any) => o.lvl === l).length);
+  console.log(`== COMPANY ${C.code}: ${n} contracts | complete ${R.complete} | failed ${R.failed} | hunts won ${R.wins}/${R.hunts}`);
+  console.log(`  operators: KIA ${R.kia}, CRITICAL ${crits} (carried out ${carried}), hired ${hired} | roster at the end ${C.ops.length}: level 1 ×${lv[0]}, 2 ×${lv[1]}, 3 ×${lv[2]}, benched ${C.ops.filter((o: any) => o.status === 'BENCH').length}`);
+  console.log('  by contract: ' + per.map(p => `C${p.c} ${p.status[0]} ${p.wins}/${p.hunts}`).join(' · '));
+  console.log('  end: ' + companyLine());
+  if (C.memorial.length) console.log('  memorial: ' + C.memorial.map((m: any) => `${m.name} (${m.skill}${m.lvl}, ${m.when})`).join(', '));
+  console.log('  (the scripted lance never goes back for a CRITICAL suit: KIA counts are a ceiling, #42)');
 }
 
 // R18 (A12): what found each lance suit first, on which channel, from how far
@@ -467,6 +497,8 @@ function scenarioRuns(name: string, n: number) {
 
 if (SCEN) {
   scenarioRuns(SCEN, RUNS);
+} else if (arg('--company', 0) > 0) {
+  companyRun(arg('--company', 0));
 } else if (CONTRACTS > 0 && BOTH) {
   log0('######## NORMAL'); AUTO.loud = false; contracts(CONTRACTS); const a = last;
   log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;
