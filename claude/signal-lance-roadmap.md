@@ -183,3 +183,4 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 85. A long listen runs the mission clock on timed objectives (needs timed missions first) (Jamie, R19 scoping) — missions
 86. A painted ship raises heat / notoriety in the area and draws threats aimed at the ship (Jamie, R19 scoping) — campaign
 87. **Company layer = MegaMek / MekHQ-style merc management** in a thin cut: company building, hiring, crew management, parts economy (Jamie, R19 chat: the "ownership and progression" he wants). Next component after pre-drop intel — company
+88. Pay out local sources for added info (Jamie, R19 debrief 1) — hunt · parked 2026-10-07

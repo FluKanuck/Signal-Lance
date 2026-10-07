@@ -1481,4 +1481,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            module to have the readout info.") | NEW RWR_BASELINE true: any paint sets m.paintTurn (no RNG, so runs stay the same); a red dashed
            ring "PAINTED · round N" on every suit, fading over RWR_LIFE; log " · painted n". The 'rwr' module's readout unchanged.
            Details picked as the simplest (Jamie left them open): the map ring, and the round. BUILD r19-s6 | -
+   round19 debrief 1 | weakest moment: picking a listen level. Jamie: "i think id like it a start stop timer, and even an area selection,
+           you an try and focus your scan time on a single area rhather than the whole map … you can even slect what types of scan to
+           use, less intrusive scans use less 'time' … like thermal vs radar, these return different fields of information". Symptom
+           (confirmed): four fixed steps feel like a menu pick; he wants to spend scan time actively (start / stop, focus an area, pick
+           the sensor) | no change this round: the dial stays for testing; the timer / area / sensor-type scan goes to the design lead
+           (Jamie's call). Parked: "pay out local sources for added info" | -
 ```
