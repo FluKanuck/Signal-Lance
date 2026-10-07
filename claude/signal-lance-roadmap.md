@@ -127,7 +127,7 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 29. R11 build notes: rebuild (200) hard to reach before H3; cap ratchets down each hunt; BAIL only a forfeit — economy
 30. The ship: 3–4 module slots across before / after / between; pre-drop scan risk dial — company
 46. **City map:** flat node map of faction districts; faction base danger + your heat; contract detail by SIGINT range — campaign
-47. **Faction standing:** one meter per faction; faction jobs vs deniable broker jobs; friendly factions supply intel on their enemies — campaign / SIGINT
+47. **Faction standing:** one meter per faction; faction jobs vs deniable broker jobs; friendly factions supply intel on their enemies — campaign / SIGINT + as the company gains rep it can charge more, and friendly factions pay out more in bonuses (R21 test, 2026-10-07)
 
 **Gate 3: content**
 31. New enemy types: infantry, light-to-heavy vehicles
