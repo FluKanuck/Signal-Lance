@@ -10,6 +10,7 @@
 | 2 | iPad Pro 12.9 split screen (game in the bottom half, chat above): "id like to be able to split screen like this and have the game in correct aspect to play the game and chat to you easily, can you figure out for it to autoscale correctly". The game window there is very wide and short (~1000 × 370 CSS px): hangar, hunt HUD / buttons and the other panels must fit and stay readable, scaling with the window | fixed r18-s7: UI and map scale with the window, panels fit its height |
 | 3 | "add a bit of a buffer from the top of the screen just for easy reading" (all screens; the iPad status bar also sat over the ExoS A / B buttons full screen) | fixed r18-s7: 14 px + safe area |
 | 4 | "close button still not working" (iPad) | fixed r18-s7: the sheet acts on the touch itself; NEW BUILD reload button for stale pages |
+| 5 | Overlapping contact labels: two contacts close together (here a TURRET sentry and an unknown emplacement in the NOISE yard) print their labels and trait lines on top of each other, so neither reads. Jamie: "Yes add it" | to fix |
 
 ## Agent notes (not on the fix list unless Jamie adds them)
 ### From Jamie's play
