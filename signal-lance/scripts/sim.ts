@@ -18,6 +18,9 @@
 //   --fit scout[,brawler]              R18: both suits (or A,B) use a hangar template id or a hangar build code
 //   --sweep 30                         R18: 30 contracts for each frame × reactor pair (the templates included); win rate per
 //                                      frame and per reactor, and what found the lance first, on which channel, from how far
+//   --item mortar.mortar.shells=8      R18: try an item row value for this run (row id, then a dotted path; repeatable)
+//   --from 61                          start the contract seeds at 61 instead of 1 (extends a batch without repeating seeds)
+//   --json                             print one '@@SL {...}' line per contract as it finishes (the Signal Lance mod reads these)
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
@@ -29,6 +32,7 @@ import { MAP } from '../src/sim/world.ts';
 import { HANGAR_TEMPLATES, fitStats, fitText, launchBlock } from '../src/sim/kit.ts';
 import { fromCode } from '../src/sim/fit.ts';
 import { CHANNEL } from '../src/sim/found.ts';
+import { ITEMS } from '../src/sim/items.ts';
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
@@ -54,6 +58,18 @@ argv.forEach((k, i) => {
   o[last] = v === 'true' ? true : v === 'false' ? false : Number(v);
   console.log(`  (--set ${path} = ${o[last]})`);
 });
+// --item ID.PATH=VALUE (repeatable): try an item row value without editing items.ts, e.g. --item lamp.radar.range=14
+argv.forEach((k, i) => {
+  if (k !== '--item') return;
+  const [path, v] = argv[i + 1].split('='), [id, ...keys] = path.split('.');
+  let o: any = ITEMS.find(r => r.id === id); if (!o) throw new Error('--item: unknown item row ' + id);
+  const last = keys.pop(); if (!last) throw new Error('--item: give a field, e.g. ' + id + '.wt=3');
+  for (const k2 of keys) { o = o[k2]; if (o == null || typeof o !== 'object') throw new Error('--item: no such path ' + path); }
+  if (!(last in o)) throw new Error('--item: unknown field ' + path);
+  o[last] = typeof o[last] === 'number' ? Number(v) : typeof o[last] === 'boolean' ? v === 'true' : v;
+  console.log(`  (--item ${path} = ${o[last]})`);
+});
+const JSON_OUT = argv.includes('--json'), FROM = arg('--from', 1);
 const MAX_TURNS = 80;
 // --check: remember every FLAG / WARNING line, exit 1 at the end if there were any
 const FLAGS: string[] = [], log0 = console.log;
@@ -141,8 +157,8 @@ function greedy() {
 // R11: whole contracts. The scripted lance always takes job 1 (A with mortar, as above).
 function contracts(n: number) {
   const res: any[] = [], shots: any[] = [], parts: any[] = [], hunts: any[] = [];
-  for (let c = 1; c <= n; c++) {
-    newContract(c, [loadA(), loadB()]);
+  for (let c = FROM; c < FROM + n; c++) {
+    newContract(c, [loadA(), loadB()]); const h0 = hunts.length;
     const entering: any[] = []; let stall = false;
     while (G.ct.status === 'ACTIVE') {
       entering.push({ n: G.ct.hunt, carry: JSON.parse(JSON.stringify(G.ct.carry)) });
@@ -156,6 +172,9 @@ function contracts(n: number) {
       if (G.ct.status === 'ACTIVE') { rollJobs(); greedy(); }
     }
     res.push({ c, status: stall ? 'STALL' : G.ct.status, reached: G.ct.hunt, results: G.ct.results, entering, earned: G.ct.earned, spent: G.ct.spent });
+    if (JSON_OUT) log0('@@SL ' + JSON.stringify({ c, status: res[res.length - 1].status, earned: G.ct.earned, spent: G.ct.spent,
+      hunts: hunts.slice(h0).map((h: any) => ({ outcome: h.outcome, mission: h.mission, turns: h.endTurn, lost: h.lost,
+        found: h.found.map((f: any) => f ? { ch: CHANNEL[f.src] || f.src, d: Math.round(f.d * 10) / 10 } : null) })) }));
   }
   const by: Record<string, number> = {};
   for (const r of res) by[r.status] = (by[r.status] || 0) + 1;
