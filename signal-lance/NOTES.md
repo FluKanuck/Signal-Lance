@@ -1337,7 +1337,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            OVERLOAD_EN_PER_TILE 0 → 0.5 (Energy per tile per point over rated, every mode incl. CREEP; ties weight to the
            reactor). Templates are under rated, so the sweep is unchanged (bulwark 79%). Overloaded Warden (17/14, +1.5 EN a
            tile), 40 contracts: walking 22/40 complete either way (the scripted walk never runs dry); sprinting every move
-           22 → 18. BUILD r18-s4 | -
+           22 → 18. BUILD r18-s4 | Helped (wrap)
    round18 request | Jamie: "we need a button in game to get back to start screen" | NEW QUIT (next to CTR, two taps within
            3 s): drops the hunt and its contract (or the test-bed scenario) and opens the hangar; logged as a QUIT line, never
            as a result. BUILD r18-s5 | -
@@ -1398,4 +1398,7 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            reads no heat marks it: c.irNone (a grey struck IR tag for TAG_KEEP) and obs.irNone = the nearest such range ("no
            heat at Nt (IR under N ÷ IR_TILES_PER_PT)"). No variant runs cold yet, so it doesn't narrow the CARD: a cold
            (thermally shielded) variant is new content for the design lead. BUILD r18-s12 | -
+   round18 wrap | last change (OVERLOAD_EN_PER_TILE 0.5, r18-s4): "Helped". Read-and-connect check: "My build showed up". Biggest
+           missing: "A sense of ownership and progression". Round 18 moved to the splash HISTORY. Runner 60 contracts: hunt wins
+           54%; sweep (40 each): wisp 21%, warden 39%, bulwark 75%; Cold-burn 51% / Hot core 51%. BUILD r18-s13 | -
 ```

@@ -37,6 +37,13 @@ const R17_NEW = [
 ]; void R17_NEW; // R18: Round 17's build notes (its HISTORY page is the condensed version)
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
+  { round: 18, title: 'Round 18: Fit for the job', lines: [
+    'The HANGAR is the loadout screen: tap a part of the ExoS, then a hardpoint, to fit it. Start from Scout (Wisp), Line (Warden) or Brawler (Bulwark).',
+    'Weight: over rated load every move is louder and costs more Energy per tile (creep too); far over, +1 AP a move. Power = reactor output − draw; batteries add pool.',
+    'Each location is a part: losing it takes its modules offline. The BACK is only hit from behind. THERMAL: reactor + size + firing / sprinting heat; turrets carry thermal sights; Thermal optics lets you read heat. A sniper turret hits out to 20 tiles.',
+    'Contacts carry stacked sense tags (EO, RDR, ESM, IR, ACO, MZL) with the suit that made each; gold = holding the fix. ESM sits on the best fit of your bearings; noise only widens it. Cover shows as a shield.',
+    'INTEL lists what the field listens on; the result screen says what found you first. PLAY SEED replays a hunt; QUIT goes back to the hangar; the game scales to its window.',
+  ] },
   { round: 17, title: 'Round 17: Eyes on the street', lines: [
     'Drag from your ExoS to draw your move freehand (it goes round walls; scrap you draw through is crossed on purpose). Cyan = this turn’s AP, red dashed = past it. Drag the end handle to carry on, or drag the middle to redraw from there. Tap-to-move still works.',
     'Aim your eyes as you walk: tap a point on your line, then tap where it should look. Drag the eye marker to move it; up to 3 per move. Turning is free now.',
