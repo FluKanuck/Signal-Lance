@@ -1488,4 +1488,6 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            the sensor) | no change this round: the dial stays for testing; the timer / area / sensor-type scan goes to the design lead
            (Jamie's call). Parked: "pay out local sources for added info" (#88). RWR check (brief, cp3): "Heard while moving: could
            you read where the radar was?" → "Yes, the wedge showed me" | -
+   round19 wrap | read-and-connect check: "Not sure". Biggest missing: "The active scan" (timer, area focus, sensor type). Round 19 moved
+           to the splash HISTORY. BUILD r19-s7 | -
 ```

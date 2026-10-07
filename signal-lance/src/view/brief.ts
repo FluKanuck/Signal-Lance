@@ -49,6 +49,13 @@ const R17_NEW = [
 ]; void R17_NEW; // R18: Round 17's build notes (its HISTORY page is the condensed version)
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
+  { round: 19, title: 'Round 19: Listen before you land', lines: [
+    'After the job pick the ship can LISTEN: SKIP / SHORT / MEDIUM / LONG. SHORT = the roster and zone outlines; MEDIUM = zone types and a choice of 3 drop zones; LONG = blips for everything that emits, with the CARD’s best guess. Blips start the hunt as stale SHIP contacts. Zones are only known through the scan.',
+    'Listening costs: extra enemy units (any level), part of the field awake with a rough fix on your drop zone (MEDIUM+), and at LONG maybe a painted ship: 2 patrols waiting near where you land. The dial shows the risk; the result screen shows what happened.',
+    'Hunt 1 is built after its scan (the fits then lock for the contract).',
+    'Every suit knows when a radar paints it (a red PAINTED ring). The RWR module adds the readout: range rings, a spoke to the radar, search vs lock, a best-guess ID, and once you move a wedge that swings to where it must be.',
+    'Text on phones is bigger: menus scroll instead of shrinking; the game never scales below 85%.',
+  ] },
   { round: 18, title: 'Round 18: Fit for the job', lines: [
     'The HANGAR is the loadout screen: tap a part of the ExoS, then a hardpoint, to fit it. Start from Scout (Wisp), Line (Warden) or Brawler (Bulwark).',
     'Weight: over rated load every move is louder and costs more Energy per tile (creep too); far over, +1 AP a move. Power = reactor output − draw; batteries add pool.',
