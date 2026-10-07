@@ -26,13 +26,13 @@
 //   --scan quiet|fast|mixed|loud|none       R20: the live scan's preset before every hunt (quiet = EM on the objective 8 min; fast = radar
 //                                      full map 2 min; mixed = radar wide 2 → thermal on the objective 3 → EM there 5); drop nearest
 //   --scansweep 40                     R20: 40 contracts per preset: wins, risk / step / painted / joined at the drop, per mission
-//   --company 10                       R21: 10 contracts back to back on one company (seed --from): operators, XP, CRITICAL / KIA, bench
+//   --company 10 [--companies 5]       R21: 10 contracts back to back on one company (seed --from; --companies: that many companies, seeds from --from up): operators, XP, CRITICAL / KIA, bench, credits, fuel, folds
 //   --listensweep 40                   R19: 40 contracts at each listen level (drop auto): win rate per level and per mission, and what
 //                                      the listen cost on average (extra units, alert units, painted)
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
-import { newCompany, hire, hireBlock, companyLine, autoCrew, startCompanyContract, suitRefit, lanceSize } from '../src/sim/company.ts';
+import { newCompany, hire, hireBlock, companyLine, autoCrew, suitRefit, suitRefitBlock, suitCost, lanceSize, buy, offerBlock, fuelCost, takeOffer, endContract } from '../src/sim/company.ts';
 import { playOut as autoPlayOut, AUTO } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
 import { idTick, idSummary } from '../src/sim/ids.ts';
@@ -252,35 +252,51 @@ function contracts(n: number) {
 
 // R21: N contracts back to back on one company. The scripted lance takes job 1, repairs greedily (R11 refit), hires every
 // recruit it has room for, and never goes back for a CRITICAL suit (it only carries one by chance: #42). Cp3 adds the books.
-function companyRun(n: number) {
-  newCompany(FROM, [loadA(), loadB()]);
-  const per: any[] = [], sizes: Record<number, number> = {}; let crits = 0, carried = 0, hired = 0;
-  for (let c = 0; c < n; c++) {
-    while (hireBlock(0) === '') { hire(0); hired++; }
-    for (const what of ['rebuild', 'repair', 'rounds', 'shell']) for (let k = 0; k < 50; k++) { let any = false; for (const s of G.co.suits) if (suitRefit(s.id, what)) any = true; if (!any) break; } // between contracts: repair what it can afford
-    autoCrew();
-    if (!lanceSize()) { console.log(`  contract ${c + 1}: the company can't field a lance (every suit lost, ${G.co.credits} cr) — stopped`); break; }
-    startCompanyContract(FROM * 1000 + c);
+function companyRun(n: number, seed = FROM) {
+  newCompany(seed, [loadA(), loadB()]);
+  const per: any[] = [], sizes: Record<number, number> = {}; let crits = 0, carried = 0, hired = 0, played = 0;
+  const C = G.co, buyFirst = (k: string, max = 99) => { let got = 0; const i = C.market.findIndex((l: any) => l.k === k); while (i >= 0 && got < max && buy(i)) got++; return got; };
+  // repair everything it can afford: buy parts as the repairs need them (rebuild first, then hits, then reloads)
+  const repairAll = () => { for (const what of ['rebuild', 'repair', 'rounds', 'shell']) for (let k = 0; k < 60; k++) { let any = false;
+    for (const s of C.suits) { if (suitRefit(s.id, what)) { any = true; continue; } if (suitRefitBlock(s.id, what) === 'PARTS' && buyFirst('parts', suitCost(what).parts - C.parts) && suitRefit(s.id, what)) any = true; }
+    if (!any) break; } };
+  for (let c = 0; c < n && !C.folded; c++) {
+    while (hireBlock(0) === '' && C.ops.length < C.suits.length + 1) { hire(0); hired++; } // keeps one spare operator, no more
+    // the highest fee it can reach, buying the fuel it needs first (before any repair spends the credits)
+    const short = (o: any) => Math.max(0, fuelCost(o) - C.fuel), fl = C.market.find((l: any) => l.k === 'fuel');
+    const pick = C.offers.map((o: any, i: number) => ({ o, i })).filter((x: any) => short(x.o) === 0 || (fl && short(x.o) <= fl.qty && short(x.o) * fl.price <= C.credits)).sort((a: any, b: any) => b.o.fee - a.o.fee)[0];
+    if (pick) buyFirst('fuel', short(pick.o));
+    repairAll(); autoCrew();
+    if (!pick || offerBlock(pick.i) || !lanceSize()) { console.log(`  contract ${c + 1}: stranded (${!lanceSize() ? 'no lance' : 'no fuel'}; ${C.credits} cr, ${C.fuel} fuel)`); break; }
+    takeOffer(pick.i); played++;
     while (G.ct.status === 'ACTIVE') {
-      autoCrew(); if (!lanceSize()) { G.ct.status = 'FAILED'; break; } // every suit that can drop does
+      autoCrew(); if (!lanceSize()) { G.ct.status = 'FAILED'; endContract('FAILED'); break; } // every suit that can drop does
       sizes[lanceSize()] = (sizes[lanceSize()] || 0) + 1;
       takeJob(0); playOut(G.ct.huntSeed);
       for (const m of G.lance) if (m.crit) { crits++; if (m.carriedBy) carried++; }
-      if (G.mode === 'hunt') { G.ct.status = 'FAILED'; break; } // a stall ends the contract
-      if (G.ct.status === 'ACTIVE') { rollJobs(); greedy(); }
+      if (G.mode === 'hunt') { G.ct.status = 'FAILED'; endContract('FAILED'); break; } // a stall ends the contract
+      if (G.ct.status === 'ACTIVE') { rollJobs(); repairAll(); }
     }
-    per.push({ c: c + 1, status: G.ct.status, wins: G.ct.wins, hunts: G.ct.results.length, line: companyLine() });
-    if (VERBOSE) console.log(`  C${c + 1} ${G.ct.status} ${G.ct.wins}/${G.ct.results.length} | ${companyLine()} | ${G.co.news.join(' ')}`);
-    G.co.news = [];
+    per.push({ c: c + 1, status: G.ct.status, wins: G.ct.wins, hunts: G.ct.results.length, tier: G.ct.tier, cr: C.credits, fuel: C.fuel });
+    if (VERBOSE) console.log(`  C${c + 1} ${G.ct.status} ${G.ct.wins}/${G.ct.results.length} | ${companyLine()} | ${C.news.join(' ')}`);
+    C.news = [];
   }
-  const C = G.co, R = C.rec, lv = [1, 2, 3].map(l => C.ops.filter((o: any) => o.lvl === l).length);
-  console.log(`== COMPANY ${C.code}: ${R.contracts} of ${n} contracts played | complete ${R.complete} | failed ${R.failed} | hunts won ${R.wins}/${R.hunts}`);
+  const R = C.rec, lv = [1, 2, 3].map(l => C.ops.filter((o: any) => o.lvl === l).length);
+  console.log(`== COMPANY ${C.code}: ${played} of ${n} contracts | complete ${R.complete} | failed ${R.failed} | hunts won ${R.wins}/${R.hunts} | ${C.folded ? 'FOLDED: ' + C.folded : 'still going'}`);
   console.log(`  operators: KIA ${R.kia}, CRITICAL ${crits} (carried out ${carried}), hired ${hired} | roster at the end ${C.ops.length}: level 1 ×${lv[0]}, 2 ×${lv[1]}, 3 ×${lv[2]}, benched ${C.ops.filter((o: any) => o.status === 'BENCH').length}`);
-  console.log('  lance size per hunt: ' + Object.entries(sizes).map(([k, v]) => `${k} suits ×${v}`).join(', ') + ` | credits at the end ${C.credits}`);
-  console.log('  by contract: ' + per.map(p => `C${p.c} ${p.status[0]} ${p.wins}/${p.hunts}`).join(' · '));
+  console.log('  lance size per hunt: ' + Object.entries(sizes).map(([k, v]) => `${k} suits ×${v}`).join(', '));
+  console.log('  credits / fuel after each contract: ' + per.map(p => `C${p.c} ${p.status[0]}${['L', 'M', 'H'][p.tier] ?? ''} ${p.cr}cr/${p.fuel}f`).join(' · '));
   console.log('  end: ' + companyLine());
   if (C.memorial.length) console.log('  memorial: ' + C.memorial.map((m: any) => `${m.name} (${m.skill}${m.lvl}, ${m.when})`).join(', '));
-  console.log('  (the scripted lance never goes back for a CRITICAL suit: KIA counts are a ceiling, #42)');
+  console.log('  (the scripted lance never goes back for a CRITICAL suit and buys no ship modules or items: it undervalues the ship and market, #42)');
+  return { folded: !!C.folded, played, complete: R.complete, kia: R.kia, cr: C.credits };
+}
+// R21 cp3: --company N --companies K: K companies of N contracts (seeds FROM..FROM+K-1), the summary per company and in total
+function companies(n: number, k: number) {
+  const out: any[] = [];
+  for (let i = 0; i < k; i++) out.push(companyRun(n, FROM + i));
+  const sum = (key: string) => out.reduce((a, r) => a + r[key], 0);
+  console.log(`== ${k} COMPANIES × ${n} contracts: folded ${out.filter(r => r.folded).length} | contracts played ${sum('played')} (complete ${sum('complete')}) | KIA ${sum('kia')} | avg credits at the end ${Math.round(sum('cr') / k)}`);
 }
 
 // R18 (A12): what found each lance suit first, on which channel, from how far
@@ -503,7 +519,7 @@ function scenarioRuns(name: string, n: number) {
 if (SCEN) {
   scenarioRuns(SCEN, RUNS);
 } else if (arg('--company', 0) > 0) {
-  companyRun(arg('--company', 0));
+  if (arg('--companies', 1) > 1) companies(arg('--company', 0), arg('--companies', 1)); else companyRun(arg('--company', 0));
 } else if (CONTRACTS > 0 && BOTH) {
   log0('######## NORMAL'); AUTO.loud = false; contracts(CONTRACTS); const a = last;
   log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;

@@ -31,7 +31,8 @@ export type Scenario = {
   earned?: number | 'quota';             // R15 Bounty: credits already banked at the start ('quota' = exactly BOUNTY_QUOTA)
   map?: DistrictSpec;                    // R16: a fixed block district (no roll); none = the hive map
   packed?: { seed: number; grid: string }; // R17 (parked #65): a packed district rolled from this seed and grid (the same map every time)
-  job?: { seed: number; comp: string; listen: number; scan?: string }; // R20: scan = live-scan commands already run when it opens (encodeCmds) // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen (R20: listen -1 = the live scan, yours to run)
+  job?: { seed: number; comp: string; listen: number; scan?: string };
+  books?: boolean;                       // R21 cp3: a company-screen scenario (no hunt): the view opens a test company's contract offers // R20: scan = live-scan commands already run when it opens (encodeCmds) // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen (R20: listen -1 = the live scan, yours to run)
 };
 
 // R16 test-bed districts (fixed: no roll, no rotation). cells are row-major block names.
@@ -48,6 +49,13 @@ export const WARM_FIT = () => makeFit('warden', [['MAST', 'emarray'], ['MAST', '
 export const RWR_FIT = () => makeFit('warden', [['MAST', 'rwr'], ['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery']], ['CORE']);
 export const HEAVY_FIT = () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'coldburn'], ['CORE', 'battery'], ['BACK', 'mortar']], ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS']);
 export const SCENARIOS: Scenario[] = [
+  // ---- R21 cp3: the books. No hunt: a test company one contract from folding (in debt, fuel 4), three offers. ----
+  {
+    name: 'Thin books', round: 21, seed: 2103, books: true,
+    tryThis: 'Your company is in debt: if it is still below 0 when the next contract ends, it folds. Three offers: rich and far (HIGH danger, 4 hunts, all your fuel), safe and poor (LOW, 2 hunts), and one in between. Look at the books, your suits and your people, then TAKE one.',
+    uplink: [0, 0], lance: [], field: [],
+    question: { q: 'What decided your pick?', a: ['The fee', 'The fuel', 'The danger', 'My hurt suit or people', 'Not sure'] },
+  },
   // ---- Round 21 (the company): operators aboard. B is down two tiles behind A, its operator CRITICAL; a patrol walks in from
   // the east, between A and the uplink / extraction. End a turn next to B to carry Jok, then get out (or leave Jok). ----
   {

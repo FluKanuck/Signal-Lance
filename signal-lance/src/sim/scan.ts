@@ -7,6 +7,7 @@
 // The field is placed before the scan (rollEnemy), far from every drop zone. At the drop (newHunt → applyScan) the patrols
 // drift, the blips become stale contacts and the notes carry into the hunt.
 import { TUNE } from '../tune.ts';
+import { shipAlertMult } from './company.ts';
 import { W, H, T, MAP, spawnX, spawnY, mapGen, loadMap, canReach } from './world.ts';
 import { G, freeTile, makeUnit, anyTile } from './state.ts';
 import { observe } from './sensors.ts';
@@ -156,7 +157,7 @@ function landLive() {
       const u = addUnit(pv[Math.floor(rand() * pv.length)]); place(u, t.x, t.y); u.ambush = true; C.ambush.push(u.id);
     }
   }
-  const live = G.units.filter(u => !u.dead), n = Math.max(C.ambush.length, Math.round(stepVal(TUNE.SCAN_RISK_ALERT, k) * live.length));
+  const live = G.units.filter(u => !u.dead), n = Math.max(C.ambush.length, Math.round(stepVal(TUNE.SCAN_RISK_ALERT, k) * shipAlertMult() * live.length)); // R21 cp4: QUIET DROP RIG
   const rest = n > C.ambush.length ? shuffle(live.filter(u => !u.ambush)) : []; // no roll when nobody else wakes
   const pick = live.filter(u => u.ambush).concat(S.radarRisk > 0 ? rest.filter(u => has(u, 'RADAR')).concat(rest.filter(u => !has(u, 'RADAR'))) : rest);
   for (const u of pick.slice(0, n)) alert(u);
@@ -196,6 +197,7 @@ export function scanReport(): string[] {
   L.push('Drop at ' + Math.round(C.t * 4) / 4 + ' min' + (C.over ? ' (the window closed)' : '') + ', risk ' + C.risk.toFixed(1) + ' = step ' + C.step + ': ' +
     (C.alert.length ? C.alert.length + ' of ' + G.units.length + ' awake' : 'nobody awake') + (C.painted ? ', the ship was PAINTED (' + C.ambush.length + ' patrols waiting near the drop)' : ', not painted') +
     (joined ? '; the field grew by ' + joined + ' (' + C.extra.length + ' called in, ' + C.arrived.length + ' arrived)' : '') + '.');
+  if (C.hull) L.push(C.hull === 'hit' ? 'Painted, the ship took a hull hit: ' + TUNE.SHIP_HIT_COST + ' cr to repair when the contract ends.' : C.hull === 'soaked' ? 'Painted, the ship was hit: the HULL ARMOUR soaked it.' : 'Painted, but the ship wasn’t hit.'); // R21 cp4
   return L;
 }
 export function scanAlertOn() { return !!G.scanCost && G.scanCost.alert.length > 0; } // the pack logic runs this hunt (pack.ts)

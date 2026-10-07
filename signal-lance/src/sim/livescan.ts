@@ -12,6 +12,7 @@
 // The view only sends commands (scanCmd); the sim steps the clock (scanStep) in fixed SCAN_TICK steps. A scan replays
 // exactly from the job's seed and its command list (replayScan), so PLAY SEED and the tests can rebuild it.
 import { TUNE } from '../tune.ts';
+import { shipScan } from './company.ts';
 import { W, H, T, canReach } from './world.ts';
 import { G, makeUnit } from './state.ts';
 import { matchVariants } from './ids.ts';
@@ -128,8 +129,8 @@ export function scanStep() {
   S.tick++; S.t = S.tick * dt;
   walkAll(S, dt);
   const AL = altOf(S);
-  for (const s of on) gather(S, s, TUNE.SCAN_SPEED[s] * AL.SPEED[s] * dt);
-  if (on.length) { for (const s of on) S.risk += TUNE.SCAN_LOUD[s] * AL.LOUD * dt; if (S.on.RADAR) S.radarRisk += TUNE.SCAN_LOUD.RADAR * AL.LOUD * dt; }
+  for (const s of on) gather(S, s, TUNE.SCAN_SPEED[s] * AL.SPEED[s] * shipScan(s).speed * dt); // R21 cp4: RADAR ARRAY / THERMAL POD / EM SUITE
+  if (on.length) { for (const s of on) S.risk += TUNE.SCAN_LOUD[s] * AL.LOUD * shipScan(s).loud * dt; if (S.on.RADAR) S.radarRisk += TUNE.SCAN_LOUD.RADAR * AL.LOUD * shipScan('RADAR').loud * dt; }
   else S.risk = Math.max(0, S.risk - TUNE.SCAN_COOL * dt);
   if (TUNE.SCAN_COSTS) while (riskStep(S.risk) > S.peak) { S.peak++; if (rnd(S) < stepVal(TUNE.SCAN_RISK_EXTRA, S.peak)) arrive(S, 'called in', true); }
   if (TUNE.SCAN_COSTS && rnd(S) < TUNE.SCAN_ARRIVE_PER_MIN * dt) arrive(S, 'arrived', false);

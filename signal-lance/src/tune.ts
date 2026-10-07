@@ -509,7 +509,68 @@ export const TUNE = {
   OP_CARRY_RANGE: 1.5,         // R21: tiles; a lancemate that ends its turn this close to a CRITICAL suit carries its operator (adjacent, diagonals included)
   OP_MEMORIAL: 8,              // R21: KIA names kept on the memorial list
   RECRUITS_OFFERED: 2,         // R21: recruits on offer between contracts (level 1, random skill)
-  COST_HIRE: 0,                // R21: credits to hire a recruit (free until cp3's books)
+  COST_HIRE: 60,               // R21: credits to hire a recruit (cp1-2: free; cp3: the books)
+  // --- R21 cp3: the books (credits, fuel, contracts on offer, wages, parts, the market). Placeholder numbers ---
+  START_CREDITS: 300,          // R21 cp3: a new company's credits
+  START_FUEL: 6,               // R21 cp3: a new company's fuel (jumps' worth)
+  FUEL_MAX: 10,                // R21 cp3: fuel the ship holds (cp4 FUEL TANKS + MOD_FUEL)
+  START_PARTS: 6,              // R21 cp3: parts in the hold at the start
+  CONTRACTS_OFFERED: 3,        // R21 cp3: contracts on offer between contracts
+  CONTRACT_HUNTS_RANGE: [2, 4], // R21 cp3: a contract's length in hunts (inclusive)
+  FUEL_PER_JUMP: [1, 4],       // R21 cp3: fuel to reach an offered contract (inclusive range)
+  DANGER_NAMES: ['LOW', 'MEDIUM', 'HIGH'], // R21 cp3: an offer's danger, in words
+  DANGER_FIELD: [0.75, 1, 1.35], // R21 cp3: × the field's unit counts per danger (rounded, at least 1 of each type it fields)
+  CONTRACT_FEE: [60, 100, 160], // R21 cp3: fee per hunt of the contract, paid on CONTRACT COMPLETE, per danger
+  CONTRACT_WIN_SHARE: 0.6,     // R21 cp3: hunt wins needed = ceil(hunts × this) (2 of 2, 2 of 3, 3 of 4)
+  WAGE_OP: 30,                 // R21 cp3: credits per operator on the roster (benched too), paid when a contract ends
+  WAGE_LEVEL_MULT: 0.5,        // R21 cp3: wage × (1 + this × (level − 1)): veterans cost more
+  UPKEEP_SHIP: 60,             // R21 cp3: ship upkeep, paid when a contract ends
+  DEBT_LIMIT: 300,             // R21 cp3: how far below 0 the company may go once; deeper, or still in debt a contract later = it folds
+  PARTS_PER_REPAIR: 2,         // R21 cp3: parts per hit repaired (company mode; cp4 REPAIR BAY −MOD_REPAIR_PARTS)
+  REPAIR_CR: 10,               // R21 cp3: credits per hit repaired, on top of the parts
+  REBUILD_PARTS: 8,            // R21 cp3: parts to rebuild a destroyed suit (REPAIR BAY halves it)
+  REBUILD_CR: 100,             // R21 cp3: credits to rebuild a destroyed suit
+  HOLD_CAP: 16,                // R21 cp3: parts the hold carries (salvage and bought); cp4 SALVAGE HOLD + MOD_HOLD
+  SALVAGE_PER_KILL: 2,         // R21 cp3: parts salvaged per field unit destroyed (into the hold, up to HOLD_CAP)
+  PART_PRICE: 15,              // R21 cp3: market price per part
+  PART_SELL: 8,                // R21 cp3: what the market pays per spare part (salvage)
+  FUEL_PRICE: 30,              // R21 cp3: market price per fuel
+  MARKET_STOCK: 6,             // R21 cp3: market lines (parts, fuel, then hangar items, and now and then an ExoS)
+  MARKET_PARTS_QTY: 12,        // R21 cp3: parts on sale per market
+  MARKET_FUEL_QTY: 8,          // R21 cp3: fuel on sale per market
+  MARKET_SUIT_CHANCE: 0.35,    // R21 cp3: chance an ExoS (standard kit) is for sale
+  COST_SUIT: 450,              // R21 cp3: an ExoS on the market (it comes with the standard kit; needs a free suit bay)
+  // --- R21 cp4: the ship. One Courier-style hull ---
+  SHIP_HARDPOINTS: 7,          // R21 cp4: module hardpoints (one module each)
+  SHIP_BAYS_BUILT_IN: 2,       // R21 cp4: suits the hull carries with no SUIT BAY (each SUIT BAY carries one more)
+  SHIP_START_MODS: ['SUIT_BAY'], // R21 cp4: fitted at the start, so the 3 starting suits fit
+  MOD_SCAN_SPEED: 1.4,         // R21 cp4: RADAR ARRAY / THERMAL POD / EM SUITE: that sensor's SCAN_SPEED ×
+  MOD_SCAN_LOUD: 0.6,          // R21 cp4: ...and its SCAN_LOUD ×
+  MOD_QUIET_DROP: 0.5,         // R21 cp4: QUIET DROP RIG: the alert share at the drop ×
+  MOD_REPAIR_PARTS: 1,         // R21 cp4: REPAIR BAY: parts per repair − this (and rebuilds take half the parts)
+  MOD_BENCH: 1,                // R21 cp4: MEDBAY: bench − this (never below 1)
+  MEDBAY_SAVE: 0.35,           // R21 cp4: MEDBAY: chance a CRITICAL operator left behind is pulled out by the ship anyway
+  MOD_HOLD: 12,                // R21 cp4: SALVAGE HOLD: HOLD_CAP + this
+  MOD_FUEL: 6,                 // R21 cp4: FUEL TANKS: FUEL_MAX + this
+  MOD_ENGINES: 0.75,           // R21 cp4: EFFICIENT ENGINES: fuel per jump × (rounded up)
+  MOD_BERTHS: 2,               // R21 cp4: OPERATOR BERTHS: OP_CAP + this
+  SHIP_HIT_CHANCE: 0.5,        // R21 cp4: a painted ship takes a hull hit on this chance (HULL ARMOUR soaks one per contract)
+  SHIP_HIT_COST: 80,           // R21 cp4: credits per hull hit, paid when the contract ends
+  SHIP_MODULES: {              // R21 cp4: the ship shop (fixed list). Each is one hook into an existing rule. many = can fit more than one
+    RADAR_ARRAY:  { name: 'RADAR ARRAY', section: 'Before the drop', price: 180, does: 'Scan: RADAR builds ×1.4 faster and is ×0.6 as loud' },
+    THERMAL_POD:  { name: 'THERMAL POD', section: 'Before the drop', price: 160, does: 'Scan: THERMAL builds ×1.4 faster and is ×0.6 as loud' },
+    EM_SUITE:     { name: 'EM SUITE', section: 'Before the drop', price: 160, does: 'Scan: EM LISTEN builds ×1.4 faster and is ×0.6 as loud' },
+    QUIET_DROP:   { name: 'QUIET DROP RIG', section: 'Drop', price: 200, does: 'Half as much of the field wakes at the drop' },
+    SUIT_BAY:     { name: 'SUIT BAY', section: 'Drop', price: 150, does: 'Carries one more ExoS (the hull carries 2)', many: true },
+    REPAIR_BAY:   { name: 'REPAIR BAY', section: 'After the mission', price: 220, does: 'One part fewer per repair; rebuilds take half the parts' },
+    MEDBAY:       { name: 'MEDBAY', section: 'After the mission', price: 200, does: 'Bench 1 contract shorter; a CRITICAL operator left behind has a 35% chance to be pulled out' },
+    SALVAGE_HOLD: { name: 'SALVAGE HOLD', section: 'After the mission', price: 120, does: 'The hold carries 12 more parts' },
+    ARMOURY:      { name: 'ARMOURY', section: 'After the mission', price: 140, does: 'Reloads (+10 rounds, +1 shell) cost 1 part instead of credits' },
+    FUEL_TANKS:   { name: 'FUEL TANKS', section: 'Between missions', price: 120, does: 'Holds 6 more fuel' },
+    ENGINES:      { name: 'EFFICIENT ENGINES', section: 'Between missions', price: 200, does: 'Fuel per jump ×0.75 (rounded up)' },
+    HULL_ARMOUR:  { name: 'HULL ARMOUR', section: 'Between missions', price: 150, does: 'Soaks one hull hit per contract when the ship is painted' },
+    BERTHS:       { name: 'OPERATOR BERTHS', section: 'Crew', price: 130, does: 'Room for 2 more operators' },
+  },
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

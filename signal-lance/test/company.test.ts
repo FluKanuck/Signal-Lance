@@ -4,7 +4,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import { TUNE } from '../src/tune.ts';
 import { G } from '../src/sim/state.ts';
 import { T } from '../src/sim/world.ts';
-import { startCompanyContract, pullContract, setSuitFit, suitRefit, suitRefitBlock, cycleSeat, autoCrew, lanceSize, suitById, newCompany, validCompany, afterHunt, endContract, fateOf, noteCarry, onSuitDown, hire, hireBlock, seat, fillCrew, levelOf, skillVal, lanceTech, crewForHunt } from '../src/sim/company.ts';
+import { startCompanyContract, setSuitFit, suitRefit, suitRefitBlock, cycleSeat, lanceSize, suitById, newCompany, validCompany, afterHunt, endContract, fateOf, noteCarry, onSuitDown, hire, hireBlock, seat, fillCrew, levelOf, skillVal, lanceTech, crewForHunt } from '../src/sim/company.ts';
 import { newContract, takeJob, rollJobs } from '../src/sim/contract.ts';
 import { G as G2, newHunt, rollEnemy } from '../src/sim/state.ts';
 import { HANGAR_TEMPLATES, DEFAULT_FIT } from '../src/sim/kit.ts';
@@ -246,9 +246,10 @@ describe('the roster (R21 cp2)', () => {
     newCompany(25); const A = suitById('A');
     A.carry.dead = true; A.carry.hits = 0; fillCrew();
     expect(G.co.crew.A).toBe(''); expect(seat(G.co.ops[3].id, 'A')).toBe(false);
-    expect(suitRefitBlock('A', 'rebuild')).toBe('CR');
-    G.co.credits = TUNE.COST_REBUILD; expect(suitRefit('A', 'rebuild')).toBe(true);
-    expect(A.carry.dead).toBe(false); expect(A.carry.hits).toBe(A.carry.maxHits); expect(G.co.credits).toBe(0);
+    G.co.parts = TUNE.REBUILD_PARTS - 1; expect(suitRefitBlock('A', 'rebuild')).toBe('PARTS'); // cp3: parts + credits
+    G.co.parts = TUNE.REBUILD_PARTS; G.co.credits = TUNE.REBUILD_CR - 1; expect(suitRefitBlock('A', 'rebuild')).toBe('CR');
+    G.co.credits = TUNE.REBUILD_CR; expect(suitRefit('A', 'rebuild')).toBe(true);
+    expect(A.carry.dead).toBe(false); expect(A.carry.hits).toBe(A.carry.maxHits); expect(G.co.credits).toBe(0); expect(G.co.parts).toBe(0);
     expect(seat(G.co.ops[3].id, 'A')).toBe(true);
   });
   it('a new fit keeps the damage part by part', () => {
@@ -257,9 +258,9 @@ describe('the roster (R21 cp2)', () => {
     setSuitFit(0, HANGAR_TEMPLATES.find(t => t.id === 'scout').fit());
     expect(A.carry.pmax.LEGS - A.carry.parts.LEGS).toBe(1);
   });
-  it('a contract’s pay lands in the company’s credits', () => {
-    newCompany(27); startCompanyContract(11, 1); takeJob(0); playOut(80);
-    expect(G.co.credits).toBe(G.ct.credits);
-    expect(G.co.credits).toBe(G.ct.earned - G.ct.spent);
+  it('a contract’s pay lands in the company’s credits (cp3: then its end pays the fee in, wages and upkeep out)', () => {
+    newCompany(27); const c0 = G.co.credits; startCompanyContract(11, 1); takeJob(0); playOut(80);
+    const L = G.co.ledger;
+    expect(G.co.credits).toBe(c0 + G.ct.earned - G.ct.spent + L.fee - L.wages - L.upkeep - L.hull);
   });
 });

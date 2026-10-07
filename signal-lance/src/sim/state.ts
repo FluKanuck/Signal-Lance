@@ -114,6 +114,8 @@ export function livingUnits() { return G.units.filter(u => !u.dead); }
 // never below the composition's own count. INTEL shows the same numbers.
 export function fieldCount(C, type: string) {
   const n = C[type] || 0;
+  const k = G.ct && G.ct.fieldMult; // R21 cp3: a company contract's danger scales the field (none = as before)
+  if (k && k !== 1 && n) { const a = TUNE.FIELD_SCALE_BY_AREA ? Math.max(n, Math.round(n * areaScale())) : n; return Math.max(1, Math.round(a * k)); }
   return TUNE.FIELD_SCALE_BY_AREA ? Math.max(n, Math.round(n * areaScale())) : n;
 }
 

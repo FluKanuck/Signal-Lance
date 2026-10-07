@@ -41,6 +41,7 @@ export interface Item {
   sig: Sig;
   effect: string; trade: string;
   mod?: Mod;
+  price?: number;         // R21 cp3: market price in credits (the hangar's cheap set has one; the rest come later with item balancing, #76)
   stealth?: Stealth;      // an active stealth system: costs nothing until switched on (see rules.totals)
   radar?: RadarStats;     // R18: range tiles, half-angle degrees, AP + EN per pulse, EMIT added per pulse, signature while on
   gun?: GunStats;         // R18: rounds loaded, range tiles, base to-hit %, shot Sound radius (tiles)
@@ -100,35 +101,35 @@ export const ITEMS: Item[] = [
   I({ id: 'cell', name: 'Cell stack', family: 'Reactor', hp: ['I'], wt: 1, draw: 0, out: 8, tags: ['REACTOR'], sig: { EF: { e: 1 } }, effect: 'Output 8', trade: 'Near-silent; starves anything big' }),
   I({ id: 'std', name: 'Std reactor', family: 'Reactor', hp: ['I'], wt: 2, draw: 0, out: 14, tags: ['REACTOR'], sig: { IR: { e: 1 }, EF: { e: 2 } }, effect: 'Output 14', trade: 'Baseline (broker)' }),
   I({ id: 'fuelcell', name: 'Fuel cell', family: 'Reactor', hp: ['I'], wt: 2, draw: 0, out: 12, tags: ['REACTOR'], sig: { EF: { e: 1 }, SND: { e: 1 } }, effect: 'Output 12, cold', trade: 'Runs dry: −2 output per hunt without refuel parts' }),
-  I({ id: 'coldburn', name: 'Cold-burn', family: 'Reactor', hp: ['I'], wt: 4, draw: 0, out: 15, tags: ['REACTOR'], sig: { EF: { e: 1 } }, effect: 'Output 15', trade: 'Quiet and heavy' }),
-  I({ id: 'hotcore', name: 'Hot core', family: 'Reactor', hp: ['I'], wt: 3, draw: 0, out: 20, tags: ['REACTOR'], sig: { IR: { e: 4 }, EF: { e: 3 } }, effect: 'Output 20', trade: 'Thermal sights love it' }),
+  I({ id: 'coldburn', price: 120, name: 'Cold-burn', family: 'Reactor', hp: ['I'], wt: 4, draw: 0, out: 15, tags: ['REACTOR'], sig: { EF: { e: 1 } }, effect: 'Output 15', trade: 'Quiet and heavy' }),
+  I({ id: 'hotcore', price: 90, name: 'Hot core', family: 'Reactor', hp: ['I'], wt: 3, draw: 0, out: 20, tags: ['REACTOR'], sig: { IR: { e: 4 }, EF: { e: 3 } }, effect: 'Output 20', trade: 'Thermal sights love it' }),
   I({ id: 'twincells', name: 'Twin cells', family: 'Reactor', hp: ['I'], size: 2, wt: 3, draw: 0, out: 16, tags: ['REACTOR'], sig: { EF: { e: 2 } }, effect: 'Output 2 × 8', trade: 'Redundant: one survives a CORE hit' }),
   // §3 Storage and heat
-  I({ id: 'battery', name: 'Battery', family: 'Storage', hp: ['I', 'U'], wt: 1, draw: 0, pool: 50, tags: ['BATTERY'], effect: 'Pool +50', trade: 'Weight' }), // R18: the old ENERGY_CELL
+  I({ id: 'battery', price: 40, name: 'Battery', family: 'Storage', hp: ['I', 'U'], wt: 1, draw: 0, pool: 50, tags: ['BATTERY'], effect: 'Pool +50', trade: 'Weight' }), // R18: the old ENERGY_CELL
   I({ id: 'heatsink', name: 'Heat sink', family: 'Storage', hp: ['I'], wt: 1, draw: 0, effect: 'Stores heat: IR emit delayed', trade: 'Full sink = vented spike' }),
   I({ id: 'fins', name: 'Radiator fins', family: 'Storage', hp: ['O'], wt: 1, draw: 0, sig: { IR: { v: 1 } }, effect: 'IR cools 2× faster', trade: 'IR vis +1' }),
   // §4 Sensors
-  I({ id: 'lamp', name: 'Radar "Lamp"', family: 'Radar', hp: ['S'], wt: 1, draw: 2, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM', 'RADAR'], sig: { EM: { e: 4 } }, effect: 'Range 18, wide cone (today’s radar)', trade: '—',
+  I({ id: 'lamp', price: 80, name: 'Radar "Lamp"', family: 'Radar', hp: ['S'], wt: 1, draw: 2, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM', 'RADAR'], sig: { EM: { e: 4 } }, effect: 'Range 18, wide cone (today’s radar)', trade: '—',
     radar: { range: 18, halfAng: 50, ap: 2, en: 25, emit: 30, sig: 12 } }), // R18: the old RADAR_RANGE, RADAR_HALF_ANG, AP_RADAR, RADAR_EN, SIGNAL_RADAR, SIG_RADAR
   I({ id: 'needle', name: 'Radar "Needle"', family: 'Radar', hp: ['S'], wt: 1, draw: 3, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM', 'RADAR'], sig: { EM: { e: 7 } }, effect: 'Range 12, narrow cone', trade: 'Narrow' }),
   I({ id: 'whisper', name: 'Radar "Whisper"', family: 'Radar', hp: ['S'], wt: 1, draw: 4, use: '2 AP, 25 EN', tags: ['SENSOR', 'EM', 'RADAR'], sig: { EM: { e: 2 } }, effect: 'Range 6; arrays need grade 2+ to hear it', trade: 'Short, power-hungry' }),
-  I({ id: 'emarray', name: 'EM array', family: 'Passive', hp: ['S'], wt: 1, draw: 1, tags: ['SENSOR', 'EM', 'PASSIVE'], effect: 'Bearings on EM emitters', trade: '—' }),
+  I({ id: 'emarray', price: 60, name: 'EM array', family: 'Passive', hp: ['S'], wt: 1, draw: 1, tags: ['SENSOR', 'EM', 'PASSIVE'], effect: 'Bearings on EM emitters', trade: '—' }),
   I({ id: 'df', name: 'Direction-finder', family: 'Passive', hp: ['S'], size: 2, wt: 2, draw: 2, tags: ['SENSOR', 'EM'], effect: 'Bearings + type guess', trade: '2 hardpoints' }),
-  I({ id: 'rwr', name: 'RWR', family: 'Passive', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'EM'], effect: 'Warns when painted, with bearing', trade: '—' }),
+  I({ id: 'rwr', price: 50, name: 'RWR', family: 'Passive', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'EM'], effect: 'Warns when painted, with bearing', trade: '—' }),
   I({ id: 'acoustic', name: 'Acoustic array', family: 'Passive', hp: ['S'], wt: 1, draw: 1, tags: ['SENSOR', 'ACOUSTIC'], effect: 'Hears SND at +50% radius', trade: 'Deaf inside NOISE' }),
-  I({ id: 'thermal', name: 'Thermal optics', family: 'Passive', hp: ['S'], wt: 1, draw: 2, tags: ['SENSOR', 'THERMAL'], effect: 'A heat sight: sees hot things in line of sight beyond your eyes (the hotter, the further)', trade: 'Draw 2; a MAST slot' }),
+  I({ id: 'thermal', price: 90, name: 'Thermal optics', family: 'Passive', hp: ['S'], wt: 1, draw: 2, tags: ['SENSOR', 'THERMAL'], effect: 'A heat sight: sees hot things in line of sight beyond your eyes (the hotter, the further)', trade: 'Draw 2; a MAST slot' }),
   I({ id: 'lidar', name: 'Lidar', family: 'Active', hp: ['S'], wt: 1, draw: 2, use: '1 AP', tags: ['SENSOR', 'VISUAL'], sig: { EM: { e: 1 }, VIS: { e: 3 } }, effect: 'Exact fix in LoS', trade: 'Laser-warning receivers see you' }),
   I({ id: 'longglass', name: 'Long glass', family: 'Visual', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'VISUAL'], effect: 'Eyes range +4', trade: 'Arc −30°' }),
   I({ id: 'magneto', name: 'Magnetometer', family: 'Field', hp: ['S'], wt: 1, draw: 0, tags: ['SENSOR', 'MAGNETIC'], effect: 'Senses mass 3–5 tiles, through walls', trade: 'Blind in industrial terrain' }),
   I({ id: 'gradio', name: 'Gradiometer', family: 'Field', hp: ['S'], size: 2, wt: 2, draw: 1, tags: ['SENSOR', 'MAGNETIC'], effect: 'Magnetometer with bearing, +2 range', trade: 'Heavy, 2 hardpoints' }),
   I({ id: 'datalink', name: 'Datalink', family: 'Recon', hp: ['S'], wt: 1, draw: 1, tags: ['EM', 'LINK'], sig: { EM: { e: 2 } }, effect: 'Lance shares contacts', trade: 'Jammable; a lost link reveals its last ping' }),
   // §5 EW
-  I({ id: 'mask', name: 'Mask', family: 'Jammer', hp: ['S'], wt: 1, draw: 2, use: '1 AP, 20 EN/turn', tags: ['EW', 'EM', 'MASK'], effect: 'Today’s ECM mask', trade: 'Enemy gets a bearing' }),
-  I({ id: 'ghost', name: 'Ghost projector', family: 'Jammer', hp: ['S'], wt: 1, draw: 0, use: '1 AP, 25 EN', tags: ['EW', 'EM', 'GHOST'], effect: 'EM decoy', trade: '—' }),
+  I({ id: 'mask', price: 70, name: 'Mask', family: 'Jammer', hp: ['S'], wt: 1, draw: 2, use: '1 AP, 20 EN/turn', tags: ['EW', 'EM', 'MASK'], effect: 'Today’s ECM mask', trade: 'Enemy gets a bearing' }),
+  I({ id: 'ghost', price: 60, name: 'Ghost projector', family: 'Jammer', hp: ['S'], wt: 1, draw: 0, use: '1 AP, 25 EN', tags: ['EW', 'EM', 'GHOST'], effect: 'EM decoy', trade: '—' }),
   I({ id: 'barrage', name: 'Barrage jammer', family: 'Jammer', hp: ['S'], wt: 2, draw: 4, tags: ['EW', 'EM'], sig: { EM: { e: 9 } }, effect: 'EM sensors below grade 2 blind inside', trade: 'Every EM array hears you' }),
   I({ id: 'spoofer', name: 'Spoofer', family: 'Jammer', hp: ['S'], wt: 1, draw: 3, tags: ['EW', 'EM'], effect: 'Your EM reads as another unit type', trade: 'Only fools EM' }),
   // §6 Weapons
-  I({ id: 'autocannon', name: 'Autocannon', family: 'Weapon', hp: ['W'], wt: 2, draw: 0, use: '1 AP', tags: ['WEAPON', 'KINETIC', 'GUN'], sig: { SND: { e: 6 }, VIS: { e: 1 } }, effect: 'KIN (today’s gun)', trade: 'Ammo',
+  I({ id: 'autocannon', price: 100, name: 'Autocannon', family: 'Weapon', hp: ['W'], wt: 2, draw: 0, use: '1 AP', tags: ['WEAPON', 'KINETIC', 'GUN'], sig: { SND: { e: 6 }, VIS: { e: 1 } }, effect: 'KIN (today’s gun)', trade: 'Ammo',
     gun: { rounds: 20, range: 12, hit: 75, snd: 12 } }), // R18: the old 2 × AMMO_PER_SLOT, PLAYER_FIRE_RANGE / ENEMY_FIRE_RANGE, HIT_BASE, SOUND_RANGE.SHOT
   // R18 (Jamie): the sniper turret's gun. Field only for now (not in the hangar's cheap set).
   I({ id: 'longgun', name: 'Long gun', family: 'Weapon', hp: ['W'], wt: 3, draw: 0, use: '1 AP', tags: ['WEAPON', 'KINETIC', 'GUN'], sig: { SND: { e: 8 }, VIS: { e: 2 } }, effect: 'KIN, long: range 20, little loss with range', trade: 'Loud crack; few rounds',
@@ -143,7 +144,7 @@ export const ITEMS: Item[] = [
   I({ id: 'flamer', name: 'Flamer', family: 'Weapon', hp: ['W'], wt: 2, draw: 0, use: '1 AP', tags: ['WEAPON', 'FIRE'], sig: { IR: { e: 5 }, VIS: { e: 5 } }, effect: 'FIR, area', trade: 'Range 2; burns cover' }),
   I({ id: 'grenade', name: 'Grenade launcher', family: 'Weapon', hp: ['U', 'W'], wt: 1, draw: 0, use: '1 AP', tags: ['WEAPON', 'EXPLOSIVE'], sig: { SND: { e: 4 } }, effect: 'EXP, short lob', trade: 'Ammo' }),
   // §6 Utility weapons and §9 utility (BACK)
-  I({ id: 'mortar', name: 'Light mortar', family: 'Mortar', hp: ['U'], wt: 2, draw: 0, use: '2 AP', tags: ['WEAPON', 'EXPLOSIVE', 'MORTAR'], sig: { SND: { e: 14 } }, effect: 'EXP, indirect (today’s)', trade: '—',
+  I({ id: 'mortar', price: 110, name: 'Light mortar', family: 'Mortar', hp: ['U'], wt: 2, draw: 0, use: '2 AP', tags: ['WEAPON', 'EXPLOSIVE', 'MORTAR'], sig: { SND: { e: 14 } }, effect: 'EXP, indirect (today’s)', trade: '—',
     mortar: { shells: 6, ap: 2, snd: 14, min: 4, max: 18, scatter: 0.5, perUnc: 0.6 } }), // R18: the old MORTAR_SHELLS, AP_MORTAR, SOUND_RANGE.MORTAR, MORTAR_MIN/MAX_RANGE, MORTAR_SCATTER_BASE / _PER_UNC
   I({ id: 'hmortar', name: 'Heavy mortar', family: 'Mortar', hp: ['U'], size: 2, wt: 4, draw: 0, use: '2 AP', tags: ['WEAPON', 'EXPLOSIVE'], sig: { SND: { e: 16 } }, effect: 'EXP, bigger splash', trade: '4 shells' }),
   I({ id: 'atgm', name: 'ATGM (wire)', family: 'Launcher', hp: ['U'], wt: 2, draw: 0, use: '2 AP', tags: ['WEAPON', 'EXPLOSIVE'], sig: { SND: { e: 5 }, VIS: { e: 2 } }, effect: 'EXP heavy, guided', trade: 'Stay still and visible while it flies' }),
@@ -185,7 +186,7 @@ export const ITEMS: Item[] = [
   I({ id: 'd_hive', name: 'Drone hive', family: 'Drone', hp: ['U'], size: 2, wt: 3, draw: 2, use: '1 AP, 2 drones per launch', tags: ['DRONE'], sig: { EM: { e: 4 }, SND: { e: 2 } }, effect: 'PLACEHOLDER carrier: 4 small drones (spotter or decoy), launches 2 at once', trade: 'Big EM shout on launch' }),
   // §11 Mods (one per location; take the type they modify, or O)
   I({ id: 'm_dronelink', name: 'Drone uplink', family: 'Mod', hp: ['U'], wt: 0, draw: 0, tags: ['MOD'], effect: 'PLACEHOLDER: DRONE here: range +50%, control EM −30%', trade: 'Draw +1', mod: { tag: 'DRONE', emitMult: { EM: 0.7 }, drawAdd: 1 } }),
-  I({ id: 'm_cold', name: 'Cold processor', family: 'Mod', hp: ['S'], wt: 0, draw: 0, tags: ['MOD'], effect: 'SENSOR here: EM emit −40%', trade: 'Draw +2', mod: { tag: 'SENSOR', emitMult: { EM: 0.6 }, drawAdd: 2 } }),
+  I({ id: 'm_cold', price: 50, name: 'Cold processor', family: 'Mod', hp: ['S'], wt: 0, draw: 0, tags: ['MOD'], effect: 'SENSOR here: EM emit −40%', trade: 'Draw +2', mod: { tag: 'SENSOR', emitMult: { EM: 0.6 }, drawAdd: 2 } }),
   I({ id: 'm_baffles', name: 'Baffles', family: 'Mod', hp: ['M'], wt: 0, draw: 0, tags: ['MOD'], effect: 'MOBILITY here: SND emit −1 step (guess −40%)', trade: 'Rated load −1', mod: { tag: 'MOBILITY', emitMult: { SND: 0.6 }, ratedAdd: -1 } }),
   I({ id: 'm_flash', name: 'Flash hider', family: 'Mod', hp: ['W'], wt: 0, draw: 0, tags: ['MOD'], effect: 'KINETIC here: VIS flash −70%', trade: 'Range −1', mod: { tag: 'KINETIC', emitMult: { VIS: 0.3 } } }),
   I({ id: 'm_harness', name: 'Shielded harness', family: 'Mod', hp: ['S', 'W', 'I', 'U', 'M'], wt: 1, draw: 0, tags: ['MOD'], effect: 'Everything here: EF emit −50%', trade: 'wt +1', mod: { tag: 'any', emitMult: { EF: 0.5 } } }),

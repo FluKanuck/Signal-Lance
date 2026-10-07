@@ -19,7 +19,7 @@ describe('every scenario', () => {
     expect(G.units.length).toBeGreaterThan(0);
     for (const m of G.lance) expect(canReach(Math.floor(m.x / T), Math.floor(m.y / T))).toBe(true);
   });
-  for (const s of SCENARIOS.filter(s => !s.job)) it(`${s.name}: loads its placements, on reachable tiles, outside any contract`, () => {
+  for (const s of SCENARIOS.filter(s => !s.job && !s.books)) it(`${s.name}: loads its placements, on reachable tiles, outside any contract`, () => {
     startScenario(s);
     expect(G.tb).toBe(s);
     expect(G.ct).toBeNull();
@@ -29,12 +29,12 @@ describe('every scenario', () => {
     for (const t of [...s.lance.map(l => l.tile), ...s.field.map(f => f.tile), s.uplink]) expect(canReach(t[0], t[1])).toBe(true);
     expect(s.tryThis.length).toBeGreaterThan(10);
   });
-  for (const s of SCENARIOS) it(`${s.name}: plays to an end with the scripted player (no stall)`, () => {
+  for (const s of SCENARIOS.filter(s => !s.books)) it(`${s.name}: plays to an end with the scripted player (no stall)`, () => {
     startScenario(s); playOut(80);
     expect(G.mode).toBe('result');
   });
   it('the same seed plays the same hunt (RETRY)', () => {
-    const s = SCENARIOS[0], run = () => { startScenario(s); playOut(80); const r = G.outcome + G.turn + G.kills; leaveScenario(); return r; };
+    const s = SCENARIOS.find(x => !x.books), run = () => { startScenario(s); playOut(80); const r = G.outcome + G.turn + G.kills; leaveScenario(); return r; };
     expect(run()).toBe(run());
   });
   it('scenario TUNE overrides are restored on leaving', () => {

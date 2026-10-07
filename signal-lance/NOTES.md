@@ -1072,6 +1072,31 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - If every suit is destroyed and a rebuild can't be afforded (or no operator is left and none can be hired), the
      company screen says it can't field a lance: NEW COMPANY. Debt and the fold are cp3.
    - The HUD lists every other suit (hits left, short, when there are 2+ others).
+   R21 cp3 + cp4 (the books, the ship; built together as r21-s4 at Jamie's call, no separate r21-s3 build)
+   - An offer's danger scales the field: every type's count × DANGER_FIELD (rounded, at least 1 of any type it fields), on
+     top of the district-size scaling. Hunt pay is unchanged; the fee (CONTRACT_FEE per hunt × hunts) comes on COMPLETE
+     only. Wins needed = ceil(hunts × CONTRACT_WIN_SHARE). The 1-hunt quick toggle still shortens a company contract.
+   - Wages are for every operator on the roster (benched too), paid with the upkeep and any hull repairs when a contract
+     ends, failed or quit (a QUIT is the bail). Debt: below 0 once is allowed down to −DEBT_LIMIT; still below 0 at the
+     next contract's end, or deeper than the limit, folds the company. Also folds (checked on the company screen between
+     contracts): every ExoS destroyed with no parts + credits to rebuild one, no operator to drop or hire, or no offer in
+     reach even buying fuel with everything. A fit that can't launch doesn't count as stranded (fix it in the hangar).
+   - Salvage IS parts: each kill puts SALVAGE_PER_KILL parts in the hold, up to the hold cap; spare parts sell at PART_SELL.
+     No separate salvage good, no machine shop. Rounds and shells are still credits (cp4 ARMOURY: 1 part instead); there is
+     no ammo line on the market.
+   - Hangar stores: the items fitted on a new company's suits are owned; the market adds more. In company mode the hangar
+     only fits an item with a spare one in the stores, the templates and copy-fit buttons are hidden, frames and steel
+     plates stay free. A bought ExoS comes as a Warden with the standard kit (its items join the stores).
+   - The ship shop is a fixed list (all 13 modules, any time between contracts); a module bought with no free hardpoint
+     goes to storage. One of each, except SUIT BAY. The hull carries 2 ExoS; a new company starts with one SUIT BAY fitted
+     so its 3 suits fit (6 hardpoints left). Taking a module off is free; a SUIT BAY can't come off while its suit is aboard.
+   - The brief listed 12 modules for 13: ARMOURY (catalogue: "ammo restock from parts") is the 13th: reloads cost 1 part.
+   - MEDBAY's "better critical odds": carried operators always lived already, so the MEDBAY gives one left behind a
+     MEDBAY_SAVE chance to be pulled out anyway (company RNG, rolled once at the hunt's end), plus bench −1.
+   - The scan modules and QUIET DROP RIG act only inside a company contract (never the test bed or PLAY SEED). A painted
+     ship's hull roll uses the company RNG (the hunt's RNG is untouched); HULL ARMOUR soaks the first hit per contract.
+   - Thin books is a company-screen scenario: the real company is set aside (not saved over), a test company in debt is
+     shown, TAKE IT asks the question instead of starting the contract, BACK restores the real one.
 ```
 
 ## TWEAK LOG
@@ -1601,6 +1626,13 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            contracts, lance 1-3 picked per hunt, company credits + SUITS tab refit. Runner --company 10 (seeds 1-5): the
            scripted lance drops every suit and is wiped in 2-4 contracts (1/1/0/2/0 complete; 3 KIA each; stopped with
            every suit lost, 15-133 cr). Plain --contracts 20 byte-identical. BUILD r21-s2 | -
+   round21 cp3+cp4 (r21-s4) | Jamie: "do both checkpoints now, I'll do a thorough test afterwards" | the books (START_CREDITS 300,
+           START_FUEL 6, offers 3 × 2-4 hunts × LOW/MED/HIGH (DANGER_FIELD 0.75/1/1.35, CONTRACT_FEE 60/100/160 per hunt),
+           FUEL_PER_JUMP 1-4, WAGE_OP 30 (+50%/level), UPKEEP_SHIP 60, DEBT_LIMIT 300, parts (PARTS_PER_REPAIR 2 + REPAIR_CR 10,
+           REBUILD 8 parts + 100 cr, HOLD_CAP 16, SALVAGE_PER_KILL 2), market, hangar stores) and the ship (7 hardpoints, 13
+           modules, SHIP_HIT_CHANCE 0.5 × 80 cr). Runner --company 10 --companies 6: all 6 fold (5 by every ExoS lost, 1
+           stranded), 19 contracts played, 9 complete, 31 KIA; complete contracts leave 600-970 cr. The scripted lance drops
+           every suit, never carries, buys no modules (#42). Plain --contracts 20 byte-identical. BUILD r21-s4 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

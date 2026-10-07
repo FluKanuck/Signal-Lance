@@ -30,12 +30,14 @@ function read(i: number): Fit { try { const c = localStorage.getItem(KEYS[i]); c
 function save() { if (onSet) { onSet(cur, fits[cur]); return; } try { localStorage.setItem(KEYS[cur], toCode(fits[cur])); } catch (_) {} }
 
 const own: Fit[] = [read(0), read(1)];
-let fits: Fit[] = own, ids = ['A', 'B'], onSet: ((i: number, f: Fit) => void) | null = null;
+let fits: Fit[] = own, ids = ['A', 'B'], onSet: ((i: number, f: Fit) => void) | null = null, avail: ((id: string) => number) | null = null;
 let cur = 0, sel: Loc = 'MAST', tip = '';
 // R21 cp2: the hangar edits the company's suits (any number; each change goes through set, which keeps the suit's damage),
 // or (null) the two saved fits of the plain contract flow.
-export function useSuits(list: { id: string; fit: Fit }[] | null, set?: (i: number, f: Fit) => void) {
-  if (list) { fits = list.map(s => s.fit); ids = list.map(s => s.id); onSet = set || null; } else { fits = own; ids = ['A', 'B']; onSet = null; }
+// R21 cp3: free = how many of an item the company has spare in its stores (only those can be fitted); the templates and the
+// copy button are off (they'd fit items it doesn't own).
+export function useSuits(list: { id: string; fit: Fit }[] | null, set?: (i: number, f: Fit) => void, free?: (id: string) => number) {
+  if (list) { fits = list.map(s => s.fit); ids = list.map(s => s.id); onSet = set || null; avail = free || null; } else { fits = own; ids = ['A', 'B']; onSet = null; avail = null; }
   cur = Math.min(cur, fits.length - 1);
 }
 export function ownFits(): Fit[] { return own.map(f => structuredClone(f)); }
@@ -107,8 +109,8 @@ function locPanel() {
 function render() {
   const f = fits[cur], fr = frameOf(f);
   $('hsuits').innerHTML = ids.map((n, i) => '<button class="' + (i === cur ? 'on' : '') + '" data-suit="' + i + '">ExoS ' + n + '<br><small>' + frameOf(fits[i]).name + (launchBlock(fits[i]) ? ' ✕' : '') + '</small></button>').join('') +
-    '<button data-copy="1">' + ids[cur] + ' → ' + ids[(cur + 1) % ids.length] + '<br><small>copy fit</small></button>';
-  $('htpl').innerHTML = '<small>start from</small>' + HANGAR_TEMPLATES.map(t => '<button data-tpl="' + t.id + '">' + t.role + '</button>').join('') +
+    (avail ? '' : '<button data-copy="1">' + ids[cur] + ' → ' + ids[(cur + 1) % ids.length] + '<br><small>copy fit</small></button>');
+  $('htpl').innerHTML = (avail ? '<small>fit only what the company owns (MARKET)</small>' : '<small>start from</small>' + HANGAR_TEMPLATES.map(t => '<button data-tpl="' + t.id + '">' + t.role + '</button>').join('')) +
     '<small>frame</small>' + TUNE.HANGAR_FRAMES.map(id => '<button class="' + (id === f.frame ? 'on' : '') + '" data-frame="' + id + '">' + byId(FRAMES, id).name + '</button>').join('');
   $('hframe').innerHTML = '<b>' + fr.name + '</b> ' + fr.cls + ' · rated ' + fr.rated + ' / max ' + fr.max + ' · ' + esc(fr.role) + (tip ? '<br><span class="warnt">' + esc(tip) + '</span>' : '');
   $('hsuit').innerHTML = suitSvg();
@@ -136,8 +138,9 @@ function openPick(idx: number) {
   for (const id of offer()) {
     const it = byId(ITEMS, id) as Item;
     if (slot !== 'O' && !it.hp.includes(slot)) continue;
-    const why = whyNot(f, sel, idx, it) || hangarWhy(f, id, curId);
-    const meta = ['wt ' + it.wt, it.out ? 'output ' + it.out : '', it.draw ? 'draw ' + it.draw : '', it.pool ? 'pool +' + it.pool : '', it.use || ''].filter(Boolean).join(' · ');
+    const spare = avail ? avail(id) : 1;
+    const why = whyNot(f, sel, idx, it) || hangarWhy(f, id, curId) || (avail && id !== curId && spare <= 0 ? 'none spare in the stores: buy one at the MARKET' : '');
+    const meta = [avail ? spare + ' spare' : '', 'wt ' + it.wt, it.out ? 'output ' + it.out : '', it.draw ? 'draw ' + it.draw : '', it.pool ? 'pool +' + it.pool : '', it.use || ''].filter(Boolean).join(' · ');
     rows.push('<button class="hopt"' + (why ? ' disabled' : '') + ' data-pick="' + id + '"><b>' + esc(it.name) + (id === curId ? ' (fitted)' : '') + '</b> <small>' + esc(meta) + '</small><br><small>' + esc(it.effect + (it.trade !== '—' ? ' · ' + it.trade : '')) + '</small><br><small>' +
       (why ? '<span class="badt">' + esc(why) + '</span>' : delta(mount(f, sel, idx, it))) + '</small></button>');
   }

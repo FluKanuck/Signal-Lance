@@ -6,6 +6,8 @@ import { showScan } from './scan.ts';
 import { LISTEN, scanReport } from '../sim/scan.ts';
 import { V } from './state.ts';
 import { crewLines } from '../sim/company.ts';
+import { startThinBooks, leaveThinBooks } from './company.ts';
+import { TUNE } from '../tune.ts';
 import { $, fmtTime } from './hud.ts';
 import { killText, dmgSummary, loadSummary, logLine, showLoadout } from './screens.ts';
 
@@ -20,12 +22,24 @@ export function showTestBed() {
 }
 function play(s) {
   $('tb').hidden = $('tbres').hidden = true;
+  if (s.books) { G.tb = s; startThinBooks(i => booksPicked(s, i), () => { G.tb = null; showTestBed(); }); return; } // R21 cp3
   if (s.job) { startScenario(s, false); showScan('TEST BED · ' + s.name + (s.job.listen >= 0 ? ' · listen forced: ' + LISTEN[s.job.listen] : ' · scan it yourself'), () => { launchJobScenario(); camera(); }, 'DROP', s.job.listen); return; } // R19 (R20: listen -1 = the live scan)
   startScenario(s);
   camera();
 }
 function camera() {
   V.follow = true; V.camX = G.p.x; V.camY = G.p.y; V.ghostArm = V.faceArm = V.mortarArm = false; V.hitFlash = 0;
+}
+// R21 cp3: Thin books: the offer taken, then the question (nothing is played or saved)
+let booksPick = '';
+function booksPicked(s, i: number) {
+  const o = G.co.offers[i]; booksPick = TUNE.DANGER_NAMES[o.tier] + ' ' + o.hunts + ' hunts ' + o.fee + ' cr ' + o.fuel + ' fuel'; answer = '';
+  $('co').hidden = true;
+  $('tbTitle').textContent = 'TEST BED · ' + s.name + ' · took ' + booksPick;
+  $('tbTxt').innerHTML = 'The company had ' + G.co.credits + ' cr (in debt), ' + G.co.fuel + ' fuel. This is where the contract would start.';
+  const Q = s.question;
+  $('tbQ').innerHTML = '<div class="qrow"><span>' + esc(Q.q) + '</span>' + Q.a.map(a => '<button class="qa" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('') + '</div>';
+  $('tbres').hidden = false; $('tbres').scrollTop = 0;
 }
 // hooks.end while G.tb is set
 export function showTbResult() {
@@ -39,6 +53,7 @@ export function showTbResult() {
 // "[TESTBED Earshot] WIN UPLINK · kills 1/2 · ... | A: ... | answer"
 function logIt() {
   const s = G.tb;
+  if (s.books) { logLine('[TESTBED ' + s.name + '] took ' + booksPick + (answer ? ' | q ' + answer : '')); return; } // R21 cp3
   logLine('[TESTBED ' + s.name + '] ' + G.outcome + ' · ' + killText() + ' | ' + fmtTime(G.time) + ' turns ' + G.turn + ' | ' + loadSummary() + ' | ' + dmgSummary() + (crewLines().length ? ' | ' + crewLines().join('; ') : '') + (answer ? ' | q ' + answer : ''));
   for (const l of scanReport()) logLine('[TESTBED ' + s.name + '] [SCAN] ' + l); // R20 cp3
 }
@@ -50,5 +65,5 @@ $('tbQ').addEventListener('click', ev => {
   answer = answer === b.dataset.a ? '' : b.dataset.a;
   for (const o of $('tbQ').querySelectorAll('.qa')) o.classList.toggle('on', o.dataset.a === answer);
 });
-$('bTBRetry').addEventListener('click', () => { const s = G.tb; logIt(); play(s); });
-$('bTBDone').addEventListener('click', () => { logIt(); leaveScenario(); showTestBed(); });
+$('bTBRetry').addEventListener('click', () => { const s = G.tb; logIt(); if (s.books) { $('tbres').hidden = true; leaveThinBooks(); } play(s); });
+$('bTBDone').addEventListener('click', () => { const s = G.tb; logIt(); if (s && s.books) { $('tbres').hidden = true; leaveThinBooks(); return; } leaveScenario(); showTestBed(); });
