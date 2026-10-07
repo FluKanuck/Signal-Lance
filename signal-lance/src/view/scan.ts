@@ -9,7 +9,7 @@ import { G } from '../sim/state.ts';
 import { W, H, T, solid, clutter, anchors } from '../sim/world.ts';
 import { LISTEN, listen, chooseDrop, offeredDrops, zoneKnow, dropPts, scanDone } from '../sim/scan.ts';
 import { scanRisk } from '../sim/scan.ts';
-import { scanCmd, scanStep, unitIntel, zoneLayer, dropClear, liveSummary, SENSORS, sensorsOn, riskStep, riskAt, stepVal } from '../sim/livescan.ts';
+import { scanCmd, scanStep, unitIntel, zoneLayer, dropClear, liveSummary, SENSORS, sensorsOn, riskStep, riskAt, stepVal, ALTS, ringCore, ringEdge } from '../sim/livescan.ts';
 import { legPath } from '../sim/escort.ts';
 import { $ } from './hud.ts';
 import { showCard } from './card.ts';
@@ -32,6 +32,11 @@ const SHELP: Record<string, string> = {
   EM: '<b>WHO.</b> Passive and slow. Only things that transmit: first counted, then a bearing fix with the CARD’s best guess that firms up the longer you listen.',
 };
 const live = () => G.scan && G.scan.mode === 'active';
+const ALT_HELP: Record<string, string> = { // R20 fix list 5
+  HIGH: 'rings cover more ground, but every sensor is weaker (thermal much weaker) and fixes are fuzzier. Quieter on the risk meter.',
+  MID: 'the standard scan.',
+  LOW: 'small rings, but every sensor is stronger (thermal much stronger) and fixes are sharper. Louder on the risk meter.',
+};
 let sel = 'RADAR'; // R20 fix list 1: the sensor whose ring a tap moves and FULL MAP acts on (the last one turned on or dragged)
 const sidx = (s: string) => SENSORS.indexOf(s as any);
 let pickLvl = 1, onGo: () => void = () => {}, goLabel = 'NEXT', locked = -1;
@@ -51,7 +56,7 @@ export function showScan(title: string, go: () => void, label: string, force = -
 }
 export function renderScan() {
   const S = G.scan, act = live();
-  $('sDialBox').hidden = act; for (const id of ['sLive', 'bRun', 'sClock', 'sRisk', 'sHelp']) $(id).hidden = !act; // R20: the clock and the buttons sit up top (phones)
+  $('sDialBox').hidden = act; for (const id of ['sLive', 'bRun', 'sClock', 'sRisk', 'sHelp', 'sAlt']) $(id).hidden = !act; // R20: the clock and the buttons sit up top (phones)
   if (act) renderLive(); else renderDial();
   const D = offeredDrops(), done = scanDone();
   $('sDrops').innerHTML = done && D.length > 1 ? D.map(d => '<button class="sdz' + (d.i === S.drop ? ' on' : '') + '" data-d="' + d.i + '">' + (d.i + 1) + ' ' + esc(d.name.toUpperCase()) + '</button>').join('') : '';
@@ -73,13 +78,14 @@ function renderLive() {
   const S = G.scan, on = sensorsOn(S);
   $('sSens').innerHTML = SENSORS.map(s => '<button class="ss s-' + s + (S.on[s] ? ' on' : '') + (S.on[s] && s === sel ? ' sel' : '') + '" data-s="' + s + '">' + SNAME[s] + '<small>' + (S.on[s] ? (S.wide[s] ? 'FULL MAP' : 'ON') : 'off') + '</small></button>').join('');
   $('bWide').innerHTML = (S.on[sel] && S.wide[sel] ? 'RING' : 'FULL MAP') + '<small>' + SNAME[sel] + '</small>'; // R20 fix list 2: the whole map, said plainly
+  $('sAlt').innerHTML = '<span>ALT</span>' + ALTS.map((a, i) => '<button class="sa' + (S.alt === a ? ' on' : '') + '" data-a="' + i + '">' + a + '</button>').join(''); // R20 fix list 5
   $('bWide').classList.toggle('on', !!S.wide[sel]); ($('bWide') as HTMLButtonElement).disabled = !S.on[sel];
   const m = (x: number) => (Math.round(x * 4) / 4).toString();
   const doing = !S.run ? (S.over ? 'WINDOW CLOSED: drop now' : 'paused') : on.length ? 'scanning: ' + on.map(x => SNAME[x]).join(' + ') : 'waiting: risk cooling';
   $('sClock').innerHTML = (S.run ? '● ' : '') + 'CLOCK ' + m(S.t) + ' ship-min' + (S.deadline ? ' · <span class="' + (S.deadline - S.t <= 3 ? 'badt' : 'warnt') + '">DEADLINE ' + S.deadline + ' (' + m(Math.max(0, S.deadline - S.t)) + ' left)</span>' : '') + ' · ' + doing +
     (S.deadline ? '<span class="bar"><span style="width:' + Math.min(100, 100 * S.t / S.deadline) + '%;background:#e0c050"></span></span>' : '');
   $('sRisk').innerHTML = riskHtml(S);
-  $('sHelp').innerHTML = S.on[sel] ? '<b style="color:' + SCOL[sel] + '">' + SNAME[sel] + '</b> ' + SHELP[sel] : 'Turn a sensor on to aim it. Several can run at once, each with its own ring.';
+  $('sHelp').innerHTML = '<b>ALT ' + S.alt + ':</b> ' + ALT_HELP[S.alt] + '<br>' + (S.on[sel] ? '<b style="color:' + SCOL[sel] + '">' + SNAME[sel] + '</b> ' + SHELP[sel] : 'Turn a sensor on to aim it. Several can run at once, each with its own ring.');
   $('sIntel').innerHTML = liveLines().map(l => '<div>' + l + '</div>').join('');
   const b = $('bRun'); b.textContent = S.run ? 'PAUSE' : S.over ? 'WINDOW CLOSED' : S.t > 0 ? 'RESUME' : 'START CLOCK'; b.classList.toggle('run', !!S.run);
   (b as HTMLButtonElement).disabled = !S.run && S.over;
@@ -215,9 +221,9 @@ function drawAim(c: CanvasRenderingContext2D, z: number) {
     const col = SCOL[sn], me = sn === sel; c.globalAlpha = me ? 1 : 0.7;
     c.strokeStyle = col; c.lineWidth = (me ? 3 : 2) / z;
     if (S.wide[sn]) { const p = (2 + j * 4) / z; c.setLineDash([10 / z, 6 / z]); c.strokeRect(p, p, W * T - 2 * p, H * T - 2 * p); c.setLineDash([]); c.globalAlpha = 1; return; }
-    const A = S.aims[sn], x = (A.x + 0.5) * T, y = (A.y + 0.5) * T, r0 = TUNE.SCAN_AIM_CORE * T;
+    const A = S.aims[sn], x = (A.x + 0.5) * T, y = (A.y + 0.5) * T, r0 = ringCore(S) * T;
     c.beginPath(); c.arc(x, y, r0, 0, 6.2832); c.stroke();
-    c.lineWidth = 1.5 / z; c.setLineDash([6 / z, 5 / z]); c.beginPath(); c.arc(x, y, TUNE.SCAN_AIM_EDGE * T, 0, 6.2832); c.stroke(); c.setLineDash([]);
+    c.lineWidth = 1.5 / z; c.setLineDash([6 / z, 5 / z]); c.beginPath(); c.arc(x, y, ringEdge(S) * T, 0, 6.2832); c.stroke(); c.setLineDash([]);
     for (let a = 0; a < 4; a++) { const dx = Math.cos(a * 1.5708), dy = Math.sin(a * 1.5708); c.beginPath(); c.moveTo(x + dx * r0, y + dy * r0); c.lineTo(x + dx * (r0 + 10 / z), y + dy * (r0 + 10 / z)); c.stroke(); } // ticks outside the core
     const ang = -2.4 + j * 0.9; c.font = 'bold ' + (10 / z) + 'px monospace'; c.fillStyle = col; c.textAlign = 'center'; // the name, on the ring, spread so rings on one spot don't stack labels
     c.fillText(SNAME[sn], x + Math.cos(ang) * (r0 + 8 / z), y + Math.sin(ang) * (r0 + 8 / z)); c.textAlign = 'left'; c.globalAlpha = 1;
@@ -287,6 +293,7 @@ $('sSens').addEventListener('click', ev => {
   if (!S.on[s]) { scanCmd(s[0], 1); sel = s; } else if (sel !== s) sel = s; else { scanCmd(s[0], 0); sel = sensorsOn(S)[0] || s; }
   renderScan();
 });
+$('sAlt').addEventListener('click', ev => { const b = (ev.target as any).closest('.sa'); if (!b || !live()) return; scanCmd('H', +b.dataset.a); renderScan(); }); // R20 fix list 5
 $('bWide').addEventListener('click', () => { const S = G.scan; if (!live() || !S.on[sel]) return; scanCmd('W', sidx(sel), S.wide[sel] ? 0 : 1); renderScan(); }); // R20 fix list 2
 $('bRun').addEventListener('click', startStop);
 $('bListen').addEventListener('click', () => { if (listen(pickLvl)) renderScan(); });

@@ -21,8 +21,10 @@ import { zoneAtTile } from './zones.ts';
 export const SENSORS = ['RADAR', 'THERMAL', 'EM'] as const;
 export type Sensor = typeof SENSORS[number];
 // [tick, op, ...args]: 'R' / 'T' / 'E' (1 on, 0 off), 'W' full map (sensor index, 1 / 0), 'a' aim (x, y, sensor index),
-// 'G' run the clock, 'S' pause it
+// 'G' run the clock, 'S' pause it, 'H' altitude (0 HIGH, 1 MID, 2 LOW: R20 fix list 5)
 export type Cmd = [number, string, ...number[]];
+export const ALTS = ['HIGH', 'MID', 'LOW'];
+export const altOf = (S) => TUNE.SCAN_ALT[S.alt || 'MID'];
 
 // The scan's own RNG: state kept in the scan, so stepping it never moves the hunt's seeded rolls and a replay matches.
 function rnd(S) { let t = (S.rs = (S.rs + 0x6D2B79F5) >>> 0); t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
@@ -45,7 +47,7 @@ export function liveInit(S, drops: { x: number; y: number }[]) {
     on: { RADAR: true, THERMAL: false, EM: false }, wide: { RADAR: false, THERMAL: false, EM: false },
     aims: { RADAR: { ...mid }, THERMAL: { ...mid }, EM: { ...mid } }, cmds: [] as Cmd[], u: {}, z: G.zones.map(() => ({ RADAR: 0, THERMAL: 0 })),
     dr: drops.map(() => 0), cov: { RADAR: new Array(W * H).fill(0), THERMAL: new Array(W * H).fill(0), EM: new Array(W * H).fill(0) },
-    risk: 0, radarRisk: 0, peak: 0, adds: [] as any[], deadline: jobDeadline(S.seed, S.mtype), over: false });
+    alt: 'MID', risk: 0, radarRisk: 0, peak: 0, adds: [] as any[], deadline: jobDeadline(S.seed, S.mtype), over: false });
   for (const u of G.units) track(S, u);
 }
 function track(S, u) {
@@ -60,6 +62,7 @@ export function scanCmd(op: string, ...args: number[]) {
   const S = G.scan; if (!S || S.mode !== 'active') return;
   if (op === 'a') { args = [Math.max(0, Math.min(W - 1, Math.round(args[0]))), Math.max(0, Math.min(H - 1, Math.round(args[1]))), args[2] | 0]; const A = S.aims[SENSORS[args[2]]]; if (!A || (A.x === args[0] && A.y === args[1])) return; }
   if (op === 'G' && (S.run || S.over)) return;
+  if (op === 'H' && S.alt === ALTS[args[0]]) return;
   if (op === 'S' && !S.run) return;
   const last = S.cmds[S.cmds.length - 1];
   if (op === 'a' && last && last[0] === S.tick && last[1] === 'a' && last[4] === args[2]) S.cmds.pop(); // a drag: one aim per tick is enough
@@ -71,6 +74,7 @@ function apply(S, op: string, a: number[]) {
   else if (op === 'W') S.wide[SENSORS[a[0]]] = !!a[1];
   else if (op === 'G') S.run = true; else if (op === 'S') S.run = false;
   else if (op === 'a') S.aims[SENSORS[a[2]]] = { x: a[0], y: a[1] };
+  else if (op === 'H') S.alt = ALTS[a[0]] || 'MID';
 }
 // Rebuild the scan from its commands (the job's world must be rolled already: rollEnemy → freshScan).
 export function replayScan(cmds: Cmd[]) {
@@ -85,7 +89,7 @@ export function replayScan(cmds: Cmd[]) {
 export function encodeCmds(cmds: Cmd[]) { return cmds.map(c => c[0] + c[1] + c.slice(2).join('.')).join('_') || '-'; }
 export function decodeCmds(s: string): Cmd[] {
   const out: Cmd[] = [];
-  for (const w of (s || '').split('_')) { const m = /^(\d+)([RTEWGSa])((?:\d+)(?:\.\d+)*)?$/.exec(w); if (m) out.push([+m[1], m[2], ...(m[3] ? m[3].split('.').map(Number) : [])]); }
+  for (const w of (s || '').split('_')) { const m = /^(\d+)([RTEWGSaH])((?:\d+)(?:\.\d+)*)?$/.exec(w); if (m) out.push([+m[1], m[2], ...(m[3] ? m[3].split('.').map(Number) : [])]); }
   return out;
 }
 
@@ -94,9 +98,12 @@ export function decodeCmds(s: string): Cmd[] {
 // 0 at SCAN_AIM_EDGE, linear between. Distances from tile centre to the ring's tile centre.
 export function aimStrength(S, x: number, y: number, s: Sensor = 'RADAR') {
   if (S.wide[s]) return TUNE.SCAN_WIDE_STRENGTH;
-  const A = S.aims[s], d = Math.hypot(x - A.x, y - A.y), c = TUNE.SCAN_AIM_CORE, e = TUNE.SCAN_AIM_EDGE;
+  const A = S.aims[s], d = Math.hypot(x - A.x, y - A.y), c = ringCore(S), e = ringEdge(S);
   return d <= c ? 1 : d >= e ? 0 : 1 - (d - c) / (e - c);
 }
+// R20 fix list 5: the ring's radii at the ship's altitude (tiles)
+export const ringCore = (S) => TUNE.SCAN_AIM_CORE * altOf(S).RING;
+export const ringEdge = (S) => TUNE.SCAN_AIM_EDGE * altOf(S).RING;
 export function band(_S, sensor: Sensor, dwell: number) { const B = TUNE.SCAN_BANDS[sensor]; let n = 0; while (n < 3 && dwell >= B[n] - 1e-9) n++; return n; }
 // Where unit u is right now (a patrol's scan-time walk, else where it stands), in tiles
 export function posOf(S, u) { const w = S.u[u.id]?.walk; return w ? { x: w.x, y: w.y } : tileOf(u); }
@@ -119,8 +126,9 @@ export function scanStep() {
   const dt = TUNE.SCAN_TICK, on = sensorsOn(S);
   S.tick++; S.t = S.tick * dt;
   walkAll(S, dt);
-  for (const s of on) gather(S, s, TUNE.SCAN_SPEED[s] * dt);
-  if (on.length) { for (const s of on) S.risk += TUNE.SCAN_LOUD[s] * dt; if (S.on.RADAR) S.radarRisk += TUNE.SCAN_LOUD.RADAR * dt; }
+  const AL = altOf(S);
+  for (const s of on) gather(S, s, TUNE.SCAN_SPEED[s] * AL.SPEED[s] * dt);
+  if (on.length) { for (const s of on) S.risk += TUNE.SCAN_LOUD[s] * AL.LOUD * dt; if (S.on.RADAR) S.radarRisk += TUNE.SCAN_LOUD.RADAR * AL.LOUD * dt; }
   else S.risk = Math.max(0, S.risk - TUNE.SCAN_COOL * dt);
   if (TUNE.SCAN_COSTS) while (riskStep(S.risk) > S.peak) { S.peak++; if (rnd(S) < stepVal(TUNE.SCAN_RISK_EXTRA, S.peak)) arrive(S, 'called in', true); }
   if (TUNE.SCAN_COSTS && rnd(S) < TUNE.SCAN_ARRIVE_PER_MIN * dt) arrive(S, 'arrived', false);
@@ -134,7 +142,7 @@ function gather(S, s: Sensor, k: number) {
     const R = S.u[u.id]; if (!R) continue;
     const p = posOf(S, u), a = aimStrength(S, p.x, p.y, s); if (a <= 0) continue;
     R.d[s] += k * a;
-    const unc = fixUnc(S, u, s); if (unc <= 0) continue; // this sensor gives no position yet (EM below band 2)
+    const unc = fixUnc(S, u, s) * altOf(S).UNC; if (unc <= 0) continue; // this sensor gives no position yet (EM below band 2)
     if (!R.fix || u.mobile || unc <= R.fix.unc + 1e-9) R.fix = { x: p.x, y: p.y, t: S.t, unc, by: s }; // a patrol: the latest look; a static: the best
   }
   if (s !== 'EM') G.zones.forEach((z, i) => { const a = aimStrength(S, z.x, z.y, s); if (a > 0) S.z[i][s] += k * a; });

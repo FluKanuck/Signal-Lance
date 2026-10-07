@@ -1017,6 +1017,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - FULL MAP (fix 2): the WIDE button is now "FULL MAP · <sensor>" (dashed) beside the sensors; the selected sensor's frame is
      drawn round the map; it reads RING to switch back.
    - Phone layout: START / CARD / DROP and the drop zones sit right under the sensors; clock, risk and intel below (they scroll).
+   - Altitude (fix 5, r20-s3; Jamie: "do a high mid low alts"): S.alt, command 'H' 0/1/2. SCAN_ALT per height: RING scales both
+     radii, SPEED multiplies dwell per sensor (FULL MAP too), UNC multiplies the fuzz of a new fix (an old fix keeps its own), LOUD
+     multiplies risk; cooling is the same at every height. Zones and drop zones gather at the same speed as units. Default MID.
    - Scenario "Loud and fast": the Where first job with "0W0.1_0G_11S" pre-run (radar full map 2.75 min: risk 2.75, step 1 at 3),
      deadlines off.
 ```
@@ -1553,3 +1556,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            SCAN_RISK_PAINT [0, 0, 0.25, 0.5], SCAN_ARRIVE_PER_MIN 0.02, SCAN_DEADLINE_CHANCE 0.5, SCAN_DEADLINE_MIN [8, 16].
            Radar alone reaches step 1 in 3 min; all three sensors 1.25/min; cooling from step 1 to 0 takes 6 min. Runner (no scan):
            same as r20-s1. BUILD r20-s2 | -
+   round20 debrief 1 (r20-s2) | weakest moment: Jamie: "scan time felt limited, need it to be more obvious when picking a job about time
+           available for scanning"; narrowed: "Missed it on the job card". Symptom (confirmed): he didn't notice a job had a deadline
+           until he was already scanning | the job card's top line starts with a tag: SCAN WINDOW N MIN (amber) or NO TIME LIMIT
+           (green); the old last-line DEADLINE goes (view only, no TUNE). BUILD r20-s3 | -
+   round20 fix list 5 (Jamie: "a ship height function, you can set you altitude whick changes the functionality of the scans" → "do a
+           high mid low alts") | NEW SCAN_ALT HIGH RING 1.6 / SPEED radar 0.7 thermal 0.4 EM 0.8 / UNC 1.5 / LOUD 0.6; MID all 1;
+           LOW RING 0.6 / SPEED radar 1.4 thermal 1.8 EM 1.2 / UNC 0.7 / LOUD 1.6. BUILD r20-s3 | -

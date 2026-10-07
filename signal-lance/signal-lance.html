@@ -109,6 +109,10 @@ button.lockd{opacity:.35}
 #sLive>.zrow{gap:4px} #sSens{flex:3;gap:4px;min-width:0} #sSens button,#bWide{flex:1;min-width:0;min-height:48px;padding:0 2px;font-size:11px;line-height:1.15}
 #sSens button small,#bWide small{display:block;font-size:10px} #bWide{flex:1.1;border-style:dashed} #bWide.on{background:var(--btnOn)} #bWide:disabled{opacity:.4}
 #sSens button.sel{outline:2px solid #fff;outline-offset:-4px}
+#sAlt{align-items:center;gap:4px} #sAlt span{font-weight:bold;font-size:12px;opacity:.8;padding:0 2px} #sAlt button{flex:1;min-width:0;min-height:48px;font-size:12px;padding:0 2px} #sAlt button.on{background:#3a4a6a;border-color:#9cf}
+/* R20 debrief 1: the scan time on the job card's top line */
+.jtag{display:inline-block;border:1px solid currentColor;border-radius:4px;padding:1px 6px;margin-right:6px;font-weight:bold;font-size:13px}
+.jtag.dl{color:#e0c050} .jtag.free{color:#70c080}
 #sRisk{font-size:12px;line-height:1.35} #sRisk .bar{display:block;height:6px;border:1px solid var(--line);margin:2px 0}#sRisk .bar span{display:block;height:100%}
 #sSens button.on.s-RADAR{background:#14594f;border-color:#4fd8c0} #sSens button.on.s-THERMAL{background:#6a3418;border-color:#ff8a50} #sSens button.on.s-EM{background:#4a2d6a;border-color:#c79bff}
 #sClock{font-weight:bold;font-size:14px} #sClock .bar{display:block;height:6px;border:1px solid var(--line);margin-top:3px} #sClock .bar span{display:block;height:100%;background:var(--fg)}
@@ -220,6 +224,7 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
     <div id="sWhat"></div>
     <button id="bListen">LISTEN</button></div>
     <div id="sLive" hidden><div class="zrow"><div class="zrow" id="sSens"></div><button id="bWide">FULL MAP</button></div></div>
+    <div class="zrow" id="sAlt" hidden></div>
     <div class="zrow"><button id="bRun" hidden>START</button><button id="bScanCard">CARD</button><button id="bScanGo">NEXT</button></div>
     <div class="zrow" id="sDrops"></div>
     <div id="sClock" hidden></div><div id="sRisk" hidden></div>

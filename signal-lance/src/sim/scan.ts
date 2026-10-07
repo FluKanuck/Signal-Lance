@@ -141,7 +141,7 @@ function landLive() {
       fresh: false, seen: { SCAN: G.time }, by: {}, src: 'SCAN', snd: false, shr: false, dmg: '', walls: 0, q: 0, noisy: false, keep: TUNE.SCAN_BLIP_KEEP });
   }
   const M = liveSummary(S), k = riskStep(S.risk);
-  const C = G.scanCost = { lvl: 0, live: true, t: S.t, sum: M, step: k, risk: S.risk, deadline: S.deadline, over: S.over,
+  const C = G.scanCost = { lvl: 0, live: true, t: S.t, alt: S.alt, sum: M, step: k, risk: S.risk, deadline: S.deadline, over: S.over,
     extra: S.adds.filter(a => a.why === 'called in').map(a => 'U' + a.n), arrived: S.adds.filter(a => a.why === 'arrived').map(a => 'U' + a.n),
     painted: false, ambush: [] as string[], alert: [] as string[] };
   if (!TUNE.SCAN_COSTS) return;
@@ -233,7 +233,7 @@ export function scanRisk(lvl: number) {
 export function scanText() {
   const C = G.scanCost; if (!C) return '';
   if (C.live) return ' · scan ' + Math.round(C.t * 4) / 4 + ' min' + (C.deadline ? (C.over ? ' (window ' + C.deadline + ' closed)' : ' of ' + C.deadline) : '') + ': ' + C.sum.pings + ' pings, ' + C.sum.heat + ' heat, ' + C.sum.fixed + ' EM fixes, zones ' + C.sum.typed + '/' + C.sum.zones +
-    ' · risk ' + C.risk.toFixed(1) + ' step ' + C.step + ': +' + C.extra.length + ' called in, +' + C.arrived.length + ' arrived, ' + C.alert.length + ' alert' + (C.painted ? ', painted (ambush ' + C.ambush.length + ')' : ''); // R20
+    ' · alt ' + C.alt + ' · risk ' + C.risk.toFixed(1) + ' step ' + C.step + ': +' + C.extra.length + ' called in, +' + C.arrived.length + ' arrived, ' + C.alert.length + ' alert' + (C.painted ? ', painted (ambush ' + C.ambush.length + ')' : ''); // R20
   return ' · scan ' + LISTEN[C.lvl] + (C.lvl ? ': +' + C.extra.length + ' unit' + (C.extra.length === 1 ? '' : 's') + ', ' + C.alert.length + ' alert' + (C.painted ? ', painted (ambush ' + C.ambush.length + ')' : '') : '');
 }
 // What the lance knows of the zones: 0 nothing, 1 outlines, 2 outlines and types. With the scan off, everything (the R18 map).

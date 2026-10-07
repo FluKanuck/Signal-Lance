@@ -456,6 +456,15 @@ export const TUNE = {
   SCAN_HOT_IR: 4,          // THERMAL sees a unit whose IR is at least this (patrol 5, emplacement 7; turrets 3 stay cold)
   SCAN_IR_LARGE: 6,        // a heat blob at THERMAL band 2+ reads LARGE at this IR or more, else MEDIUM
   SCAN_BLIP_FLOOR: 1,      // tiles; an EM blip's fuzz shrinks from SCAN_BLIP_UNC (band 2) to this (band 3)
+  // R20 fix list 5 (Jamie: "a ship height function … do a high mid low alts"): the ship's altitude changes every sensor.
+  // RING scales both ring radii, SPEED multiplies dwell per sensor (full map too), UNC multiplies the fuzz of new fixes,
+  // LOUD multiplies risk. HIGH sees wide but weak and fuzzy, and quietly; LOW sees a small spot hard and sharp, loudly
+  // (thermal reads best low). MID = r20-s2.
+  SCAN_ALT: {
+    HIGH: { RING: 1.6, SPEED: { RADAR: 0.7, THERMAL: 0.4, EM: 0.8 }, UNC: 1.5, LOUD: 0.6 },
+    MID:  { RING: 1,   SPEED: { RADAR: 1,   THERMAL: 1,   EM: 1 },   UNC: 1,   LOUD: 1 },
+    LOW:  { RING: 0.6, SPEED: { RADAR: 1.4, THERMAL: 1.8, EM: 1.2 }, UNC: 0.7, LOUD: 1.6 },
+  } as Record<string, { RING: number; SPEED: Record<string, number>; UNC: number; LOUD: number }>,
   SCAN_COSTS: true,        // R20 cp2: the risk meter's costs (false = scanning is free, as r20-s1)
   // R20 fix list 3 (with checkpoint 2): one risk meter. While the clock runs, every sensor that is on adds its loudness; with no
   // sensor on the meter cools. Crossing a step (upwards, the first time) may call in a unit; the step you DROP at sets the alert

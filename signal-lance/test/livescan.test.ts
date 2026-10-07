@@ -239,3 +239,31 @@ describe('test bed (R20)', () => {
     expect(riskStep(G.scan.risk + TUNE.SCAN_LOUD.RADAR * 0.5)).toBe(1); // half a minute more radar: step 1
   });
 });
+
+describe('altitude (R20 fix list 5)', () => {
+  it('HIGH widens the rings, LOW tightens them; MID is the standard ring', () => {
+    const S = job(101, undefined, 'UPLINK', QUIET); S.aims.RADAR = { x: 20, y: 10 };
+    const at = (alt: string, d: number) => { S.alt = alt; return aimStrength(S, 20 + d, 10); };
+    for (const alt of ['HIGH', 'MID', 'LOW']) {
+      const R = TUNE.SCAN_ALT[alt].RING;
+      expect(at(alt, TUNE.SCAN_AIM_CORE * R)).toBe(1); expect(at(alt, TUNE.SCAN_AIM_EDGE * R)).toBe(0);
+    }
+    expect(at('HIGH', TUNE.SCAN_AIM_EDGE - 0.5)).toBeGreaterThan(0); expect(at('LOW', TUNE.SCAN_AIM_EDGE - 0.5)).toBe(0);
+  });
+  it('dwell, risk and fuzz follow the altitude (thermal reads best low)', () => {
+    const go = (alt: number) => { job(102, 'Mixed', 'UPLINK', { ...QUIET, SCAN_COSTS: true, SCAN_RISK_EXTRA: [0], SCAN_ARRIVE_PER_MIN: 0 }); scanCmd('H', alt); only('RADAR', 'THERMAL'); wide('RADAR'); wide('THERMAL'); run(2);
+      const u = G.units.find(hot); return { th: G.scan.u[u.id].d.THERMAL, risk: G.scan.risk, unc: unitIntel(G.scan, G.units[0]).fix?.unc ?? 0 }; };
+    const hi = go(0), mid = go(1), lo = go(2);
+    expect(hi.th).toBeLessThan(mid.th); expect(lo.th).toBeGreaterThan(mid.th);
+    expect(lo.th / mid.th).toBeCloseTo(TUNE.SCAN_ALT.LOW.SPEED.THERMAL);
+    expect(hi.risk).toBeLessThan(mid.risk); expect(lo.risk).toBeGreaterThan(mid.risk);
+    expect(mid.risk).toBeCloseTo(2 * (TUNE.SCAN_LOUD.RADAR + TUNE.SCAN_LOUD.THERMAL));
+    expect(lo.risk / mid.risk).toBeCloseTo(TUNE.SCAN_ALT.LOW.LOUD);
+  });
+  it('a fix keeps the fuzz of the altitude it was taken at', () => {
+    job(103, 'Mixed', 'UPLINK', QUIET); scanCmd('H', 0); wide('RADAR'); run(TUNE.SCAN_BANDS.RADAR[0] / (TUNE.SCAN_SPEED.RADAR * TUNE.SCAN_WIDE_STRENGTH * TUNE.SCAN_ALT.HIGH.SPEED.RADAR) + 0.3);
+    const u = G.units.find(x => !x.mobile), f = unitIntel(G.scan, u).fix;
+    expect(f.unc).toBeCloseTo(TUNE.SCAN_PING_UNC[0] * TUNE.SCAN_ALT.HIGH.UNC);
+    expect(decodeCmds(encodeCmds(G.scan.cmds))).toEqual(G.scan.cmds); // 'H' round-trips in the log word
+  });
+});
