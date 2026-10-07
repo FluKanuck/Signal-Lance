@@ -99,17 +99,57 @@ export function shortPath(p: string, n = 2) {
   return parts.length <= n ? parts.join(sep) : '…' + sep + parts.slice(-n).join(sep)
 }
 
-export type Input = { git: GitInfo | null; usage: Usage | null; model: string; cwd: string; now: number; columns: number }
+export type Mode = 'default' | 'acceptEdits' | 'plan' | 'auto' | 'dontAsk' | 'bypassPermissions'
+
+/** The permission-mode block: label and background, louder the less Claude asks. */
+export const MODES: Record<Mode, { label: string; bg: string }> = {
+  bypassPermissions: { label: '⏵⏵ BYPASS', bg: '#a3243b' },
+  dontAsk: { label: "⏵⏵ don't ask", bg: '#a3243b' },
+  auto: { label: '⏵⏵ auto', bg: '#6a4a9c' },
+  acceptEdits: { label: '⏵⏵ accept edits', bg: '#94640a' },
+  plan: { label: '⏸ plan', bg: '#2f7a46' },
+  default: { label: '◇ ask', bg: '#3d4f5c' },
+}
+
+/**
+ * The mode as the engine's hint line names it, live as shift+tab cycles it.
+ * `null` when the line doesn't say (Claude working, a draft's hint), so the caller keeps its last reading.
+ */
+export function modeFromHint(hint: string): Mode | null {
+  if (/bypass permissions/i.test(hint)) return 'bypassPermissions'
+  if (/accept edits|auto-accept/i.test(hint)) return 'acceptEdits'
+  if (/plan mode/i.test(hint)) return 'plan'
+  if (/don'?t ask/i.test(hint)) return 'dontAsk'
+  if (/auto mode/i.test(hint)) return 'auto'
+  if (/\? for shortcuts/i.test(hint)) return 'default'
+  return null
+}
+
+export const asMode = (m: unknown): Mode | null => (typeof m === 'string' && m in MODES ? m as Mode : null)
+
+/** Where the mod notes a session's mode for the script: beside the claude dir's `projects`, one file per session. */
+export function modeFile(transcriptPath: string, sessionId: string) {
+  const claudeDir = transcriptPath.replace(/\\/g, '/').split('/projects/')[0]!
+  return `${claudeDir}/flu-statusline/mode-${sessionId.replace(/[^\w-]/g, '')}`
+}
+
+export type Input = {
+  git: GitInfo | null; usage: Usage | null; model: string; cwd: string; now: number; columns: number
+  mode?: Mode | null; effort?: string
+}
 
 /**
  * Two powerline rows.
  * Row 1, the meters: context, 5-hour, weekly, each with its bar, % and reset.
  * Row 2, where you are: branch and changes, model, session time and cost, folder.
  */
-export function rows({ git, usage, model, cwd, now, columns }: Input): Block[][] {
+export function rows({ git, usage, model, cwd, now, columns, mode, effort }: Input): Block[][] {
   const w = barWidth(columns)
   const meters: Block[] = []
   const place: Block[] = []
+
+  // the mode leads row 2 and is the last block to drop
+  if (mode) place.push({ key: 'mode', bg: MODES[mode].bg, priority: 10, cells: [{ text: MODES[mode].label, fg: PAL.fg, bold: true }] })
 
   if (usage && usage.ctxPct != null) {
     const c = PAL[toneFor(usage.ctxPct, 50, 80)]
@@ -148,7 +188,10 @@ export function rows({ git, usage, model, cwd, now, columns }: Input): Block[][]
     if (git.behind) cells.push({ text: ` ↓${git.behind}`, fg: PAL.error })
     place.push({ key: 'git', bg: PAL.bg[2]!, priority: 7, cells })
   }
-  if (model) place.push({ key: 'model', bg: PAL.bg[3]!, priority: 4, cells: [{ text: `${G.chip} `, fg: PAL.mute }, { text: shortModel(model), fg: PAL.fg, bold: true }] })
+  if (model) place.push({ key: 'model', bg: PAL.bg[3]!, priority: 4, cells: [
+    { text: `${G.chip} `, fg: PAL.mute }, { text: shortModel(model), fg: PAL.fg, bold: true },
+    ...(effort ? [{ text: ` · ${effort}`, fg: PAL.mute }] : []),
+  ] })
   if (usage) {
     const mins = Math.max(0, Math.floor((now - usage.startedAt) / 60_000))
     const time = mins >= 60 ? `${Math.floor(mins / 60)}h${String(mins % 60).padStart(2, '0')}m` : `${mins}m`
@@ -158,7 +201,16 @@ export function rows({ git, usage, model, cwd, now, columns }: Input): Block[][]
   }
   if (cwd) place.push({ key: 'cwd', bg: PAL.bg[place.length % 2 ? 3 : 2]!, priority: 2, cells: [{ text: `${G.folder} `, fg: PAL.mute }, { text: shortPath(cwd), fg: PAL.fg }] })
 
-  return [meters, place].filter(r => r.length)
+  return [shade(meters, 0), shade(place, 1)].filter(r => r.length)
+}
+
+/**
+ * Alternate a row's backgrounds so neighbours never match: row 0 in the teal pair, row 1 in the blue pair.
+ * Run again after `fit` drops blocks. The mode block keeps its own colour.
+ */
+export function shade(row: Block[], r: number): Block[] {
+  let n = 0
+  return row.map(b => (b.key === 'mode' ? b : { ...b, bg: PAL.bg[r * 2 + (n++ % 2)]! }))
 }
 
 /**
@@ -184,6 +236,44 @@ export function fit(row: Block[], columns: number): Block[] {
     kept.splice(lo, 1)
   }
   return kept
+}
+
+/** Truecolor ANSI for the statusLine script: one line per row, blocks joined by powerline arrows. */
+export function ansi(rs: Block[][], columns: number): string {
+  const rgb = (hex: string) => [1, 3, 5].map(i => parseInt(hex.slice(i, i + 2), 16)).join(';')
+  const bg = (h?: string) => (h ? `\x1b[48;2;${rgb(h)}m` : '\x1b[49m')
+  const fg = (h: string) => `\x1b[38;2;${rgb(h)}m`
+  const R = '\x1b[0m'
+  return rs.map(row => {
+    // keep the row's own colour pair (row 1 can be first when there are no meters yet)
+    const pair = row.some(b => b.bg === PAL.bg[2] || b.bg === PAL.bg[3]) ? 1 : 0
+    const kept = shade(fit(row, columns), pair)
+    return kept.map((b, i) =>
+      bg(b.bg) + ' ' + b.cells.map(c => fg(c.fg ?? PAL.fg) + (c.bold ? '\x1b[1m' : '') + c.text + '\x1b[22m').join('') + ' '
+      + fg(b.bg) + bg(kept[i + 1]?.bg) + G.sep,
+    ).join('') + R
+  }).join('\n')
+}
+
+/** The statusLine command's stdin JSON → the same readings the rows take. */
+export function fromStatusInput(j: any, now: number) {
+  const cw = j?.context_window ?? {}
+  const cu = cw.current_usage
+  const tokens = cu ? (cu.input_tokens ?? 0) + (cu.cache_creation_input_tokens ?? 0) + (cu.cache_read_input_tokens ?? 0) : null
+  const limits = Object.entries(j?.rate_limits ?? {}).map(([kind, l]: [string, any]) => ({
+    kind, percentUsed: l?.used_percentage, resetsAt: l?.resets_at ? new Date(l.resets_at * 1000).toISOString() : null,
+  }))
+  const usage = usageFrom({
+    startedAt: now - (Number(j?.cost?.total_duration_ms) || 0),
+    context: { window: cw.context_window_size, tokens, percent: cw.used_percentage },
+    rateLimits: limits,
+    cost: typeof j?.cost?.total_cost_usd === 'number' ? { usd: j.cost.total_cost_usd } : undefined,
+  })
+  return {
+    usage, model: String(j?.model?.id ?? j?.model?.display_name ?? ''),
+    cwd: String(j?.workspace?.current_dir ?? j?.cwd ?? ''), effort: j?.effort?.level as string | undefined,
+    sessionId: String(j?.session_id ?? ''), transcriptPath: String(j?.transcript_path ?? ''),
+  }
 }
 
 /** Plain text, for surfaces that only take a status string. */

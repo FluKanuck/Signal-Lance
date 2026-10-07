@@ -1,6 +1,6 @@
 {
   "name": "flu-statusline",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Colour-coded status line under the prompt: repo/branch, model, context %, 5-hour and weekly usage with reset countdowns and pace, cost and session time",
   "author": { "name": "FluKanuck" },
   "types": "./types/index.d.ts"

@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { G, bar, pillWidth, blockWidth, fit, fmtLeft, hitsCapIn, pace, parseGit, plain, rows, shortModel, shortPath, toneFor, usageFrom } from '../hooks/logic.ts'
+import { G, MODES, ansi, bar, fromStatusInput, modeFile, modeFromHint, pillWidth, shade, blockWidth, fit, fmtLeft, hitsCapIn, pace, parseGit, plain, rows, shortModel, shortPath, toneFor, usageFrom } from '../hooks/logic.ts'
 
 const H = 3_600_000
 const NOW = Date.parse('2026-10-06T19:00:00Z')
@@ -57,6 +57,40 @@ describe('the line', () => {
   test('no cap alarm from one busy half-hour at the start of a window', async () => {
     const early = usageFrom({ startedAt: NOW, context: { window: 200_000 }, rateLimits: [{ kind: 'five_hour', percentUsed: 11, resetsAt: new Date(NOW + 4.5 * H).toISOString() }] })
     expect(plain(rows({ git: null, usage: early, model: '', cwd: '', now: NOW, columns: 120 }))).not.toContain('cap')
+  })
+  test('the permission mode leads row 2, read live off the hint', async () => {
+    expect(modeFromHint('⏵⏵ bypass permissions on (shift+tab to cycle)')).toBe('bypassPermissions')
+    expect(modeFromHint('⏵⏵ accept edits on (shift+tab to cycle)')).toBe('acceptEdits')
+    expect(modeFromHint('⏸ plan mode on (shift+tab to cycle)')).toBe('plan')
+    expect(modeFromHint('? for shortcuts')).toBe('default')
+    expect(modeFromHint('esc to interrupt')).toBe(null)
+    const place = rows({ git: g, usage: u, model: '', cwd: '', now: NOW, columns: 120, mode: 'bypassPermissions' })[1]!
+    expect(place[0]!.key).toBe('mode')
+    expect(place[0]!.bg).toBe(MODES.bypassPermissions.bg)
+    expect(fit(place, 10)[0]!.key).toBe('mode')
+  })
+  test('blocks re-shade after one drops, so neighbours still differ', async () => {
+    const place = at(120)[1]!
+    const kept = shade(place.filter(b => b.key !== 'model'), 1)
+    for (let i = 1; i < kept.length; i++) expect(kept[i]!.bg).not.toBe(kept[i - 1]!.bg)
+  })
+  test('the statusLine JSON reads into the same rows', async () => {
+    const s = fromStatusInput({
+      session_id: 'abc', transcript_path: 'C:/Users/j/.claude/projects/Q--x/abc.jsonl', cwd: 'Q:/x',
+      model: { id: 'claude-opus-5-5' }, effort: { level: 'medium' },
+      cost: { total_cost_usd: 1.234, total_duration_ms: 47 * 60_000 },
+      context_window: { context_window_size: 200_000, used_percentage: 42, current_usage: { input_tokens: 4_000, cache_read_input_tokens: 80_000 } },
+      rate_limits: { five_hour: { used_percentage: 37, resets_at: (NOW + 2 * H) / 1000 } },
+    }, NOW)
+    expect(s.usage.ctxTokens).toBe(84_000)
+    expect(s.usage.limits[0]).toEqual({ kind: 'five_hour', pct: 37, resetsAt: NOW + 2 * H })
+    expect(s.effort).toBe('medium')
+    expect(modeFile(s.transcriptPath, s.sessionId)).toBe('C:/Users/j/.claude/flu-statusline/mode-abc')
+    const out = ansi(rows({ git: g, usage: s.usage, model: s.model, cwd: s.cwd, now: NOW, columns: 120, effort: s.effort }), 120)
+    const text = out.replace(/\x1b\[[0-9;]*m/g, '')
+    expect(text.split('\n').length).toBe(2)
+    expect(text).toContain('Opus 5.5 · medium')
+    expect(text).toContain('47m $1.23')
   })
   test('neighbouring blocks never share a background', async () => {
     for (const row of at(120)) for (let i = 1; i < row.length; i++) expect(row[i]!.bg).not.toBe(row[i - 1]!.bg)
