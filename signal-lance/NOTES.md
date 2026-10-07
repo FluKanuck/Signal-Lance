@@ -1559,7 +1559,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round20 debrief 1 (r20-s2) | weakest moment: Jamie: "scan time felt limited, need it to be more obvious when picking a job about time
            available for scanning"; narrowed: "Missed it on the job card". Symptom (confirmed): he didn't notice a job had a deadline
            until he was already scanning | the job card's top line starts with a tag: SCAN WINDOW N MIN (amber) or NO TIME LIMIT
-           (green); the old last-line DEADLINE goes (view only, no TUNE). BUILD r20-s3 | -
+           (green); the old last-line DEADLINE goes (view only, no TUNE). BUILD r20-s3 | helped (debrief 2)
    round20 fix list 5 (Jamie: "a ship height function, you can set you altitude whick changes the functionality of the scans" → "do a
            high mid low alts") | NEW SCAN_ALT HIGH RING 1.6 / SPEED radar 0.7 thermal 0.4 EM 0.8 / UNC 1.5 / LOUD 0.6; MID all 1;
            LOW RING 0.6 / SPEED radar 1.4 thermal 1.8 EM 1.2 / UNC 0.7 / LOUD 1.6. BUILD r20-s3 | -
+   round20 debrief 2 (r20-s3) | job-card tag rated "helped"; weakest moment: "It felt fine"; job type changed how he scanned: "A little"
+           (debrief focus 2) | no change | -
