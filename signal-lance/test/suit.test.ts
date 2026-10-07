@@ -283,3 +283,18 @@ describe('R18 fix list 11-13', () => {
     expect(Object.keys(c.by.EYES).sort()).toEqual(['A', 'B']);
   });
 });
+
+describe('R18 fix list 17: a thermal look that finds no heat', () => {
+  it('a suit with Thermal optics looking at a cold contact past its heat range marks it (contact + trait)', async () => {
+    const { observe, updateSensors } = await import('../src/sim/sensors.ts'); const { traitLines, obsOf } = await import('../src/sim/ids.ts');
+    startScenario(scenarioByName('Warm core'));
+    const A = G.lance[0], u = G.units[0]; // the sentry turret 16 tiles down the street, cold: IR 3 → seen at 7.5 tiles
+    A.items.push({ item: byId(ITEMS, 'thermal'), loc: 'MAST' }); A.irBase = 0;
+    const c = observe(G.pc, u.id, u.x, u.y, 2 * T, 0, 0, true, true, false, 'PASSIVE');
+    updateSensors(0);
+    expect(c.irNone).toBeDefined();
+    const d = Math.hypot(u.x - A.x, u.y - A.y) / T;
+    expect(obsOf(u.id).irNone).toBeCloseTo(d, 0);
+    expect(traitLines(obsOf(u.id)).some((l: string) => l.startsWith('no heat at'))).toBe(true);
+  });
+});

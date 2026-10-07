@@ -61,7 +61,7 @@ function soundRing(x, y, r, z, alpha, label?) {
 // MZL muzzle flash, LINK a shared (datalink) track. The suit letters after it = which of your suits made that fix lately.
 const TAGS = { EYES: 'EO', RADAR: 'RDR', PASSIVE: 'ESM', THERMAL: 'IR', SOUND: 'ACO', FLASH: 'MZL', ALARM: 'LINK', GHOST: 'GHOST' };
 const TAG_ORDER = ['EYES', 'RADAR', 'THERMAL', 'PASSIVE', 'FLASH', 'SOUND', 'ALARM', 'GHOST'];
-export function sensorTags(c): { t: string; win: boolean; noise: boolean }[] {
+export function sensorTags(c): { t: string; win: boolean; noise: boolean; none?: boolean }[] {
   const seen = c.seen || {}, out = [];
   for (const s of TAG_ORDER) {
     const win = s === c.src;
@@ -70,6 +70,7 @@ export function sensorTags(c): { t: string; win: boolean; noise: boolean }[] {
     out.push({ t: TAGS[s] + (who ? ' ' + who : '') + (win && s === 'RADAR' && c.walls ? ' ' + c.walls + 'W' : ''), win, noise: win && c.noisy && (c.q || 0) < 0.5 }); // noise = amber dashed outline, not a word
   }
   out.sort((a, b) => (b.win ? 1 : 0) - (a.win ? 1 : 0)); // the winning sense on top
+  if (c.irNone !== undefined && G.time - c.irNone <= TUNE.TAG_KEEP && !out.some(g => g.t.startsWith('IR'))) out.push({ t: 'IR', win: false, noise: false, none: true }); // R18 fix list 17: looked, no heat
   return out;
 }
 // R18 fix list 5: lay the labels out top to bottom; one that would overlap a label already placed moves down past it, and a
@@ -94,9 +95,10 @@ function drawLabels(labels, z) {
     ctx.globalAlpha = L.a * (L.old ? 0.55 : 1); // a stale track's tags dim
     ctx.font = 'bold ' + (10 / z) + 'px monospace'; ctx.lineWidth = 1.5 / z;
     L.tags.forEach((g, i) => {
-      const ty = y0 + 1 / z + i * th, col = g.win ? '#fc3' : '#3dd';
+      const ty = y0 + 1 / z + i * th, col = g.win ? '#fc3' : g.none ? '#6a7684' : '#3dd'; // none = grey, struck through
       if (g.win) { ctx.fillStyle = 'rgba(255,204,51,0.22)'; ctx.fillRect(x0, ty, tw, 12 / z); }
       ctx.strokeStyle = ctx.fillStyle = col; ctx.strokeRect(x0, ty, tw, 12 / z); ctx.fillText(g.t, x0 + 3 / z, ty + 9.5 / z);
+      if (g.none) { ctx.beginPath(); ctx.moveTo(x0, ty + 12 / z); ctx.lineTo(x0 + tw, ty); ctx.stroke(); }
       if (g.noise) { ctx.strokeStyle = '#e0a040'; ctx.setLineDash([3 / z, 2 / z]); ctx.strokeRect(x0 - 2 / z, ty - 2 / z, tw + 4 / z, 16 / z); ctx.setLineDash([]); } // R18: NOISE still blurring this fix
     });
     ctx.globalAlpha = L.a;
@@ -421,7 +423,7 @@ export function render() {
   }
   // contacts (red = tracked now, orange = lost/fading). R18 fix list 5: labels are collected here and laid out afterwards, so
   // contacts close together stack their labels instead of printing on top of each other.
-  const labels: { c: any; x: number; y: number; a: number; lines: { t: string; col: string; font: string; h: number }[]; tags: { t: string; win: boolean; noise: boolean }[]; old: boolean }[] = [];
+  const labels: { c: any; x: number; y: number; a: number; lines: { t: string; col: string; font: string; h: number }[]; tags: { t: string; win: boolean; noise: boolean; none?: boolean }[]; old: boolean }[] = [];
   for (const c of G.pc) {
     if (!c.on) continue;
     const lost = c.lost > c.gap, a = 1 - Math.max(0, c.lost - c.gap) / TUNE.CONTACT_LINGER, x = cx(c), y = cy(c);

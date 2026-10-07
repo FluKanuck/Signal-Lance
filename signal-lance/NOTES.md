@@ -1393,4 +1393,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            the outline stays, ODDS keeps the number). 15: NEW BUILD acts on pointerdown. 16: NOISE no longer moves a fix's
            centre (no re-rolled offset), it only widens the circle (by 1 − trust); a passive fix is taken whole (it is already
            the best fit of every live bearing). Runner 60 contracts: hunt wins 54% (s10 52%). BUILD r18-s11 | -
+   round18 fix list 17 (Jamie: "on a contact marked by other things … not seeing it with thermal … would also possibly indicate a
+           variant") | a suit with Thermal optics that has the contact in its sight cone and line of sight within IR_RANGE but
+           reads no heat marks it: c.irNone (a grey struck IR tag for TAG_KEEP) and obs.irNone = the nearest such range ("no
+           heat at Nt (IR under N ÷ IR_TILES_PER_PT)"). No variant runs cold yet, so it doesn't narrow the CARD: a cold
+           (thermally shielded) variant is new content for the design lead. BUILD r18-s12 | -
 ```

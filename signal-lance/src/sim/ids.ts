@@ -44,6 +44,7 @@ export function traitLines(o) {
   if (o.step) L.push('steps heard at ' + Math.round(o.step * 10) / 10 + ' (' + stepBand(o.step) + ')');
   if (o.shot) L.push('shot heard at ' + Math.round(o.shot * 10) / 10 + ' (' + shotBand(o.shot) + ')');
   else if (o.fired) L.push('fired');
+  if (o.irNone) L.push('no heat at ' + Math.round(o.irNone) + 't (IR under ' + (o.irNone / TUNE.IR_TILES_PER_PT).toFixed(1) + ')'); // R18 fix list 17
   return L;
 }
 

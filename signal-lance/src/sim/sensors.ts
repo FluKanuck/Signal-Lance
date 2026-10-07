@@ -8,7 +8,7 @@ import { eyesRange } from './combat.ts';
 import { hearSounds } from './sound.ts';
 import { has, radarOf, readsIR, irRange } from './kit.ts';
 import { raiseAlarm } from './pack.ts';
-import { noteEmit, notePulse, noteMoved, noteFired, reveal, emitBand, frozen } from './ids.ts';
+import { noteEmit, notePulse, noteMoved, noteFired, reveal, emitBand, frozen, obsOf } from './ids.ts';
 import { isMech } from './state.ts';
 
 // ============================ SIGNATURE / DETECTION ===================
@@ -203,6 +203,12 @@ export function updateSensors(dt) {
     for (const p of mechs) {
       if (canSee(p, e, eyesRange(p))) { const c = observe(G.pc, e.id, e.x, e.y, TUNE.UNC_EYES * T, e.fx * v, e.fy * v, true, false, true, 'EYES', 0, p.id); if (c) reveal(e, c); } // R7 run1: eyes identify the type; R14: and the variant
       else if (irSees(p, e)) observe(G.pc, e.id, e.x, e.y, TUNE.IR_UNC * T, e.fx * v, e.fy * v, true, true, true, 'THERMAL', 0, p.id); // R18 cp3: a heat blob (no ID)
+      // R18 fix list 17 (Jamie: "show … it is not seeing it with thermal"): a thermal sight with the contact in its view that reads
+      // no heat is a reading too: it is colder than this range shows (the nearest such look is the tightest bound)
+      if (readsIR(p) && !irSees(p, e) && canSee(p, e, TUNE.IR_RANGE)) {
+        const c = G.pc.find(c => c.on && c.id === e.id);
+        if (c) { const d = Math.hypot(e.x - p.x, e.y - p.y) / T; c.irNone = G.time; const o = obsOf(e.id); o.irNone = o.irNone ? Math.min(o.irNone, d) : d; }
+      }
       else if (p.radarOn) radarFix(p, e, G.pc, e.id, e.pjit, e.fx * v, e.fy * v, dt);
       if (p.tick) {
         const s = emitting(e) ? sig(e) : 0;
