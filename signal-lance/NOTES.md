@@ -1330,4 +1330,12 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            first on IR in 5-7 of 62-119 hunts at 12-16 tiles (Cold-burn: 0-2), but wins by reactor are still equal (52% /
            52%): a turret that sees heat early can't shoot past 12 (20 for a sniper, which needs the lock) and can't move.
            BUILD r18-s3 | -
+   round18 debrief 1 (r18-s3) | Jamie (Heavy load): "I didn't really notice the weight as i was passed the mouth entrance
+           before it had a chance to shoot me"; "just not a telling test of the system"; confirmed: the scenario can't show
+           what weight costs. "it'll need a game to show what that weight carries. It should carry not only sound, but also
+           either, less distance travelled, or more energy cost to move, even creep" | SPEC CHANGE (go): NEW
+           OVERLOAD_EN_PER_TILE 0 → 0.5 (Energy per tile per point over rated, every mode incl. CREEP; ties weight to the
+           reactor). Templates are under rated, so the sweep is unchanged (bulwark 79%). Overloaded Warden (17/14, +1.5 EN a
+           tile), 40 contracts: walking 22/40 complete either way (the scripted walk never runs dry); sprinting every move
+           22 → 18. BUILD r18-s4 | -
 ```

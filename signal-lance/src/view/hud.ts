@@ -116,7 +116,7 @@ export function syncButtons() {
     const lab = { CREEP: 'CREEP', NORMAL: 'NORM', SPRINT: 'SPRINT' }[m];
     const lame = m !== 'CREEP' && partHurt(p, 'LEGS'); // R13: a leg gone locks NORM and SPRINT
     const cargo = m === 'SPRINT' && TUNE.RETRIEVE_NO_SPRINT && isCarrier(p); // R15: the carrier can't sprint
-    setBtn(id, lab, lame ? 'LEGS' : cargo ? 'CARGO' : TUNE.MOVE_TILES_PER_AP[m] + 't/AP ' + TUNE.MOVE_ENERGY_PER_TILE[m] + 'EN · snd ' + TUNE.SOUND_RANGE[m], free && !lame && !cargo, G.pmode === m); // R13: the sound it makes
+    setBtn(id, lab, lame ? 'LEGS' : cargo ? 'CARGO' : TUNE.MOVE_TILES_PER_AP[m] + 't/AP ' + (TUNE.MOVE_ENERGY_PER_TILE[m] + (p.over ? p.over.en || 0 : 0)) + 'EN · snd ' + (TUNE.SOUND_RANGE[m] + (p.over ? p.over.snd : 0)), free && !lame && !cargo, G.pmode === m); // R13: the sound it makes
   }
   const pl = G.plan;
   if (V.faceArm) setBtn('bMove', 'CANCEL', 'face', free, true);

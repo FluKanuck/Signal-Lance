@@ -390,6 +390,7 @@ export const TUNE = {
   REAR_ARC: true,          // A5: a gun shot from outside the target's front arc rolls BACK in place of WEAPON (ARMS). Both sides
   FRONT_ARC_HALF: 90,      // degrees either side of the target's facing that count as its front (90 = the front half)
   OVERLOAD_SND_PER_PT: 1,  // A7: + this Sound (tiles) on every move per load point over the frame's rated load (toy placeholder)
+  OVERLOAD_EN_PER_TILE: 0.5, // R18 debrief 1 (Jamie: weight "should carry not only sound, but also … more energy cost to move, even creep"): + this Energy per tile moved, per load point over rated, every mode (was 0)
   OVERLOAD_AP_FRAC: 0.5,   // A7: past this fraction of the way from rated to max load, every move costs +1 AP (toy placeholder)
   SIG_EM_PER_PT: 0.5,      // A8: standing EM signature per point of the fit's always-on EM emit + EM visibility (Warden 3 → 1.5 = the R17 default)
   HANGAR_FRAMES: ['wisp', 'warden', 'bulwark'], // A10: the cheap-test set, the only things the in-game hangar offers (build-toy.html keeps them all)

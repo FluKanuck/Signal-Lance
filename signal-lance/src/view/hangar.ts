@@ -64,7 +64,7 @@ function readout() {
   const mv = (m: string) => TUNE.SOUND_RANGE[m] + S.over.snd;
   const lines = [
     '<div><b>LOAD</b> ' + bar(S.load, S.max, S.load > S.max ? 'bad' : over ? 'warn' : '') + ' ' + S.load + ' / ' + S.rated + ' <small>(max ' + S.max + ')</small>' +
-      (over ? '<br><small class="warnt">overload ' + (S.load - S.rated) + ': +' + S.over.snd + ' sound per move' + (S.over.ap ? ', +' + S.over.ap + ' AP per move' : '') + '</small>' : ''),
+      (over ? '<br><small class="warnt">overload ' + (S.load - S.rated) + ': +' + S.over.snd + ' sound per move, +' + S.over.en + ' EN per tile (creep too)' + (S.over.ap ? ', +' + S.over.ap + ' AP per move' : '') + '</small>' : ''),
     '<div><b>POWER</b> ' + (S.regen >= 0 ? '+' : '') + S.regen + '/turn <small>(out ' + S.totals.output + ' − draw ' + S.totals.draw + ')</small> · pool ' + S.pool + '</div>',
     '<div><b>EM</b> ' + bar(S.emBase, 3, 'em') + ' ' + S.emBase.toFixed(1) + ' <small>passive hears you ~' + Math.round(heardAt(S.emBase)) + 't once you emit</small>' +
       (radar ? '<br><small>radar pulse: +' + Math.round(radarEmit(f)) + ' EMIT, ' + radar.ap + ' AP ' + radar.en + ' EN</small>' : '') + '</div>',

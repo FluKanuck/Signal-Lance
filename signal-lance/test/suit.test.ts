@@ -66,16 +66,18 @@ describe('A6: power', () => {
 
 describe('A7: weight', () => {
   it('overload adds Sound first, then AP past OVERLOAD_AP_FRAC of the band', () => {
-    expect(overloadPenalty(14, 14, 18)).toEqual({ moveAP: 0, servoSnd: 0 });
-    expect(overloadPenalty(15, 14, 18)).toEqual({ moveAP: 0, servoSnd: TUNE.OVERLOAD_SND_PER_PT });
-    expect(overloadPenalty(17, 14, 18)).toEqual({ moveAP: 1, servoSnd: 3 * TUNE.OVERLOAD_SND_PER_PT });
+    expect(overloadPenalty(14, 14, 18)).toEqual({ moveAP: 0, servoSnd: 0, moveEN: 0 });
+    expect(overloadPenalty(15, 14, 18)).toEqual({ moveAP: 0, servoSnd: TUNE.OVERLOAD_SND_PER_PT, moveEN: TUNE.OVERLOAD_EN_PER_TILE });
+    expect(overloadPenalty(17, 14, 18)).toEqual({ moveAP: 1, servoSnd: 3 * TUNE.OVERLOAD_SND_PER_PT, moveEN: 3 * TUNE.OVERLOAD_EN_PER_TILE });
   });
   it('an overloaded suit\'s moves are louder and cost the extra AP', () => {
     startScenario(scenarioByName('Heavy load'));
-    const A = G.lance[0]; expect(A.over).toEqual({ ap: 0, snd: 2 });
+    const A = G.lance[0]; expect(A.over).toEqual({ ap: 0, snd: 2, en: 2 * TUNE.OVERLOAD_EN_PER_TILE });
     A.ap = 4; const pl = planMove(A, A.x + 6 * T, A.y, 'NORMAL');
     expect(pl.snd).toBe(TUNE.SOUND_RANGE.NORMAL + 2);
-    A.over = { ap: 1, snd: 3 }; const p2 = planMove(A, A.x + 30 * T, A.y, 'NORMAL');
+    expect(pl.en).toBe(Math.ceil(pl.len * (TUNE.MOVE_ENERGY_PER_TILE.NORMAL + A.over.en) - 1e-6)); // R18 debrief 1: every tile costs more
+    A.en = 100; const pc = planMove(A, A.x + 4 * T, A.y, 'CREEP'); expect(pc.en).toBeGreaterThan(0); // even creeping
+    A.over = { ap: 1, snd: 3, en: 0 }; const p2 = planMove(A, A.x + 30 * T, A.y, 'NORMAL');
     expect(p2.ap).toBe(4); expect(p2.len).toBeLessThanOrEqual(3 * TUNE.MOVE_TILES_PER_AP.NORMAL + 1e-6);
   });
 });

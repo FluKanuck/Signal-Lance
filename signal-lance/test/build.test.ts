@@ -86,8 +86,8 @@ describe('building toy: stealth', () => {
   });
 
   it('overload placeholder: Sound from the first point, AP past halfway', () => {
-    expect(overloadPenalty(14, 14, 18)).toEqual({ moveAP: 0, servoSnd: 0 });
-    expect(overloadPenalty(15, 14, 18)).toEqual({ moveAP: 0, servoSnd: 1 });
-    expect(overloadPenalty(17, 14, 18)).toEqual({ moveAP: 1, servoSnd: 3 });
+    expect(overloadPenalty(14, 14, 18)).toEqual({ moveAP: 0, servoSnd: 0, moveEN: 0 });
+    expect(overloadPenalty(15, 14, 18)).toEqual({ moveAP: 0, servoSnd: 1, moveEN: 0.5 });
+    expect(overloadPenalty(17, 14, 18)).toEqual({ moveAP: 1, servoSnd: 3, moveEN: 1.5 }); // R18 debrief 1: + Energy per tile
   });
 });

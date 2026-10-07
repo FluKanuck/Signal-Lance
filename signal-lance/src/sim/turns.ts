@@ -257,7 +257,7 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
   if (mode !== 'CREEP' && partHurt(m, 'LEGS')) return { full, path: null, len: 0, ap: 0, en: 0, cut: true, why: 'LEGS', mode }; // R13: a leg gone = CREEP only
   if (mode === 'SPRINT' && TUNE.RETRIEVE_NO_SPRINT && isCarrier(m)) return { full, path: null, len: 0, ap: 0, en: 0, cut: true, why: 'CARGO', mode }; // R15: the carrier can't sprint
   const lame = partGone(m, 'LEGS') ? TUNE.LEGS_GONE_MULT : 1; // R13: both legs gone = half a creep
-  const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
+  const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode] + (m.over ? m.over.en || 0 : 0); // R18 debrief 1: overload costs Energy per tile, every mode
   apMax = Math.min(m.ap, apMax === undefined ? m.ap : apMax); enMax = Math.min(m.en, enMax === undefined ? m.en : enMax);
   const oAP = m.over ? m.over.ap : 0, oSnd = m.over ? m.over.snd : 0; // R18 (A7): overload: +AP and +Sound on every move
   const fullLen = pathCost(full), apLen = Math.max(0, apMax - oAP) * tpa, enLen = ept > 0 ? enMax / ept : 1e9; // R16: tiles of movement (clutter costs CLUTTER_TILE_COST each)
@@ -348,7 +348,7 @@ export function planDrawn(m, pts: { x: number; y: number }[], mode, wps: any[] =
   if (mode !== 'CREEP' && partHurt(m, 'LEGS')) return { ...base, why: 'LEGS' };
   if (mode === 'SPRINT' && TUNE.RETRIEVE_NO_SPRINT && isCarrier(m)) return { ...base, why: 'CARGO' };
   const lame = partGone(m, 'LEGS') ? TUNE.LEGS_GONE_MULT : 1;
-  const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode];
+  const tpa = TUNE.MOVE_TILES_PER_AP[mode] * lame, ept = TUNE.MOVE_ENERGY_PER_TILE[mode] + (m.over ? m.over.en || 0 : 0); // R18 debrief 1: overload costs Energy per tile, every mode
   const cum = [0]; for (let i = 1; i < full.length; i++) cum.push(cum[i - 1] + segCost(full[i - 1], full[i]));
   const fullLen = cum[cum.length - 1], free = m.freeTurns || 0, WI = W8.filter(w => w.i > 0);
   const oAP = m.over ? m.over.ap : 0, oSnd = m.over ? m.over.snd : 0; // R18 (A7): overload

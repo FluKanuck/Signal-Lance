@@ -54,7 +54,7 @@ export function fitPool(fit: Fit) { return TUNE.ENERGY_BASE + kitOf(fit).reduce(
 // emBase = the standing EM signature (always-on emit + visibility, × SIG_EM_PER_PT; skins absorb their location's share).
 export function fitStats(fit: Fit) {
   const t = totals(fit), em = t.sig.EM;
-  return { regen: t.net, pool: t.pool, load: t.load, rated: t.rated, max: t.max, over: { ap: t.penalty.moveAP, snd: t.penalty.servoSnd },
+  return { regen: t.net, pool: t.pool, load: t.load, rated: t.rated, max: t.max, over: { ap: t.penalty.moveAP, snd: t.penalty.servoSnd, en: t.penalty.moveEN },
     emBase: (em.e - em.u + em.v) * TUNE.SIG_EM_PER_PT, problems: t.problems, totals: t,
     irBase: t.sig.IR.e - t.sig.IR.u + t.sig.IR.v + frameOf(fit).vis.VIS * TUNE.IR_SIZE_PER_VIS }; // R18 cp3: steady heat (reactor + size)
 }

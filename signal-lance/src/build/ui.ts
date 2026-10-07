@@ -93,7 +93,7 @@ function render() {
   const loadPct = (n: number) => Math.min(100, n / t.max * 100);
   const ratedMark = loadPct(t.rated);
   const pen = !over ? 'within rated load'
-    : `overload (placeholder): +${fmt(t.penalty.moveAP)} AP/move, +${fmt(t.penalty.servoSnd)} SND/move`;
+    : `overload (placeholder): +${fmt(t.penalty.moveAP)} AP/move, +${fmt(t.penalty.servoSnd)} SND/move, +${fmt(t.penalty.moveEN)} EN/tile`;
   const scale = Math.max(16, ...CHS.map(c => t.sig[c].e + t.sig[c].v));
   const stealthFitted = LOCS.some(l => itemsIn(b, l).some(it => it.stealth));
   $('read').innerHTML =

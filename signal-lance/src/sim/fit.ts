@@ -86,12 +86,12 @@ export function unmount(b: Build, loc: Loc, idx: number): Build {
  * extra AP per move and extra servo Sound (construction doc, "Weight" row). Over max can't launch.
  * TODO(Jamie): the shape of this penalty is a design call — see the chat.
  */
-export function overloadPenalty(load: number, rated: number, max: number): { moveAP: number; servoSnd: number } {
+export function overloadPenalty(load: number, rated: number, max: number): { moveAP: number; servoSnd: number; moveEN: number } {
   // PLACEHOLDER shape (Jamie to tune): Sound first, AP later. A little heavy = louder; very heavy = slower too.
   // Each point over rated: +OVERLOAD_SND_PER_PT servo Sound per move. Past OVERLOAD_AP_FRAC of the way to max: +1 AP per move.
   const over = load - rated;
-  if (over <= 0) return { moveAP: 0, servoSnd: 0 };
-  return { moveAP: over > (max - rated) * TUNE.OVERLOAD_AP_FRAC ? 1 : 0, servoSnd: over * TUNE.OVERLOAD_SND_PER_PT };
+  if (over <= 0) return { moveAP: 0, servoSnd: 0, moveEN: 0 };
+  return { moveAP: over > (max - rated) * TUNE.OVERLOAD_AP_FRAC ? 1 : 0, servoSnd: over * TUNE.OVERLOAD_SND_PER_PT, moveEN: over * TUNE.OVERLOAD_EN_PER_TILE }; // R18 debrief 1: + Energy per tile
 }
 
 // ── Totals ───────────────────────────────────────────────────────────────────────────────────
@@ -99,7 +99,7 @@ export function overloadPenalty(load: number, rated: number, max: number): { mov
 export interface ChTotal { e: number; u: number; v: number; loudest: Loc | null }
 type LocCh = { e: number; u: number; v: number };
 export interface Totals {
-  load: number; rated: number; max: number; penalty: { moveAP: number; servoSnd: number };
+  load: number; rated: number; max: number; penalty: { moveAP: number; servoSnd: number; moveEN: number };
   output: number; draw: number; net: number; pool: number;
   sig: Record<Ch, ChTotal>;
   locSig: Record<Loc, Record<Ch, LocCh>>;
@@ -185,7 +185,7 @@ export function totals(b: Build): Totals {
   }
 
   const rated = f.rated + ratedAdd, max = f.max + ch.rated;
-  const penalty = load > rated ? overloadPenalty(load, rated, max) : { moveAP: 0, servoSnd: 0 };
+  const penalty = load > rated ? overloadPenalty(load, rated, max) : { moveAP: 0, servoSnd: 0, moveEN: 0 };
   locSig.LEGS.SND.e += penalty.servoSnd; locSig.LEGS.SND.u += penalty.servoSnd; // per move, heard from the legs
 
   const sig = Object.fromEntries(CHS.map(c => {
