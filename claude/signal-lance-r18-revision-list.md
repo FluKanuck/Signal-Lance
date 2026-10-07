@@ -12,6 +12,7 @@
 | 4 | "close button still not working" (iPad) | fixed r18-s7: the sheet acts on the touch itself; NEW BUILD reload button for stale pages |
 | 5 | Overlapping contact labels: two contacts close together (here a TURRET sentry and an unknown emplacement in the NOISE yard) print their labels and trait lines on top of each other, so neither reads. Jamie: "Yes add it" | to fix |
 | 6 | Show which sensor holds each track's current fix. Jamie: "we almost need graphic beside on the track saying what sensor are responsible for its current fix". Seen after a radar pulse through the container stack (walls) left the emplacement's circle big with nothing saying why (through-wall radar is fuzzy and only shrinks while tracked) | to fix |
+| 7 | Shared-cover rule joins the wrong things. Jamie: "Cover needs tweaking with how it decide what cover is tied to what cover. In this the debris should count for cover, as the grey and brown parts of the terrain are not shared cover, and also, my position in the tile should preclude me from being next to it." Seen: A shooting the turret behind 2 debris tiles got "no cover" because the cover piece flood-filled from the debris into the building block (walls + clutter join as one piece, COVER_ITEM_RADIUS 3), and A stood next to that building. Fix: a piece = joined tiles of the same kind only (walls with walls, debris with debris), and "next to" measured from where the suit actually stands | to fix |
 
 ## Agent notes (not on the fix list unless Jamie adds them)
 ### From Jamie's play
