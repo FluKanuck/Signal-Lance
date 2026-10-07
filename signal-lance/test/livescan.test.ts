@@ -267,3 +267,32 @@ describe('altitude (R20 fix list 5)', () => {
     expect(decodeCmds(encodeCmds(G.scan.cmds))).toEqual(G.scan.cmds); // 'H' round-trips in the log word
   });
 });
+
+describe('the scan log (R20 cp3)', () => {
+  it('a stretch per set-up: a new sensor or area starts one, a drag inside an area or a pause-resume does not', async () => {
+    const { scanLog, stretchText, areaName } = await import('../src/sim/livescan.ts');
+    job(111, 'Mixed', 'UPLINK', QUIET);
+    const a = G.scan.aims.RADAR; run(2); scanCmd('G');
+    for (let i = 0; i < 4; i++) { scanStep(); aim('RADAR', a.x + (i % 2), a.y); } // a wiggle inside one area
+    scanCmd('S'); run(1); // pause, resume unchanged
+    scanCmd('T', 1); run(2); only(); run(1); wide('THERMAL');
+    const L = G.scan.log.slice(); scanLog(G.scan);
+    expect(G.scan.log.length).toBe(3); // radar · radar + thermal · waiting
+    expect(G.scan.log[0].t1 - G.scan.log[0].t0).toBeCloseTo(4);
+    expect(G.scan.log[0].what).toBe('RADAR on ' + areaName(a) + ' · alt MID');
+    expect(G.scan.log[1].what).toMatch(/^RADAR on .* \+ THERMAL on .* · alt MID$/);
+    expect(G.scan.log[2].what).toMatch(/^waiting/);
+    expect(stretchText(G.scan.log[0])).toMatch(/^4 min RADAR on .*: .*risk \+4\.0/);
+    void L;
+  });
+  it('the result report ends with what the drop rolled', async () => {
+    const { scanReport } = await import('../src/sim/scan.ts');
+    job(112, 'Fortified', 'UPLINK', { SCAN_DEADLINE_CHANCE: 0, SCAN_RISK_PAINT: [0, 1], SCAN_RISK_ALERT: [0, 0.5], SCAN_RISK_EXTRA: [0], SCAN_ARRIVE_PER_MIN: 0 });
+    wide('RADAR'); run(TUNE.SCAN_RISK_STEPS[0] + 0.5);
+    newHunt([{ ...LOAD_A }, { ...LOAD }]);
+    const R = scanReport(); expect(R.length).toBe(2);
+    expect(R[0]).toMatch(/RADAR full map · alt MID: \+\d+ pings/);
+    expect(R[1]).toMatch(/^Drop at 3\.5 min, risk 3\.5 = step 1: \d+ of \d+ awake, the ship was PAINTED/);
+    job(113, undefined, 'UPLINK', QUIET); newHunt([{ ...LOAD_A }, { ...LOAD }]); expect(scanReport()[0]).toMatch(/No scan/);
+  });
+});

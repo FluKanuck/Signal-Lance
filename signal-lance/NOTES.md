@@ -1020,6 +1020,15 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Altitude (fix 5, r20-s3; Jamie: "do a high mid low alts"): S.alt, command 'H' 0/1/2. SCAN_ALT per height: RING scales both
      radii, SPEED multiplies dwell per sensor (FULL MAP too), UNC multiplies the fuzz of a new fix (an old fix keeps its own), LOUD
      multiplies risk; cooling is the same at every height. Zones and drop zones gather at the same speed as units. Default MID.
+   - Scan log (cp3, r20-s4): a stretch = the clock running with one set-up: the sensors on, where each looks (FULL MAP, or the
+     map area its ring is in: the map cut 3 × 3 into NW … SE, the brief's "named block", simplest), and the altitude. A new set-up
+     starts a stretch; a drag inside one area doesn't; a pause ends one and resuming unchanged carries it on; waiting (no sensor on)
+     is its own stretch. Each line: minutes, set-up, what came back (pings, heat blobs, EM fixes, emitters heard, zone outlines /
+     types, drop zones), risk added, units that joined. Then one drop line. Result screen ("THE SCAN"), test-bed result, and the
+     log as [SCAN] lines after the hunt line.
+   - Runner presets (cp3): none, quiet (EM on the objective 8 min), fast (radar full map 2 min), mixed (radar full map 2 → thermal
+     on the objective 3 → EM there 5) as the brief, plus loud (all three on the full map 10 min) so the sweep shows the cost
+     ladder biting. Drop zone nearest the objective. --scansweep N runs all five on the same contract seeds.
    - Scenario "Loud and fast": the Where first job with "0W0.1_0G_11S" pre-run (radar full map 2.75 min: risk 2.75, step 1 at 3),
      deadlines off.
 ```
@@ -1565,3 +1574,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            LOW RING 0.6 / SPEED radar 1.4 thermal 1.8 EM 1.2 / UNC 0.7 / LOUD 1.6. BUILD r20-s3 | -
    round20 debrief 2 (r20-s3) | job-card tag rated "helped"; weakest moment: "It felt fine"; job type changed how he scanned: "A little"
            (debrief focus 2) | no change | -
+   round20 cp3 (r20-s4) | the scan log + runner presets (brief) | no TUNE changes. --scansweep 60 (hunt wins / contracts complete;
+           at the drop): none 52% 17 (0 min, risk 0); quiet 45% 9 (8 min, risk 0.4, window closed 7%); fast 57% 21 (2 min, risk 2.0);
+           mixed 47% 14 (9.8 min, risk 2.8, window closed 17%); loud 28% 2 (9.8 min, risk 12.2, step 3, painted 49%, 5.7 awake,
+           1.65 joined). None of the brief's four presets reaches step 1; the long ones lose to time (patrols walk, arrivals,
+           deadlines) since the scripted lance can't use the intel (#92). BUILD r20-s4 | -

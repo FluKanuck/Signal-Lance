@@ -47,7 +47,7 @@ export function liveInit(S, drops: { x: number; y: number }[]) {
     on: { RADAR: true, THERMAL: false, EM: false }, wide: { RADAR: false, THERMAL: false, EM: false },
     aims: { RADAR: { ...mid }, THERMAL: { ...mid }, EM: { ...mid } }, cmds: [] as Cmd[], u: {}, z: G.zones.map(() => ({ RADAR: 0, THERMAL: 0 })),
     dr: drops.map(() => 0), cov: { RADAR: new Array(W * H).fill(0), THERMAL: new Array(W * H).fill(0), EM: new Array(W * H).fill(0) },
-    alt: 'MID', risk: 0, radarRisk: 0, peak: 0, adds: [] as any[], deadline: jobDeadline(S.seed, S.mtype), over: false });
+    alt: 'MID', risk: 0, radarRisk: 0, peak: 0, log: [] as any[], cur: null, adds: [] as any[], deadline: jobDeadline(S.seed, S.mtype), over: false });
   for (const u of G.units) track(S, u);
 }
 function track(S, u) {
@@ -72,7 +72,7 @@ export function scanCmd(op: string, ...args: number[]) {
 function apply(S, op: string, a: number[]) {
   if (op === 'R' || op === 'T' || op === 'E') S.on[SENSORS['RTE'.indexOf(op)]] = !!a[0];
   else if (op === 'W') S.wide[SENSORS[a[0]]] = !!a[1];
-  else if (op === 'G') S.run = true; else if (op === 'S') S.run = false;
+  else if (op === 'G') S.run = true; else if (op === 'S') { S.run = false; closeStretch(S); }
   else if (op === 'a') S.aims[SENSORS[a[2]]] = { x: a[0], y: a[1] };
   else if (op === 'H') S.alt = ALTS[a[0]] || 'MID';
 }
@@ -124,6 +124,7 @@ export const stepVal = (arr: number[], k: number) => arr[Math.min(k, arr.length 
 export function scanStep() {
   const S = G.scan; if (!S || S.mode !== 'active' || !S.run) return;
   const dt = TUNE.SCAN_TICK, on = sensorsOn(S);
+  openStretch(S); // R20 cp3: the scan log
   S.tick++; S.t = S.tick * dt;
   walkAll(S, dt);
   const AL = altOf(S);
@@ -132,8 +133,43 @@ export function scanStep() {
   else S.risk = Math.max(0, S.risk - TUNE.SCAN_COOL * dt);
   if (TUNE.SCAN_COSTS) while (riskStep(S.risk) > S.peak) { S.peak++; if (rnd(S) < stepVal(TUNE.SCAN_RISK_EXTRA, S.peak)) arrive(S, 'called in', true); }
   if (TUNE.SCAN_COSTS && rnd(S) < TUNE.SCAN_ARRIVE_PER_MIN * dt) arrive(S, 'arrived', false);
-  if (S.deadline && S.t >= S.deadline - 1e-9) { S.run = false; S.over = true; S.cmds.push([S.tick, 'S']); }
+  if (S.deadline && S.t >= S.deadline - 1e-9) { S.run = false; S.over = true; S.cmds.push([S.tick, 'S']); closeStretch(S); }
 }
+
+// ============================ THE SCAN LOG (R20 cp3) ==================
+// One line per stretch: the clock running with the same set-up (the sensors on, where each looks: FULL MAP or the map area its
+// ring is in, the altitude). A new stretch starts when that set-up changes (dragging a ring inside one area doesn't); a pause
+// ends one; resuming unchanged carries it on. Each records its minutes, what came back and the risk it added.
+export function areaName(a: { x: number; y: number }) {
+  const c = a.x < W / 3 ? 0 : a.x < 2 * W / 3 ? 1 : 2, r = a.y < H / 3 ? 0 : a.y < 2 * H / 3 ? 1 : 2;
+  return [['NW', 'N', 'NE'], ['W', 'centre', 'E'], ['SW', 'S', 'SE']][r][c];
+}
+function setup(S) {
+  const on = sensorsOn(S);
+  const what = on.length ? on.map(s => s + (S.wide[s] ? ' full map' : ' on ' + areaName(S.aims[s]))).join(' + ') : 'waiting (no sensor on)';
+  return { key: on.map(s => s + (S.wide[s] ? '*' : areaName(S.aims[s]))).join('+') + '@' + S.alt, what: what + ' · alt ' + S.alt };
+}
+function openStretch(S) {
+  const k = setup(S);
+  if (S.cur && S.cur.key === k.key) return;
+  closeStretch(S);
+  const last = S.log[S.log.length - 1];
+  if (last && last.key === k.key && Math.abs(last.t1 - S.t) < 1e-9) { S.cur = S.log.pop(); return; } // resumed unchanged: carry on
+  S.cur = { ...k, t0: S.t, r0: S.risk, a0: S.adds.length, m0: liveSummary(S) };
+}
+function closeStretch(S) {
+  const c = S.cur; if (!c) return; S.cur = null;
+  if (S.t - c.t0 < 1e-9) return;
+  S.log.push({ ...c, t1: S.t, r1: S.risk, a1: S.adds.length, m1: liveSummary(S) });
+}
+// The log as plain lines (result screen, [SCAN] log lines)
+export function stretchText(L) {
+  const d = (k: string, w: string) => { const n = L.m1[k] - L.m0[k]; return n > 0 ? '+' + n + ' ' + w + (n > 1 && !/s$/.test(w) ? 's' : '') : ''; };
+  const got = [d('pings', 'ping'), d('heat', 'heat blob'), d('fixed', 'EM fix'), d('heard', 'emitter'), d('zones', 'zone outline'), d('typed', 'zone type'), d('drops', 'drop zone')].filter(Boolean);
+  const dr = L.r1 - L.r0, called = L.a1 - L.a0, m = Math.round((L.t1 - L.t0) * 4) / 4;
+  return m + ' min ' + L.what + ': ' + (got.length ? got.join(', ') : 'nothing new') + ' · risk ' + (dr >= 0 ? '+' : '') + dr.toFixed(1) + (called ? ' (' + called + ' unit' + (called > 1 ? 's' : '') + ' joined)' : '');
+}
+export function scanLog(S) { closeStretch(S); return (S.log || []).map(stretchText); }
 function gather(S, s: Sensor, k: number) {
   const cov = S.cov[s];
   for (let y = 0; y < H; y++) for (let x = 0; x < W; x++) { const a = aimStrength(S, x, y, s); if (a > 0) cov[y * W + x] += k * a; }
@@ -257,7 +293,7 @@ export function liveSummary(S) {
 // At the drop (applyScan): units the scan added come back (the field was rolled again), the patrols walk SCAN_DROP_DELAY
 // more and the field lands where the walk left it; every unit the ship has a fix on becomes a stale SHIP contact.
 export function liveLand() {
-  const S = G.scan;
+  const S = G.scan; closeStretch(S);
   for (const a of S.adds) if (!G.units.some(u => u.id === 'U' + a.n)) spawn(a);
   const L = { ...S, u: structuredClone(S.u) }; // walked on a copy: landing twice (RETRY) lands the same
   const dt = TUNE.SCAN_TICK; for (let t = 0; t < TUNE.SCAN_DROP_DELAY - 1e-9; t += dt) walkAll(L, dt);

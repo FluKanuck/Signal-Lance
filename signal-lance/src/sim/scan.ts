@@ -14,7 +14,7 @@ import { zoneAtTile } from './zones.ts';
 import { matchVariants } from './ids.ts';
 import { rand } from './rng.ts';
 import { has } from './kit.ts';
-import { liveInit, liveLand, dropClear, zoneLayer, liveSummary, emitter, riskStep, stepVal } from './livescan.ts';
+import { liveInit, liveLand, dropClear, zoneLayer, liveSummary, emitter, riskStep, stepVal, scanLog } from './livescan.ts';
 export { emitter };
 
 export const LISTEN = ['SKIP', 'SHORT', 'MEDIUM', 'LONG'];
@@ -186,6 +186,17 @@ function payCosts(lvl: number) {
   const rest = live.filter(u => !u.ambush), pick = live.filter(u => u.ambush).concat(n > C.ambush.length ? shuffle(rest) : rest); // an ambush is always awake; no roll when nobody else wakes
   for (const u of pick.slice(0, n)) alert(u);
   C.alert = pick.slice(0, n).map(u => u.id);
+}
+// R20 cp3: the scan log for the result screen and the [SCAN] log lines: a line per stretch, then what the drop rolled
+export function scanReport(): string[] {
+  const S = G.scan, C = G.scanCost; if (!S || S.mode !== 'active' || !C) return [];
+  const L = scanLog(S);
+  if (!L.length) L.push('No scan: dropped straight away.');
+  const joined = C.extra.length + C.arrived.length;
+  L.push('Drop at ' + Math.round(C.t * 4) / 4 + ' min' + (C.over ? ' (the window closed)' : '') + ', risk ' + C.risk.toFixed(1) + ' = step ' + C.step + ': ' +
+    (C.alert.length ? C.alert.length + ' of ' + G.units.length + ' awake' : 'nobody awake') + (C.painted ? ', the ship was PAINTED (' + C.ambush.length + ' patrols waiting near the drop)' : ', not painted') +
+    (joined ? '; the field grew by ' + joined + ' (' + C.extra.length + ' called in, ' + C.arrived.length + ' arrived)' : '') + '.');
+  return L;
 }
 export function scanAlertOn() { return !!G.scanCost && G.scanCost.alert.length > 0; } // the pack logic runs this hunt (pack.ts)
 // an alert unit: a shared fix on the drop zone (on both suits, fuzzy), facing it

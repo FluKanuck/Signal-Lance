@@ -23,6 +23,9 @@
 //   --json                             print one '@@SL {...}' line per contract as it finishes (the Signal Lance mod reads these)
 //   --listen 2 [--drop 2|auto]         R19: the ship listens at this level before every hunt (0 SKIP, 1 SHORT, 2 MEDIUM, 3 LONG) and
 //                                      lands on drop zone N (1 = west edge; only offered at 2+; auto = nearest the objective). Default: no listen (= SKIP)
+//   --scan quiet|fast|mixed|loud|none       R20: the live scan's preset before every hunt (quiet = EM on the objective 8 min; fast = radar
+//                                      full map 2 min; mixed = radar wide 2 → thermal on the objective 3 → EM there 5); drop nearest
+//   --scansweep 40                     R20: 40 contracts per preset: wins, risk / step / painted / joined at the drop, per mission
 //   --listensweep 40                   R19: 40 contracts at each listen level (drop auto): win rate per level and per mission, and what
 //                                      the listen cost on average (extra units, alert units, painted)
 import { TUNE } from '../src/tune.ts';
@@ -38,6 +41,18 @@ import { fromCode } from '../src/sim/fit.ts';
 import { CHANNEL } from '../src/sim/found.ts';
 import { ITEMS } from '../src/sim/items.ts';
 import { listen, chooseDrop, offeredDrops } from '../src/sim/scan.ts';
+import { replayScan, type Cmd } from '../src/sim/livescan.ts';
+// R20 cp3: the scripted lance's scan presets (ticks: 4 a ship-minute). The lance still can't read what the scan found (#92),
+// so these measure the costs (risk, painted, units joined) and the drop zone, not the intel.
+const PRESETS = ['none', 'quiet', 'fast', 'mixed', 'loud'];
+function presetCmds(p: string): Cmd[] {
+  const ux = Math.floor(G.up.x / 32), uy = Math.floor(G.up.y / 32);
+  if (p === 'quiet') return [[0, 'R', 0], [0, 'E', 1], [0, 'a', ux, uy, 2], [0, 'G'], [32, 'S']];           // EM only, on the objective, 8 min
+  if (p === 'fast') return [[0, 'W', 0, 1], [0, 'G'], [8, 'S']];                                           // radar on the full map, 2 min
+  if (p === 'mixed') return [[0, 'W', 0, 1], [0, 'G'], [8, 'R', 0], [8, 'T', 1], [8, 'a', ux, uy, 1], [20, 'T', 0], [20, 'E', 1], [20, 'a', ux, uy, 2], [40, 'S']]; // radar wide 2 → thermal on the objective 3 → EM there 5
+  if (p === 'loud') return [[0, 'W', 0, 1], [0, 'T', 1], [0, 'W', 1, 1], [0, 'E', 1], [0, 'W', 2, 1], [0, 'G'], [40, 'S']]; // all three on the full map, 10 min (beyond the brief's four: shows the cost ladder biting)
+  return [];
+}
 // R19 --drop auto: the scripted lance lands on the offered drop zone nearest the objective (straight line)
 const nearestDrop = () => { const D = offeredDrops(), ux = G.up.x / 32, uy = G.up.y / 32; let b = 0; D.forEach((d, i) => { if (Math.hypot(d.x - ux, d.y - uy) < Math.hypot(D[b].x - ux, D[b].y - uy)) b = i; }); return D[b].i; }; // R20: a dropPts index
 import { previewJob } from '../src/sim/contract.ts';
@@ -79,6 +94,8 @@ argv.forEach((k, i) => {
 });
 const JSON_OUT = argv.includes('--json'), FROM = arg('--from', 1);
 let LISTEN_LVL = arg('--listen', -1); if (LISTEN_LVL >= 0 || argv.includes('--listensweep')) TUNE.SCAN_MODE = 'dial'; const DROP = sarg('--drop') === 'auto' || argv.includes('--listensweep') ? -1 : arg('--drop', 1) - 1; // R19: auto = the offered drop zone nearest the objective (R20: --listen / --listensweep run the R19 dial; the live scan's presets come in cp3)
+let SCAN_PRESET = sarg('--scan') || ''; // R20 cp3: none | quiet | fast | mixed (the live scan; drop zone nearest the objective)
+if (SCAN_PRESET && !PRESETS.includes(SCAN_PRESET)) throw new Error('unknown --scan ' + SCAN_PRESET + ' (' + PRESETS.join(', ') + ')');
 const MAX_TURNS = 80;
 // --check: remember every FLAG / WARNING line, exit 1 at the end if there were any
 const FLAGS: string[] = [], log0 = console.log;
@@ -173,6 +190,7 @@ function contracts(n: number) {
       entering.push({ n: G.ct.hunt, carry: JSON.parse(JSON.stringify(G.ct.carry)) });
       if (MISSION) for (const j of G.ct.jobs) j.mission = MISSION; // R15 --mission
       if (LISTEN_LVL >= 0 && TUNE.SCAN_ENABLED) { G.scan = null; previewJob(0); listen(LISTEN_LVL); chooseDrop(DROP >= 0 ? DROP : nearestDrop()); } // R19 --listen
+      else if (SCAN_PRESET && TUNE.SCAN_ENABLED && TUNE.SCAN_MODE === 'active') { G.scan = null; previewJob(0); replayScan(presetCmds(SCAN_PRESET)); chooseDrop(nearestDrop()); } // R20 --scan
       takeJob(0);
       const r = playOut(G.ct.huntSeed);
       shots.push(...G.shotLog); parts.push(...G.partLog); // R12
@@ -274,6 +292,25 @@ function listenSweep(n: number) {
   const pct = (r: any) => 100 * r.wins / Math.max(1, r.hunts), best = rows.slice().sort((a, b) => pct(b) - pct(a));
   log0(`== LISTEN SWEEP (${n} contracts each, drop auto) | best ${['SKIP', 'SHORT', 'MEDIUM', 'LONG'][best[0].L]} ${Math.round(pct(best[0]))}%, worst ${['SKIP', 'SHORT', 'MEDIUM', 'LONG'][best[3].L]} ${Math.round(pct(best[3]))}%` +
     (pct(best[0]) - pct(best[1]) >= 10 ? ' | NOTE: one level wins clearly (dominance?)' : ''));
+}
+// R20 cp3: the scan sweep. Same contract seeds for every preset; per preset: hunt wins, the risk and step at the drop, how
+// often the ship was painted, units that joined, who was awake, contracts complete, wins per mission type.
+function scanSweep(n: number) {
+  const quiet = () => { console.log = () => {}; }, loud = () => { console.log = (...a: any[]) => { const s = a.join(' '); if (/FLAG:|WARNING:/.test(s)) FLAGS.push(s.trim()); log0(...a); }; };
+  const rows: any[] = [];
+  for (const p of PRESETS) {
+    SCAN_PRESET = p; quiet(); const out = contracts(n); loud();
+    const H = out.res.flatMap((c: any) => c.results), wins = H.filter((h: any) => h.outcome.startsWith('WIN')).length;
+    const S = out.hunts.map((h: any) => h.scan).filter((c: any) => c && c.live), N = Math.max(1, S.length), av = (f: (c: any) => number) => (S.reduce((a: number, c: any) => a + f(c), 0) / N);
+    const byM: Record<string, { w: number; h: number }> = {};
+    for (const h of H) { const x = byM[h.mission] ||= { w: 0, h: 0 }; x.h++; if (h.outcome.startsWith('WIN')) x.w++; }
+    const r = { p, wins, hunts: H.length, complete: out.res.filter((c: any) => c.status === 'COMPLETE').length };
+    rows.push(r);
+    log0(`  ${p.padEnd(5)} hunts ${H.length} | win ${wins} (${Math.round(100 * wins / Math.max(1, H.length))}%) | contracts ${r.complete}/${n} | at the drop: ${av(c => c.t).toFixed(1)} min, risk ${av(c => c.risk).toFixed(1)}, step ${av(c => c.step).toFixed(2)}, painted ${Math.round(100 * av(c => +c.painted))}%, awake ${av(c => c.alert.length).toFixed(1)}, joined ${av(c => c.extra.length + c.arrived.length).toFixed(2)}, window closed ${Math.round(100 * av(c => +!!c.over))}% | wins by job: ` +
+      Object.entries(byM).map(([k, x]) => `${k} ${Math.round(100 * x.w / Math.max(1, x.h))}%`).join(', '));
+  }
+  const pct = (r: any) => 100 * r.wins / Math.max(1, r.hunts), best = rows.slice().sort((a, b) => pct(b) - pct(a));
+  log0(`== SCAN SWEEP (${n} contracts each, drop nearest the objective) | best ${best[0].p} ${Math.round(pct(best[0]))}%, worst ${best[best.length - 1].p} ${Math.round(pct(best[best.length - 1]))}% | the scripted lance can't read the intel (#92): this is the costs, not the benefit`);
 }
 let last = { failed: 0, complete: 0, lost: 0, n: 0 }; // R13: the latest contracts() summary (--both compares two)
 // R13: this hunt's sound / emissions numbers (read right after the hunt ends)
@@ -435,6 +472,8 @@ if (SCEN) {
   log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;
   console.log(`== NORMAL vs LOUD: failed ${a.failed} vs ${b.failed} | complete ${a.complete} vs ${b.complete} | mechs lost ${a.lost} vs ${b.lost}`);
   if (b.lost < a.lost * 1.15 && b.failed < a.failed + 2) console.log('  FLAG: --loud does not lose noticeably more than normal (getting loud still carries no risk)');
+} else if (arg('--scansweep', 0) > 0) {
+  scanSweep(arg('--scansweep', 0));
 } else if (arg('--listensweep', 0) > 0) {
   listenSweep(arg('--listensweep', 0));
 } else if (arg('--sweep', 0) > 0) {
