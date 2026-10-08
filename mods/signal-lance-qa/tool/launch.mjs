@@ -2,7 +2,7 @@
 // QA panel: start one tester session and print the brief to hand the tester agent (the lead's one call per tester).
 //   node mods/signal-lance-qa/tool/launch.mjs --batch B --session S --persona fresh-recruit --model sonnet
 //        --device iphone|ipad|desktop --seed N [--length short|long] [--knowledge blind|returning|briefed]
-//        [--hand K --prev <previous hand's session id>] [--actions N --images N  (fixed budget; default by model / length)]
+//        [--hand K --prev <previous hand's session id>]   or: --batch B --plan <session id> [--quiet 1] (the rest from plan.json) [--actions N --images N  (fixed budget; default by model / length)]
 // Prints the brief on stdout. Exit 1 (and a reason) if the batch is STOPped or PAUSEd, or the start failed.
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, writeFileSync, mkdirSync } from 'node:fs';
@@ -12,6 +12,11 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url)), ROOT = resolve(here, '../../..');
 const RUNS = resolve(process.env.SLQA_RUNS || resolve(ROOT, 'qa-runs'));
 const a = {}; const av = process.argv.slice(2); for (let i = 0; i < av.length; i += 2) a[av[i].replace(/^--/, '')] = av[i + 1];
+if (a.plan) { // --batch B --plan <session id>: everything else from qa-runs/B/plan.json
+  const P = JSON.parse(readFileSync(resolve(RUNS, a.batch, 'plan.json'), 'utf8')).sessions.find(s => s.session === a.plan);
+  if (!P) { console.log('no session ' + a.plan + ' in the plan'); process.exit(2); }
+  for (const [k, v] of Object.entries(P)) if (v !== undefined && k !== 'chain') a[k] ??= String(v);
+}
 a.length ||= 'short'; a.knowledge ||= 'blind';
 for (const k of ['batch', 'session', 'persona', 'model', 'device', 'seed']) if (!a[k]) { console.log('launch needs --' + k); process.exit(2); }
 const flag = (n) => { const f = resolve(RUNS, a.batch, n); return existsSync(f) && readFileSync(f, 'utf8').trim() !== ''; };
@@ -43,12 +48,14 @@ const play = a.length === 'short'
   : 'A LONG session, hand ' + (a.hand || 1) + ': play the company campaign (contracts, suits, crew, the market, the city map, hunts). ' +
     (a.prev ? 'You continue a campaign another tester with your persona started: first read their notebook at ' + rel(resolve(prevDir, 'notebook.md')) + ' (especially HAND-OFF), then carry on from where the game is now. Watch what changes over time. ' : '') +
     'Stop at a checkpoint: when a contract ends (complete or failed), or when your budget has 10 actions left. Then `end` with your summary AND `--handoff "..."`: where you are, what you were trying, money/fuel/crew state, open questions, what has bugged you so far (one short paragraph).';
-console.log([
+const brief = [
   `You are a QA playtester. Session id: ${a.session}. Device: ${a.device} (${a.device === 'desktop' ? 'mouse' : 'touch'}).`,
   `Read these two files first, then play: ${rel(resolve(here, '../prompts/tester.md'))} (how to play and report) and ${rel(persona)} (who you are).`,
   know,
   play,
   'Your session is already started; the game is open on its start screen. Begin with: node mods/signal-lance-qa/tool/qa.mjs ' + a.session + ' look --image',
   'Work from the repo root (/home/user/Signal-Lance or wherever this repo is). Your final message: your ≤150-word summary only.',
-].join('\n\n'));
+].join('\n\n');
+writeFileSync(resolve(RUNS, a.batch, a.session, 'brief.md'), brief + '\n');
+console.log(a.quiet ? 'brief: ' + rel(resolve(RUNS, a.batch, a.session, 'brief.md')) + ' · model ' + a.model : brief);
 console.error(started.split('\n')[0]);
