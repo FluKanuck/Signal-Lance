@@ -67,8 +67,9 @@ class Session {
     jl(resolve(this.dir, 'oracle.jsonl'), { t: now(), step: this.steps, violations: fresh });
     this.feed('oracle', { violations: fresh });
   }
-  async after() { // after every action: settle, then the invariants (harness only)
+  async after() { // after every action: let a running action (a move, a shot) finish, then the invariants (harness only)
     await this.p.waitForTimeout(300);
+    await this.p.waitForFunction(() => !window.__qa.view().busy, null, { timeout: 6000, polling: 100 }).catch(() => {}); // r23-models: reading mid-move looked like "MOVE spent 3 AP for 1 tile"
     try { this.oracleHit(await this.qa('checks')); } catch (e) { this.oracleHit(['checks() threw: ' + e.message]); }
   }
   spend(kind) {

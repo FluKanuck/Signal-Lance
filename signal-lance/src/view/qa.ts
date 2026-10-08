@@ -51,7 +51,7 @@ function buttons() {
 // Only what the player can see: no hidden units, no true positions of contacts (their drawn fix and circle instead)
 export function view() {
   const hunt = G.mode === 'hunt', open = screens(), z = camZ();
-  const v: any = { build: BUILD, screens: open, mode: G.mode, myMove: hunt && playerFree() && open.length === 1 && open[0] === 'hunt',
+  const v: any = { build: BUILD, screens: open, mode: G.mode, busy: !!G.act, myMove: hunt && playerFree() && open.length === 1 && open[0] === 'hunt',
     viewport: { w: vw, h: vh }, buttons: buttons() };
   const more = Array.from(document.querySelectorAll('.panel, #hsbox')).filter(e => shown(e) && e.scrollHeight > e.clientHeight + 4 && e.scrollTop + e.clientHeight < e.scrollHeight - 4).map(e => e.id);
   if (more.length) v.scrollMore = more; // panels with more below (scroll to see it)
