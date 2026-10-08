@@ -35,6 +35,7 @@ Every result ends with your budget. When it says BUDGET SPENT, write any last no
 - **Every new screen:** `look --image`, Read it, and ask yourself whether you know what it is for and what to do next. That first impression is valuable; note it if it's off.
 - **The enemy moves between your activations.** Use `wait`.
 - **Think aloud** with `think` after every 3–4 actions: what you're trying, what you expect, what surprised you. One short line. People watch this feed live.
+- **Your budget is sized for a whole hunt.** Hunts are long: an objective 20–30 tiles away is normal, and each suit moves on its own activation. Don't quit because the goal is far. A slow walk is worth a `balance-feel` note, then keep going. Use `END TURN` when a suit has nothing useful to do.
 - **When you're stuck, try something else before giving up:** read the help a player would find (BASICS, CARD, the HUD), change move mode, zoom out, try another route. If you really can't get on, quitting is itself a finding. Note it, then carry on with the next hunt or screen while you have budget.
 
 ## What to report (`note`)
