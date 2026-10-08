@@ -346,3 +346,31 @@ describe('R25 scenarios (toy page)', () => {
     expect(shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, fireRange(G.p))).not.toBe('');
   });
 });
+
+// ---- R25 (Jamie): a route set while paused goes on PLAY, at that ExoS's own move mode ----
+import { togglePause, liveGo, pendingRoutes } from '../src/sim/live.ts';
+describe('routes go on PLAY', () => {
+  it('each ExoS keeps its own route and mode; PLAY sends them all, no MOVE needed', () => {
+    startHunt(3); G.paused = true;
+    const [a, b] = G.lance;
+    liveSelect(a); G.pmode = 'CREEP'; cmdTarget(a.x + 5 * T, a.y);
+    liveSelect(b); G.pmode = 'SPRINT'; cmdTarget(b.x + 5 * T, b.y);
+    expect(pendingRoutes().map(r => r.m.id)).toEqual([a.id]); // A's waits on the map while B is picked
+    liveSelect(a); expect(G.pmode).toBe('CREEP'); expect(G.plan && G.plan.path).toBeTruthy(); // A's route and mode come back
+    expect(a.lact).toBeNull(); expect(b.lact).toBeNull();
+    togglePause(); // PLAY
+    expect(a.lact && a.lact.pl.mode).toBe('CREEP');
+    expect(b.lact && b.lact.pl.mode).toBe('SPRINT');
+    expect(a.lact.speed).toBeCloseTo(TUNE.CREEP_SPEED, 5); expect(b.lact.speed).toBeCloseTo(TUNE.SPRINT_SPEED, 5);
+  });
+  it('while the clock runs, a finished route goes at once', () => {
+    startHunt(3); G.paused = false;
+    const m = G.p; cmdTarget(m.x + 4 * T, m.y); liveGo();
+    expect(m.lact && m.lact.k).toBe('MOVE');
+  });
+  it('while paused, a route waits (liveGo does nothing)', () => {
+    startHunt(3); G.paused = true;
+    const m = G.p; cmdTarget(m.x + 4 * T, m.y); liveGo();
+    expect(m.lact).toBeNull();
+  });
+});

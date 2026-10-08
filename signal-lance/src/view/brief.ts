@@ -230,6 +230,8 @@ const LIVE_TEST = {
   question: 'Does live time with auto-pause make the hunt flow, and still feel like a plan?',
   newThings: [
     'This is a separate test page. Your company here is not your company in the main game.',
+    'NEW (r25 live D2): a route is the order. While paused, give each ExoS a route and a move mode. Tap PLAY and they all go. You don’t need MOVE.',
+    'Each ExoS keeps its own route while you pick another. While the clock runs, a route goes as soon as you finish it.',
     'NEW (r25 live D): the route tool. A drawn line stays as you draw it, smoothed, never snapped to tiles. The ExoS walks that line.',
     'The line follows your finger at once. The planned route (cyan) catches up a moment later. If it crosses a building, it bends round the corner, and you see the bend before you tap MOVE.',
     'Start a drag anywhere on your ExoS. A red X and EN OUT show where a route runs out of EN.',
@@ -265,7 +267,7 @@ const LIVE_HUNT_HOW = [
   'The hunt opens paused. PLAY starts the clock. PAUSE stops it. The space bar does both.',
   'The game also pauses by itself when something needs a decision. The yellow line says why. Then tap PLAY.',
   'Everyone acts at the same time. Tap a letter at the top right, or an ExoS on the map, to pick it.',
-  'To move, tap the map or drag from your ExoS. The line stays as you draw it. Pick CREEP, NORMAL or SPRINT. Then tap MOVE.',
+  'To move, tap the map or drag from your ExoS. Pick CREEP, NORMAL or SPRINT. Each ExoS keeps its own route. PLAY sends them all.',
   'Actions take time. A ring fills on the ExoS while it works. A new order replaces the old one.',
   'Tap a contact to select it. FIRE aims, shoots, then the gun cools down. It keeps firing at that target while it can.',
 ];

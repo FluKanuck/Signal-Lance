@@ -12,7 +12,7 @@ import { $, syncButtons, refreshHud } from './hud.ts';
 import { showTip, hideTip, explainAt } from './tip.ts';
 import { showWhy, hideExplain } from './explain.ts';
 import { moveModeBlock } from '../sim/reasons.ts';
-import { liveSelect } from '../sim/live.ts';
+import { liveSelect, liveGo } from '../sim/live.ts';
 
 // ============================ INPUT ===================================
 // R24 A2: buttons act on release (pointerup), so a long-press can open the explain card instead (explain.ts swallows it)
@@ -99,7 +99,9 @@ function drawStroke(final = false) {
   V.stroke = final ? null : ptr.base.concat(ptr.pts);
   const now = performance.now();
   if (!final && now - replanAt < TUNE.PATH_REPLAN_MS) return false;
-  replanAt = now; cmdDraw(ptr.base.concat(ptr.pts), ptr.keepTo); return true;
+  replanAt = now; cmdDraw(ptr.base.concat(ptr.pts), ptr.keepTo);
+  if (final) liveGo(); // R25: the clock is running: the ExoS sets off at once
+  return true;
 }
 // LOOK / ✕ menu beside a point on the path
 export function showWpMenu(d: number) {
@@ -218,7 +220,7 @@ export function onTap(sx, sy) {
     if (Math.hypot(wx - cx(c), wy - cy(c)) <= r) { cmdSelect(c); syncButtons(); return; } // select + turn to face (if affordable)
   }
   // anywhere else = set a move destination; MOVE executes it. R24 fix list 10 (C19): it also clears the selection.
-  cmdDeselect(); cmdTarget(wx, wy); syncButtons();
+  cmdDeselect(); cmdTarget(wx, wy); liveGo(); syncButtons(); // R25: running = go now; paused = it goes on PLAY
 }
 
 // Block page scroll / pinch / double-tap zoom (but let text fields work).

@@ -1919,6 +1919,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            Runner --live (seeds 1-60): 10/20, 11/20, 8/20 contracts, no stalls (was 1 stall before the stuck rule) | -
    round25 cp D (r25-live-d) | brief: the route tool | NEW PATH_SMOOTH 2, PATH_SIMPLIFY 0.06, PATH_SAMPLE 0.15, PATH_REPLAN_MS 60,
            PATH_GRAB_PX 40. Scenarios Hold your fire, Long street, Round the corner. Turns runner byte-identical | -
+   round25 Jamie (r25-live-d2) | "if a path is drawn, then when unpaused the units should auto continue. They move at whatever
+           speed they are set to" | a route (drawn or tapped) is the ExoS's order: each ExoS keeps its own route + mode (m.pend)
+           while you pick another; PLAY sends every ExoS with a route at its own mode (no MOVE); a route finished while the
+           clock runs goes at once. MOVE still works (goes now). No tuning change | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

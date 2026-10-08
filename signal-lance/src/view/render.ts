@@ -21,7 +21,7 @@ import { zoneKnow, zoneKnowOf } from '../sim/scan.ts';
 import { BANDS, heardMoving, rwrWedge, rwrFade, rwrGuess, paintFade } from '../sim/rwr.ts';
 import { active } from '../sim/kit.ts';
 import { pathLen } from '../sim/turns.ts';
-import { liveProgress, planSecs } from '../sim/live.ts';
+import { liveProgress, planSecs, pendingRoutes } from '../sim/live.ts';
 
 // R17 (parked #59): where a route button sits: along its leg, at the first spot (6 tiles in, then every 2) that isn't under
 // the HUD text or the turn strip on screen. Input and tooltips read the same spot.
@@ -379,6 +379,11 @@ export function render() {
   // R17: a drawn path: cyan up to where this turn's AP runs out, then red dashed past it (r17-s2, Jamie: no stop circle).
   // A hollow handle at the end (drag it to carry on). Each facing waypoint: a diamond, a tick along its facing, and a faint
   // eyes cone (where it will look as it walks). The point LOOK is aiming pulses.
+  if (G.live) for (const r of pendingRoutes()) { // R25: the other ExoS's routes, waiting for PLAY
+    ctx.strokeStyle = 'rgba(143,227,255,0.55)'; ctx.lineWidth = 2.5 / z; ctx.setLineDash([8 / z, 5 / z]);
+    ctx.beginPath(); ctx.moveTo(r.m.x, r.m.y); for (let i = 1; i < r.path.length; i++) ctx.lineTo(r.path[i].x, r.path[i].y); ctx.stroke(); ctx.setLineDash([]);
+    const q = r.path[r.path.length - 1]; ctx.fillStyle = 'rgba(143,227,255,0.8)'; ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText(r.m.id + ' ROUTE', q.x + 8, q.y - 8);
+  }
   if (V.stroke && V.stroke.length) { // R25 cp D: the raw stroke under the finger (the planned route follows a moment later)
     ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2 / z; ctx.beginPath(); ctx.moveTo(p.x, p.y);
     for (const q of V.stroke) ctx.lineTo(q.x, q.y);

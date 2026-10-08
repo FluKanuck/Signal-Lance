@@ -26,7 +26,7 @@ import { pathCost } from './world.ts';
 import { allyStep, allyHolding } from './escort.ts';
 import { cargoLost, onCargoLost, onAllyLost, onAllyOut, onClear, onAllOut, isType, pickupBlock, doPickup, handoffBlock, doHandoff, isCarrier } from './mission.ts';
 import { moveAlong, moveTick, updateShells, addEmit, inExtract, leaveMap, allOut, doShot, shootBlock, fireRange, turnCost, freeTurn,
-  uplinkBlock, doUplink, canPay, pay, playerTarget, replan, MODE_SPEED } from './turns.ts';
+  uplinkBlock, doUplink, canPay, pay, playerTarget, replan, MODE_SPEED, doMove } from './turns.ts';
 
 export const PLAYER_AP = 99; // a live ExoS never runs out of AP: the rules that still ask for AP always pass
 
@@ -298,11 +298,51 @@ function endChecks() {
 }
 
 // ---- player orders that are timed on the toy page ----
+// R25 (Jamie: "if a path is drawn, then when unpaused the units should auto continue, at whatever speed they are set to"):
+// a route (drawn, or a tapped destination) is that ExoS's order. Each ExoS keeps its own route and move mode while you
+// pick another (m.pend); PLAY sends every ExoS with a route on its way, no MOVE needed. While the clock runs, a finished
+// route goes at once (the view calls liveGo).
+function stash(m) {
+  if (!m) return;
+  m.pmode = G.pmode;
+  m.pend = G.planD || G.planT ? { planD: G.planD, planT: G.planT, mode: G.pmode, plan: G.plan } : null;
+}
+function unstash(m) {
+  const P = m.pend;
+  G.planD = P ? P.planD : null; G.planT = P ? P.planT : null; G.pmode = P ? P.mode : m.pmode || G.pmode;
+  replan();
+}
 export function liveSelect(m) {
   if (!m || m.dead || m.out || !G.lance.includes(m)) return;
-  setActive(m); G.planT = null; G.planD = null; replan(); hooks.activate(); hooks.sync();
+  if (m !== G.p) stash(G.p);
+  setActive(m); unstash(m); hooks.activate(); hooks.sync();
 }
-export function togglePause() { if (G.mode === 'hunt') { G.paused = !G.paused; if (!G.paused) G.apCue = null; hooks.sync(); } }
+// start m's route now (if it has one it can walk); true = it set off
+function goRoute(m) {
+  const keep = G.p;
+  setActive(m); unstash(m); m.pend = null;
+  const ok = !!(G.plan && G.plan.path);
+  if (ok) doMove(m, G.plan);
+  G.planT = null; G.planD = null; G.plan = null;
+  setActive(keep);
+  return ok;
+}
+// PLAY: every ExoS with a route sets off at its own move mode
+function goAll() {
+  stash(G.p);
+  for (const m of G.lance) if (!m.dead && !m.out && m.pend) goRoute(m);
+  unstash(G.p);
+}
+// the view: a route finished while the clock runs goes at once
+export function liveGo() { if (G.live && !G.paused && G.mode === 'hunt') { stash(G.p); goRoute(G.p); unstash(G.p); hooks.sync(); } }
+export function togglePause() {
+  if (G.mode !== 'hunt') return;
+  G.paused = !G.paused;
+  if (!G.paused) { G.apCue = null; goAll(); }
+  hooks.sync();
+}
+// the routes waiting for PLAY on the other ExoS (the active one's shows as G.plan), for the map
+export function pendingRoutes() { return G.lance.filter(m => m !== G.p && !m.dead && !m.out && m.pend && m.pend.plan && m.pend.plan.path).map(m => ({ m, path: m.pend.plan.path })); }
 export function liveUplink() {
   const m = G.p;
   liveChannel(m, 'UPLINK', TUNE.LIVE_ACT_TIME.UPLINK, () => {
@@ -324,6 +364,7 @@ export function liveEcmOn() {
 // what the active ExoS is doing, for the HUD: "MOVING", "UPLINK 2.1s", "AIM 0.4s", "IDLE"
 export function liveDoing(m) {
   const a = m.lact, parts: string[] = [];
+  if (!a && m === G.p && G.plan && G.plan.path && G.paused) parts.push('ROUTE SET: PLAY to go');
   if (a) parts.push(a.k === 'MOVE' ? 'MOVING' : a.k === 'PULSE' ? 'RADAR ' + Math.max(0, a.t).toFixed(1) + 's' : (a.k === 'PICKUP' ? 'PICK UP' : a.k === 'HANDOFF' ? 'HAND OFF' : a.k) + ' ' + Math.max(0, a.t).toFixed(1) + 's');
   if (m.aim) parts.push('AIM ' + Math.max(0, m.aim.t).toFixed(1) + 's');
   else if (m.cool > 0) parts.push('GUN COOLING ' + m.cool.toFixed(1) + 's');
