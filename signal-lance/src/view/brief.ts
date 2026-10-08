@@ -73,6 +73,12 @@ const R17_NEW = [
 ]; void R17_NEW; // R18: Round 17's build notes (its HISTORY page is the condensed version)
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
+  { round: 23, title: 'Round 23: Who you’ll anger', lines: [
+    'THE CITY (CONTRACTS tab): districts held by Corporate, Foundry and Syndicate; ▼ SHIP where you are; the three jobs sit in districts. Fuel = links jumped; the district’s holder prices the fuel.',
+    'FACTION JOB (×' + TUNE.CITY_FACTION_PAY + '): a rival of the target hires you; the employer likes you more, the target less. BROKER JOB (×' + TUNE.CITY_BROKER_PAY + '): deniable, only the target notices.',
+    'STANDING per faction. HATED (≤ ' + TUNE.STANDING_HATED + '): danger +1, +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of their field awake, dear fuel. LIKED (≥ +' + TUNE.STANDING_LIKED + '): their jobs pay more, free intel against their enemies, cheap fuel. Fades ' + TUNE.STANDING_DRIFT + ' a contract.',
+    'Factions are RIVALS, NEUTRAL or ALLIES with each other (rolled per city): every standing change spills onto the others.',
+  ] },
   { round: 22, title: 'Round 22: What happened', lines: [
     'After every hunt, the AFTER-ACTION PAGE: WHAT HAPPENED (up to ' + TUNE.AAR_MAX_MOMENTS + ' turning points: who found whom, hits that mattered, how the job swung, the end) and WHAT IT COST (people, repairs, pay, salvage, the books; ← T7 = the moment behind it). Tap a moment: it shows on the map as it was at that turn. DETAILS keeps the old panels.',
     'HELD THE FIELD (job done): the whole story, and your downed ExoS come home (rebuild at half cost). FIELD LOST: the enemy side is ??? with a rough direction, and the wrecks stay out there.',

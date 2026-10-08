@@ -1768,6 +1768,12 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            12→12 / 6→9; liked 7→8 / 7→7 / 10→11 / 4→6; jobs on hated ground 18→19% / 30→41% / 29→42% / 15→24%; liked intel
            30→25% / 39→49% / 48→60% / 20→32%; top fee turned down 92 / 11 / 18 / 0%. Patrons now post work, and that work is
            against their rivals, who hate you: Loyal and Aggressive spend ~40% of jobs on hated ground. BUILD r23-s4 | -
+   round23 headless 3 (r23-s4 numbers) | ~40% of Loyal / Aggressive jobs on hated ground | tried STANDING_HATED_ALERT 0.25 → 0.15:
+           folded 11 / 15 / 13 / 15 (was 11 / 14 / 13 / 14), played (complete) 118 (63) / 88 (32) / 121 (49) / 97 (40), end cr
+           183 / 234 / 413 / 555 (was 181 / 461 / 446 / 562), hated ground 19 / 40 / 45 / 24%. No help (HIGH danger, not the
+           waking field, is what hated ground costs). Jamie: "Revert to 0.25" | reverted | no help
+   round23 wrap (r23-s5) | no fun test (slice); headless round. Biggest missing: "Smarter bot tactics". Round 23 moved to the
+           splash HISTORY. BUILD r23-s5 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

@@ -597,7 +597,7 @@ export const TUNE = {
   STANDING_DRIFT: 2,           // R23: every contract's end, each faction's standing moves this much back toward 0 (a grudge fades). Tuning 1 (Jamie: go): 5 → 2
   CITY_RELATIONS: { RIVALS: { v: -1, w: 0.5 }, NEUTRAL: { v: 0, w: 0.3 }, ALLIES: { v: 1, w: 0.2 } }, // R23 tuning 1 (Jamie): each faction pair rolls one of these per city (w = weight)
   STANDING_SPILL: 0.5,         // R23 tuning 1 (Jamie: "becoming friendly with one faction means their enemies dislike you"): a standing change on one faction moves each other faction by change × this × their relation (rivals −1, allies +1)
-  STANDING_HATED_ALERT: 0.25,  // R23: a job against a faction that hates you: + this share of its field awake at the drop (on top of the scan's)
+  STANDING_HATED_ALERT: 0.25,  // R23: a job against a faction that hates you: + this share of its field awake at the drop (on top of the scan's). Tuning 3 tried 0.15: no help, reverted (Jamie)
   STANDING_HATED_FUEL_MULT: 1.5, // R23: fuel bought in a HATED faction's district costs FUEL_PRICE × this
   STANDING_HATED_DANGER: 1,    // R23: a HATED faction's jobs are this many danger steps higher (capped at HIGH)
   STANDING_LIKED_PAY: 1.25,    // R23 (#47): a LIKED faction's own jobs pay their fee × this
