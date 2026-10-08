@@ -18,7 +18,7 @@ export const DEVICES = {
   desktop: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 },
 };
 // Budgets per session (actions = every command but look/think/status; images = looks with a screenshot)
-const BUDGET = { haiku: { actions: 120, images: 40 }, short: { actions: 80, images: 30 }, long: { actions: 60, images: 20 } };
+const BUDGET = { haiku: { actions: 160, images: 40 }, short: { actions: 140, images: 35 }, long: { actions: 110, images: 30 } }; // r23-models: 80 actions could not finish one 3-suit hunt
 export const budgetFor = (m) => m.actions ? { actions: +m.actions, images: +(m.images || 30) } : m.model === 'haiku' ? BUDGET.haiku : m.length === 'long' ? BUDGET.long : BUDGET.short; // a plan may fix it (the model comparison does)
 
 // The campaign's seeds come from Math.random in the view: seed it before the page loads, so a session repeats
@@ -94,9 +94,10 @@ class Session {
     }
     return out + '\n' + this.left();
   }
+  panelText() { return this.p.evaluate(() => Array.from(document.querySelectorAll('.panel, .sheet')).filter(e => e.getClientRects().length && !e.closest('[hidden]')).map(e => e.innerText).join('\n')); }
   async tap(target) {
     this.spend('action');
-    const v = await this.qa('view');
+    const v = await this.qa('view'); v.panelText = await this.panelText();
     let x, y, what;
     const xy = /^(-?\d+)\s*,\s*(-?\d+)$/.exec(String(target).trim());
     if (xy) { x = +xy[1]; y = +xy[2]; what = x + ',' + y; const hit = v.buttons.find(b => Math.abs(b.x - x) <= b.w / 2 && Math.abs(b.y - y) <= b.h / 2); if (hit) what += ' (on the ' + (hit.text || hit.id) + ' control)'; else this.canvasTaps++; }
@@ -114,7 +115,7 @@ class Session {
   }
   async drag(points) {
     this.spend('action');
-    const v = await this.qa('view');
+    const v = await this.qa('view'); v.panelText = await this.panelText();
     const pts = points.map(s => s.split(',').map(Number));
     const touch = DEVICES[this.m.device].hasTouch;
     if (touch) await this.p.evaluate((ps) => { // touch drags as pointer events (the game listens to pointer events on the canvas)
@@ -207,6 +208,10 @@ class Session {
     }
     const bt = new Set(before.buttons.map(b => b.text)), nt = v.buttons.filter(b => !bt.has(b.text)).map(b => b.text);
     if (nt.length) bits.push('new/changed controls: ' + nt.slice(0, 8).join(' | '));
+    if (before.panelText !== undefined && !bits.length) { // menus and the scan screen: say which lines of the panel changed
+      const now = await this.panelText(), was = new Set(before.panelText.split('\n')), diff = now.split('\n').filter(l => l.trim() && !was.has(l));
+      if (diff.length) bits.push('panel text changed: ' + diff.slice(0, 4).map(l => l.trim().slice(0, 80)).join(' | '));
+    }
     return what + ': ' + (bits.length ? bits.join('; ') : 'no visible change') + '\n' + viewText(v) + '\n' + this.left();
   }
 }
