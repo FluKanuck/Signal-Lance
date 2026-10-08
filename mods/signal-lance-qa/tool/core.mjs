@@ -119,8 +119,8 @@ class Session {
     const v = await this.qa('view'); v.panelText = await this.panelText();
     const pts = points.map(s => s.split(',').map(Number));
     const touch = DEVICES[this.m.device].hasTouch;
-    if (touch) await this.p.evaluate((ps) => { // touch drags as pointer events (the game listens to pointer events on the canvas)
-      const cv = document.getElementById('cv'); const ev = (type, [x, y]) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 7, pointerType: 'touch', isPrimary: true, bubbles: true, buttons: type === 'pointerup' ? 0 : 1 }));
+    if (touch) await this.p.evaluate((ps) => { // touch drags as pointer events, to whatever is under the finger (the hunt canvas, the scan map). r23-core: was always #cv
+      const cv = document.elementFromPoint(ps[0][0], ps[0][1]) || document.getElementById('cv'); const ev = (type, [x, y]) => cv.dispatchEvent(new PointerEvent(type, { clientX: x, clientY: y, pointerId: 7, pointerType: 'touch', isPrimary: true, bubbles: true, buttons: type === 'pointerup' ? 0 : 1 }));
       ev('pointerdown', ps[0]); for (let i = 1; i < ps.length; i++) { const [a, b] = [ps[i - 1], ps[i]]; for (let k = 1; k <= 6; k++) ev('pointermove', [a[0] + (b[0] - a[0]) * k / 6, a[1] + (b[1] - a[1]) * k / 6]); } ev('pointerup', ps.at(-1));
     }, pts);
     else { await this.p.mouse.move(...pts[0]); await this.p.mouse.down(); for (const q of pts.slice(1)) await this.p.mouse.move(q[0], q[1], { steps: 6 }); await this.p.mouse.up(); }
