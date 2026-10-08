@@ -223,3 +223,4 @@ Build order (lean, revisable at each scoping chat): Missions (R15) → Block map
 112. Hunt pacing: about 2 tiles per AP on 40–64-tile maps; no QA tester reached a contract's end (QA C11). Tune after the hunt reads — missions / balance
 113. QA "later" clusters from `r23-core-1008` (33, triage on the page): shooter bearing (C24), enemy health (C46), loss-cost preview (C49), AP carry-over (C41), label de-overlap beyond the HUD pass, etc. — tooling / UI
 114. Picture explainers: small diagrams in BASICS or on long-press instead of prose (Jamie, via Karpathy's tip, R24 chat). Gate 4 presentation — learn why / UI
+115. OSIRIS live map (http://osirisai.live/?layers=maritime,satellites,cctv,cctv_previews,live_news,earthquakes,global_incidents,day_night,cables,sdk_sea,sdk_air,sdk_naval): inspiration for the SIGINT layer and its presentation — strand: SIGINT · parked 2026-10-08
