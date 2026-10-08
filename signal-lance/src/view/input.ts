@@ -1,4 +1,4 @@
-import { quitToStart } from './screens.ts';
+import { quitToStart, companyHunt, showQuitMenu } from './screens.ts';
 import { TUNE } from '../tune.ts';
 import { W, H, T } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
@@ -32,6 +32,7 @@ btn('bCtr', () => { V.follow = true; });
 // R18 (Jamie): back to the start (hangar) screen. Two taps: the first arms it for 3 s ("SURE?"), the second quits.
 let quitT: any = 0;
 btn('bQuit', () => {
+  if (companyHunt()) { showQuitMenu(); return; } // SAVE & QUIT or BAIL CONTRACT (the menu says what a bail costs)
   const b = $('bQuit');
   if (!quitT) { b.textContent = 'SURE?'; b.classList.add('on'); quitT = setTimeout(() => { quitT = 0; b.textContent = 'QUIT'; b.classList.remove('on'); }, 3000); return; }
   clearTimeout(quitT); quitT = 0; b.textContent = 'QUIT'; b.classList.remove('on'); quitToStart();

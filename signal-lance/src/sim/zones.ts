@@ -8,6 +8,7 @@ import { dropPts } from './scan.ts';
 
 // G.zones: [{ x, y (tile centre), name, type 'QUIET'|'NOISE', tiles: [{x,y}] }]; G.zmap[tile] = zone index + 1 (0 = none)
 export let zmap = new Uint8Array(N);
+export function setZmap(a: number[]) { resetZmap(); zmap.set(a); } // SAVE & QUIT
 function resetZmap() { if (zmap.length < N) zmap = new Uint8Array(N); zmap.fill(0); } // R16: maps change size
 
 export function zoneTiles(cxT, cyT) {

@@ -1780,6 +1780,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            QUIT bailed the contract (wages + upkeep paid, contract counter +1) and dropped to the company with no word of it. A bailed
            contract now ends on the contract result (CONTRACT BAILED · bailed (QUIT) in hunt N · fee, wages, upkeep → credits), then
            TO THE COMPANY. No rule change. BUILD unchanged | -
+   SAVE & QUIT (r23-s6) | Jamie: "distinguish quitting because you have to stop playing from bailing out". QUIT in a contract hunt
+           now asks: SAVE & QUIT (sim/huntsave.ts saves the whole hunt: G as a graph, map grids, zones, RNG, AAR keys; RESUME puts
+           you back on that turn; the save is used up on resume) or BAIL CONTRACT (the cost shown before you commit). Vitest: a hunt
+           saved mid-turn and restored plays out identically, company hunts included. No rule change. BUILD r23-s6 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,
