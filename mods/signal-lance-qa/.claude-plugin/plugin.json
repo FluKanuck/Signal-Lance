@@ -1,0 +1,7 @@
+{
+  "name": "signal-lance-qa",
+  "version": "0.1.0",
+  "description": "Signal Lance QA panel: agent playtesters in a real browser, a lead that runs batches, and a live watch pane",
+  "types": "./types/index.d.ts",
+  "author": { "name": "FluKanuck" }
+}

@@ -10,6 +10,11 @@
       "description": "Round band, live runner pane and headless balance sweeps for Signal Lance"
     },
     {
+      "name": "signal-lance-qa",
+      "source": "./mods/signal-lance-qa",
+      "description": "QA panel: a lead agent runs tester agents that playtest the game in a real browser, with a live watch pane"
+    },
+    {
       "name": "flu-statusline",
       "source": "./mods/flu-statusline",
       "description": "Colour-coded status line: repo/branch, model, context %, 5h and weekly usage with resets and pace, cost, session time"

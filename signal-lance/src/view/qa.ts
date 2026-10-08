@@ -83,7 +83,7 @@ export function oracle() {
 // Rule invariants + what the screen shows against the state
 export function checks(): string[] {
   const out = checkInvariants();
-  const main = screens().filter(s => !['card', 'idp', 'hsheet', 'rot', 'hunt'].includes(s));
+  const main = screens().filter(s => !['card', 'idp', 'hsheet', 'rot', 'hunt', 'splash', 'basics'].includes(s)); // overlays sit on top by design
   if (main.length > 1) out.push('screen: ' + main.length + ' panels open at once (' + main.join(', ') + ')');
   if (G.mode === 'hunt' && G.p && main.length === 0) {
     const pips = document.getElementById('ap');
