@@ -1776,6 +1776,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            waking field, is what hated ground costs). Jamie: "Revert to 0.25" | reverted | no help
    round23 wrap (r23-s5) | no fun test (slice); headless round. Biggest missing: "Smarter bot tactics". Round 23 moved to the
            splash HISTORY. BUILD r23-s5 | -
+   QA panel r23-models (fix) | 3 of 3 agent testers who quit a company hunt: "credits 300 → 120 unexplained", "no result screen".
+           QUIT bailed the contract (wages + upkeep paid, contract counter +1) and dropped to the company with no word of it. A bailed
+           contract now ends on the contract result (CONTRACT BAILED · bailed (QUIT) in hunt N · fee, wages, upkeep → credits), then
+           TO THE COMPANY. No rule change. BUILD unchanged | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

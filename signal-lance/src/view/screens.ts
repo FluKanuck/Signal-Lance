@@ -292,7 +292,7 @@ function showContractResult() {
   const C = G.ct;
   $('res').hidden = $('jobs').hidden = true;
   $('cTitle').textContent = 'CONTRACT ' + C.status;
-  $('cSub').textContent = 'C' + ctN + ' · won ' + C.wins + ' of ' + C.results.length + ' hunts (need ' + C.need + ')' + (C.results.length < C.hunts ? ' · lance destroyed in hunt ' + C.results.length : '') + ' · credits earned ' + C.earned + ', spent ' + C.spent;
+  $('cSub').textContent = 'C' + ctN + ' · won ' + C.wins + ' of ' + C.results.length + ' hunts (need ' + C.need + ')' + (C.status === 'BAILED' ? ' · bailed (QUIT) in hunt ' + (C.results.length + 1) : C.results.length < C.hunts ? ' · lance destroyed in hunt ' + C.results.length : '') + ' · credits earned ' + C.earned + ', spent ' + C.spent;
   $('cHunts').innerHTML = C.results.map(r => '<div class="hunt"><b>Hunt ' + r.n + ' · job ' + r.job + ' · ' + r.mission + '</b>' + r.comp + ' @ ' + r.up + '<br><b>' + r.outcome + '</b> · kills ' + r.kills + '/' + r.total +
     '<br>Mechs lost: ' + (r.lost.length ? r.lost.join(', ') : 'none') + '<br>Carried out: ' + r.out.join(', ') + '<br>Paid ' + r.pay + ' cr' + (r.buys.length ? '<br>Bought before: ' + buysText(r.buys) : '') + '</div>').join('');
   $('bNewC').textContent = companyMode() ? 'TO THE COMPANY' : 'NEW CONTRACT'; // R21
@@ -305,11 +305,12 @@ export function quitToStart() {
   hideAar(); // R22
   if (G.tb) { leaveScenario(); G.tb = null; }
   else if (G.mode === 'hunt') logLine(ctTag() + 'QUIT · ' + (G.comp ? G.comp.NAME : '') + ' · ' + seedText() + ' · round ' + G.turn + ' · ' + loadSummary());
-  if (G.co && G.ct && G.ct.status === 'ACTIVE') { pullContract(); endContract('QUIT'); logLine('[COMPANY] contract quit (bailed): ' + G.co.news.join(' ') + ' · ' + companyLogLines().pop()); G.co.news = []; G.ct = null; saveCompany(); } // R21: quitting bails the contract: nobody is hurt, but wages and upkeep are paid
+  if (G.co && G.ct && G.ct.status === 'ACTIVE') { pullContract(); endContract('QUIT'); logLine('[COMPANY] contract quit (bailed): ' + G.co.news.join(' ') + ' · ' + companyLogLines().pop()); G.co.news = []; G.ct.status = 'BAILED'; G.mode = 'result'; G.act = null; saveCompany(); hideAll(); showContractResult(); return; } // R21: quitting bails the contract: nobody is hurt, but wages and upkeep are paid // QA r23-models (3 of 3 testers: "credits 300 → 120 unexplained"): a bailed contract shows the contract result (fee, wages, upkeep → credits) instead of dropping to the start
   G.ct = null; G.act = null;
-  for (const id of ['res', 'jobs', 'cres', 'tb', 'tbres', 'card', 'idp', 'hsheet', 'scan', 'co']) { const e = document.getElementById(id); if (e) e.hidden = true; }
+  hideAll();
   showStart();
 }
+function hideAll() { for (const id of ['res', 'jobs', 'cres', 'tb', 'tbres', 'card', 'idp', 'hsheet', 'scan', 'co']) { const e = document.getElementById(id); if (e) e.hidden = true; } }
 // R14: one extra log line (the test bed's), stamped and tagged like a hunt's.
 export function logLine(text: string) { const d = new Date(); LOG.push(d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) + ' ' + pad2(d.getHours()) + ':' + pad2(d.getMinutes()) + ' | ' + testerTag() + text); store.set('signalLance.log', LOG); }
 // Header so a pasted log says who sent it and which build.
