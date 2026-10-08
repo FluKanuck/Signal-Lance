@@ -2,6 +2,7 @@
 // (different compositions); the player takes one. Per mech, armour damage, gun rounds, mortar shells and
 // a destroyed status carry from hunt to hunt. Loadouts are fixed for the whole contract. In memory only.
 import { TUNE } from '../tune.ts';
+import { rollTap } from './rng.ts';
 import { T } from './world.ts';
 import { G, rollEnemy, newHunt, setActive } from './state.ts';
 import { splitHits, syncHits, partsRead } from './combat.ts';
@@ -15,7 +16,9 @@ function crand(): number {
   let t = C.rs;
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  const v = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  if (rollTap.fn) rollTap.fn('contract', v);
+  return v;
 }
 function pickWeighted(list) {
   const tot = list.reduce((a, c) => a + (c.weight ?? 1), 0);
@@ -25,8 +28,10 @@ function pickWeighted(list) {
 }
 // A fresh mech's numbers from its fit (same as makeMech in state.ts). R18: loads are fits.
 export function fresh(fit) {
-  const hits = fitHits(fit), parts = splitHits('MECH', hits); // R12: per part
-  return { hits, maxHits: hits, parts, pmax: { ...parts }, ammo: fitRounds(fit), shells: fitShells(fit), dead: false };
+  const parts = splitHits('MECH', fitHits(fit)); // R12: per part
+  // R25 fix 1: hits = the parts' sum (PART_MIN adds leg hits on top of the fit's pool), the same count the hunt uses
+  const c: any = { hits: 0, maxHits: 0, parts, pmax: { ...parts }, ammo: fitRounds(fit), shells: fitShells(fit), dead: false };
+  syncHits(c); return c;
 }
 // Damage read for a lance mech, using the same thresholds as the enemy read.
 export function dmgWord(c) {

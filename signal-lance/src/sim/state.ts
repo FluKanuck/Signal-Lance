@@ -48,7 +48,7 @@ export const G: any = {
   emitStat: { P: { n: 0, sum: 0 }, E: { n: 0, sum: 0 } }, // R13: Emissions sampled at each activation start, per side (runner)
   alarmLog: [], // R13 s2: every alarm { from, to: [ids], mech, turn, t } (log line, DBG lines, runner)
   firstLog: [], // R13: every new contact { side 'P'|'E', src (the sense), turn } (runner)
-  shotLog: [], partLog: [], lastShot: { P: null, E: null }, // R12: every gun shot (runner/log), parts destroyed, last shot per side (DBG)
+  shotLog: [], partLog: [], lastShot: { P: null, E: null }, eShots: [], fireRep: null, // R25: enemy shots since your last ExoS turn; the batch shown at its start // R12: every gun shot (runner/log), parts destroyed, last shot per side (DBG)
   co: null,   // R21: the company (sim/company.ts); null = no company (the R11 contract flow)
   crew: null, // R21: this hunt's operators per suit id (newHunt puts them on the suits); null = suits have no operator
   seed: 1, // R6: this run's RNG seed (shown in DBG for replay in the runner)
@@ -95,6 +95,14 @@ export function isFriend(m) { return G.lance.includes(m) || (!!G.ally && m === G
 export function livingMechs() { return G.lance.filter(m => !m.dead); }
 // R16: mechs still in the district (alive and not extracted): they take turns
 export function activeMechs() { return G.lance.filter(m => !m.dead && !m.out); }
+// R25 fix 3 (C48): the living unit other than m standing on the tile at (x, y), or null. Two units never rest on one tile.
+// The Escort transport is the one exception: it drives its road and may share a tile (a lancemate on a one-tile road
+// would block it for good), but no ExoS or enemy ends a move on its tile.
+export function tileTaken(m, x: number, y: number) {
+  const tx = Math.floor(x / T), ty = Math.floor(y / T);
+  for (const u of [...G.lance, ...G.units, G.ally]) if (u && u !== m && !u.dead && !u.out && Math.floor(u.x / T) === tx && Math.floor(u.y / T) === ty) return u;
+  return null;
+}
 export function isMech(m) { return G.lance.includes(m); }
 export function setActive(m) { G.p = m; }
 // R18: fit = the mech's fit (kit.ts). Hits, rounds, shells and Energy come from its rows.
@@ -236,15 +244,15 @@ export function newHunt(loads?, prep?: () => void, ids?: string[]) {
   G.fieldReady = false; G.kills = 0; G.ei = 0; G.scanCost = null; // R19: set by applyScan
   newMission(G.mtype); G.pop = null; // R15
   if (G.mtype === 'ESCORT') G.ally = makeAlly(); // R15 s3: the transport starts on the route's first node
-  for (const c of G.pc) c.on = false;
+  for (const c of G.pc) { c.on = false; c.id = ''; c.seen = {}; c.by = {}; } // R25: a fresh picture (a last hunt's U3 seen by eyes made this hunt's U3 'known' in the after-action)
   for (const s of G.shells) s.on = false;
   for (const f of G.fx) f.on = false;
   G.sel = null; G.splash = null; // R9: last mortar splash (view shows it briefly)
-  G.act = null; G.turn = 1; G.planT = null; G.planD = null; G.plan = null; G.intr = null;
+  G.act = null; G.turn = 1; G.planT = null; G.planD = null; G.plan = null; G.intr = null; G.mstop = null; G.fixNote = null;
   G.time = 0;
   G.obs = {}; G.ids = {}; G.idStat = {}; G.eyesAny = false; // R14: observed traits, committed IDs, runner stats (see ids.ts)
   G.moveStat = { n: 0, c: 0, tap: 0, drawn: 0, wp: 0, intr: [] }; // R16; R17
-  G.shotLog = []; G.partLog = []; G.firstLog = []; G.alarmLog = []; G.emitStat = { P: { n: 0, sum: 0 }, E: { n: 0, sum: 0 } }; G.lastShot = { P: null, E: null };
+  G.shotLog = []; G.partLog = []; G.firstLog = []; G.alarmLog = []; G.emitStat = { P: { n: 0, sum: 0 }, E: { n: 0, sum: 0 } }; G.lastShot = { P: null, E: null }; G.eShots = []; G.fireRep = null;
   G.mode = 'hunt';
   if (G.scan) applyScan(); // R19: what the ship heard (stale blips, notes), the patrols' drift and the listen's costs
   if (prep) prep();

@@ -19,9 +19,10 @@ import { mapText } from '../sim/blocks.ts';
 import { moveModeBlock } from '../sim/reasons.ts';
 import { lowHits, hitsLeft } from '../sim/warn.ts';
 import { whyShort } from './glossary.ts';
+import { shotLineText } from './shots.ts';
 import { cmdMoveMode } from '../sim/turns.ts';
 // R24 B6: a tap on the compact HUD opens the full block; the next tap closes it (a long-press explains instead: explain.ts)
-document.getElementById('hud')?.addEventListener('pointerup', () => { if (window.innerHeight <= TUNE.HUD_COMPACT_H || V.hudOver) { V.hudOpen = !V.hudOpen; hudT = 0; } });
+document.getElementById('hud')?.addEventListener('pointerup', () => { if (G.fireRep && V.fireSeen !== G.fireRep.n && !V.hudOpen && (window.innerHeight <= TUNE.HUD_COMPACT_H || V.hudOver)) { V.fireSeen = G.fireRep.n; hudT = 0; return; } /* R25: the first tap closes the enemy-fire list */ if (window.innerHeight <= TUNE.HUD_COMPACT_H || V.hudOver) { V.hudOpen = !V.hudOpen; hudT = 0; } });
 // R24 A2: a HUD term the player can long-press (its glossary entry)
 const g = (id: string, text = id) => '<span data-g="' + id + '">' + text + '</span>';
 
@@ -66,7 +67,9 @@ export function updateHud(dt) {
   const turn = g('ROUND') + ' ' + G.turn + '  ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + (p.op ? ' · ' + p.op.name + ' (' + TUNE.OP_SKILL_NAMES[p.op.skill] + ' ' + p.op.lvl + (p.op.lvl >= 2 ? '★' : '') + ')' : '') + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>' + g('TAP WHERE TO FACE') + '</b>' : '') + (V.lookArm !== null ? '  <b style="color:#ff6">TAP WHERE IT SHOULD LOOK</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine && TUNE.AP_TURN > 0 ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') + // r17-s4: turning costs nothing (AP_TURN 0): no cost shown
     (mine ? '  ' + g('shots') + ' ' + p.turnShots + '/' + TUNE.SHOTS_PER_TURN : '') +
     (mine && G.plan && G.plan.drawn ? '  <b style="color:#8fe3ff">DRAWN PATH · ' + g('looks') + ' ' + G.plan.wps.length + '/' + TUNE.FACE_WAYPOINTS_MAX + (V.wpWhy ? ' (' + V.wpWhy + ')' : '') + '</b>' : '') + // R17
-    (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">' + g('MOVE STOPPED', 'MOVE STOPPED: CONTACT (' + G.intr.ap + ' AP kept)') + '</b>' : '');
+    (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">' + g('MOVE STOPPED', 'MOVE STOPPED: CONTACT (' + G.intr.ap + ' AP kept)') + '</b>' : '') +
+    (G.mstop && G.mstop.id === p.id ? '  <b style="color:#ffcc66">' + g('why.STOP.' + G.mstop.why, 'MOVE ENDS: ' + whyShort('STOP', G.mstop.why)) + '</b>' : '') + // R25 fix 2
+    (G.fixNote ? '  <b style="color:#8fe3ff">' + g('FIX CHANGED', 'FIX CHANGED: ' + G.fixNote.id + ' ' + (G.fixNote.from || 'NONE') + ' → ' + G.fixNote.to) + '</b>' : ''); // R25 fix 4
   const pips = '<span id="ap">' + '●'.repeat(p.ap) + '○'.repeat(Math.max(0, TUNE.AP_BANK_MAX - p.ap)) + '</span>';
   const full = turn + '<br>' + g('AP') + ' ' + pips + '  (+' + TUNE.AP_PER_TURN + '/turn)' +
     '<br>' + g('EN') + ' <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.en / p.enMax) + '%"></div></span> ' + Math.round(p.en) + '/' + p.enMax + '  (+' + (p.regen ?? TUNE.ENERGY_REGEN) + '/turn)' +
@@ -77,7 +80,7 @@ export function updateHud(dt) {
     warnLine() +
     '<br>' + (has(p, 'GUN') ? '  ' + g('AMMO') + ' ' + p.ammo : '') + (has(p, 'MORTAR') ? '  ' + g('SHELLS') + ' ' + p.shells : '') + '  ' + g('KILLS') + ' ' + G.kills + '/' + G.units.length + '  ' + g('TIME') + ' ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  ' + g('EMIT') + ' heard ~' + Math.round(heardRange(p)) + 't' : '  ' + g('EMIT') + ' silent') + (TUNE.THERMAL_ENABLED ? '  ' + g('IR') + ' ' + Math.round(irOf(p)) + ' (~' + Math.round(irRange(p)) + 't)' : '') + zoneHud(p) + // R18 cp3: heat, and how far a thermal sight sees it
     (has(p, 'MASK') ? '  ' + g('ECM') + ' ' + (p.mask ? 'ON' : 'off') : '') + (has(p, 'GHOST') && G.ghost.on ? '  ' + g('GHOST') + ' ' + G.ghost.turns + ' turns' : '') +
-    oddsLine(p) + shotLine('P') + shotLine('E') +
+    oddsLine(p) + shotLine('P') + fireLines() +
     (G.splash ? '<br><b style="color:' + (G.splash.hit ? '#f63' : '#aaa') + '">SPLASH: ' + (G.splash.hit ? 'hit' : 'miss') + '</b>' : '') +
     goalLine(p) +
 
@@ -89,7 +92,9 @@ export function updateHud(dt) {
   // R24 B6 (C03): on a short screen (or when the full block runs off the screen) the HUD is one line. A tap opens the full
   // block as a panel in the same slot, and the next tap closes it.
   const el = $('hud'), compact = window.innerHeight <= TUNE.HUD_COMPACT_H || V.hudOver;
-  if (compact && !V.hudOpen) { el.innerHTML = compactLine(p, mine); el.className = 'compact'; }
+  const newFire = mine && G.fireRep && G.fireRep.n !== V.fireSeen && G.turn - G.fireRep.turn <= 1; // R25 (C43): a new batch of enemy fire
+  if (compact && !V.hudOpen && newFire) { el.innerHTML = compactLine(p, mine) + fireLines() + '<br><small style="opacity:.7">Tap here to close.</small>'; el.className = 'open'; }
+  else if (compact && !V.hudOpen) { el.innerHTML = compactLine(p, mine); el.className = 'compact'; }
   else {
     el.innerHTML = full + (compact ? '<br><small style="opacity:.7">Tap here to close.</small>' : ''); el.className = compact ? 'open' : '';
     if (!compact && !V.dbg) { // the full block overran the screen edge or reached the left buttons: go compact until the window changes
@@ -152,12 +157,18 @@ function oddsLine(p) {
   const c = playerTarget(); if (shootBlock(p, c, TUNE.PLAYER_FIRE_UNC, fireRange(p)) !== '') return '';
   const h = shotOdds(p, c); return h ? '<br><b style="color:#ff6">' + g('ODDS') + ' ' + h.pct + '%</b>: ' + hitText(h) : '';
 }
-// R12: last shot by the lance ('P') / the field ('E'): "A → patrol: HIT LEG (62%)" / "turret → B: MISS (40%)"
-function who(id) { const u = unitById(id); return !u ? '?' : G.lance.includes(u) ? u.id : u === G.ally ? 'transport' : u.ft.NAME; } // R16 fix: the Escort transport has no field type (crashed the HUD the first time it was shot at)
+// R12: last shot by the lance ('P'). R25: worded by shots.ts ("A → patrol: HIT LEGS · had 62% to hit")
 function shotLine(k) {
   const r = G.lastShot[k]; if (!r || G.turn - r.turn > 1) return '';
-  const res = r.hit ? 'HIT ' + (PART_ABBR[r.part] || r.part) : 'MISS';
-  return '<br><b style="color:' + (r.hit ? (k === 'P' ? '#6f6' : '#f66') : '#aaa') + '">' + who(r.shooter) + ' → ' + who(r.target) + ': ' + res + ' (' + r.pct + '%)</b>';
+  const t = shotLineText(r); if (!t) return '';
+  return '<br><b style="color:' + (r.hit ? (k === 'P' ? '#6f6' : '#f66') : '#aaa') + '">' + g('SHOT RESULT', t) + '</b>';
+}
+// R25 (C43): every enemy shot since your last ExoS turn, not only the last one
+function fireLines() {
+  const F = G.fireRep; if (!F || G.turn - F.turn > 1) return '';
+  const hits = F.list.filter(r => r.hit).length;
+  return '<br><b>' + g('ENEMY FIRE', 'ENEMY FIRE: ' + F.list.length + ' shot' + (F.list.length === 1 ? '' : 's') + ', ' + hits + ' hit' + (hits === 1 ? '' : 's')) + '</b>' +
+    F.list.map(r => '<br><span style="color:' + (r.hit ? '#f66' : '#aaa') + '">· ' + shotLineText(r) + '</span>').join('');
 }
 function dbgShot(k) { const r = G.lastShot[k]; return r ? '<br>DBG last ' + (k === 'P' ? 'lance' : 'field') + ' shot ' + r.shooter + '→' + r.target + ' ' + r.pct + '% = ' + hitText(r) + ' · range ' + r.rangeT.toFixed(1) + 't moved ' + r.movedT.toFixed(1) + 't · ' + (r.roll ? 'rolled HIT' : 'rolled MISS') + (r.hit ? ' ' + r.part : '') : ''; }
 // label + small cost/reason line; lockd = can't do it now. R24 A3: why = the reason key ('FIRE.LOS') a tap on the greyed
@@ -182,7 +193,7 @@ export function syncButtons() {
   }
   const pl = G.plan;
   if (V.faceArm) setBtn('bMove', 'CANCEL', 'face', free, true);
-  else { const mw = !pl ? 'NOPLAN' : pl.path ? '' : pl.why; setBtn('bMove', 'MOVE', !pl ? (TUNE.DRAW_PATH_ENABLED ? 'TAP OR DRAW' : 'TAP MAP') : pl.path ? pl.ap + 'AP ' + pl.en + 'EN' : whyShort('MOVE', pl.why), free && pl && pl.path, false, mw ? 'MOVE.' + mw : ''); } // R17: or draw from your ExoS
+  else { const mw = !pl ? 'NOPLAN' : pl.path ? '' : pl.why; setBtn('bMove', 'MOVE', !pl ? (TUNE.DRAW_PATH_ENABLED ? 'TAP OR DRAW' : 'TAP MAP') : pl.path ? pl.ap + 'AP ' + pl.en + 'EN' + (pl.short ? ' · ' + whyShort('STOP', pl.short) : '') : whyShort('MOVE', pl.why), free && pl && pl.path, false, mw ? 'MOVE.' + mw : ''); } // R17: or draw from your ExoS
   // radar pulse
   const R = radarOf(p); // R18: the radar row's costs
   $('bRadar').hidden = !fitted(p, 'RADAR');

@@ -16,7 +16,19 @@ export function checkInvariants(): string[] {
     for (const m of G.lance) unitChecks(m, 'suit ' + m.id, say, true);
     for (const u of G.units) unitChecks(u, 'field ' + u.id, say, false);
     if (G.ally) unitChecks(G.ally, 'ally ' + G.ally.id, say, false);
+    if (!G.act) { // R25 fix 3 (C48): two units never rest on one tile (checked at rest: a walk may pass through)
+      const at: Record<string, string> = {};
+      for (const u of [...G.lance, ...G.units]) { // the transport may share a tile (state.ts tileTaken)
+        if (!u || u.dead || u.out || bad(u.x) || bad(u.y)) continue;
+        const k = Math.floor(u.x / T) + ',' + Math.floor(u.y / T), name = (G.lance.includes(u) ? 'suit ' : u === G.ally ? 'ally ' : 'field ') + u.id;
+        if (at[k]) say('tile ' + k + ': ' + at[k] + ' and ' + name + ' stand on one tile'); else at[k] = name;
+      }
+    }
     for (const c of G.pc) if (c.on && (bad(c.tx) || bad(c.ty) || bad(c.unc) || c.unc < 0)) say('contact ' + c.id + ': position or circle is not a number');
+  }
+  if (G.scan && G.scan.mode === 'active') { // R25 fix 5 (C18): a paused scan clock never moves
+    const S = G.scan;
+    if (!S.run && S.stopTick !== undefined && S.tick !== S.stopTick) say('scan: the clock moved while paused (tick ' + S.stopTick + ' → ' + S.tick + ')');
   }
   if (G.co) {
     const C = G.co;

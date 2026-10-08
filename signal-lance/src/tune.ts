@@ -225,6 +225,10 @@ export const TUNE = {
   DRAW_SIMPLIFY: 0.25,     // r17-s2: tiles; a freehand stroke's wobbles smaller than this are straightened (never round clutter you drew through)
   DRAW_SAMPLE: 0.35,       // r17-s2: tiles between the stroke points the view keeps
   INTERRUPT_CUE_TIME: 2.5, // seconds the "CONTACT — move stopped" cue stays on the suit
+  SHOT_FLASH_MS: 2500,     // R25 (C08): ms the shot result stays on the map near the target after you FIRE (display only)
+  FIX_NOTE_TIME: 3,        // R25 fix 4 (C20): seconds the "fix changed" note stays after a select turns your ExoS onto a contact (display only)
+  MOVE_SHORT_TILES: 1,     // R25 fix 2 (C06): a move that ends more than this many tiles from where you pointed says why (display only)
+  MOVE_ROUTE_WARN: 1.6,    // R25 fix 2: a walk this many times the straight line (or more) says LONG WAY ROUND (display only)
   ESCORT_FORKS: 2,         // forks on a block map's escort route (each with 2-3 onward legs: NORTH / AHEAD / SOUTH, open streets only)
   // R16 debrief 2 (Jamie: "still feels too much like a grid"): packed districts of irregular shapes (sim/packed.ts)
   MAP_LAYOUT: 'packed',    // 'packed' = shapes packed on half-block cells, cropped at the map edge; 'grid' = the r16-s3 block grid

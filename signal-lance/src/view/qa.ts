@@ -77,6 +77,7 @@ export function oracle() {
     parts: m.parts, dead: !!m.dead, out: !!m.out, state: m.state || '', ap: m.ap, en: m.en, found: m.found });
   const o: any = { build: BUILD, version: VERSION, mode: G.mode, rngSeed, seed: G.seed, mtype: G.mtype, comp: G.comp ? G.comp.NAME : '', turn: G.turn, phase: G.phase, outcome: G.outcome };
   if (G.mode === 'hunt') { o.lance = G.lance.map(u); o.field = G.units.map(u); o.ally = u(G.ally); o.contacts = G.pc.filter(c => c.on).map(c => ({ id: c.id, fix: [r1(c.tx / T), r1(c.ty / T)], unc: r1(c.unc / T), truth: (() => { const t = unitById(c.id); return t ? [r1(t.x / T), r1(t.y / T)] : null; })() })); }
+  if (G.scan && G.scan.mode === 'active') o.scan = { tick: G.scan.tick, t: G.scan.t, run: !!G.scan.run, over: !!G.scan.over, risk: Math.round(G.scan.risk * 10) / 10, stopTick: G.scan.stopTick ?? null }; // R25 fix 5 (C18): the clock, for the oracle
   if (G.ct) o.contract = { status: G.ct.status, hunt: G.ct.hunt, of: G.ct.hunts, cr: G.ct.cr };
   if (G.co) { const C = G.co; o.company = { code: C.code, credits: C.credits, fuel: C.fuel, parts: C.parts, debt: C.debt, folded: C.folded, ops: C.ops.length, rec: C.rec, standing: C.city ? C.city.standing : null }; }
   return o;

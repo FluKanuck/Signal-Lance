@@ -1,7 +1,8 @@
 import { TUNE } from '../tune.ts';
 import { W, T, isSolid, isClutter, canReach, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter, clearWide, segCost } from './world.ts';
 import { onSuitDown, noteCarry } from './company.ts';
-import { G, hooks, finishHunt, unitById, livingMechs, activeMechs, isMech, isFriend, friends, setActive } from './state.ts';
+import { G, hooks, finishHunt, unitById, livingMechs, activeMechs, isMech, isFriend, friends, setActive, tileTaken } from './state.ts';
+export { tileTaken };
 import { allyStep, pickLeg, giveOrder } from './escort.ts';
 import { rand } from './rng.ts';
 import { updateSensors, cx, cy, killContact, muzzleFlash, canSee } from './sensors.ts';
@@ -68,14 +69,14 @@ export function updateShells(dt) {
         const part = rollPart(v, { x: s.sx, y: s.sy }); damagePart(v, part, TUNE.SHOT_DAMAGE); // R18: from behind = BACK
         aarHitBy(null, 0, 0, '');
         s.owner.landed++; v.took = (v.took || 0) + 1; if (isMech(v)) hooks.playerHit();
-        if (s.rec) { s.rec.part = part; s.rec.rear = fromBehind(v, s.sx, s.sy); }
+        if (s.rec) { s.rec.part = part; s.rec.rear = fromBehind(v, s.sx, s.sy); s.rec.victim = v.id; s.rec.kill = v.hits <= 0; } // R25: who it hit, and whether that ended it
       }
-      if (s.rec) s.rec.hit = hit;
+      if (s.rec) { s.rec.hit = hit; s.rec.done = true; }
       impactFx(s.x, s.y, hit);
       continue;
     }
     s.x += s.vx * step; s.y += s.vy * step; s.left -= step;
-    if (isSolid(Math.floor(s.x / T), Math.floor(s.y / T))) { s.on = false; impactFx(s.x, s.y, false); }
+    if (isSolid(Math.floor(s.x / T), Math.floor(s.y / T))) { s.on = false; impactFx(s.x, s.y, false); if (s.rec) { s.rec.hit = false; s.rec.wall = true; s.rec.done = true; } } // R25: a wall stopped it
   }
   for (const f of G.fx) if (f.on && (f.t -= dt) <= 0) f.on = false;
   for (const u of G.units) if (u.hits <= 0 && !u.dead) { // destroyed: wreck marker replaces its contact
@@ -99,6 +100,8 @@ export function step(dt) {
   if (G.splash && (G.splash.t -= dt) <= 0) G.splash = null; // R9: the splash marker fades in real time
   if (G.pop && (G.pop.t -= dt) <= 0) G.pop = null; // R15: so does the bounty pop
   if (G.intr && (G.intr.t -= dt) <= 0) G.intr = null; // R17: and the interrupt cue
+  if (G.mstop && (G.mstop.t -= dt) <= 0) G.mstop = null; // R25: and the move-end cue
+  if (G.fixNote && (G.fixNote.t -= dt) <= 0) G.fixNote = null; // R25: and the fix-changed note
   if (G.act) stepAction(dt);
   else if (G.phase === 'ENEMY' && (G.ewait -= dt) <= 0) enemyStep();
 }
@@ -153,6 +156,7 @@ export function nextActivation() {
   }
   if (isMech(m)) {
     G.phase = 'PLAYER'; setActive(m);
+    if (G.eShots.length) { G.fireRep = { turn: G.turn, n: (G.fireRep ? G.fireRep.n : 0) + 1, list: G.eShots }; G.eShots = []; } // R25 (C43): the enemy fire since your last ExoS turn, all of it
     G.up.used = false; // one UPLINK per mech activation
     if (G.ghost.on && G.ghost.owner === m && --G.ghost.turns <= 0) G.ghost.on = false;
     G.planT = null; G.planD = null; replan(); // R17: a drawn path is this turn only
@@ -207,6 +211,7 @@ export function stepAction(dt) {
   if (allOut()) { G.act = null; onAllOut(); return; } // R16: every friendly is extracted (or destroyed)
   const done = a.k === 'MOVE' ? !a.m.path || a.age > 30 : a.t <= 0 && !shellsFlying();
   if (!done) return;
+  if (a.k === 'MOVE' && !a.intr && a.pl && a.pl.short && isMech(a.m)) G.mstop = { id: a.m.id, why: a.pl.short, t: TUNE.INTERRUPT_CUE_TIME * 2 }; // R25 fix 2: say why it ended there
   a.m.moving = false; a.m.path = null; a.m.holdFace = false; if (a.k === 'PULSE') a.m.radarOn = false;
   G.act = null;
   if (G.phase === 'ENEMY') G.ewait = TUNE.ENEMY_ACT_PAUSE;
@@ -261,6 +266,17 @@ export function clipPath(path, maxTiles) {
   }
   return out;
 }
+// R25 fix 3 (QA C48: "A and B both at (7.5, 19.5)"): no two units stand on one tile. A move that would end on a tile
+// another living unit (either side, the transport too) stands on ends on the last free spot before it. The walk may pass
+// through. Returns the movement budget (cost tiles) the move can use.
+export function clearEnd(m, full, len: number) {
+  for (let n = 0; n < 400 && len > 0; n++) {
+    const P = clipPathCost(full, len), e = P[P.length - 1];
+    if (!tileTaken(m, e.x, e.y)) return len;
+    len = Math.max(0, len - 0.25);
+  }
+  return len;
+}
 // Returns { full, path (clipped, or null if nothing affordable), len, ap, en, cut, why, mode }.
 export function planMove(m, x, y, mode, apMax?, enMax?) {
   const full = findPath(m.x, m.y, x, y);
@@ -272,14 +288,16 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
   apMax = Math.min(m.ap, apMax === undefined ? m.ap : apMax); enMax = Math.min(m.en, enMax === undefined ? m.en : enMax);
   const oAP = m.over ? m.over.ap : 0, oSnd = m.over ? m.over.snd : 0; // R18 (A7): overload: +AP and +Sound on every move
   const fullLen = pathCost(full), apLen = Math.max(0, apMax - oAP) * tpa, enLen = ept > 0 ? enMax / ept : 1e9; // R16: tiles of movement (clutter costs CLUTTER_TILE_COST each)
-  const len = Math.min(fullLen, apLen, enLen);
-  const r: any = { full, path: null, len: 0, ap: 0, en: 0, cut: len < fullLen - 1e-3, why: apLen <= enLen ? 'AP' : 'EN', mode };
+  let len = Math.min(fullLen, apLen, enLen);
+  const lenC = clearEnd(m, full, len), blocked = lenC < len - 1e-6; len = lenC; // R25 fix 3 (C48): never end on another unit's tile
+  const r: any = { full, path: null, len: 0, ap: 0, en: 0, cut: len < fullLen - 1e-3, why: blocked ? 'UNIT' : apLen <= enLen ? 'AP' : 'EN', mode };
   if (len < 0.25) return r;
   r.path = r.cut ? clipPathCost(full, len) : full; r.len = len;
   r.ap = Math.ceil(len / tpa - 1e-6) + oAP; r.en = Math.ceil(len * ept - 1e-6); r.oAP = oAP;
   r.crunch = pathHitsClutter(r.path); // R16: entering any clutter tile adds CLUTTER_SOUND to this move's Sound (once)
   r.snd = (m.snd || TUNE.SOUND_RANGE)[mode] + oSnd + (r.crunch ? TUNE.CLUTTER_SOUND : 0); r.lame = lame; // R13: the sound radius this move will make (Emissions no longer rise with moves)
   r.tpa = tpa; r.ept = ept; r.wps = []; r.wpAP = 0; r.drawn = false; // R17: what the interrupt refund needs
+  r.short = shortWhy(m, r, { x, y }); // R25 fix 2 (C06)
   return r;
 }
 // ---- R17: drawn paths ("Eyes on the street"). r17-s2 (Jamie: "need to free hand path the line, not have it snapping"):
@@ -365,17 +383,33 @@ export function planDrawn(m, pts: { x: number; y: number }[], mode, wps: any[] =
   const oAP = m.over ? m.over.ap : 0, oSnd = m.over ? m.over.snd : 0; // R18 (A7): overload
   for (let k = WI.length; k >= 0; k--) {
     const wpAP = Math.max(0, k - free) * TUNE.AP_TURN;
-    const apLen = Math.max(0, m.ap - wpAP - oAP) * tpa, enLen = ept > 0 ? m.en / ept : 1e9, len = Math.min(fullLen, apLen, enLen);
+    const apLen = Math.max(0, m.ap - wpAP - oAP) * tpa, enLen = ept > 0 ? m.en / ept : 1e9, len0 = Math.min(fullLen, apLen, enLen);
+    const len = clearEnd(m, full, len0), blocked = len < len0 - 1e-6; // R25 fix 3 (C48)
     if (k > 0 && cum[WI[k - 1].i] > len + 1e-6) continue; // the k-th waypoint is past where this move would stop
-    const r: any = { ...base, cut: len < fullLen - 1e-3, why: apLen <= enLen ? 'AP' : 'EN', wps: WI.slice(0, k), wpAP, tpa, ept, lame, cum };
+    const r: any = { ...base, cut: len < fullLen - 1e-3, why: blocked ? 'UNIT' : apLen <= enLen ? 'AP' : 'EN', wps: WI.slice(0, k), wpAP, tpa, ept, lame, cum };
     if (len < 0.25) return r;
     r.path = r.cut ? clipPathCost(full, len) : full; r.len = len;
     r.ap = Math.ceil(len / tpa - 1e-6) + wpAP + oAP; r.en = Math.ceil(len * ept - 1e-6); r.oAP = oAP;
     r.crunch = pathHitsClutter(r.path);
     r.snd = (m.snd || TUNE.SOUND_RANGE)[mode] + oSnd + (r.crunch ? TUNE.CLUTTER_SOUND : 0);
+    r.short = shortWhy(m, r, pts[pts.length - 1]); // R25 fix 2 (C06)
     return r;
   }
   return { ...base, why: 'AP' };
+}
+// R25 fix 2 (QA C06: "all of it is spent while the ExoS moves about a tile, ends off the line"). The rules were right (a
+// fuzz of 1,218 tap and drawn moves all ended on the plan's end), but nothing said why a move ends away from where you
+// pointed. The plan names it: '' = it ends where you pointed. AP / EN = it runs out first (CLUTTER = and clutter tiles
+// cost CLUTTER_TILE_COST each on the way). WALL = the spot is in a wall or cut off, so it stops at the nearest street.
+// ROUTE = it ends there, but the walk is MOVE_ROUTE_WARN times the straight line or more (it goes round walls).
+export function shortWhy(m, pl, want: { x: number; y: number } | undefined) {
+  if (!pl || !pl.path || pl.path.length < 2 || !want) return '';
+  const end = pl.path[pl.path.length - 1];
+  if (pl.cut) return pl.why === 'UNIT' ? 'UNIT' : pl.crunch && pathCost(pl.path) > pathLen(pl.path) + 0.5 ? 'CLUTTER' : pl.why;
+  if (Math.hypot(end.x - want.x, end.y - want.y) / T > TUNE.MOVE_SHORT_TILES) return 'WALL';
+  const straight = Math.hypot(end.x - m.x, end.y - m.y) / T;
+  if (straight >= 2 && pathLen(pl.path) >= straight * TUNE.MOVE_ROUTE_WARN) return 'ROUTE';
+  return '';
 }
 export function doMove(m, pl) {
   if (pl.mode === 'SPRINT') addHeat(m, TUNE.IR_SPRINT); // R18 cp3: sprinting runs hot
@@ -413,7 +447,7 @@ function moveTick(a) {
     if (!u || u.dead || isFriend(u)) continue;
     // R18 fix list 8 (Jamie: "i already knew they were there … they weren't a new contact"): only a contact that wasn't on your
     // picture when the move began stops it (eyes landing on a known one no longer does)
-    if (!a.known.has(c.id)) { const eyes = canSee(m, u, eyesRange(m)); interruptMove(a, u, eyes ? 'eyes' : c.snd ? 'sound' : c.shr ? 'alarm' : 'sensors'); return; }
+    if (!a.known.has(c.id)) { if (tileTaken(m, m.x, m.y)) return; /* R25 fix 3: walk on to a free spot first */ const eyes = canSee(m, u, eyesRange(m)); interruptMove(a, u, eyes ? 'eyes' : c.snd ? 'sound' : c.shr ? 'alarm' : 'sensors'); return; }
   }
 }
 // R17: stop the move here. AP / EN are charged only for what was walked (and the waypoints reached); the rest goes back.
@@ -470,10 +504,18 @@ export function doShot(m, c) {
   let ax = cx(c), ay = cy(c);
   if (rec && rec.roll && tgt) { ax = tgt.x; ay = tgt.y; } // a rolled hit lands on the unit itself, so the shown % is the real chance
   else if (rec && !rec.roll) { const a = rand() * 6.2832, d = (TUNE.HIT_RADIUS + 0.4 + rand() * 0.6) * T; ax += Math.cos(a) * d; ay += Math.sin(a) * d; }
+  if (rec) { rec.ax = ax; rec.ay = ay; } // R25: where it was sent (the map shows the result there)
   fire(m, ax, ay, rec); makeSound(m, 'SHOT');
-  if (rec) { G.shotLog.push(rec); G.lastShot[rec.mech ? 'P' : 'E'] = rec; }
+  if (rec) { G.shotLog.push(rec); G.lastShot[rec.mech ? 'P' : 'E'] = rec; if (!rec.mech) G.eShots.push(rec); } // R25: every enemy shot until your next ExoS turn
   muzzleFlash(m, unitById(c.id)); // R7: the target sees where the shot came from
   startAct({ k: 'SHOT', m, t: 0.05 });
+}
+// R25 fix list 6–8 (C08, C43, C51): what a finished gun shot did, as one word. KILL = it destroyed an enemy, DOWN = it put an
+// ExoS (or the transport) out, HIT = it hit a part, WALL = a wall stopped it, MISS = it missed. '' = still flying.
+export function shotWord(r) {
+  if (!r || !r.done) return '';
+  if (r.hit) { const v = unitById(r.victim); return r.kill ? (v && !isFriend(v) ? 'KILL' : 'DOWN') : 'HIT'; }
+  return r.wall ? 'WALL' : 'MISS';
 }
 // ---- Round 9: mortar (player mechs with the module). Fires on the target contact's fix centre, no LoS. ----
 // '' = can fire; otherwise the one-word reason shown on the MORTAR button.
@@ -626,6 +668,14 @@ export function cmdMortar() { // R9
 export function cmdMortarOn(c) { if (mortarBlock(G.p, c) === '') { G.sel = c; doMortar(G.p, c); return true; } return false; } // R9 run1: aimed, from the armed tap
 export function cmdMortarAt(x, y) { if (mortarBlindBlock(G.p, x, y) === '') doMortarBlind(G.p, x, y); } // R9 run1
 export function cmdFace(x, y) { freeTurn(G.p, x, y); replan(); }
-export function cmdSelect(c) { G.sel = c; freeTurn(G.p, cx(c), cy(c)); replan(); } // select + turn to face (if affordable)
+export function cmdSelect(c) { // select + turn to face (if affordable)
+  const was = c ? fixKind(c) : '';
+  G.sel = c; freeTurn(G.p, cx(c), cy(c)); replan();
+  // R25 fix 4 (C20): turning to face it can give a better fix (eyes). Say so, so FIRE going live is never a surprise.
+  if (c && c.on && fixKind(c) !== was) G.fixNote = { id: c.id, from: was, to: fixKind(c), t: TUNE.FIX_NOTE_TIME };
+}
+// R25 fix 4: what kind of fix the contact has now, read by the tag, the card, FIRE and the note alike.
+// SOUND = heard only, LINK = a lancemate's shared alarm track, TIGHT = good enough to FIRE at, FUZZY = too vague.
+export function fixKind(c) { return !c || !c.on ? '' : c.snd ? 'SOUND' : c.shr ? 'LINK' : c.lost > c.gap || c.unc > TUNE.PLAYER_FIRE_UNC * T ? 'FUZZY' : 'TIGHT'; }
 // R24 fix list 10 (C19): clear the selection (a tap on empty ground or on your own ExoS). FIRE and ID go back to the best contact.
 export function cmdDeselect() { G.sel = null; }

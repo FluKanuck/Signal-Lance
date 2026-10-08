@@ -5,6 +5,7 @@
 // Off (G.co null) = the R11 contract flow, byte-identical: suits have no operator, a lethal hit just destroys the suit.
 import { aarCarry } from './aar.ts';
 import { TUNE } from '../tune.ts';
+import { rollTap } from './rng.ts';
 import { T } from './world.ts';
 import { G } from './state.ts';
 import { DEFAULT_FIT, toFit, fitRounds, fitShells, kitOf, launchBlock } from './kit.ts';
@@ -30,7 +31,9 @@ function corand(): number {
   let t = C.rs;
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  const v = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  if (rollTap.fn) rollTap.fn('company', v);
+  return v;
 }
 const pick = <X>(a: X[]): X => a[Math.floor(corand() * a.length)];
 

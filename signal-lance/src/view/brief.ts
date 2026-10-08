@@ -7,35 +7,20 @@ import { ENTRIES } from './glossary.ts';
 import type { Entry, Screen } from './glossary.ts';
 
 export const TEST = {
-  title: 'Round 24 test: Say what it means',
-  question: 'With long-press explanations and clear reasons on greyed buttons, can you read the hunt without help?',
+  title: 'Round 25 test: Lock the rules',
+  question: 'After you FIRE, and after the enemy fires, do you know what happened without opening the HUD?',
   newThings: [
-    'NEW (r24-s4): a long-press, or a right-click on a computer, never presses the button. A button with no explanation yet says so. Two operators never share a first name.',
-    'NEW (r24-s3): the words on every screen follow one rule: one name per thing, short sentences, and the reason for every limit.',
-    'NEW: the company tab for repairs, rounds and shells is now REFIT. The ship module is the EXOS BAY. WHAT IT COST names the ExoS (ExoS B LOST), not its operator.',
-    'NEW: ESCORT has a ROUTE bar above the bottom buttons. It has one button for each way at each fork ahead. A ✓ marks the way you set.',
-    'NEW: when the transport takes a hit, a line at the top says how many hits it has left. At half or less, the line turns red.',
-    'NEW: the scan says which DROP ZONE is picked and how to change it.',
-    'NEW: the contract result shows THE BOOKS: credits at the start, hunt pay, spending, the fee and bonus, wages, upkeep and credits now. Each line adds up.',
-    'NEW: job cards show the completion bonus (+' + TUNE.CONTRACT_BONUS + ' cr) next to the fee. BAIL CONTRACT says that you lose both, and that hunt pay you earned stays.',
-    'NEW: THE BOOKS on the company screen list every way the company can fold.',
-    'NEW (r24-s2): on a phone held sideways, the HUD is one line: the ExoS, AP, EN, the objective and any warning. Tap the line to see the full HUD, and tap it again to close it.',
-    'NEW: the map keeps your active ExoS, the selected contact and the objective clear of the buttons. Contact labels near the right edge flip to the left.',
-    'NEW: map labels no longer print on top of each other. ExoS names, PAINTED and contact labels move apart, on the hunt map and the after-action map.',
-    'TEST BED: “Crowded phone”. Three contacts and the uplink sit near the right edge. Find and tap each one.',
-    'NEW (r24-s1): long-press anything to see what it is. Hold a finger on a button, a HUD word, a contact, a tag, a mark or the ground. On a computer, right-click it.',
-    'The explain card opens at the top left. Any tap closes it. A long-press never fires the button or sets a move.',
-    'NEW: a greyed button says why when you tap it. Example: FIRE · NO SIGHT, then “No line of sight. Move until the contact is in view.”',
-    'NEW: the greyed button shows its reason in words: NO SIGHT, NO LOCK, OUT OF RANGE, HEARD ONLY, LEG DAMAGED, NEED AP.',
-    'NEW: low hits. A hit ExoS with ' + TUNE.WARN_HITS_LEFT + ' CORE hits or fewer left gets a red ring and “! N” on the map. The HUD says “A: 2 CORE hits left”.',
-    'NEW: LAST SEEN. A contact that drops off your picture leaves a faded mark with its round, for ' + TUNE.LASTKNOWN_ROUNDS + ' rounds. You can’t target it.',
-    'NEW: GAMEPLAY BASICS reads from the glossary, by screen. BACK is at the top too.',
-    'One name per thing: ExoS (not mech), NORMAL (not NORM), the part names MAST, ARMS, CORE, BACK and LEGS, ESM (not passive ears), SCAN (the tag that was SHIP).',
-    'FIXED: a tap on empty ground or on your own ExoS clears the selected contact. A greyed NORMAL or SPRINT no longer traps a lame ExoS. The objective line says which ExoS its distance is from.',
-    'TEST BED: “Read it cold”. One hunt turn with a blocked FIRE, a lame ExoS, one low on hits, an UNKNOWN ESM contact and a LAST SEEN mark.',
+    'WHY: Signal Lance moves to a new game engine next. These fixes lock the rules first, so the new engine copies rules that are right.',
+    'NEW (r25-s1): after you FIRE, the map shows the result for a few seconds. It says HIT and the part, MISS or KILL, and the chance (“had 77% to hit”).',
+    'NEW: ENEMY FIRE starts each ExoS turn. It lists every enemy shot since your last turn: who fired, at whom, and the result. On a phone, tap the HUD to close it.',
+    'NEW: a move that ends away from your spot says why: OUT OF AP, OUT OF EN, CLUTTER, BLOCKED, TILE TAKEN or LONG WAY ROUND. The MOVE button shows it first, then the map.',
+    'NEW: two units never stand on one tile. A move onto a taken tile ends just before it. The escort transport is the one exception.',
+    'NEW: tap a contact and your ExoS turns to face it. If that turn gives a better fix, the HUD says FIX CHANGED, for example SOUND → TIGHT. FIRE can aim at a TIGHT fix.',
+    'FIXED: REFIT shows the same hits as the hunt (a fresh Warden is 8/8, not 6/6). The ExoS long-press card shows all its hits and its CORE hits.',
+    'FIXED: the after-action page no longer names an enemy you never saw. Your eyes on a unit with the same tag in an earlier hunt caused it.',
   ],
-  round: 24,
-  howTo: 'Play “Read it cold” and “Crowded phone” first. Long-press everything you don’t know, then tap each greyed button. Then play a contract or two and tap the answers after each hunt. When you finish, tap SEND LOG and send it to Jamie.',
+  round: 25,
+  howTo: 'Play a contract or two. FIRE often, and read the map after each shot. At the start of each ExoS turn, read the ENEMY FIRE list. Tap the answers after each hunt. When you finish, tap SEND LOG and send it to Jamie.',
 };
 const R20_NEW = [
     'NEW (r20-s4): learn why. After every hunt the result screen has THE SCAN: a line per stretch of your scan (which sensors, where each looked: full map or the map area its ring was in, the altitude, the minutes, what came back, the risk it added), then what the drop rolled (the step, how many were awake, painted or not, units that joined). SEND LOG carries the same lines as [SCAN].',
@@ -88,6 +73,13 @@ const R17_NEW = [
 ]; void R17_NEW; // R18: Round 17's build notes (its HISTORY page is the condensed version)
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
+  { round: 24, title: 'Round 24: Say what it means', lines: [
+    'Long-press anything (on a computer, right-click it) to see what it is. A long-press never presses the button.',
+    'A greyed button says why when you tap it, for example FIRE · NO SIGHT. GAMEPLAY BASICS reads from the same glossary.',
+    'On a phone held sideways the HUD is one line. Tap it to see all of it. Map labels move apart and stay clear of the buttons.',
+    'One name per thing on every screen: ExoS, REFIT, EXOS BAY, and the parts MAST, ARMS, CORE, BACK and LEGS.',
+    'Low hits (a red ring and “! N”), LAST SEEN marks, the ESCORT ROUTE bar, transport hit warnings, and contract BOOKS that add up.',
+  ] },
   { round: 23, title: 'Round 23: Who you’ll anger', lines: [
     'THE CITY (CONTRACTS tab): Corporate, Foundry and Syndicate hold the districts. ▼ SHIP shows where you are. The three jobs are in districts. Fuel = the links you jump. The faction that holds the ship’s district sets the fuel price.',
     'FACTION JOB (×' + TUNE.CITY_FACTION_PAY + '): a rival of the target hires you. The employer likes you more, and the target likes you less. BROKER JOB (×' + TUNE.CITY_BROKER_PAY + '): the job is deniable. Only the target notices.',
@@ -173,9 +165,9 @@ export const HISTORY = [
 ];
 // End-of-hunt questions (tap one answer each; optional). Answers go into the log line, next to the hunt's job type.
 export const QUESTIONS = [
-  { k: 'cold', q: 'Did you understand the hunt without needing to ask anyone?', a: ['Yes', 'Mostly', 'No', 'Something else'] }, // R24 focus 2
-  { k: 'why', q: 'When a button was greyed, did you know why?', a: ['Yes, it said', 'Mostly', 'No', 'Didn’t notice'] }, // A3
-  { k: 'press', q: 'The long-press card was…', a: ['Useful', 'Too long', 'Hard to open', 'Didn’t use it'] }, // A2
+  { k: 'fired', q: 'After you fired, did you know what happened?', a: ['Yes, the map said', 'After I opened the HUD', 'No', 'Didn’t fire'] }, // R25 focus 1
+  { k: 'efire', q: 'After the enemy fired, did you know what it hit?', a: ['Yes, the list said', 'Partly', 'No', 'Didn’t notice'] }, // R25 focus 1 (C43)
+  { k: 'stop', q: 'Did an ExoS stop where you did not expect?', a: ['No', 'Yes, and it said why', 'Yes, and I didn’t know why', 'Something else'] }, // R25 focus 2
 ]
 
 // R24 A4: GAMEPLAY BASICS reads from the glossary. Grouped by screen: a few plain how-to lines, then every glossary term of
@@ -204,6 +196,8 @@ const BASICS: { title: string; screens: Screen[]; how: string[] }[] = [
     'Tap a contact to select it. Then FIRE, ID or RADAR use it.',
     'A greyed button says why on a tap. END TURN passes to the next unit.',
     'On a phone the HUD is one line. Tap it to see all of it.',
+    'After you FIRE, the map shows what the shot did. At the start of your turn, ENEMY FIRE lists every enemy shot.',
+    'A move that ends early says why, on the MOVE button and on the map. Two units never share a tile.',
   ] },
   { title: 'Contacts', screens: ['contact'], how: [
     'Enemies are hidden. Your sensors fix them as contacts. The tags say which sensor fixed each one.',

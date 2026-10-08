@@ -24,6 +24,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
 - `src/main.ts`: wiring and the frame loop.
 - QA panel (`claude/signal-lance-qa-harness.md`): `src/sim/invariants.ts` (rule checks the harness runs after every
   tester action), `src/view/qa.ts` (`window.__qa`, only in `npm run build:qa` → `dist-qa/`, never in `docs/`).
+- R25: `scripts/golden.ts` + `golden/` (the golden logs, port phase 0: `npm run sim -- --golden golden` writes them,
+  `test/golden.test.ts` checks them; a rule change shows up as a diff), `src/view/shots.ts` (shot results in words).
 - `npm run build` → `dist/signal-lance.html` (one self-contained file; republish it to the artifact).
 
 ## ASSUMPTIONS
@@ -1224,6 +1226,17 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Low hits waits for the first hit (a fresh scout has 1 CORE hit: a warning from the drop was noise in testing).
    - Crowded phone: district 1701, A and B on the street at x 31-33, a sentry, a fire emplacement and a line patrol at x 36-42
      round the uplink at [41, 13], all three on the picture at the start (RADAR, RADAR, ESM).
+   - R25 FIX 1: the hunt's count (parts' sum, PART_MIN legs included) is the right one; REFIT now reads it. A fresh Warden is 8/8.
+   - R25 FIX 2: WALL = the end is more than MOVE_SHORT_TILES from the point; CLUTTER = cut and the path's cost exceeds its length by
+     0.5 or more (clutter ate the budget); ROUTE = not cut, but the walk is MOVE_ROUTE_WARN × the straight line or more (2+ tiles).
+   - R25 FIX 3: the Escort transport may share a tile (it drives a fixed road; with the rule it could be blocked for good).
+     ExoS and enemies never end a move on its tile. A walk may pass through any unit.
+   - R25 FIX 4: the QA case (FIRE live on a 'SOUND · 1 fit' contact) was the select's free turn giving eyes. The tag and FIRE
+     always read the same flag (c.snd); the note says the fix changed. Fire-ready = TIGHT (not LOCK: the glossary's 'lock' is
+     the enemy's fire rule).
+   - R25 FIX 6-8: "the enemy phase" = every enemy shot since your last ExoS activation (initiative mixes the sides). On a
+     phone the list opens the HUD block once per batch; a tap closes it.
+   - R25 golden logs: positions in tiles to 3 places (V8 and Godot may differ in the last bit of sin / hypot); rolls exact.
 ```
 
 ## TWEAK LOG
@@ -1858,6 +1871,22 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            TAKE JOB, module slots), a desktop right-click fired the control under the card, two operators shared a first name.
            A long-press or right-click never fires a control now (a control with no entry shows a plain card). ROUTE bar buttons
            read the ROUTE entry. First names are unique on a roster (+ recruits). No rule change. Runner CHECK OK | -
+   round25 part A (r25-s1) | brief "Lock the rules" + fix list 1-8 (QA r24-core-1008: C06, C48, C20, C18, C08, C43, C51; R24
+           parked REFIT 6/6 vs 8) | FIX 1: contract.ts fresh() counted the fit's pool (6), the hunt counts the parts' sum with
+           PART_MIN legs (8): fresh() now sums the parts. FIX 2: no rule bug (a fuzz of 1,218 tap and drawn moves on 40 seeds all
+           ended on the plan's end, AP = the plan's AP); the plan names why it ends away from the point (shortWhy: AP, EN,
+           CLUTTER, WALL, ROUTE, UNIT) on the MOVE button and as MOVE ENDS on the map. NEW MOVE_SHORT_TILES 1, MOVE_ROUTE_WARN 1.6
+           (display only). FIX 3: no two units rest on one tile (clearEnd: a move ends on the last free spot before a taken tile;
+           an interrupt walks on to a free spot first), the invariant checks it at rest. The Escort transport is exempt (a
+           lancemate on a one-tile road stalled 6 of 20 runner contracts when it wasn't). FIX 4: FIX CHANGED note when a select's
+           free turn changes a contact's fix (fixKind SOUND / LINK / FUZZY / TIGHT); NEW FIX_NOTE_TIME 3. FIX 5: no way found for
+           a paused clock to move (scanStep returns when paused); stopTick + an invariant + the scan clock in the QA oracle.
+           FIX 6-8: shot record gains victim / kill / wall / done / aim point; shotWord; the map flash (NEW SHOT_FLASH_MS 2500);
+           ENEMY FIRE = every enemy shot since your last ExoS turn (G.fireRep); "had N% to hit". FOUND: G.pc kept last hunt's
+           seen / id, so after-action events were marked 'known' from an earlier hunt: reset at newHunt. Golden logs: 51 files,
+           139,482 rolls, 3.0 MB (npm run sim -- --golden golden; test/golden.test.ts). Runner: --contracts 20 --check FLAG grid
+           5x2 83% (6 hunts; it was clean before on these seeds); 100 contracts from 21: before 30 complete / 5x2 69%, after 31 /
+           66% (no shift) | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

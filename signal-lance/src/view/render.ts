@@ -1,3 +1,7 @@
+import { whyShort } from './glossary.ts';
+import { shotResult } from './shots.ts';
+import { shotWord } from '../sim/turns.ts';
+const flash: { rec: any; until: number } = { rec: null, until: 0 }; // R25: the shot-result flash
 import { drawAarHl } from './aar.ts';
 import { TUNE } from '../tune.ts';
 import { has, radarOf, mortarOf } from '../sim/kit.ts';
@@ -626,6 +630,26 @@ export function render() {
       ctx.fillStyle = '#ff8a5c'; ctx.font = 'bold ' + (14 / z) + 'px monospace'; ctx.textAlign = 'center';
       ctx.fillText('CONTACT — move stopped', m.x, m.y - 26 / z - 10);
       ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText(G.intr.ap + 'AP kept · ' + G.intr.why, m.x, m.y - 12 / z - 10); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+    }
+  }
+  // R25 fix list 6 (C08): the result of your last shot, on the map where it was sent, for SHOT_FLASH_MS (HUD open or not)
+  const sr = G.lastShot.P;
+  if (sr && sr.done && sr !== flash.rec) { flash.rec = sr; flash.until = performance.now() + TUNE.SHOT_FLASH_MS; }
+  if (flash.rec && flash.rec === sr && performance.now() < flash.until) {
+    const left = (flash.until - performance.now()) / TUNE.SHOT_FLASH_MS, w = shotWord(sr);
+    ctx.globalAlpha = Math.min(1, left * 3); ctx.textAlign = 'center';
+    ctx.font = 'bold ' + (16 / z) + 'px monospace'; ctx.lineWidth = 4 / z; ctx.strokeStyle = '#000';
+    const head = shotResult(sr).split(' · had ')[0], sub = 'had ' + sr.pct + '% to hit';
+    ctx.strokeText(head, sr.ax, sr.ay - 18 / z); ctx.fillStyle = w === 'KILL' ? '#ffd166' : w === 'HIT' ? '#6f6' : '#ccc'; ctx.fillText(head, sr.ax, sr.ay - 18 / z);
+    ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.strokeText(sub, sr.ax, sr.ay - 5 / z); ctx.fillText(sub, sr.ax, sr.ay - 5 / z);
+    ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+  }
+  // R25 fix 2 (C06): why a move ended away from where you pointed
+  if (G.mstop && !G.intr) {
+    const m = G.lance.find(x => x.id === G.mstop.id);
+    if (m && !m.dead && !m.out) {
+      ctx.globalAlpha = Math.min(1, G.mstop.t); ctx.fillStyle = '#ffcc66'; ctx.font = 'bold ' + (13 / z) + 'px monospace'; ctx.textAlign = 'center';
+      ctx.fillText('MOVE ENDS: ' + whyShort('STOP', G.mstop.why), m.x, m.y - 26 / z - 10); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
     }
   }
   // your mechs (R7 s2): active one highlighted when it's acting; destroyed = grey X; A / B labels

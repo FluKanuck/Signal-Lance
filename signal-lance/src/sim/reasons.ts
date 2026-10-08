@@ -17,12 +17,13 @@ export const REASONS: Record<string, readonly string[]> = {
   UPLINK: ['NONE', 'RANGE', 'DONE', 'AP'],                                                    // uplinkBlock
   PICKUP: ['NONE', 'HELD', 'RANGE', 'AP'],                                                    // mission.ts pickupBlock
   HANDOFF: ['NONE', 'RANGE', 'AP'],                                                           // mission.ts handoffBlock
-  MOVE: ['LEGS', 'CARGO', 'AP', 'EN', 'NOPLAN'],                                              // the plan's why (turns.ts planMove), NOPLAN = no move set yet
+  MOVE: ['LEGS', 'CARGO', 'AP', 'EN', 'NOPLAN', 'UNIT'],                                              // the plan's why (turns.ts planMove), NOPLAN = no move set yet
   MODE: ['LEGS', 'CARGO'],                                                                    // moveModeBlock (CREEP / NORMAL / SPRINT)
   ID: ['NONE', 'SEEN'],                                                                       // hud.ts: no contact selected, or eyes already showed it
   ORDER: ['NONE', 'FORK', 'USED'],                                                            // escort.ts orderBlock (HOLD / HURRY)
   EXTRACT: ['NONE', 'ZONE'],                                                                  // turns.ts extractBlock
-  TURN: ['WAIT'],                                                                             // not your turn, or an action is still running
+  TURN: ['WAIT'],
+  STOP: ['AP', 'EN', 'CLUTTER', 'WALL', 'ROUTE', 'UNIT'],                                              // R25 fix 2: why a move ends away from where you pointed (turns.ts shortWhy)                                                                             // not your turn, or an action is still running
 };
 
 // R24 fix list 11 (C23): can m pick this move mode? '' = yes; LEGS = a leg is damaged (CREEP only); CARGO = the carrier

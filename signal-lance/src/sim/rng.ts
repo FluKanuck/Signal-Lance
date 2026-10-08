@@ -11,5 +11,10 @@ export function rand(): number {
   let t = s;
   t = Math.imul(t ^ (t >>> 15), t | 1);
   t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
-  return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  const v = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  if (rollTap.fn) rollTap.fn('hunt', v);
+  return v;
 }
+// R25 golden logs (port phase 0): every roll of every stream (hunt here; contract, company and scan use their own
+// mulberry32 state and report here too). null = off (the game and the runner). The Godot port checks its rolls against these.
+export const rollTap: { fn: null | ((stream: string, v: number) => void) } = { fn: null };

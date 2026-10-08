@@ -12,6 +12,7 @@
 // The view only sends commands (scanCmd); the sim steps the clock (scanStep) in fixed SCAN_TICK steps. A scan replays
 // exactly from the job's seed and its command list (replayScan), so PLAY SEED and the tests can rebuild it.
 import { TUNE } from '../tune.ts';
+import { rollTap } from './rng.ts';
 import { shipScan } from './company.ts';
 import { W, H, T, canReach } from './world.ts';
 import { G, makeUnit } from './state.ts';
@@ -28,7 +29,7 @@ export const ALTS = ['HIGH', 'MID', 'LOW'];
 export const altOf = (S) => TUNE.SCAN_ALT[S.alt || 'MID'];
 
 // The scan's own RNG: state kept in the scan, so stepping it never moves the hunt's seeded rolls and a replay matches.
-function rnd(S) { let t = (S.rs = (S.rs + 0x6D2B79F5) >>> 0); t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }
+function rnd(S) { let t = (S.rs = (S.rs + 0x6D2B79F5) >>> 0); t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); const v = ((t ^ (t >>> 14)) >>> 0) / 4294967296; if (rollTap.fn) rollTap.fn('scan', v); return v; }
 const tileOf = (u) => ({ x: Math.floor(u.x / T), y: Math.floor(u.y / T) });
 
 export function emitter(u) { return (u.comms || 0) > 0 || has(u, 'RADAR'); }
@@ -86,7 +87,7 @@ export function scanCmd(op: string, ...args: number[]) {
 function apply(S, op: string, a: number[]) {
   if (op === 'R' || op === 'T' || op === 'E') S.on[SENSORS['RTE'.indexOf(op)]] = !!a[0];
   else if (op === 'W') S.wide[SENSORS[a[0]]] = !!a[1];
-  else if (op === 'G') S.run = true; else if (op === 'S') { S.run = false; closeStretch(S); }
+  else if (op === 'G') { S.run = true; S.stopTick = undefined; } else if (op === 'S') { S.run = false; S.stopTick = S.tick; closeStretch(S); } // R25 fix 5: where it paused
   else if (op === 'a') S.aims[SENSORS[a[2]]] = { x: a[0], y: a[1] };
   else if (op === 'H') S.alt = ALTS[a[0]] || 'MID';
 }
@@ -147,7 +148,7 @@ export function scanStep() {
   else S.risk = Math.max(0, S.risk - TUNE.SCAN_COOL * dt);
   if (TUNE.SCAN_COSTS) while (riskStep(S.risk) > S.peak) { S.peak++; if (rnd(S) < stepVal(TUNE.SCAN_RISK_EXTRA, S.peak)) arrive(S, 'called in', true); }
   if (TUNE.SCAN_COSTS && rnd(S) < TUNE.SCAN_ARRIVE_PER_MIN * dt) arrive(S, 'arrived', false);
-  if (S.deadline && S.t >= S.deadline - 1e-9) { S.run = false; S.over = true; S.cmds.push([S.tick, 'S']); closeStretch(S); }
+  if (S.deadline && S.t >= S.deadline - 1e-9) { S.run = false; S.over = true; S.stopTick = S.tick; S.cmds.push([S.tick, 'S']); closeStretch(S); }
 }
 
 // ============================ THE SCAN LOG (R20 cp3) ==================

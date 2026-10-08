@@ -31,6 +31,11 @@ const TERMS: Entry[] = [
   { id: 'SPRINT', name: 'SPRINT', screen: 'hunt', line: 'The fastest move: ' + MV('SPRINT') + '. It also adds heat (IR). The cargo carrier cannot SPRINT.' },
   { id: 'MOVE', name: 'MOVE', screen: 'hunt', line: 'MOVE walks the path you set. To set one, tap the map or drag from your ExoS. The cost shows on the button.' },
   { id: 'looks', name: 'looks', screen: 'hunt', line: 'Look points on a drawn path. Tap the path, then tap where the ExoS should look. You can set ' + TUNE.FACE_WAYPOINTS_MAX + ' per move.' },
+  { id: 'SHOT RESULT', name: 'SHOT RESULT', screen: 'hunt', line: 'What your last shot did: HIT and the part, MISS or KILL. “had 77% to hit” is the chance it had.' },
+  { id: 'ENEMY FIRE', name: 'ENEMY FIRE', screen: 'hunt', line: 'Every enemy shot since your last ExoS turn. Each line gives the shooter, the target and what the shot did.' },
+  { id: 'KILL', name: 'KILL', screen: 'hunt', line: 'Your shot destroyed the enemy unit. It is off your contact list.' },
+  { id: 'MISS', name: 'MISS', screen: 'hunt', line: 'The shot did no damage. “MISS · WALL” means a wall stopped it before it got there.' },
+  { id: 'FIX CHANGED', name: 'FIX CHANGED', screen: 'hunt', line: 'Turning to face the contact changed its fix. TIGHT means FIRE can aim at it. SOUND, LINK or FUZZY means it can’t.' },
   { id: 'MOVE STOPPED', name: 'MOVE STOPPED', screen: 'hunt', line: 'Your ExoS sensed a new contact, so the move stopped there. You keep the AP and EN for the part you did not walk.' },
   { id: 'TAP WHERE TO FACE', name: 'TAP WHERE TO FACE', screen: 'hunt', line: 'You tapped your own ExoS. Tap the map to turn it that way. Tap the ExoS again to cancel. Turning is free.' },
   { id: 'shots', name: 'shots', screen: 'hunt', line: 'Shots this ExoS fired this turn. Each ExoS can fire ' + TUNE.SHOTS_PER_TURN + ' times a turn.' },
@@ -185,7 +190,7 @@ const TERMS: Entry[] = [
 // ---- blocked reasons (A3): what blocks the control, and what would unblock it ----
 // short = the word on the greyed button. line = the explain card. ACT_NAME = the button's label.
 const ACT_NAME: Record<string, string> = { FIRE: 'FIRE', MORTAR: 'MORTAR', RADAR: 'RADAR', ECM: 'ECM', GHOST: 'GHOST', UPLINK: 'UPLINK', PICKUP: 'PICK UP', HANDOFF: 'HAND OFF',
-  MOVE: 'MOVE', MODE: 'NORMAL / SPRINT', ID: 'ID', ORDER: 'HOLD / HURRY', EXTRACT: 'EXTRACT', TURN: 'BUTTONS' };
+  MOVE: 'MOVE', MODE: 'NORMAL / SPRINT', ID: 'ID', ORDER: 'HOLD / HURRY', EXTRACT: 'EXTRACT', TURN: 'BUTTONS', STOP: 'MOVE ENDS' };
 const PART_LINE = (p: string) => 'The ' + p + ' part is gone, so this stops for the rest of the hunt. REPAIR WORST between hunts repairs it.';
 export const WHY_SHORT: Record<string, string> = { NONE: 'NONE', AP: 'NEED AP', EN: 'NEED EN', CAP: 'USED', SOUND: 'HEARD ONLY', FUZZY: 'NO LOCK', RANGE: 'OUT OF RANGE',
   LOS: 'NO SIGHT', AMMO: 'NO AMMO', SHELLS: 'NO SHELLS', CLOSE: 'TOO CLOSE', DONE: 'DONE', HELD: 'CARRIED', ZONE: 'NOT IN ZONE', FORK: 'AT FORK', USED: 'NONE LEFT',
@@ -193,6 +198,7 @@ export const WHY_SHORT: Record<string, string> = { NONE: 'NONE', AP: 'NEED AP', 
   ...Object.fromEntries(PART_CODES.map(p => [p, p + ' GONE'])) };
 const SHORT_BY_ACT: Record<string, string> = { 'FIRE.NONE': 'NO TARGET', 'MORTAR.NONE': 'NO TARGET', 'ID.NONE': 'TAP ONE', 'RADAR.NONE': 'NO RADAR', 'UPLINK.NONE': 'NO UPLINK',
   'PICKUP.NONE': 'NO CARGO', 'HANDOFF.NONE': 'NO CARGO', 'ORDER.NONE': 'NO TRANSPORT', 'EXTRACT.NONE': 'NONE', 'MOVE.LEGS': 'LEG DAMAGED', 'MODE.LEGS': 'LEG DAMAGED', 'FIRE.LEGS': 'LEGS GONE',
+  'STOP.AP': 'OUT OF AP', 'STOP.EN': 'OUT OF EN', 'STOP.CLUTTER': 'CLUTTER', 'STOP.WALL': 'BLOCKED', 'STOP.ROUTE': 'LONG WAY ROUND', 'STOP.UNIT': 'TILE TAKEN', 'MOVE.UNIT': 'TILE TAKEN',
   'MORTAR.LEGS': 'LEGS GONE', 'RADAR.LEGS': 'LEGS GONE', 'ECM.LEGS': 'LEGS GONE', 'GHOST.LEGS': 'LEGS GONE', 'UPLINK.DONE': 'DONE THIS TURN' };
 const WHY_LINE: Record<string, string> = {
   'AP': 'Not enough AP. End the turn: each ExoS gets +' + TUNE.AP_PER_TURN + ' AP at the start of its next turn.',
@@ -226,6 +232,13 @@ const WHY_LINE: Record<string, string> = {
   'MOVE.AP': 'Not enough AP for any of that move. End the turn, or set a shorter move.',
   'MOVE.EN': 'Not enough EN for that move. Pick a slower move, or wait a turn.',
   'MOVE.NOPLAN': 'No move set yet. Tap the map, or drag from your ExoS to draw a path.',
+  'STOP.AP': 'The move ends where your AP runs out. The rest of the line is not walked. Set a shorter move, or wait a turn.',
+  'STOP.EN': 'The move ends where your EN runs out. CREEP costs less EN, or wait a turn.',
+  'STOP.CLUTTER': 'The move ends early. Each clutter tile costs ' + TUNE.CLUTTER_TILE_COST + ' tiles of movement. Go round the clutter to get further.',
+  'STOP.WALL': 'The spot you picked is in a wall or cut off. The move ends at the nearest street the ExoS can reach.',
+  'STOP.ROUTE': 'Walls are in the way, so the walk goes round them. It is much longer than a straight line.',
+  'STOP.UNIT': 'Another unit stands on that tile. Two units never share a tile, so the move ends just before it.',
+  'MOVE.UNIT': 'Another unit stands on the only spot this move can reach. Pick another spot.',
   'MODE.LEGS': 'A damaged leg means CREEP only, for the rest of the hunt. REPAIR WORST between hunts repairs it.',
   'MODE.CARGO': 'The cargo carrier can’t SPRINT. HAND OFF the cargo to SPRINT again.',
   'ID.NONE': 'No contact selected. Tap a contact first.',

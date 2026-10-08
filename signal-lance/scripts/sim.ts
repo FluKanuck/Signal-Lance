@@ -20,6 +20,7 @@
 //                                      frame and per reactor, and what found the lance first, on which channel, from how far
 //   --item mortar.mortar.shells=8      R18: try an item row value for this run (row id, then a dotted path; repeatable)
 //   --from 61                          start the contract seeds at 61 instead of 1 (extends a batch without repeating seeds)
+//   --golden golden                    R25: write the golden logs (scripts/golden.ts) to that folder and stop
 //   --json                             print one '@@SL {...}' line per contract as it finishes (the Signal Lance mod reads these)
 //   --listen 2 [--drop 2|auto]         R19: the ship listens at this level before every hunt (0 SKIP, 1 SHORT, 2 MEDIUM, 3 LONG) and
 //                                      lands on drop zone N (1 = west edge; only offered at 2+; auto = nearest the objective). Default: no listen (= SKIP)
@@ -65,6 +66,7 @@ function presetCmds(p: string): Cmd[] {
 const nearestDrop = () => { const D = offeredDrops(), ux = G.up.x / 32, uy = G.up.y / 32; let b = 0; D.forEach((d, i) => { if (Math.hypot(d.x - ux, d.y - uy) < Math.hypot(D[b].x - ux, D[b].y - uy)) b = i; }); return D[b].i; }; // R20: a dropPts index
 import { previewJob } from '../src/sim/contract.ts';
 import { pickMoments, momentLine, heldField } from '../src/sim/aar.ts';
+import { golden, allRuns, stable, fileName } from './golden.ts'; // R25
 
 const argv: string[] = (globalThis as any).process.argv.slice(2);
 const arg = (k: string, d: number) => { const i = argv.indexOf(k); return i >= 0 ? Number(argv[i + 1]) : d; };
@@ -620,7 +622,13 @@ function scenarioRuns(name: string, n: number) {
   if (VERBOSE) for (const r of res) console.log(`    seed ${r.seed}: ${r.outcome} in ${r.turns} rounds, kills ${r.kills}, lost ${r.lost}, alarms ${r.alarms}`);
 }
 
-if (SCEN) {
+if (sarg('--golden')) { // R25: the golden logs (port phase 0): one JSON file per seeded run, see scripts/golden.ts
+  const fs = (globalThis as any).process.getBuiltinModule('node:fs'), dir = sarg('--golden');
+  fs.mkdirSync(dir, { recursive: true });
+  let n = 0, rolls = 0, bytes = 0;
+  for (const [k, s] of allRuns()) { const g = golden(k, s), txt = stable(g) + '\n'; fs.writeFileSync(dir + '/' + fileName(k, s), txt); n++; rolls += g.rolls.count; bytes += txt.length; }
+  console.log(`== GOLDEN: ${n} files in ${dir}/ · ${rolls} rolls · ${(bytes / 1024).toFixed(0)} KB`);
+} else if (SCEN) {
   scenarioRuns(SCEN, RUNS);
 } else if (arg('--company', 0) > 0) {
   if (PERSONA === 'all') personalities(arg('--company', 0), arg('--companies', 1)); // R23 cp B
