@@ -10,6 +10,7 @@ import { launch, showStart, showResult } from './view/screens.ts';
 import { hideWpMenu } from './view/input.ts';
 import { showTbResult } from './view/testbed.ts';
 import './view/card.ts';
+declare const __QA__: boolean;
 
 hooks.sync = syncButtons;
 hooks.end = () => (G.tb && !G.tb.auto ? showTbResult() : showResult()); // R22: an after-action scenario ends on the after-action page // R14: a test-bed hunt has its own end screen
@@ -41,3 +42,5 @@ resize();
 launch();
 showStart();
 requestAnimationFrame(frame);
+// QA panel (claude/signal-lance-qa-harness.md): window.__qa for agent playtesters, QA builds only (npm run build:qa)
+if (typeof __QA__ !== 'undefined' && __QA__) import('./view/qa.ts').then(m => m.install());

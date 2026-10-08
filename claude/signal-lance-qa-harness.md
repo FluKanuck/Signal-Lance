@@ -1,6 +1,6 @@
 # Signal Lance QA panel: plan
 
-**Status:** plan agreed 2026-10-08. Step 1 (the `__qa` hook) is in progress. Decision 8 (models) waits on step 4. Branch `claude/charming-franklin-tmygre`.
+**Status:** plan agreed 2026-10-08. **Step 1 (the `__qa` hook) is done:** `npm run smoke` in `mods/signal-lance-qa/` passes on iPhone, iPad and desktop. Decision 8 (models) waits on step 4. Branch `claude/charming-franklin-tmygre`.
 
 A Claude Code mod in which one lead agent runs a panel of tester agents. The testers play the built game in a real browser, each in a QA persona. They report what's missing, what's confusing, what UI/UX could be better and what's broken. The lead runs many short and long sessions, merges duplicate findings, and writes a report the design lead can read.
 
@@ -87,6 +87,7 @@ A small stdio MCP server in `mods/signal-lance-qa/` built on `playwright` (Node)
   - `look(detail?)`: a screenshot downscaled to ≤1280 px on the long edge, plus a compact `view()`. Text-only `look({image:false})` is cheap.
   - `tap(target)`, where target is a button id or label like `"DROP"`, or `{x,y}` screen coordinates.
   - `drag(path)`: draw a path or move the camera.
+  - `scroll(panel, dy)`: panels scroll on small screens. On every device the splash's CONTINUE button is below the fold (found by the step 1 smoke test). `view().scrollMore` lists the panels with more below.
   - `type(text)`
   - `wait_for_my_turn(timeout)`: polls `view().myMove`, returns early on a hunt end or an open panel.
   - `fallback(action, args)`: refused until 2 failed tries are recorded for that intent.
@@ -105,7 +106,16 @@ A small stdio MCP server in `mods/signal-lance-qa/` built on `playwright` (Node)
 | Sonnet short | 80 | 30 |
 | Sonnet long | 60 per relay hand | 20 per relay hand |
 
-### 3. Testers
+### 2b. The watch pane (Jamie, 2026-10-08)
+
+A live pane in the mod, built the same way as the runner pane in `mods/signal-lance/`, so you can watch and read what the testers are doing.
+- **The feed.** The playtest tool appends every event to `qa-runs/<batch>/live.jsonl`: the session starting (persona, model, device, seed), each action and its result, notebook lines (the tester thinking aloud), each `note` (a finding), fallbacks, oracle violations, relay hand-offs, and the session ending with its summary.
+- **One row per running tester:** persona · model · device, current screen, turn, last action, last notebook line, findings so far by severity, and actions / screenshots used against the budget.
+- **Tap a row** to follow that tester: a scrolling feed of its actions, thoughts and findings as they happen, with the path of its latest screenshot. If the pane can show images (to be checked in the desktop Code tab when building it), it also shows a thumbnail; otherwise a link to open it.
+- **A batch strip:** sessions done / running / queued, total findings, and oracle violations. Stop and Pause buttons. Pause holds new spawns; running testers finish their session.
+- **Replay.** The same pane can open a finished batch and step through any session.
+
+
 
 - **Persona cards** are in `mods/signal-lance-qa/personas/*.md`, one page each: who they are, what they notice, what they ignore, how they play, and a "say it like this" example finding.
 
@@ -170,8 +180,8 @@ About 3 hands per long session to start.
 
 ## Build steps
 
-1. **The `__qa` hook.** `invariants.ts` + test, `view/qa.ts`, `build:qa` / `dev:qa`, `dist-qa/` ignored. Done when `npm run check`, `npm test` and `npm run build:qa` pass, the normal build has no `__qa`, and a scripted Playwright smoke test can read `view()` and `checks()` through a hunt.
-2. **The playtest tool.** An MCP server + device profiles + budgets + stamping + seeded `Math.random`. Done when one scripted session plays a hunt on each device and writes a finding.
+1. **The `__qa` hook. DONE.** `src/sim/invariants.ts` + `test/invariants.test.ts`, `src/view/qa.ts`, `build:qa` / `dev:qa` → `dist-qa/` (ignored). The normal build is byte-identical apart from the build stamp. `mods/signal-lance-qa/scripts/smoke.mjs` plays 6 moves of seed 12345 on each device with real taps, plus one fallback, running `checks()` after every action.
+2. **The playtest tool + watch pane.** An MCP server + device profiles + budgets + stamping + seeded `Math.random` (the smoke test's `seedRandom` / `DEVICES` already do this), the `live.jsonl` feed and the pane. Done when one scripted session plays a hunt on each device and writes a finding, and you can watch it live in the pane.
 3. **One tester.** Persona cards + tester prompt. One Sonnet fresh-recruit session, start to finish, and its findings read by hand.
 4. **Model comparison (Haiku 5.5 vs Sonnet 5.5).** Same personas, seeds and devices, with only the model changed. 3 personas (fresh recruit, breaker, tactics veteran) × 2 seeds × 2 models = 12 short sessions, plus 1 relay hand each on one campaign seed.
    - **Measured per session:** the number of findings; valid findings (an Opus judge reviews them blind to the model, against screenshots and oracle stamps); false claims (the oracle disagrees); unique valid findings (found only by that model); severity mix; how far it got (screens reached, hunts finished); actions / screenshots / turns used; and how often it used the fallback.

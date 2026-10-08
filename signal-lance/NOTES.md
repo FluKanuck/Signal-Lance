@@ -22,6 +22,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
 - R13: `src/sim/sound.ts` (Sound), `src/sim/pack.ts` (alarm, pack target), `src/sim/autoplay.ts` (the scripted
   player, shared by the runner and the tests). `test/` holds the Vitest tests (`npm test`).
 - `src/main.ts`: wiring and the frame loop.
+- QA panel (`claude/signal-lance-qa-harness.md`): `src/sim/invariants.ts` (rule checks the harness runs after every
+  tester action), `src/view/qa.ts` (`window.__qa`, only in `npm run build:qa` → `dist-qa/`, never in `docs/`).
 - `npm run build` → `dist/signal-lance.html` (one self-contained file; republish it to the artifact).
 
 ## ASSUMPTIONS
