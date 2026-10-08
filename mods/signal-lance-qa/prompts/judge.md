@@ -51,6 +51,7 @@ Also add a cluster for every `oracle.json` entry no tester noticed (`noticed: fa
   - `n/a` for non-bugs.
 - **Fallback findings** (`source: fallback`) join the cluster about that input problem, or form one "map taps miss" cluster.
 - **Drop nothing silently.** Every finding id appears in exactly one cluster. Put tool-limit complaints ("I can't see animations") and pure noise in one cluster titled "Noise / tool limits", severity `polish`, with `"noise": true`.
+- **Words (the house writing standard, `.claude/skills/signal-lance-writing/SKILL.md`):** in a `confusing` cluster about a term, tag or button, name the exact on-screen words in the title. Also say whether the game's glossary or long-press defines it (from R24). If testers met one thing under two names, or one name for two things, write "two names" in `evidence_note`.
 - Order clusters by severity, then by how many sessions reported them.
 
 When done, reply with one line: the number of clusters, and the top 3 titles.
