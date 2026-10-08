@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Signal Lance · ExoS Build Concepts</title>
-<meta name="description" content="Six concepts for a deeper exosuit build system in Signal Lance, from a survey of mech, ship, tank and space designer games.">
+<meta name="description" content="Six concepts for the exosuit build system in Signal Lance.">
 <meta property="og:title" content="Signal Lance · ExoS Build Concepts">
-<meta property="og:description" content="Six concepts for a deeper exosuit build system, and which to try first.">
+<meta property="og:description" content="Six concepts for the exosuit build system in Signal Lance.">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <style>
@@ -39,7 +39,6 @@ button { font: inherit; }
 <header class="top"><div class="top-inner">
 <span class="brand">ExoS Build Concepts</span>
 <nav aria-label="Boards">
-<a href="#overview">Overview</a>
 <a href="#bureau">01 Bureau</a>
 <a href="#spine">02 Spine</a>
 <a href="#plugs">03 Plugs</a>
@@ -50,60 +49,13 @@ button { font: inherit; }
 </nav>
 </div></header>
 <main class="grid">
-<section class="board" id="overview">
-<div style="box-sizing: border-box; padding: 28px 22px 36px; background: #0E1214; height: 100%; color: #E7E9E4; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; line-height: 1.5; display: flex; flex-direction: column; gap: 26px">
-
-<div style="display: flex; flex-direction: column; gap: 8px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #F2A93B">SIGNAL LANCE · HANGAR R&amp;D · 08 OCT 2026</div>
-<h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; text-transform: uppercase; letter-spacing: 0.01em">Why ExoS builds feel flat</h1>
-<p style="margin: 0; color: #A3ACAF">Six new build systems, pulled from mech games and from ship, tank, car and space designers. Nothing built is treated as locked.</p>
-</div>
-
-<div style="display: flex; flex-direction: column; gap: 10px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">DIAGNOSIS · TODAY'S RULEBOOK</div>
-<div style="display: flex; flex-direction: column; gap: 1px; background: #2A3338; border: 1px solid #2A3338; border-radius: 6px; overflow: hidden">
-<div style="background: #171D21; padding: 14px; display: flex; gap: 12px"><div style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B; font-size: 13px">01</div><div><div style="font-weight: 600">Every budget just adds up</div><div style="color: #A3ACAF; font-size: 13px">Weight, power and the six channels are sums. Nothing bends, nothing has a knee, so one choice never ripples into another.</div></div></div>
-<div style="background: #171D21; padding: 14px; display: flex; gap: 12px"><div style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B; font-size: 13px">02</div><div><div style="font-weight: 600">The frame fills in the form</div><div style="color: #A3ACAF; font-size: 13px">Typed hardpoints decide most of the build before you pick a module. The player is filling boxes the frame drew.</div></div></div>
-<div style="background: #171D21; padding: 14px; display: flex; gap: 12px"><div style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B; font-size: 13px">03</div><div><div style="font-weight: 600">Modules change numbers, not verbs</div><div style="color: #A3ACAF; font-size: 13px">Most of the ~250 rows are +range, −emit, +hits. Twelve small mods are the only interactions, and only within a location.</div></div></div>
-<div style="background: #171D21; padding: 14px; display: flex; gap: 12px"><div style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B; font-size: 13px">04</div><div><div style="font-weight: 600">The operator never touches the fit</div><div style="color: #A3ACAF; font-size: 13px">The exosuit reframe says operators matter more than the machine, but any pilot gets the same suit.</div></div></div>
-<div style="background: #171D21; padding: 14px; display: flex; gap: 12px"><div style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B; font-size: 13px">05</div><div><div style="font-weight: 600">The build freezes at the drop</div><div style="color: #A3ACAF; font-size: 13px">Once you're on the map the fit is a fixed list with a couple of toggles. The hangar and the hunt barely talk.</div></div></div>
-</div>
-</div>
-
-<div style="display: flex; flex-direction: column; gap: 10px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">WHAT THE BEST BUILDERS DO</div>
-<div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-weight: 600; font-size: 13px">Choices ripple</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; line-height: 1.4">Rule the Waves 3 · Aurora · Kerbal</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-weight: 600; font-size: 13px">Where it sits matters</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; line-height: 1.4">Backpack Battles · Cosmoteer · Highfleet</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-weight: 600; font-size: 13px">Hosts × supports multiply</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; line-height: 1.4">Path of Exile 2 · Noita</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-weight: 600; font-size: 13px">Fit more than you can run</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; line-height: 1.4">FTL · Sea Power EMCON</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-weight: 600; font-size: 13px">The pilot bends the rules</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; line-height: 1.4">Lancer · Battle Brothers · XCOM 2</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-weight: 600; font-size: 13px">Breakpoints, not decimals</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; line-height: 1.4">Monster Hunter · Warframe</div></div>
-</div>
-</div>
-
-<div style="display: flex; flex-direction: column; gap: 10px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">THE CONCEPTS</div>
-<a href="#bureau" style="text-decoration: none; color: #E7E9E4; background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 14px; display: flex; gap: 14px; align-items: baseline; min-height: 44px; box-sizing: border-box"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; color: #F2A93B">01</span><span><span style="display: block; font-weight: 600">Design Bureau</span><span style="display: block; color: #A3ACAF; font-size: 13px">Design to a spec; pay for it everywhere.</span></span></a>
-<a href="#spine" style="text-decoration: none; color: #E7E9E4; background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 14px; display: flex; gap: 14px; align-items: baseline; min-height: 44px; box-sizing: border-box"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; color: #F2A93B">02</span><span><span style="display: block; font-weight: 600">Spine &amp; Ports</span><span style="display: block; color: #A3ACAF; font-size: 13px">Where a module sits decides what it does.</span></span></a>
-<a href="#plugs" style="text-decoration: none; color: #E7E9E4; background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 14px; display: flex; gap: 14px; align-items: baseline; min-height: 44px; box-sizing: border-box"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; color: #F2A93B">03</span><span><span style="display: block; font-weight: 600">Hosts &amp; Plugs</span><span style="display: block; color: #A3ACAF; font-size: 13px">Few hosts, a big drawer of plugs, short chains.</span></span></a>
-<a href="#postures" style="text-decoration: none; color: #E7E9E4; background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 14px; display: flex; gap: 14px; align-items: baseline; min-height: 44px; box-sizing: border-box"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; color: #F2A93B">04</span><span><span style="display: block; font-weight: 600">Postures &amp; Reflexes</span><span style="display: block; color: #A3ACAF; font-size: 13px">Fit more than you can run; decide in the dark.</span></span></a>
-<a href="#operator" style="text-decoration: none; color: #E7E9E4; background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 14px; display: flex; gap: 14px; align-items: baseline; min-height: 44px; box-sizing: border-box"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; color: #F2A93B">05</span><span><span style="display: block; font-weight: 600">Operator Sync</span><span style="display: block; color: #A3ACAF; font-size: 13px">The suit is the body; the operator is the build.</span></span></a>
-<a href="#disciplines" style="text-decoration: none; color: #E7E9E4; background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 14px; display: flex; gap: 14px; align-items: baseline; min-height: 44px; box-sizing: border-box"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; color: #F2A93B">06</span><span><span style="display: block; font-weight: 600">Disciplines</span><span style="display: block; color: #A3ACAF; font-size: 13px">Breakpoints, maker sets, and a city that learns.</span></span></a>
-<a href="#stack" style="text-decoration: none; color: #0E1214; background: #F2A93B; border-radius: 6px; padding: 14px; display: flex; gap: 14px; align-items: baseline; min-height: 44px; box-sizing: border-box"><span style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700">07</span><span><span style="display: block; font-weight: 600">The Stack</span><span style="display: block; font-size: 13px">How they layer, and what to toy first.</span></span></a>
-</div>
-
-<div style="border-top: 1px solid #2A3338; padding-top: 16px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF; line-height: 1.6">TARGET · iPad + desktop (phone = fast test build)<br>KEPT FROM TODAY · six channels · data rows (new content = new rows) · parts as hit locations · the ship on the same rules</div>
-
-</div>
-</section>
 <section class="board" id="bureau">
 <div style="box-sizing: border-box; padding: 28px 22px 36px; background: #0E1214; height: 100%; color: #E7E9E4; font-family: 'IBM Plex Sans', sans-serif; font-size: 14px; line-height: 1.5; display: flex; flex-direction: column; gap: 24px">
 
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #F2A93B">CONCEPT 01</div>
 <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; text-transform: uppercase">Design Bureau</h1>
-<p style="margin: 0; font-size: 16px">Design the suit to a spec, and pay for it everywhere.</p>
+<p style="margin: 0; font-size: 16px">You set performance targets. The suit gets its mass, power and heat from these targets.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px">
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">RULE THE WAVES 3</span>
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">AURORA 4X</span>
@@ -127,7 +79,7 @@ button { font: inherit; }
 <span style="border: 1px solid #F2A93B; background: #2B2414; border-radius: 4px; padding: 8px 0; color: #F2A93B">FACETED</span>
 <span style="border: 1px solid #2A3338; border-radius: 4px; padding: 8px 0; color: #A3ACAF">SHED</span>
 </div>
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">COMPROMISES ACCEPTED</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">COMPROMISES</div>
 <div style="display: flex; flex-wrap: wrap; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px">
 <span style="border: 1px solid #F2A93B; color: #F2A93B; border-radius: 4px; padding: 4px 8px">✓ CRAMPED COCKPIT</span>
 <span style="border: 1px solid #2A3338; color: #A3ACAF; border-radius: 4px; padding: 4px 8px">EXPOSED BUS</span>
@@ -137,39 +89,39 @@ button { font: inherit; }
 <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1px; background: #2A3338; border-radius: 4px; overflow: hidden; text-align: center">
 <div style="background: #11171A; padding: 10px 4px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">14.2</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">MASS / 15 RATED</div></div>
 <div style="background: #11171A; padding: 10px 4px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">16</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">REACTOR NEEDED</div></div>
-<div style="background: #11171A; padding: 10px 4px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">5 lp</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">LEFT FOR MODULES</div></div>
+<div style="background: #11171A; padding: 10px 4px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 24px; font-weight: 700">5 lp</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">FREE FOR MODULES</div></div>
 </div>
 <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">DESIGN REPORT</div>
-<div style="display: flex; gap: 8px"><span style="font-family: 'IBM Plex Mono', monospace; color: #5CC8D6">NOTE</span><span>Quiet 4 is past the knee: the last step cost 3 lp of baffling.</span></div>
-<div style="display: flex; gap: 8px"><span style="font-family: 'IBM Plex Mono', monospace; color: #5CC8D6">NOTE</span><span>Faceted: rear arc has no plate and full radar return.</span></div>
-<div style="display: flex; gap: 8px"><span style="font-family: 'IBM Plex Mono', monospace; color: #5CC8D6">NOTE</span><span>Cramped cockpit: operator fatigue +1 per hunt.</span></div>
+<div style="display: flex; gap: 8px"><span style="font-family: 'IBM Plex Mono', monospace; color: #5CC8D6">NOTE</span><span>Quiet 4 is past the knee. The last step uses 3 lp of baffles.</span></div>
+<div style="display: flex; gap: 8px"><span style="font-family: 'IBM Plex Mono', monospace; color: #5CC8D6">NOTE</span><span>Faceted scheme. The rear arc has no plate and full radar return.</span></div>
+<div style="display: flex; gap: 8px"><span style="font-family: 'IBM Plex Mono', monospace; color: #5CC8D6">NOTE</span><span>Cramped cockpit. Operator fatigue increases by 1 for each hunt.</span></div>
 </div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 12px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">THE RULES</div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">You set targets; the suit derives the rest.</b> Pick pace, endurance, quiet and a protection scheme. The bureau works out servo mass, reactor size and resting heat. Modules go into whatever is left.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Every target has a knee.</b> The last step of pace or quiet costs double mass or heat. Maxing one thing is a real sacrifice, not a free top slot.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">Schemes rewrite the damage rules.</b> Distributed is today. Vault: core and mast heavily plated, limbs bare, so limb hits strip modules fast. Faceted: front arc tough and radar-shy, rear naked. Shed: a bolt-on shell you drop mid-hunt.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">Compromises buy space now, cost later.</b> Cramped cockpit (+2 lp; operator fatigue). Exposed bus (+1 hardpoint; EF emit up, shock hits double). Hot-swap mounts (field swaps; MAG vis +1). Overtuned servos (+1 pace; wear a step faster).</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Designs have lineage.</b> A Mk.II within ±10% of the Mk.I is cheap and quick at the ship's dock. A new scheme is a new design, and refits can't change the scheme.</div></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">RULES</div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Targets set the suit.</b> You set pace, endurance, quiet and a protection scheme. The bureau calculates servo mass, reactor size and heat at rest. Modules use the load that remains.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Each target has a knee.</b> The last step of each target costs two times the mass or heat. A maximum value in one target takes load from all other parts of the suit.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">The scheme changes the damage rules.</b> Distributed uses the current rules. Vault puts heavy plate on the core and mast, and no plate on the limbs. Faceted gives the front arc strong plate and low radar return, but the rear arc has no protection. Shed is a bolt-on shell that you can drop during a hunt.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">A compromise gives load now and adds a cost later.</b> Cramped cockpit: +2 lp, operator fatigue +1. Exposed bus: +1 hardpoint, more EF emission, shock hits cause two times the damage. Hot-swap mounts: you can change a module during a hunt, MAG visibility +1. Overtuned servos: pace +1, servos wear one step faster.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Each design has a lineage.</b> A Mk.II that stays within ±10% of the Mk.I costs less and needs less dock time. A new scheme needs a new design. A refit cannot change the scheme.</div></div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">SAME FRAME, TWO DESIGNS</div>
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Nightjar</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">PACE 2 · QUIET 4 · FACETED · CRAMPED</div><div style="font-size: 13px">Ghostly from the front, folds if flanked, operator tires over a long contract.</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Doorman</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">PACE 1 · QUIET 1 · VAULT · HOT-SWAP</div><div style="font-size: 13px">Core nearly unkillable, loses its guns early, rearms from the back rack mid-hunt.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Nightjar</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">PACE 2 · QUIET 4 · FACETED · CRAMPED</div><div style="font-size: 13px">Low signature from the front. Weak against attacks from the side or rear. The operator gets tired on a long contract.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Doorman</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">PACE 1 · QUIET 1 · VAULT · HOT-SWAP</div><div style="font-size: 13px">The core is very hard to destroy. The suit loses its weapons early. It fits new weapons from the back rack during the hunt.</div></div>
 </div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
-<div style="border-left: 0; background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">FIXES</div><div style="font-size: 13px">One choice ripples into mass, heat, damage and the campaign. The ship gets the same bureau for free (Rule the Waves is literally a ship designer).</div></div>
-<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">WATCH OUT</div><div style="font-size: 13px">Without a clear live readout it becomes a spreadsheet. Ultimate Admiral's opaque stability model is the warning; Kerbal's live delta-v is the fix.</div></div>
+<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">WHAT IT CHANGES</div><div style="font-size: 13px">One choice changes mass, heat, damage and the campaign. The ship can use the same bureau.</div></div>
+<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">RISKS</div><div style="font-size: 13px">The hangar must show the result of each change immediately. Without this display, the bureau is only a spreadsheet.</div></div>
 </div>
 
-<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · M · mostly hangar rules · replaces flat rated/max load</div>
+<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · M · mostly hangar rules · replaces the flat rated and max load</div>
 </div>
 </section>
 <section class="board" id="spine">
@@ -178,7 +130,7 @@ button { font: inherit; }
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #F2A93B">CONCEPT 02</div>
 <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; text-transform: uppercase">Spine &amp; Ports</h1>
-<p style="margin: 0; font-size: 16px">Where a module sits decides what it does.</p>
+<p style="margin: 0; font-size: 16px">The position of a module changes what the module does.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px">
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">BACKPACK BATTLES</span>
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">COSMOTEER</span>
@@ -237,32 +189,32 @@ button { font: inherit; }
 <span></span><span style="color: #A98BF2">EM</span><span style="display: block; height: 8px; width: 70%; background: #A98BF2"></span>
 </div>
 </div>
-<div style="align-self: stretch; font-size: 12px; color: #A3ACAF">Thick coloured edges are ports. Both sinks face the reactor, so CORE runs cold from the front and dumps heat out the back.</div>
+<div style="align-self: stretch; font-size: 12px; color: #A3ACAF">The thick coloured edges are ports. The two heat sinks point at the reactor. The core is cold from the front and sends heat out of the rear.</div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 12px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">THE RULES</div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Each location is a small grid</b> (2×2 to 3×3, about 20 cells per suit). Modules take 1, 2 or 3 cells and rotate with one tap. The frame sets the grid shapes, not the module types.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Ports touch neighbours.</b> A heat sink pointed at the reactor drinks its IR. A cold processor touching a radar trims its EM. Two emitters sharing an edge share one antenna: lighter, but they blink together.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">The spine carries power and data</b> out from CORE. Each hop costs a little draw. Lose a location and everything downstream goes dark; some frames feed MAST through BACK, so getting flanked costs you your radar.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">Placement sets exposure.</b> BACK shows to the rear arc, MAST shows over cover, arm emitters point where you aim. The hangar shows signature by arc, not six flat bars.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Heat spreads to touching cells.</b> Pack hot kit tight and it cooks its neighbours (they wear faster). Spread it out and you need more grid.</div></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">RULES</div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Each location is a small grid.</b> A grid is 2×2 to 3×3 cells, with approximately 20 cells for each suit. A module uses 1, 2 or 3 cells. One tap turns the module. The frame sets the grid shapes, not the module types.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Ports connect to adjacent modules.</b> A heat sink that points at the reactor removes reactor IR. A cold processor adjacent to a radar decreases radar EM. Two emitters with a shared edge use one antenna. They weigh less, but they emit at the same time.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">The spine supplies power and data from the CORE.</b> Each step away from the CORE increases draw by a small quantity. When you lose a location, all locations after it on the spine stop. On some frames, BACK supplies MAST. On these frames, an attack from the rear can remove your radar.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">The position sets exposure.</b> Modules on BACK show to the rear arc. Modules on MAST show above cover. Emitters on the arms point in the direction that you aim. The hangar shows signature for each arc.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Heat moves to adjacent cells.</b> Hot modules in a tight group cause wear on adjacent modules. Hot modules with space between them need more cells.</div></div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">SAME FRAME, TWO LAYOUTS</div>
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Ember</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">PACKED CORE · SINKS AFT</div><div style="font-size: 13px">Cold face, hot bright rear. Lethal moving forward, must never be flanked.</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Spread</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">EMITTERS ON ARMS · SPLIT EARS</div><div style="font-size: 13px">Survives a mast hit, but every turn of the arms swings its EM cone across the street.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Ember</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">TIGHT CORE · SINKS AT REAR</div><div style="font-size: 13px">Cold front, hot and bright rear. Strong when it moves forward. It must not let an enemy get behind it.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Spread</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">EMITTERS ON ARMS · SENSORS ON TWO LOCATIONS</div><div style="font-size: 13px">A mast hit does not remove all sensors. When the arms turn, the EM cone also turns across the street.</div></div>
 </div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
-<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">FIXES</div><div style="font-size: 13px">The 250 rows gain shape and a port without new numbers. Facing, free since R17, becomes a build decision, and the R12 hit parts get real stakes.</div></div>
-<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">WATCH OUT</div><div style="font-size: 13px">On iPad and desktop the full grid has room: drag to place, rotate, ports as glowing edges. The phone test build only needs a "lite" view (today's slots plus ports and arcs) to check the rules play.</div></div>
+<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">WHAT IT CHANGES</div><div style="font-size: 13px">Each module gets a shape and a port. This adds options without new numbers. Facing becomes part of the build. The R12 hit locations become more important.</div></div>
+<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">RISKS</div><div style="font-size: 13px">The full grid needs space. The iPad and desktop hangar has this space. The phone test build can use a simple view: current slots, ports and arcs.</div></div>
 </div>
 
-<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · L full / M lite · hangar layout + spine + arc signature in the sim</div>
+<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · L full grid / M simple view · hangar layout, spine and arc signature in the sim</div>
 </div>
 </section>
 <section class="board" id="plugs">
@@ -271,7 +223,7 @@ button { font: inherit; }
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #F2A93B">CONCEPT 03</div>
 <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; text-transform: uppercase">Hosts &amp; Plugs</h1>
-<p style="margin: 0; font-size: 16px">A short list of hosts, a big drawer of plugs, and chains that fire as one.</p>
+<p style="margin: 0; font-size: 16px">Hosts are the main modules. Plugs change how a host operates. A chain connects hosts into one action.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px">
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">PATH OF EXILE 2</span>
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">NOITA</span>
@@ -288,9 +240,10 @@ button { font: inherit; }
 <div style="border: 1px dashed #2A3338; border-radius: 22px; padding: 10px 4px; color: #A3ACAF">+ PLUG</div>
 </div>
 <div style="display: grid; grid-template-columns: 70px minmax(0, 1fr) minmax(0, 1fr); gap: 4px 8px; font-family: 'IBM Plex Mono', monospace; font-size: 12px">
+<span style="color: #A3ACAF"></span><span style="color: #A3ACAF">BASE</span><span style="color: #A3ACAF">WITH PLUGS</span>
 <span style="color: #A3ACAF">RANGE</span><span style="color: #A3ACAF">8</span><span>11</span>
 <span style="color: #A3ACAF">CONE</span><span style="color: #A3ACAF">90°</span><span>30°</span>
-<span style="color: #A3ACAF">FIRES</span><span style="color: #A3ACAF">now</span><span>end of turn</span>
+<span style="color: #A3ACAF">PULSE</span><span style="color: #A3ACAF">now</span><span>end of turn</span>
 <span style="color: #A3ACAF">EM</span><span style="color: #A3ACAF">e4</span><span>e5</span>
 </div>
 <div style="height: 1px; background: #2A3338"></div>
@@ -302,7 +255,7 @@ button { font: inherit; }
 </div>
 <div style="display: flex; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #F2774B">SIG</span><span>VIS e3 + SND 6 in one turn · delay +2</span></div>
 <div style="height: 1px; background: #2A3338"></div>
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">DRAWER · 23 PLUGS</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">PLUG DRAWER · 23 PLUGS</div>
 <div style="display: flex; flex-wrap: wrap; gap: 6px; font-family: 'IBM Plex Mono', monospace; font-size: 11px">
 <span style="border: 1px solid #2A3338; border-radius: 14px; padding: 4px 10px">BURST</span>
 <span style="border: 1px solid #2A3338; border-radius: 14px; padding: 4px 10px">ECHO</span>
@@ -316,28 +269,28 @@ button { font: inherit; }
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 12px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">THE RULES</div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Hosts do things.</b> About 40 rows: sensors, emitters, weapons, movers, drones. Hardpoints hold hosts. Each host has 1–3 plug sockets.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Plugs change how, not how much.</b> Narrowband: cone a third, range +40%. Delayed: acts at end of turn. Burst: all the EN at once, double effect, once a hunt. Echo: repeats next turn at half. Cold: no heat, half rate. Relay: acts from a drone or an ally. Tagged: leaves a beacon on whatever it touched.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">Each plug fits once per suit.</b> Narrowband on the radar means no narrowband on the jammer. The decision is where it goes, not whether you own it.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">Chains fire as one action.</b> Up to three hosts joined by triggers (on fix, on heard, on painted). Each link adds its signature and +1 delay, so long chains are strong and loud.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Plugs are the loot.</b> Most salvage, faction stock and contract rewards are plugs. The catalogue grows in the drawer, not in the slot list.</div></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">RULES</div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Hosts do the work.</b> There are approximately 40 host rows: sensors, emitters, weapons, movement modules and drones. Hardpoints hold hosts. Each host has 1 to 3 plug sockets.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">A plug changes the behaviour of a host.</b> Narrowband: the cone is one third, range +40%. Delayed: the host operates at the end of the turn. Burst: the host uses all its EN at one time for two times the effect, once in each hunt. Echo: the host operates again in the next turn at half effect. Cold: no heat, half rate. Relay: the host operates from a drone or an ally. Tagged: the host puts a beacon on the target.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">Each plug can go on one host only.</b> If Narrowband is on the radar, it cannot also be on the jammer. You decide where each plug goes.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">A chain is one action.</b> A chain connects up to three hosts with triggers: on fix, on sound, on radar lock. Each link adds its signature and one step of delay. A long chain is strong and loud.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Most loot is plugs.</b> Salvage, faction stock and contract rewards are mostly plugs. New content goes into the plug drawer, not into the slot list.</div></div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">SAME HOST, TWO PLUG SETS</div>
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Searchlight</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">LAMP · NARROWBAND · DELAYED</div><div style="font-size: 13px">A sniper's beam that pings at end of turn, after you've already moved off the spot.</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Puppeteer</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">LAMP · RELAY · COLD</div><div style="font-size: 13px">The radar pulses from your tether drone at half range. They trace the drone, not you.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Searchlight</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">LAMP · NARROWBAND · DELAYED</div><div style="font-size: 13px">A narrow radar beam. It pulses at the end of the turn, after the suit moves.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Puppeteer</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">LAMP · RELAY · COLD</div><div style="font-size: 13px">The radar pulses from the tether drone at half range. The enemy finds the drone, not the suit.</div></div>
 </div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
-<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">FIXES</div><div style="font-size: 13px">40 hosts × 60 plugs plays like thousands of modules. Today's 12 location mods become plugs, so the mod rule stops being "same location only". Each host reads as a card with dots, on any screen.</div></div>
-<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">WATCH OUT</div><div style="font-size: 13px">Plug text must read as verbs, not percentages. Chains need the runner sweeping for broken combos before they ship.</div></div>
+<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">WHAT IT CHANGES</div><div style="font-size: 13px">40 hosts and 60 plugs give more combinations than 250 separate modules. The 12 current location mods become plugs. Each host shows as one card with sockets.</div></div>
+<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">RISKS</div><div style="font-size: 13px">Each plug must describe an action, not a percentage. The runner must test chains for invalid combinations before release.</div></div>
 </div>
 
-<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · M · mostly rows + a chain resolver in the sim</div>
+<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · M · mostly rows, plus a chain resolver in the sim</div>
 </div>
 </section>
 <section class="board" id="postures">
@@ -346,7 +299,7 @@ button { font: inherit; }
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #F2A93B">CONCEPT 04 · TAP THE TABS</div>
 <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; text-transform: uppercase">Postures &amp; Reflexes</h1>
-<p style="margin: 0; font-size: 16px">Fit more than you can run, then decide what's on in the dark.</p>
+<p style="margin: 0; font-size: 16px">You install more modules than the reactor can supply. A posture sets which modules get power.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px">
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">FTL</span>
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">SEA POWER EMCON</span>
@@ -368,27 +321,27 @@ button { font: inherit; }
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 8px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">REFLEXES · 3 OF 3 SLOTS (FROM THE OPERATOR)</div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 4px"><div><span style="color: #5CC8D6">IF</span> painted by radar</div><div><span style="color: #F2A93B">THEN</span> mask + switch to DARK</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 4px"><div><span style="color: #5CC8D6">IF</span> jammed AND ally in contact</div><div><span style="color: #F2A93B">THEN</span> switch to LOUD (burn through)</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 4px"><div><span style="color: #5CC8D6">IF</span> heard within 4 tiles</div><div><span style="color: #F2A93B">THEN</span> freeze (keep AP)</div></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">REFLEXES · 3 OF 3 SLOTS · SLOTS COME FROM THE OPERATOR</div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 4px"><div><span style="color: #5CC8D6">IF</span> painted by radar</div><div><span style="color: #F2A93B">THEN</span> mask and change to DARK</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 4px"><div><span style="color: #5CC8D6">IF</span> jammed AND an ally has a contact</div><div><span style="color: #F2A93B">THEN</span> change to LOUD</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; font-family: 'IBM Plex Mono', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 4px"><div><span style="color: #5CC8D6">IF</span> heard within 4 tiles</div><div><span style="color: #F2A93B">THEN</span> stop and keep AP</div></div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 12px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">THE RULES</div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Overfit on purpose.</b> Fit up to about 150% of reactor output in idle draw. You can't run it all at once, and the hangar no longer stops you at zero regen.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Set three postures.</b> Each one says which modules get power and which emitters are on. Default DARK / HUNT / LOUD; rename them per suit.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">Switching costs tempo.</b> Free at the start of your turn, 1 AP mid-turn. Coming out of DARK leaves a heat bloom for a turn.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">Reflexes fire on the enemy's turn.</b> 2–4 IF/THEN rules per suit, like R17's interrupt but chosen in the hangar. Slots and conditions come from the operator.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Doctrine inherits.</b> Set the lance's posture and reflexes once, then override per suit.</div></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">RULES</div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Install more than the reactor can supply.</b> The idle draw can be up to approximately 150% of reactor output. You cannot operate all modules at the same time. The hangar does not stop you at zero regen.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Set three postures.</b> Each posture sets which modules get power and which emitters are on. The default postures are DARK, HUNT and LOUD. You can change the names for each suit.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">A posture change costs time.</b> A change at the start of your turn is free. A change during your turn costs 1 AP. When you leave DARK, your IR increases for one turn.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">Reflexes operate during the enemy turn.</b> Each suit has 2 to 4 IF/THEN rules. They operate like the R17 interrupt, but you set them in the hangar. The operator sets the number of slots and the conditions.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Doctrine applies to the full lance.</b> Set the posture and reflexes for the lance one time. Then change them for each suit as necessary.</div></div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
-<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">FIXES</div><div style="font-size: 13px">The fit keeps mattering after the drop. Emission control becomes a plan made in the hangar and paid for on the map. Generalises today's radarOn, mask and stealth toggles.</div></div>
-<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">WATCH OUT</div><div style="font-size: 13px">Three postures × four suits is a lot of setup. Templates must ship sensible defaults, and reflexes must say in the log why they fired.</div></div>
+<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">WHAT IT CHANGES</div><div style="font-size: 13px">The build continues to have an effect after the drop. Emission control becomes a plan that you make in the hangar. This replaces the current radarOn, mask and stealth toggles.</div></div>
+<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">RISKS</div><div style="font-size: 13px">Three postures for four suits is a lot of setup. Templates must have good default postures. The log must show why each reflex operated.</div></div>
 </div>
 
-<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · M · generalised toggles + a reflex check on the enemy turn</div>
+<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · M · general toggles, plus a reflex check during the enemy turn</div>
 </div>
 </section>
 <section class="board" id="operator">
@@ -397,7 +350,7 @@ button { font: inherit; }
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #F2A93B">CONCEPT 05</div>
 <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; text-transform: uppercase">Operator Sync</h1>
-<p style="margin: 0; font-size: 16px">The suit is the body. The operator is the build.</p>
+<p style="margin: 0; font-size: 16px">Some modules connect to the operator. The operator changes how the suit performs.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px">
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">LANCER</span>
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">SHADOWRUN</span>
@@ -409,7 +362,7 @@ button { font: inherit; }
 </div>
 
 <div style="background: #171D21; border: 1px solid #2A3338; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 14px">
-<div style="display: flex; justify-content: space-between; align-items: baseline"><div><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; text-transform: uppercase; line-height: 1">Sgt. Kestrel</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">IN WARDEN "NIGHTJAR"</div></div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF; text-align: right">3 CONTRACTS<br>TOGETHER</div></div>
+<div style="display: flex; justify-content: space-between; align-items: baseline"><div><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 26px; font-weight: 700; text-transform: uppercase; line-height: 1">Sgt. Kestrel</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">IN WARDEN "NIGHTJAR"</div></div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF; text-align: right">3 CONTRACTS<br>IN THIS SUIT</div></div>
 <div style="display: flex; flex-direction: column; gap: 6px">
 <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF"><span>SYNC</span><span>4 / 6</span></div>
 <div style="display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 4px"><span style="height: 10px; background: #5CC8D6"></span><span style="height: 10px; background: #5CC8D6"></span><span style="height: 10px; background: #5CC8D6"></span><span style="height: 10px; background: #5CC8D6"></span><span style="height: 10px; border: 1px solid #2E5A60"></span><span style="height: 10px; border: 1px solid #2E5A60"></span></div>
@@ -417,35 +370,35 @@ button { font: inherit; }
 <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12px"><span>STILL-SKIN LINK</span><span style="color: #5CC8D6">2</span></div>
 </div>
 <div style="height: 1px; background: #2A3338"></div>
-<div style="display: flex; flex-direction: column; gap: 4px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">TRAIT · READS THE SUIT</div><div><b style="font-weight: 600">Cold Blood</b> — aim +20% while your own IR is 2 or less.</div></div>
-<div style="display: flex; flex-direction: column; gap: 4px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">SIGNATURE VERB · ONCE PER HUNT</div><div><b style="font-weight: 600">Mimic</b> — your EM reads as a field turret for 2 turns. Your Sound doubles while it runs.</div></div>
-<div style="display: flex; flex-direction: column; gap: 4px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">BOND · WITH CPL. HARROW</div><div>Tight-beam sharing: contacts pass between you with no EM, inside 6 tiles and line of sight.</div></div>
-<div style="display: flex; flex-direction: column; gap: 4px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B">SUIT SCAR</div><div><b style="font-weight: 600">Rattled left servo</b> — Sound +1 when moving, but creep moves +1 tile. "Learned to step soft."</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">TRAIT</div><div><b style="font-weight: 600">Cold Blood.</b> Aim +20% when your IR is 2 or less.</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">SIGNATURE VERB · ONE TIME IN EACH HUNT</div><div><b style="font-weight: 600">Mimic.</b> Your EM shows as a field turret for 2 turns. Your sound is two times higher during this time.</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">BOND · WITH CPL. HARROW</div><div>Contacts go between you and Harrow with no EM emission. The range is 6 tiles, with line of sight.</div></div>
+<div style="display: flex; flex-direction: column; gap: 4px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B">SUIT SCAR</div><div><b style="font-weight: 600">Worn left servo.</b> Sound +1 when you move. Creep moves +1 tile.</div></div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 12px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">THE RULES</div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Sync is the operator's bandwidth</b> (4–8). Neural modules cost Sync, not hardpoints: myomer boost, still-skin, neural fire-control, direct sensor feed. Swap the operator and the suit loses them.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Traits read the suit, not stats.</b> Cold Blood wants a cold reactor; Loud Mouth gets thumper range +3 while LOUD. The best suit depends on who is in it.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">One signature verb each</b>, a rule-breaker with its own counter built in: Mimic, Ghost Step, Burn-Through, Long Ear.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">Bonds.</b> Pairs who deploy together unlock a link, so one suit can emit while its partner stays dark and still sees.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Scars.</b> Suits and operators earn permanent quirks from damage, each with a small upside. A battered suit becomes a different suit, not a worse one.</div></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">RULES</div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Sync is the bandwidth of the operator.</b> Sync is 4 to 8. Neural modules use Sync, not hardpoints: myomer boost, still-skin, neural fire-control and direct sensor feed. If you change the operator, the suit loses these modules.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Traits use the state of the suit.</b> Cold Blood needs a cold reactor. Loud Mouth adds 3 to thumper range in LOUD. The best suit for a mission depends on the operator.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">Each operator has one signature verb.</b> A verb is an exception to one rule, and it has a counter. Examples: Mimic, Ghost Step, Burn-Through, Long Ear.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">Operators can bond.</b> Two operators who deploy together many times get a link. One suit can emit while its partner stays dark and receives the contacts.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">Damage can leave a scar.</b> A scar is a permanent quirk on a suit or an operator. Each scar has a small advantage. A damaged suit becomes a different suit, not only a weaker suit.</div></div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">SAME SUIT, TWO OPERATORS</div>
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Kestrel</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">COLD BLOOD · MIMIC</div><div style="font-size: 13px">Runs the Warden cold and fights from the dark. Wants a cold-burn reactor.</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Brass</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">LOUD MOUTH · BURN-THROUGH</div><div style="font-size: 13px">Runs the same Warden hot, leads with the thumper, punches through jammers.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Kestrel</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">COLD BLOOD · MIMIC</div><div style="font-size: 13px">Operates the Warden cold and fights from the dark. Needs a cold-burn reactor.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Brass</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">LOUD MOUTH · BURN-THROUGH</div><div style="font-size: 13px">Operates the same Warden hot. Uses the thumper first and burns through jammers.</div></div>
 </div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
-<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">FIXES</div><div style="font-size: 13px">Puts the exosuit reframe's "operators matter more than the machine" inside the build itself. Plugs straight into the Gate 2 operators strand (skills, fragility, recruits).</div></div>
-<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">WATCH OUT</div><div style="font-size: 13px">Losing an operator now also loses a build. That's the stakes we want on Standard, but it's brutal on Ironman.</div></div>
+<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">WHAT IT CHANGES</div><div style="font-size: 13px">The operator becomes part of the build. This agrees with the exosuit reframe. It connects to the Gate 2 operator strand: skills, fragility and recruits.</div></div>
+<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">RISKS</div><div style="font-size: 13px">When an operator dies, the player also loses a build. This is correct for Standard difficulty. It is very hard on Ironman.</div></div>
 </div>
 
-<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · M · lands with Gate 2 operators</div>
+<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · M · needs the Gate 2 operators</div>
 </div>
 </section>
 <section class="board" id="disciplines">
@@ -454,7 +407,7 @@ button { font: inherit; }
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #F2A93B">CONCEPT 06</div>
 <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; text-transform: uppercase">Disciplines</h1>
-<p style="margin: 0; font-size: 16px">Breakpoints, not decimals. And a city that learns your habits.</p>
+<p style="margin: 0; font-size: 16px">Modules add points to six disciplines. Each breakpoint in a discipline gives a new behaviour.</p>
 <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px">
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">MONSTER HUNTER</span>
 <span style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #5CC8D6; border: 1px solid #2E5A60; border-radius: 3px; padding: 3px 6px">WARFRAME POLARITY</span>
@@ -476,38 +429,38 @@ button { font: inherit; }
 <div style="height: 1px; background: #2A3338"></div>
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">HOUND BREAKPOINTS</div>
 <div style="display: flex; flex-direction: column; gap: 6px; font-size: 13px">
-<div style="display: flex; gap: 10px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2 ✓</span><span>Passive bearings arrive on your turn, not the next.</span></div>
-<div style="display: flex; gap: 10px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4 ✓</span><span>Two passive channels on one contact merge into a fix, no fusion core needed.</span></div>
-<div style="display: flex; gap: 10px"><span style="font-family: 'IBM Plex Mono', monospace; color: #6F7A7E">6</span><span style="color: #A3ACAF">Contacts you've heard keep a ghost trail for 2 turns after they go quiet.</span></div>
+<div style="display: flex; gap: 10px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2 ✓</span><span>Passive bearings arrive on your turn, not on the next turn.</span></div>
+<div style="display: flex; gap: 10px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4 ✓</span><span>Two passive channels on one contact give a fix. You do not need a fusion core.</span></div>
+<div style="display: flex; gap: 10px"><span style="font-family: 'IBM Plex Mono', monospace; color: #6F7A7E">6</span><span style="color: #A3ACAF">A contact that you heard keeps a trail for 2 turns after its sound stops.</span></div>
 </div>
 <div style="height: 1px; background: #2A3338"></div>
 <div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 12px"><span>MAKER SET · CORPORATE</span><span style="color: #7FD67A">2 / 4 · ACTIVE</span></div>
-<div style="font-size: 13px; color: #A3ACAF">Corporate 2: sensor draw −1. Corporate 4: LPI emitters need grade 3 to hear.</div>
+<div style="font-size: 13px; color: #A3ACAF">Corporate 2: sensor draw −1. Corporate 4: enemies need grade 3 to hear your LPI emitters.</div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 12px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">THE RULES</div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">Six disciplines.</b> GHOST (going unseen), HOUND (passive sensing), WIRE (EW), LANTERN (active sensing), ANVIL (taking hits), HAMMER (dealing them). Each module carries 1–2 pips.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Breakpoints at 2 / 4 / 6</b> unlock behaviours, not percentages. GHOST 4: ending a turn unmoved erases your last Sound. GHOST 6: no single channel can fix you on its own.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">Polarised hardpoints.</b> A slot with a discipline polarity halves the weight of a matching module; a mismatch costs +25%. Re-polarising a slot costs dock time on the ship.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">Maker sets.</b> Two or four pieces from one maker add a set rule. Old Army 4: never arrives Failing, field repair +1 use. Foundry 4: reactive plate refills after each hunt.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">The city learns.</b> The campaign tracks your lance's top discipline, and districts start fielding counters: more thermal if you lean GHOST, home-on-jam missiles if you lean WIRE. The meta rotates under you.</div></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">RULES</div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">1</span><div><b style="font-weight: 600">There are six disciplines.</b> GHOST: stay hidden. HOUND: passive sensors. WIRE: electronic warfare. LANTERN: active sensors. ANVIL: survive hits. HAMMER: cause damage. Each module adds 1 or 2 pips.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">2</span><div><b style="font-weight: 600">Breakpoints are at 2, 4 and 6.</b> Each breakpoint gives a new behaviour, not a percentage. GHOST 4: if you do not move in a turn, the game removes your last sound. GHOST 6: one channel alone cannot give a fix on you.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">3</span><div><b style="font-weight: 600">Hardpoints can have a polarity.</b> A module with the same polarity has half its weight. A module with a different polarity has 25% more weight. A polarity change needs dock time on the ship.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">4</span><div><b style="font-weight: 600">Makers have sets.</b> Two or four modules from one maker give a set rule. Old Army 4: modules never arrive Failing, and field repair gets 1 more use. Foundry 4: reactive plate refills after each hunt.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">5</span><div><b style="font-weight: 600">The city learns.</b> The campaign records the top discipline of your lance. Then the districts use counters. If you use GHOST often, the districts use more thermal sensors. If you use WIRE often, they use home-on-jam missiles.</div></div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">SAME FRAME, TWO SPREADS</div>
 <div style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px">
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Phantom</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">GHOST 6 · HOUND 2</div><div style="font-size: 13px">Can't be fixed on one channel, but is nearly blind. Needs a partner to see for it.</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Listener</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">GHOST 3 · HOUND 5 · WIRE 2</div><div style="font-size: 13px">Fixes without ever emitting. Gets heard if it has to move fast.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Phantom</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">GHOST 6 · HOUND 2</div><div style="font-size: 13px">One channel cannot give a fix on it. It sees very little and needs a partner.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 6px; padding: 12px; display: flex; flex-direction: column; gap: 6px"><div style="font-family: 'Barlow Condensed', sans-serif; font-size: 20px; font-weight: 700; text-transform: uppercase">Listener</div><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; color: #A3ACAF">GHOST 3 · HOUND 5 · WIRE 2</div><div style="font-size: 13px">It gets fixes without emission. Enemies hear it when it moves fast.</div></div>
 </div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 10px">
-<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">FIXES</div><div style="font-size: 13px">250 rows boil down to six readable bars, a summary that works from the phone test build up to the desktop hangar. Hitting a breakpoint is an identity. Counter pressure from the city keeps builds rotating across a campaign.</div></div>
-<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">WATCH OUT</div><div style="font-size: 13px">Odd pip counts can feel wasted. Keep pips cheap to shift, and make sure the city's counters are visible in the INTEL, not a hidden punishment.</div></div>
+<div style="background: #14211F; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #7FD67A; margin-bottom: 4px">WHAT IT CHANGES</div><div style="font-size: 13px">The hangar shows 250 rows as six bars. A breakpoint gives the suit an identity. The city counters make the player change builds during a campaign.</div></div>
+<div style="background: #261A15; border-radius: 6px; padding: 12px"><div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #F2774B; margin-bottom: 4px">RISKS</div><div style="font-size: 13px">Pips that do not reach a breakpoint can feel wasted. Make pips easy to move. The INTEL must show the city counters.</div></div>
 </div>
 
-<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · S–M · a pip field on each row + 18 breakpoint rules</div>
+<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF">BUILD SIZE · S–M · a pip field on each row, plus 18 breakpoint rules</div>
 </div>
 </section>
 <section class="board" id="stack">
@@ -516,43 +469,43 @@ button { font: inherit; }
 <div style="display: flex; flex-direction: column; gap: 8px">
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #F2A93B">07 · RECOMMENDATION</div>
 <h1 style="margin: 0; font-family: 'Barlow Condensed', sans-serif; font-weight: 700; font-size: 44px; line-height: 1; text-transform: uppercase">The Stack</h1>
-<p style="margin: 0; font-size: 16px">They aren't rivals. Each one owns a different layer of the build, so they stack.</p>
+<p style="margin: 0; font-size: 16px">Each concept controls a different layer of the build. The layers can operate together.</p>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 0">
-<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 8px 8px 0 0; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #F2A93B">01 BUREAU · LITE</span><span style="color: #A3ACAF">THE SHAPE</span></div><div style="font-weight: 600">Targets, a scheme, a couple of compromises</div><div style="font-size: 13px; color: #A3ACAF">Replaces: flat rated / max load and armour as more hits.</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-top: 0; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #F2A93B">02 SPINE · LITE</span><span style="color: #A3ACAF">THE BODY</span></div><div style="font-weight: 600">Keep today's locations; add ports and signature by arc</div><div style="font-size: 13px; color: #A3ACAF">Replaces: six flat bars. Full grid is a strong fit for the iPad/desktop hangar once ports prove out.</div></div>
-<div style="background: #241D0E; border: 1px solid #F2A93B; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #F2A93B">03 HOSTS &amp; PLUGS</span><span style="color: #F2A93B">THE KIT · TOY FIRST</span></div><div style="font-weight: 600">Hardpoints hold hosts; most of the catalogue is plugs</div><div style="font-size: 13px; color: #E7E9E4">Replaces: the 12 same-location mods and most "variant" rows.</div></div>
-<div style="background: #241D0E; border: 1px solid #F2A93B; border-top: 0; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #F2A93B">04 POSTURES &amp; REFLEXES</span><span style="color: #F2A93B">THE HUNT · TOY FIRST</span></div><div style="font-weight: 600">Overfit, three postures, 2–4 reflexes</div><div style="font-size: 13px; color: #E7E9E4">Replaces: radarOn, mask and the stealth toggle.</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-top: 0; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #A3ACAF">05 OPERATOR SYNC</span><span style="color: #A3ACAF">THE PILOT · GATE 2</span></div><div style="font-weight: 600">Sync, a trait that reads the suit, one verb, bonds, scars</div><div style="font-size: 13px; color: #A3ACAF">New layer. Waits for operators.</div></div>
-<div style="background: #171D21; border: 1px solid #2A3338; border-top: 0; border-radius: 0 0 8px 8px; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #A3ACAF">06 DISCIPLINES</span><span style="color: #A3ACAF">THE READOUT · GATE 3</span></div><div style="font-weight: 600">Six bars that sum everything above; the city learns</div><div style="font-size: 13px; color: #A3ACAF">Lands with the full catalogue and campaign.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-radius: 8px 8px 0 0; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #F2A93B">01 BUREAU · LITE</span><span style="color: #A3ACAF">THE SHAPE</span></div><div style="font-weight: 600">Targets, one scheme and some compromises</div><div style="font-size: 13px; color: #A3ACAF">Replaces the flat rated and max load, and armour as extra hits.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-top: 0; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #F2A93B">02 SPINE · LITE</span><span style="color: #A3ACAF">THE BODY</span></div><div style="font-weight: 600">Current locations, plus ports and signature by arc</div><div style="font-size: 13px; color: #A3ACAF">Replaces the six flat bars. Use the full grid on iPad and desktop after the ports pass a test.</div></div>
+<div style="background: #241D0E; border: 1px solid #F2A93B; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #F2A93B">03 HOSTS &amp; PLUGS</span><span style="color: #F2A93B">THE KIT · TEST FIRST</span></div><div style="font-weight: 600">Hardpoints hold hosts. Most of the catalogue is plugs</div><div style="font-size: 13px; color: #E7E9E4">Replaces the 12 location mods and most variant rows.</div></div>
+<div style="background: #241D0E; border: 1px solid #F2A93B; border-top: 0; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #F2A93B">04 POSTURES &amp; REFLEXES</span><span style="color: #F2A93B">THE HUNT · TEST FIRST</span></div><div style="font-weight: 600">More modules than power, three postures, 2 to 4 reflexes</div><div style="font-size: 13px; color: #E7E9E4">Replaces radarOn, mask and the stealth toggle.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-top: 0; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #A3ACAF">05 OPERATOR SYNC</span><span style="color: #A3ACAF">THE PILOT · GATE 2</span></div><div style="font-weight: 600">Sync, traits, one verb, bonds and scars</div><div style="font-size: 13px; color: #A3ACAF">A new layer. It needs the operators first.</div></div>
+<div style="background: #171D21; border: 1px solid #2A3338; border-top: 0; border-radius: 0 0 8px 8px; padding: 14px; display: flex; flex-direction: column; gap: 4px"><div style="display: flex; justify-content: space-between; font-family: 'IBM Plex Mono', monospace; font-size: 11px"><span style="color: #A3ACAF">06 DISCIPLINES</span><span style="color: #A3ACAF">THE READOUT · GATE 3</span></div><div style="font-weight: 600">Six bars for all layers above, and the city counters</div><div style="font-size: 13px; color: #A3ACAF">It needs the full catalogue and the campaign.</div></div>
 </div>
 
 <div style="display: flex; flex-direction: column; gap: 12px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">WHY TOY 03 + 04 FIRST</div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">·</span><div>Both reuse what R18 built: tags, mods and toggles already exist as rows and rules.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">·</span><div>Both show up in the hunt on the first mission, which is the question the suit-building slice is asking.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">·</span><div>Together they attack flatness from both ends: plugs make the fit combinatorial, postures make it keep mattering after the drop.</div></div>
-<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">·</span><div>Bureau comes right after, because the ship needs it anyway.</div></div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 11px; letter-spacing: 0.12em; color: #A3ACAF">WHY TEST 03 AND 04 FIRST</div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">·</span><div>Both use parts that R18 built. Tags, mods and toggles are already rows and rules.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">·</span><div>Both have an effect in the first hunt. The suit-building strand asks for this.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">·</span><div>Plugs increase the number of possible builds. Postures keep the build important after the drop.</div></div>
+<div style="display: flex; gap: 12px"><span style="font-family: 'IBM Plex Mono', monospace; color: #F2A93B">·</span><div>Test the bureau next. The ship also needs it.</div></div>
 </div>
 
 <div style="background: #171D21; border: 1px solid #2A3338; border-radius: 8px; padding: 16px; display: flex; flex-direction: column; gap: 10px">
-<div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">CHEAP TEST ON THE HANGAR TOY</div>
+<div style="font-family: 'IBM Plex Mono', monospace; font-size: 10px; letter-spacing: 0.12em; color: #A3ACAF">SMALL TEST ON THE HANGAR TOY</div>
 <div style="font-family: 'IBM Plex Mono', monospace; font-size: 12px; display: flex; flex-direction: column; gap: 6px">
 <div style="display: flex; justify-content: space-between"><span>Frames</span><span style="color: #A3ACAF">Wisp · Warden · Lantern</span></div>
-<div style="display: flex; justify-content: space-between"><span>Hosts</span><span style="color: #A3ACAF">8 (today's kit + lidar, drone)</span></div>
+<div style="display: flex; justify-content: space-between"><span>Hosts</span><span style="color: #A3ACAF">8: current kit, lidar and drone</span></div>
 <div style="display: flex; justify-content: space-between"><span>Plugs</span><span style="color: #A3ACAF">10, once per suit</span></div>
 <div style="display: flex; justify-content: space-between"><span>Postures</span><span style="color: #A3ACAF">3, overfit to 150%</span></div>
 <div style="display: flex; justify-content: space-between"><span>Reflexes</span><span style="color: #A3ACAF">2 slots, 4 triggers</span></div>
 </div>
-<div style="font-size: 13px; border-top: 1px solid #2A3338; padding-top: 10px"><b style="font-weight: 600">Question:</b> do two players given the same frame and INTEL end up with suits that play differently?</div>
+<div style="font-size: 13px; border-top: 1px solid #2A3338; padding-top: 10px"><b style="font-weight: 600">Question:</b> Two players get the same frame and INTEL. Do they make suits that play differently?</div>
 </div>
 
-<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF; line-height: 1.6">ALL NUMBERS ARE PLACEHOLDERS · SHAPE, NOT BALANCE · THE RUNNER SWEEPS FOR DOMINANT BUILDS · TARGET: IPAD + DESKTOP; PHONE = FAST TEST BUILD</div>
+<div style="border-top: 1px solid #2A3338; padding-top: 14px; font-family: 'IBM Plex Mono', monospace; font-size: 11px; color: #A3ACAF; line-height: 1.6">ALL NUMBERS ARE PLACEHOLDERS · THE RUNNER TESTS FOR DOMINANT BUILDS · TARGET: IPAD AND DESKTOP · PHONE: TEST BUILD</div>
 </div>
 </section>
 </main>
-<footer class="foot">Signal Lance design notes · 8 Oct 2026 · proposals, not decisions · every number is a placeholder · game: <a href="../../">play the current build</a></footer>
+<footer class="foot">Signal Lance design notes · 8 Oct 2026 · proposals only · all numbers are placeholders · <a href="../../">current build</a></footer>
 <script>
 (function () {
   var p = 'hunt';
@@ -566,9 +519,9 @@ button { font: inherit; }
     { name: 'DATALINK', draw: 1, on: { dark: 0, hunt: 1, loud: 1 } }
   ];
   var blurbs = {
-    dark: 'Still-skin up, ears open, nothing radiating. Slow, cold and blind past arm\u2019s length.',
-    hunt: 'Needle radar sweeping, datalink sharing contacts. The default working posture.',
-    loud: 'Barrage jammer burning: enemy EM sensors below grade 2 go blind, and every array on the map hears you.'
+    dark: 'Still-skin is on. Passive sensors are on. No emitters are on. The suit is slow and cold, and it cannot see far.',
+    hunt: 'The Needle radar is on. The datalink sends contacts to the lance. This is the standard posture.',
+    loud: 'The barrage jammer is on. Enemy EM sensors below grade 2 cannot see. All enemy arrays can hear you.'
   };
   var sig = { dark: [2, 1, 2, 1, 2, 4], hunt: [3, 4, 4, 6, 4, 4], loud: [5, 6, 6, 10, 7, 4] };
   var codes = [['VIS', '#F2E6A0'], ['SND', '#5CC8D6'], ['IR', '#F2774B'], ['EM', '#A98BF2'], ['EF', '#7FD67A'], ['MAG', '#8DA9C4']];
