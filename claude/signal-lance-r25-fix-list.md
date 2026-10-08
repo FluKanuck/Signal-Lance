@@ -2,6 +2,8 @@
 
 **Started:** 2026-10-08 from Jamie's play of the live toy (build r25-live-d2, iPhone). Built alongside the round, on the toy page only. The main game does not change.
 
+**How this list works (Jamie, 2026-10-08):** items are logged here and **not** built straight away. They are built together, in one batch, when Jamie says to build the fix list. Items 1–7 were built one at a time by mistake (r25-live-d3, d4). New items start as `logged`.
+
 ## Fix list (Jamie's play)
 | # | Item | Jamie's words | Repro | Status |
 |---|---|---|---|---|
