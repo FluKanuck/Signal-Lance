@@ -5,7 +5,9 @@ import { TUNE } from '../tune.ts';
 // An ExoS goes DOWN when its CORE runs out (a hit on a part that is gone spills to the CORE), so "hits left" = CORE hits left.
 export function hitsLeft(m) { return m && m.parts && m.parts.CORE !== undefined ? Math.max(0, m.parts.CORE) : Math.max(0, m ? m.hits : 0); }
 // true = show the warning mark (token, SUITS row, HUD line)
-export function lowHits(m) { return !!m && !m.dead && !m.out && hitsLeft(m) <= TUNE.WARN_HITS_LEFT; }
+// An ExoS that has taken no hit yet never warns (a fresh scout has 1 CORE hit: a warning from the drop would only be noise).
+export const hurt = (m) => !!m && !!m.parts && !!m.pmax && Object.keys(m.pmax).some(k => m.parts[k] < m.pmax[k]);
+export function lowHits(m) { return !!m && !m.dead && !m.out && hurt(m) && hitsLeft(m) <= TUNE.WARN_HITS_LEFT; }
 
 // ---- last-known contacts (C15) ----
 // A contact that drops off the picture (not because its unit was destroyed) leaves a mark where it was last fixed. The

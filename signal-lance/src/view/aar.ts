@@ -1,6 +1,7 @@
 // Round 22: the after-action page (replaces the hunt result panels). Right side: WHAT HAPPENED (the turning points) and WHAT IT
 // COST (company lines pointing back to them); the live end-of-hunt map stays visible on the left. Tap a moment to pulse it on
 // the map (not a replay). The old panels sit behind DETAILS. Rules and words come from sim/aar.ts.
+import { labelSpot } from './layout.ts';
 import { G } from '../sim/state.ts';
 import { TUNE } from '../tune.ts';
 import { T } from '../sim/world.ts';
@@ -73,7 +74,7 @@ export function drawAarHl(ctx: CanvasRenderingContext2D, z: number) {
     ring(p, foe ? 'rgba(255,90,90,A)' : 'rgba(140,220,255,A)');
     const t = 'T' + H.turn + ' · ' + (p.name || ''), fs = 12 / z;
     ctx.font = 'bold ' + fs + 'px monospace'; ctx.textAlign = 'center';
-    const w = ctx.measureText(t).width, y = p.y - r - 6 / z;
+    const w = ctx.measureText(t).width, y = labelSpot(p.x - w / 2 - 4 / z, p.y - r - 6 / z - fs, w + 8 / z, fs + 4 / z, 2 / z) + fs; // R24 (C25): names never print on top of each other
     ctx.fillStyle = 'rgba(0,0,0,0.75)'; ctx.fillRect(p.x - w / 2 - 4 / z, y - fs, w + 8 / z, fs + 4 / z);
     ctx.fillStyle = foe ? '#ff9a9a' : '#bfe9ff'; ctx.fillText(t, p.x, y); ctx.textAlign = 'left';
   };

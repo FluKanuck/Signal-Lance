@@ -87,3 +87,12 @@ describe('R24 scenarios', () => {
     expect(s.lastSeen[0].field).toBe(2); expect(G.pc.some(c => c.on && c.id === G.units[2].id)).toBe(false); // the marked unit is off the picture
   });
 });
+
+describe('R24 scenarios (B)', () => {
+  it('Crowded phone: three live contacts and the uplink near the right edge, all on the lance picture', () => {
+    const s = scenarioByName('Crowded phone'); startScenario(s);
+    expect(G.pc.filter(c => c.on).length).toBe(3);
+    for (const u of G.units) expect(u.x / T).toBeGreaterThan(35);
+    expect(G.up.x / T).toBeGreaterThan(40);
+  });
+});

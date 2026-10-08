@@ -1195,6 +1195,20 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Read it cold: packed district 1701 (the R17 street). A sentry turret up the north alley (a RADAR fix ±1: FIRE says NO SIGHT),
      a line patrol east (an ESM fix ±4, UNKNOWN), B with one LEGS hit, C a brawler with 2 CORE hits, a hush turret east with a
      LAST SEEN mark. New scenario fields: lance.coreLeft, contacts, lastSeen.
+   - B6: compact when the window is HUD_COMPACT_H (430) px tall or less, or when the full block runs past the screen edge or
+     down into the left buttons (sticky until the window changes; not checked while DBG is on). The line: R<round>, ExoS, AP n/8,
+     EN, the objective with "from <ExoS>", any low hits, and the one live prompt (face / look / mortar / MOVE STOPPED). A tap
+     anywhere on the line toggles the full block; a long-press on a term in it explains instead.
+   - B7: the safe rect is the screen minus the left column, the right column, the bottom bar, the HUD (closed) and the ORDER strip,
+     each as a full strip (simplest; it wastes the corners). The camera, while it follows, puts the box of [active ExoS, selected
+     contact, objective (uplink, uncarried cargo, or the transport)] at the safe rect's centre, adding each only while the box fits
+     85% of the rect. A dragged map stays where you put it (CTR re-attaches). Contact labels that would cross the right edge of
+     the safe rect draw on the left of the contact.
+   - B8: one shared label space per frame (view/layout.ts labelSpot). Suit names (+ carrying), CRITICAL lines and PAINTED claim
+     first, then contact labels, then the after-action names; a label moved off its suit gets a thin line back.
+   - Low hits waits for the first hit (a fresh scout has 1 CORE hit: a warning from the drop was noise in testing).
+   - Crowded phone: district 1701, A and B on the street at x 31-33, a sentry, a fire emplacement and a line patrol at x 36-42
+     round the uplink at [41, 13], all three on the picture at the start (RADAR, RADAR, ESM).
 ```
 
 ## TWEAK LOG
@@ -1820,6 +1834,8 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round24 cp A (r24-s1) | brief: say what it means (the glossary, long-press, greyed reasons, BASICS, two warnings) + fix list 1,
            2, 3, 6, 10, 11 | NEW LONGPRESS_MS 450 (was tip.ts TIP_HOLD_MS 450), WARN_HITS_LEFT 2, LASTKNOWN_ROUNDS 3 (display only). No
            rule change. Runner: unchanged rules (CHECK OK). BUILD r24-s1 | -
+   round24 cp B (r24-s2) | brief: the phone HUD (compact line, safe-area camera, label de-overlap) | NEW HUD_COMPACT_H 430,
+           CAM_SAFE_PAD 10 (display only). No rule change. Runner CHECK OK. BUILD r24-s2 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

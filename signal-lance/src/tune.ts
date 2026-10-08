@@ -633,6 +633,8 @@ export const TUNE = {
   LONGPRESS_MS: 450,           // R24 A2: a still finger (or button) held this long opens the explain card; the press then does nothing else
   WARN_HITS_LEFT: 2,           // R24 A5 (C12): an ExoS with this many CORE hits left or fewer shows the low-hits mark and HUD line
   LASTKNOWN_ROUNDS: 3,         // R24 A5 (C15): rounds a "last seen" mark stays where a contact dropped off the picture
+  HUD_COMPACT_H: 430,          // R24 B6 (C03): window height (CSS px) at or below which the HUD shrinks to one line (iPhone landscape); tap it for the full block
+  CAM_SAFE_PAD: 10,            // R24 B7 (C07): px kept between the uncovered map area and the overlays round it
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

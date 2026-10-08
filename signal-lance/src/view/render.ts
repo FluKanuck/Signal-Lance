@@ -4,6 +4,7 @@ import { has, radarOf, mortarOf } from '../sim/kit.ts';
 import { fireRange } from '../sim/turns.ts';
 import { partsRead, coverInfo } from '../sim/combat.ts';
 import { lowHits, hitsLeft } from '../sim/warn.ts';
+import { resetLabels, labelSpot } from './layout.ts';
 import { W, H, T, solid, clutter } from '../sim/world.ts';
 import { G, unitById } from '../sim/state.ts';
 import { bestContact } from '../sim/bot.ts';
@@ -81,20 +82,16 @@ export function sensorTags(c): { t: string; win: boolean; noise: boolean; none?:
 // R18 fix list 5: lay the labels out top to bottom; one that would overlap a label already placed moves down past it, and a
 // moved label gets a thin line back to its contact.
 function drawLabels(labels, z) {
-  const placed: { x0: number; y0: number; x1: number; y1: number }[] = [], pad = 3 / z;
+  const pad = 3 / z; // R24 (C25): the frame's shared label space (suit names and PAINTED claim theirs first)
   labels.sort((a, b) => a.y - b.y || a.x - b.x);
   for (const L of labels) {
     ctx.font = 'bold ' + (10 / z) + 'px monospace';
     const tw = Math.max(0, ...L.tags.map(g => ctx.measureText(g.t).width)) + 6 / z, th = 14 / z; // the tag column
     let w = 0, h = 0; for (const l of L.lines) { ctx.font = l.font; w = Math.max(w, ctx.measureText(l.t).width); h += l.h; }
     h = Math.max(h, L.tags.length * th);
-    const x0 = L.x + 14 / z, wTot = tw + 4 / z + w;
-    let y0 = L.y + 4 - 11 / z;
-    for (let guard = 0; guard < 40; guard++) {
-      const hit = placed.find(p => x0 < p.x1 + pad && x0 + wTot > p.x0 - pad && y0 < p.y1 + pad && y0 + h > p.y0 - pad);
-      if (!hit) break; y0 = hit.y1 + pad;
-    }
-    placed.push({ x0, y0, x1: x0 + wTot, y1: y0 + h });
+    const wTot = tw + 4 / z + w, zc = camZ(), edge = V.safe ? V.camX + (V.safe.r - vw / 2) / zc : Infinity; // R24 B7 (C07): a label that would run under the right-hand buttons flips to the left of its contact
+    const x0 = Math.max(L.x - 14 / z - wTot, Math.min(L.x + 14 / z, edge - wTot)); // slide left only as far as it needs
+    const y0 = labelSpot(x0, L.y + 4 - 11 / z, wTot, h, pad);
     ctx.globalAlpha = L.a;
     if (y0 > L.y + 4 - 11 / z + 1e-6) { ctx.strokeStyle = '#e8f4ff'; ctx.lineWidth = 1 / z; ctx.beginPath(); ctx.moveTo(L.x + 6, L.y); ctx.lineTo(x0 - 2 / z, y0 + 6 / z); ctx.stroke(); }
     ctx.globalAlpha = L.a * (L.old ? 0.55 : 1); // a stale track's tags dim
@@ -159,7 +156,7 @@ function drawPainted(z: number) {
     ctx.strokeStyle = 'rgba(255,70,70,' + 0.9 * a + ')'; ctx.lineWidth = 3 / z; ctx.setLineDash([5 / z, 4 / z]);
     ctx.beginPath(); ctx.arc(m.x, m.y, r, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
     const zl = z / V.uiS; ctx.font = 'bold ' + (11 / zl) + 'px monospace'; ctx.fillStyle = 'rgba(255,110,110,' + a + ')'; ctx.textAlign = 'center';
-    ctx.fillText('PAINTED · round ' + m.paintTurn, m.x, m.y + r + 14 / zl); ctx.textAlign = 'left';
+    const S = suitLab.get(m.id); ctx.fillText('PAINTED · round ' + m.paintTurn, m.x, S && S.paint !== undefined ? S.paint + 11 / zl : m.y + r + 14 / zl); ctx.textAlign = 'left'; // R24 (C25)
   }
 }
 function drawRwr(p, z: number) {
@@ -215,6 +212,7 @@ export function resize() {
   cv.width = Math.round(vw * dpr); cv.height = Math.round(vh * dpr);
   // R18 fix (Jamie: iPad split screen, "autoscale correctly"): the in-hunt controls scale with the window (phone landscape = 1;
   // an iPad Pro full screen ≈ 1.6; never below UI_MIN), and every open panel is fitted to the window height.
+  V.hudOver = false; // R24 B6: re-check the full HUD block against the new window
   V.uiS = Math.max(TUNE.UI_MIN, Math.min(TUNE.UI_MAX, vh / TUNE.UI_REF_H, vw / TUNE.UI_REF_W));
   document.documentElement.style.setProperty('--s', String(V.uiS));
   const top = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--top')) || 0;
@@ -237,10 +235,38 @@ function contentHeight(el: HTMLElement) { // the panel's own height at zoom 1 if
 }
 // Re-fit whenever a panel opens or closes (any screen), without touching every place that shows one
 new MutationObserver(() => fitPanels()).observe(document.body, { subtree: true, attributes: true, attributeFilter: ['hidden'] });
+// R24 (C25): the suits' labels claim their spots before the contacts' labels are laid out, so nothing prints on top
+const suitLab = new Map<string, { top: number; fs: number; top2?: number; paint?: number }>();
+const suitName = (m) => m.id + (m.op ? ' ' + m.op.name.split(' ')[0] + (m.op.lvl >= 2 ? '★' : '') : '');
+const carryText = (m) => 'carrying ' + G.lance.filter(d => d.carriedBy === m.id).map(d => d.id).join(' ');
+const critText = (m) => m.id + ' ' + (m.op ? m.op.name.split(' ')[0] + ' ' : '') + (m.carriedBy ? 'CARRIED BY ' + m.carriedBy : 'CRITICAL');
+function reserveSuitLabels(z: number) {
+  suitLab.clear(); const fs = 12 / z, pad = 2 / z;
+  for (const m of G.lance) {
+    if (m.dead && !m.crit) continue;
+    ctx.font = 'bold ' + fs + 'px monospace';
+    if (m.dead) { // CRITICAL: a line above the carry ring, a hint below it (both centred)
+      const R = TUNE.OP_CARRY_RANGE * T, w = ctx.measureText(critText(m)).width;
+      const top = labelSpot(m.x - w / 2, m.y - R - 6 / z - fs, w, fs * 1.2, pad);
+      let top2: number | undefined;
+      if (!m.carriedBy) { ctx.font = (10 / z) + 'px monospace'; const w2 = ctx.measureText('end a lancemate’s turn in the ring to carry them').width; top2 = labelSpot(m.x - w2 / 2, m.y + R + 2 / z, w2, 12 / z, pad); }
+      suitLab.set(m.id, { top, fs, top2 }); continue;
+    }
+    const carry = G.lance.some(d => d.carriedBy === m.id), w = Math.max(ctx.measureText(suitName(m)).width, carry ? ctx.measureText(carryText(m)).width : 0);
+    const top = labelSpot(m.x + 12, m.y - 10 - fs, w, fs * 1.2 + (carry ? 14 / z : 0), pad);
+    const S: any = { top, fs };
+    if (G.mode === 'hunt' && !m.out && paintFade(m) > 0) { // PAINTED · round N, centred under the suit
+      const zl = z / V.uiS; ctx.font = 'bold ' + (11 / zl) + 'px monospace'; const t = 'PAINTED · round ' + m.paintTurn, pw = ctx.measureText(t).width;
+      S.paint = labelSpot(m.x - pw / 2, m.y + 27 + 3 / zl, pw, 13 / zl, pad);
+    }
+    suitLab.set(m.id, S);
+  }
+}
 export function render() {
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
   ctx.fillStyle = '#111'; ctx.fillRect(0, 0, vw, vh);
   const z = camZ();
+  resetLabels(); // R24 (C25)
   ctx.setTransform(dpr * z, 0, 0, dpr * z, dpr * (vw / 2 - V.camX * z), dpr * (vh / 2 - V.camY * z));
   // ground
   ctx.fillStyle = '#2c2d30'; ctx.fillRect(0, 0, W * T, H * T);
@@ -532,7 +558,7 @@ export function render() {
     { // R7 run1: type label once your eyes have identified it (kept while the contact lives); damage only while seen
       const u = unitById(c.id), seen = u && !G.lance.includes(u) && !u.dead && G.lance.some(m => !m.dead && canSee(m, u, TUNE.EYES_RANGE));
       let d = '';
-      if (seen) d = partsRead(u); // R12: per-part read while seen
+      if (seen) { d = partsRead(u); if (!/(scratched|bloodied|badly|gone)/.test(d)) d = 'no damage'; } // R12: per-part read while seen. R24 B8: an all-ok read is one short word
       const lab = contactLabel(c); // R14: UNKNOWN / SOUND / "scout?" (your call) / "PATROL scout" (eyes)
       const conf = !!(G.obs[c.id] && G.obs[c.id].var);
       const zl = z / V.uiS; // R18: label text scales with the window
@@ -548,6 +574,7 @@ export function render() {
     if (G.sel === c) { ctx.strokeStyle = '#ff0'; ctx.lineWidth = 3 / z; ctx.strokeRect(x - 12, y - 12, 24, 24); }
     ctx.globalAlpha = 1;
   }
+  reserveSuitLabels(z); // R24 (C25): suit names, CRITICAL and PAINTED claim their space first; contact labels move round them
   drawLabels(labels, z / V.uiS); // R18: labels scale with the window like the rest of the UI
   // R9 mortar: scatter preview on the target (orange dashed = where the shell can land, solid when you can fire),
   // and the last splash (splash circle, red = hit something, grey = miss)
@@ -612,8 +639,9 @@ export function render() {
         ctx.strokeStyle = ctx.fillStyle = carried ? 'rgba(112,192,128,' + a + ')' : 'rgba(255,90,90,' + a + ')'; ctx.lineWidth = 3 / z;
         ctx.beginPath(); ctx.arc(m.x, m.y, TUNE.OP_CARRY_RANGE * T, 0, 6.2832); ctx.stroke();
         const R = TUNE.OP_CARRY_RANGE * T; ctx.textAlign = 'center'; // above / below the ring, clear of the lancemate's label
-        ctx.fillText(m.id + ' ' + (m.op ? m.op.name.split(' ')[0] + ' ' : '') + (carried ? 'CARRIED BY ' + m.carriedBy : 'CRITICAL'), m.x, m.y - R - 6 / z);
-        if (!carried) { ctx.font = (10 / z) + 'px monospace'; ctx.fillText('end a lancemate’s turn in the ring to carry them', m.x, m.y + R + 12 / z); }
+        const S = suitLab.get(m.id);
+        ctx.fillText(critText(m), m.x, S ? S.top + S.fs : m.y - R - 6 / z);
+        if (!carried) { ctx.font = (10 / z) + 'px monospace'; ctx.fillText('end a lancemate’s turn in the ring to carry them', m.x, S ? S.top2 + 10 / z : m.y + R + 12 / z); }
         ctx.textAlign = 'left'; continue;
       }
       ctx.fillText(m.id + ' ✕', m.x + 12, m.y - 10); continue;
@@ -622,12 +650,14 @@ export function render() {
     ctx.fillStyle = act ? '#ffffff' : '#a9b0b8'; ctx.beginPath(); ctx.arc(m.x, m.y, 9, 0, 6.2832); ctx.fill();
     ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x + m.fx * 16, m.y + m.fy * 16); ctx.stroke();
     if (act) { ctx.strokeStyle = '#9cf'; ctx.lineWidth = 2 / z; ctx.beginPath(); ctx.arc(m.x, m.y, 15, 0, 6.2832); ctx.stroke(); }
-    ctx.fillStyle = act ? '#9cf' : '#a9b0b8'; ctx.fillText(m.id + (m.op ? ' ' + m.op.name.split(' ')[0] + (m.op.lvl >= 2 ? '★' : '') : ''), m.x + 12, m.y - 10); // R21: the operator (★ = veteran)
-    if (G.lance.some(d => d.carriedBy === m.id)) { ctx.fillStyle = '#70c080'; ctx.fillText('carrying ' + G.lance.filter(d => d.carriedBy === m.id).map(d => d.id).join(' '), m.x + 12, m.y + 4 / z); }
+    const S = suitLab.get(m.id), by = S ? S.top + S.fs : m.y - 10; // R24 (C25): the spot reserved for it
+    if (S && by > m.y - 10 + 1e-6) { ctx.strokeStyle = '#a9b0b8'; ctx.lineWidth = 1 / z; ctx.beginPath(); ctx.moveTo(m.x + 6, m.y - 4); ctx.lineTo(m.x + 11, by - S.fs * 0.4); ctx.stroke(); }
+    ctx.fillStyle = act ? '#9cf' : '#a9b0b8'; ctx.fillText(suitName(m), m.x + 12, by); // R21: the operator (★ = veteran)
+    if (G.lance.some(d => d.carriedBy === m.id)) { ctx.fillStyle = '#70c080'; ctx.fillText(carryText(m), m.x + 12, by + 14 / z); }
     if (lowHits(m)) { // R24 A5 (C12): the low-hits mark: a pulsing red ring and "! N" (CORE hits left)
       const a = 0.6 + 0.4 * Math.sin(performance.now() / 200);
       ctx.strokeStyle = 'rgba(255,80,80,' + a + ')'; ctx.lineWidth = 2.5 / z; ctx.beginPath(); ctx.arc(m.x, m.y, 12, 0, 6.2832); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,110,110,' + a + ')'; ctx.fillText('! ' + hitsLeft(m), m.x - 14 - ctx.measureText('! ' + hitsLeft(m)).width, m.y - 10);
+      ctx.fillStyle = 'rgba(255,110,110,' + a + ')'; ctx.fillText('! ' + hitsLeft(m), m.x - 14 - ctx.measureText('! ' + hitsLeft(m)).width, by);
     }
   }
   drawAarHl(ctx, z); // R22: the tapped after-action moment

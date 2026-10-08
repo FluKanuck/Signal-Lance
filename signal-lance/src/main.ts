@@ -3,7 +3,9 @@ import { TUNE } from './tune.ts';
 import { G, hooks } from './sim/state.ts';
 import { step, enemyUnseen, cmdMoveMode } from './sim/turns.ts';
 import { partHurt } from './sim/combat.ts';
-import { V } from './view/state.ts';
+import { V, camZ } from './view/state.ts';
+import { safeCam } from './view/layout.ts';
+import { isType } from './sim/mission.ts';
 import { vw, vh, resize, render } from './view/render.ts';
 import { updateHud, syncButtons } from './view/hud.ts';
 import { launch, showStart, showResult } from './view/screens.ts';
@@ -23,10 +25,20 @@ hooks.playerHit = () => { V.hitFlash = 0.4; };
 hooks.activate = () => { V.follow = true; V.faceArm = V.ghostArm = V.mortarArm = false; V.lookArm = null; hideWpMenu(); if (G.pmode !== 'CREEP' && partHurt(G.p, 'LEGS')) cmdMoveMode('CREEP'); }; // R13: hurt legs = start in CREEP // R7 s2: camera centres on the mech whose activation it is
 
 // camera follows the player until you drag (was in update())
+// R24 B7 (C07): it keeps the active ExoS, then the selected contact, then the objective inside the map area that no
+// overlay covers (V.safe, measured by the HUD), as many of them as fit together.
 function follow(dt) {
   if (!V.follow) return;
   const k = Math.min(1, dt * TUNE.CAM_LERP);
-  V.camX += (G.p.x - V.camX) * k; V.camY += (G.p.y - V.camY) * k;
+  let tx = G.p.x, ty = G.p.y;
+  if (V.safe && G.mode === 'hunt') {
+    const pts = [{ x: G.p.x, y: G.p.y }];
+    if (G.sel && G.sel.on) pts.push({ x: cx(G.sel), y: cy(G.sel) });
+    if (isType('ESCORT') && G.ally && !G.ally.dead) pts.push({ x: G.ally.x, y: G.ally.y });
+    else if ((isType('UPLINK') || (isType('RETRIEVE') && !G.mission.carrier))) pts.push({ x: G.up.x, y: G.up.y });
+    const c = safeCam(pts, V.safe, vw, vh, camZ()); tx = c.x; ty = c.y;
+  }
+  V.camX += (tx - V.camX) * k; V.camY += (ty - V.camY) * k;
 }
 
 // ============================ LOOP ====================================

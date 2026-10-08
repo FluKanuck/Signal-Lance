@@ -10,11 +10,15 @@ export const TEST = {
   title: 'Round 24 test: Say what it means',
   question: 'With long-press explanations and clear reasons on greyed buttons, can you read the hunt without help?',
   newThings: [
+    'NEW (r24-s2): on a phone held sideways, the HUD is one line: the ExoS, AP, EN, the objective and any warning. Tap the line to see the full HUD, and tap it again to close it.',
+    'NEW: the map keeps your active ExoS, the selected contact and the objective clear of the buttons. Contact labels near the right edge flip to the left.',
+    'NEW: map labels no longer print on top of each other. Suit names, PAINTED and contact labels move apart, on the hunt map and the after-action map.',
+    'TEST BED: “Crowded phone”. Three contacts and the uplink sit near the right edge. Find and tap each one.',
     'NEW (r24-s1): long-press anything to see what it is. Hold a finger on a button, a HUD word, a contact, a tag, a mark or the ground. On a computer, right-click it.',
     'The explain card opens at the top left. Any tap closes it. A long-press never fires the button or sets a move.',
     'NEW: a greyed button says why when you tap it. Example: FIRE · NO SIGHT, then “No line of sight. Move until the contact is in view.”',
     'NEW: the greyed button shows its reason in words: NO SIGHT, NO LOCK, OUT OF RANGE, HEARD ONLY, LEG DAMAGED, NEED AP.',
-    'NEW: low hits. An ExoS with ' + TUNE.WARN_HITS_LEFT + ' CORE hits or fewer left gets a red ring and “! N” on the map. The HUD says “A: 2 CORE hits left”.',
+    'NEW: low hits. A hit ExoS with ' + TUNE.WARN_HITS_LEFT + ' CORE hits or fewer left gets a red ring and “! N” on the map. The HUD says “A: 2 CORE hits left”.',
     'NEW: LAST SEEN. A contact that drops off your picture leaves a faded mark with its round, for ' + TUNE.LASTKNOWN_ROUNDS + ' rounds. You can’t target it.',
     'NEW: GAMEPLAY BASICS reads from the glossary, by screen. BACK is at the top too.',
     'One name per thing: ExoS (not mech), NORMAL (not NORM), the part names MAST, ARMS, CORE, BACK and LEGS, ESM (not passive ears), SCAN (the tag that was SHIP).',
@@ -22,7 +26,7 @@ export const TEST = {
     'TEST BED: “Read it cold”. One hunt turn with a blocked FIRE, a lame ExoS, one low on hits, an UNKNOWN ESM contact and a LAST SEEN mark.',
   ],
   round: 24,
-  howTo: 'Play “Read it cold” first. Long-press everything you don’t know, then tap each greyed button. Then play a contract or two and tap the answers after each hunt. When you finish, tap SEND LOG and send it to Jamie.',
+  howTo: 'Play “Read it cold” and “Crowded phone” first. Long-press everything you don’t know, then tap each greyed button. Then play a contract or two and tap the answers after each hunt. When you finish, tap SEND LOG and send it to Jamie.',
 };
 const R20_NEW = [
     'NEW (r20-s4): learn why. After every hunt the result screen has THE SCAN: a line per stretch of your scan (which sensors, where each looked: full map or the map area its ring was in, the altitude, the minutes, what came back, the risk it added), then what the drop rolled (the step, how many were awake, painted or not, units that joined). SEND LOG carries the same lines as [SCAN].',
@@ -190,6 +194,7 @@ const BASICS: { title: string; screens: Screen[]; how: string[] }[] = [
     'To move, tap the map or drag from your ExoS. Pick CREEP, NORMAL or SPRINT. Then tap MOVE.',
     'Tap a contact to select it. Then FIRE, ID or RADAR use it.',
     'A greyed button says why on a tap. END TURN passes to the next unit.',
+    'On a phone the HUD is one line. Tap it to see all of it.',
   ] },
   { title: 'Contacts', screens: ['contact'], how: [
     'Enemies are hidden. Your sensors fix them as contacts. The tags say which sensor fixed each one.',

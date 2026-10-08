@@ -75,6 +75,15 @@ export const SCENARIOS: Scenario[] = [
     lastSeen: [{ field: 2, tile: [42, 14] }],
     question: { q: 'Could you tell what each thing meant, and why each greyed button was greyed?', a: ['Yes, all of it', 'Most of it', 'No, I had to guess', 'Something else'] },
   },
+  {
+    name: 'Crowded phone', round: 24, seed: 2402, mission: 'UPLINK', packed: D1701,
+    tryThis: 'Play it on your phone, held sideways. Three contacts and the uplink sit near the right edge, under where the buttons are. Find and tap each contact.',
+    uplink: [41, 13],
+    lance: [{ tile: [33, 13], face: [41, 13], fit: 'line' }, { tile: [31, 13], face: [41, 13], fit: 'scout' }],
+    field: [{ type: 'TURRET', variant: 'sentry', tile: [39, 12] }, { type: 'EMPLACEMENT', variant: 'fire', tile: [42, 14] }, { type: 'PATROL', variant: 'line', tile: [36, 13], face: [33, 13], state: 'PATROL' }],
+    contacts: [{ field: 0, unc: 1, src: 'RADAR' }, { field: 1, unc: 1.5, src: 'RADAR' }, { field: 2, unc: 3, src: 'PASSIVE', who: 'A+B' }],
+    question: { q: 'Could you see and tap every contact?', a: ['Yes, all of them', 'Most of them', 'No, buttons were in the way', 'Something else'] },
+  },
   // ---- Round 23 (who you'll anger): the city. No hunt: a test company looks at one job against the Foundry, in a Foundry
   // district. Hated: the Foundry hates you. Liked: the same job, posted by the Corporate side, who like you. TAKE IT opens the
   // first hunt's scan (nothing is played). ----

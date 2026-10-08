@@ -13,6 +13,7 @@ import { shootBlock, mortarBlock, mortarBlindBlock, uplinkBlock, extractBlock, p
 import { pickupBlock, handoffBlock } from '../src/sim/mission.ts';
 import { leaveScenario } from '../src/sim/scenarios.ts';
 import { startHunt } from './helpers.ts';
+import { safeCam, toScreen, labelSpot, resetLabels } from '../src/view/layout.ts';
 
 afterEach(() => leaveScenario());
 const words = (s: string) => s.trim().split(/\s+/).filter(Boolean).length;
@@ -77,6 +78,9 @@ describe('R24 A3: every reason code the sim can return has a glossary entry', ()
 describe('R24 A5: the two warnings', () => {
   it('low hits switches at WARN_HITS_LEFT CORE hits left', () => {
     startHunt(1); const A = G.lance[0];
+    A.parts.CORE = A.pmax.CORE; A.parts.LEGS = A.pmax.LEGS;
+    if (A.pmax.CORE <= TUNE.WARN_HITS_LEFT) expect(lowHits(A)).toBe(false); // undamaged: no warning yet
+    A.parts.LEGS = A.pmax.LEGS - 1; // it has taken a hit
     A.parts.CORE = TUNE.WARN_HITS_LEFT + 1; expect(hitsLeft(A)).toBe(TUNE.WARN_HITS_LEFT + 1); expect(lowHits(A)).toBe(false);
     A.parts.CORE = TUNE.WARN_HITS_LEFT; expect(lowHits(A)).toBe(true);
     A.dead = true; expect(lowHits(A)).toBe(false); // a DOWN suit says DOWN, not low hits
@@ -117,5 +121,22 @@ describe('R24 fix list: C19 and C23', () => {
     const pl = planMove(A, A.x + 3 * T, A.y, 'CREEP');
     expect(pl && pl.path, 'CREEP plans a move').toBeTruthy();
     expect(planMove(A, A.x + 3 * T, A.y, 'NORMAL').why).toBe('LEGS'); // the old trap: NORMAL set on a lame ExoS = no move at all
+  });
+});
+
+describe('R24 B7: the safe area keeps the map clear of the overlays', () => {
+  const safe = { l: 140, t: 50, r: 650, b: 320 }, vw = 844, vh = 390;
+  const inside = (p, cam, z) => { const s = toScreen(p, cam.x, cam.y, vw, vh, z); return s.x >= safe.l && s.x <= safe.r && s.y >= safe.t && s.y <= safe.b; };
+  it('the active ExoS lands inside the uncovered rect', () => {
+    for (const z of [1, 0.55]) { const p = { x: 3000, y: 900 }, cam = safeCam([p], safe, vw, vh, z); expect(inside(p, cam, z)).toBe(true); }
+  });
+  it('a selected contact and the objective come along when they fit, and never push the ExoS out', () => {
+    const p = { x: 1000, y: 400 }, c = { x: 1300, y: 450 }, far = { x: 4000, y: 400 }, z = 1;
+    const cam = safeCam([p, c, far], safe, vw, vh, z);
+    expect(inside(p, cam, z)).toBe(true); expect(inside(c, cam, z)).toBe(true); expect(inside(far, cam, z)).toBe(false);
+  });
+  it('labels claim space: a second label at the same spot moves down past the first', () => {
+    resetLabels(); const a = labelSpot(0, 0, 50, 10, 1), b = labelSpot(10, 2, 50, 10, 1);
+    expect(a).toBe(0); expect(b).toBeGreaterThanOrEqual(11);
   });
 });

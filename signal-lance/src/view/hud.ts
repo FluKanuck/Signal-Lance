@@ -20,6 +20,8 @@ import { moveModeBlock } from '../sim/reasons.ts';
 import { lowHits, hitsLeft } from '../sim/warn.ts';
 import { whyShort } from './glossary.ts';
 import { cmdMoveMode } from '../sim/turns.ts';
+// R24 B6: a tap on the compact HUD opens the full block; the next tap closes it (a long-press explains instead: explain.ts)
+document.getElementById('hud')?.addEventListener('pointerup', () => { if (window.innerHeight <= TUNE.HUD_COMPACT_H || V.hudOver) { V.hudOpen = !V.hudOpen; hudT = 0; } });
 // R24 A2: a HUD term the player can long-press (its glossary entry)
 const g = (id: string, text = id) => '<span data-g="' + id + '">' + text + '</span>';
 
@@ -66,7 +68,7 @@ export function updateHud(dt) {
     (mine && G.plan && G.plan.drawn ? '  <b style="color:#8fe3ff">DRAWN PATH · ' + g('looks') + ' ' + G.plan.wps.length + '/' + TUNE.FACE_WAYPOINTS_MAX + (V.wpWhy ? ' (' + V.wpWhy + ')' : '') + '</b>' : '') + // R17
     (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">' + g('MOVE STOPPED', 'MOVE STOPPED: CONTACT (' + G.intr.ap + ' AP kept)') + '</b>' : '');
   const pips = '<span id="ap">' + '●'.repeat(p.ap) + '○'.repeat(Math.max(0, TUNE.AP_BANK_MAX - p.ap)) + '</span>';
-  $('hud').innerHTML = turn + '<br>' + g('AP') + ' ' + pips + '  (+' + TUNE.AP_PER_TURN + '/turn)' +
+  const full = turn + '<br>' + g('AP') + ' ' + pips + '  (+' + TUNE.AP_PER_TURN + '/turn)' +
     '<br>' + g('EN') + ' <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.en / p.enMax) + '%"></div></span> ' + Math.round(p.en) + '/' + p.enMax + '  (+' + (p.regen ?? TUNE.ENERGY_REGEN) + '/turn)' +
     '<br>' + g('EMIT') + ' <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.emit / TUNE.SIGNAL_MAX) + '%;background:#f93"></div></span> ' + Math.round(p.emit) + '  (−' + TUNE.SIGNAL_DECAY + '/turn)' +
       '  <b style="color:' + (p.sound ? '#e8f4ff' : '#778') + '">' + g('SOUND') + ' ' + (p.sound ? Math.round(soundRadius(p) * 10) / 10 : '–') + '</b>' + // R13: this activation's sound radius
@@ -84,6 +86,41 @@ export function updateHud(dt) {
       '<br>DBG zones ' + G.zones.map(z => z.type[0] + ':' + z.name).join(', ') + '  me eff S' + Math.round(effEmit(p)) +
       dbgShot('P') + dbgShot('E') +
       '<br>DBG sig ' + G.units.map(u => u.dead ? '-' : u.type[0] + sig(u).toFixed(1) + ' ' + detStrength(p, u).toFixed(2) + '/' + detStrength(u, p).toFixed(2)).join('  ') + '  (sig me→it/it→me)' : '');
+  // R24 B6 (C03): on a short screen (or when the full block runs off the screen) the HUD is one line. A tap opens the full
+  // block as a panel in the same slot, and the next tap closes it.
+  const el = $('hud'), compact = window.innerHeight <= TUNE.HUD_COMPACT_H || V.hudOver;
+  if (compact && !V.hudOpen) { el.innerHTML = compactLine(p, mine); el.className = 'compact'; }
+  else {
+    el.innerHTML = full + (compact ? '<br><small style="opacity:.7">Tap here to close.</small>' : ''); el.className = compact ? 'open' : '';
+    if (!compact && !V.dbg) { // the full block overran the screen edge or reached the left buttons: go compact until the window changes
+      const r = el.getBoundingClientRect(), lc = $('lcol').getBoundingClientRect();
+      if (r.right > window.innerWidth - 8 || (lc.height && r.bottom > lc.top - 4)) V.hudOver = true;
+    }
+  }
+  measureSafe();
+}
+// R24 B6: the one-line HUD: the active ExoS, AP and EN, the objective and its distance (from which ExoS), and any warning
+function compactLine(p, mine: boolean) {
+  const low = G.lance.filter(m => lowHits(m)).map(m => m.id + ' ' + hitsLeft(m)).join(' ');
+  const prompt = V.faceArm ? 'TAP WHERE TO FACE' : V.lookArm !== null ? 'TAP WHERE IT SHOULD LOOK' : V.mortarArm ? 'MORTAR: TAP A CONTACT OR THE MAP' : G.intr && G.intr.id === p.id ? 'MOVE STOPPED' : '';
+  return '<span class="hl">' + g('ROUND', 'R') + G.turn + ' · ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + '</b> · ' + g('AP') + ' ' + p.ap + '/' + TUNE.AP_BANK_MAX + ' · ' + g('EN') + ' ' + Math.round(p.en) : '<b>ENEMY…</b>') +
+    ' · ' + compactGoal(p) + (low ? ' · <b style="color:#ff8a80">' + g('HITS LEFT', '! ' + low) + '</b>' : '') +
+    (prompt ? ' · <b style="color:#ff6">' + (prompt === 'MOVE STOPPED' ? g('MOVE STOPPED') : prompt === 'TAP WHERE TO FACE' ? g('TAP WHERE TO FACE') : prompt) + '</b>' : '') + ' <span class="more">▾</span></span>';
+}
+function compactGoal(p) {
+  if (isType('ESCORT') && G.ally) return g('TRANSPORT') + ' ' + Math.max(0, G.ally.hits) + '/' + G.ally.maxHits + (allyHolding() ? ' <b style="color:#7e9">WAITING</b>' : '');
+  if (isType('RETRIEVE')) return G.mission.carrier ? g('CARGO') + ' carried by ' + G.mission.carrier : g('CARGO') + ' ' + Math.round(upDist(p)) + 't from ' + p.id; // fix list 3 (C04)
+  if (isType('BOUNTY')) return g('BOUNTY') + ' ' + G.mission.earned + '/' + G.mission.quota + ' cr';
+  return g('UPLINK') + ' ' + G.up.prog + '/' + TUNE.UPLINK_TURNS + ' · ' + (uplinkBlock() !== 'RANGE' ? 'IN RANGE' : Math.round(upDist(p)) + 't from ' + p.id);
+}
+// R24 B7 (C07): the map area no overlay covers (screen px), measured from the real overlay rectangles
+function measureSafe() {
+  const vw = window.innerWidth, vh = window.innerHeight, pad = TUNE.CAM_SAFE_PAD, R = (id: string) => { const e = $(id); return e && !e.hidden ? e.getBoundingClientRect() : null; };
+  const lc = R('lcol'), rc = R('rcol'), br = R('brow'), hu = R('hud'), it = R('init');
+  const l = lc && lc.width ? lc.right + pad : pad, r = rc && rc.width ? rc.left - pad : vw - pad;
+  const t = Math.max(hu && hu.height && !V.hudOpen ? hu.bottom : 0, it && it.height ? it.bottom : 0) + pad; // the opened HUD panel is a passing look: not counted
+  const b = br && br.height ? br.top - pad : vh - pad;
+  V.safe = r - l > 80 && b - t > 60 ? { l, t, r, b } : null; // too small to mean anything: centre as before
 }
 // R15: the mission line. Uplink: progress pips and range. Bounty: earned / quota, the last kill's pop, and the call at quota.
 function goalLine(p) {
