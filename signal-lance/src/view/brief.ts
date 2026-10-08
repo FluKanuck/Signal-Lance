@@ -10,6 +10,7 @@ export const TEST = {
   title: 'Round 24 test: Say what it means',
   question: 'With long-press explanations and clear reasons on greyed buttons, can you read the hunt without help?',
   newThings: [
+    'NEW (r24-s4): a long-press, or a right-click on a computer, never presses the button. A button with no explanation yet says so. Two operators never share a first name.',
     'NEW (r24-s3): the words on every screen follow one rule: one name per thing, short sentences, and the reason for every limit.',
     'NEW: the company tab for repairs, rounds and shells is now REFIT. The ship module is the EXOS BAY. WHAT IT COST names the ExoS (ExoS B LOST), not its operator.',
     'NEW: ESCORT has a ROUTE bar above the bottom buttons. It has one button for each way at each fork ahead. A ✓ marks the way you set.',
