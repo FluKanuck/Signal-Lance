@@ -19,7 +19,7 @@ export const DEVICES = {
 };
 // Budgets per session (actions = every command but look/think/status; images = looks with a screenshot)
 const BUDGET = { haiku: { actions: 120, images: 40 }, short: { actions: 80, images: 30 }, long: { actions: 60, images: 20 } };
-export const budgetFor = (m) => m.model === 'haiku' ? BUDGET.haiku : m.length === 'long' ? BUDGET.long : BUDGET.short;
+export const budgetFor = (m) => m.actions ? { actions: +m.actions, images: +(m.images || 30) } : m.model === 'haiku' ? BUDGET.haiku : m.length === 'long' ? BUDGET.long : BUDGET.short; // a plan may fix it (the model comparison does)
 
 // The campaign's seeds come from Math.random in the view: seed it before the page loads, so a session repeats
 const seedRandom = (seed) => {
@@ -99,7 +99,7 @@ class Session {
     const v = await this.qa('view');
     let x, y, what;
     const xy = /^(-?\d+)\s*,\s*(-?\d+)$/.exec(String(target).trim());
-    if (xy) { x = +xy[1]; y = +xy[2]; what = x + ',' + y; const hit = v.buttons.find(b => Math.abs(b.x - x) <= b.w / 2 && Math.abs(b.y - y) <= b.h / 2); if (!hit) this.canvasTaps++; }
+    if (xy) { x = +xy[1]; y = +xy[2]; what = x + ',' + y; const hit = v.buttons.find(b => Math.abs(b.x - x) <= b.w / 2 && Math.abs(b.y - y) <= b.h / 2); if (hit) what += ' (on the ' + (hit.text || hit.id) + ' control)'; else this.canvasTaps++; }
     else {
       const t = String(target).trim().toLowerCase();
       const b = v.buttons.find(b => b.id.toLowerCase() === t) || v.buttons.find(b => b.text.toLowerCase() === t) || v.buttons.find(b => b.text.toLowerCase().startsWith(t)) || v.buttons.find(b => b.text.toLowerCase().includes(t));
@@ -173,10 +173,10 @@ class Session {
   think(text) { this.steps++; appendFileSync(resolve(this.dir, 'notebook.md'), '- [' + this.steps + '] ' + text + '\n'); this.feed('think', { text }); return 'ok'; }
   countNotes() { const f = resolve(this.dir, 'findings.jsonl'); return existsSync(f) ? readFileSync(f, 'utf8').trim().split('\n').filter(l => l.includes('"source":"tester"')).length : 0; }
   async stamp(f) {
-    let o = {}, logTail = [];
-    try { o = await this.qa('oracle'); logTail = (await this.qa('log')).slice(-15); } catch (_) {}
+    let o = {}, logTail = [], screens = [];
+    try { o = await this.qa('oracle'); logTail = (await this.qa('log')).slice(-15); screens = (await this.qa('view')).screens; } catch (_) {}
     return { t: now(), batch: this.m.batch, session: this.id, persona: this.m.persona, model: this.m.model, device: this.m.device, knowledge: this.m.knowledge,
-      build: o.build, step: this.steps, seed: { session: this.m.seed, hunt: o.seed, mtype: o.mtype, comp: o.comp, company: o.company?.code }, shot: this.lastShot ? relative(RUNS, this.lastShot) : '',
+      build: o.build, step: this.steps, screens, seed: { session: this.m.seed, hunt: o.seed, mtype: o.mtype, comp: o.comp, company: o.company?.code }, shot: this.lastShot ? relative(RUNS, this.lastShot) : '',
       ...f, oracle: o, violations: [...this.seen], logTail };
   }
   async checkpoint(k) {

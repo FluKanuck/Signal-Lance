@@ -1,0 +1,5 @@
+{
+  "_": "Fixed seeds (the tool seeds Math.random with them, so the company, offers and hunts repeat). Change only on purpose: comparisons between builds rely on them.",
+  "short": [101, 202, 303],
+  "long": [1001, 2002, 3003]
+}
