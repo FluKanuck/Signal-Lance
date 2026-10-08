@@ -99,4 +99,18 @@ Keep everything from r23-s6 unless it is listed here. **This round changes words
 - Save the status report as claude/signal-lance-round24.md.
 
 ## Term list (one name per thing, from the HISTORY rewrite)
-TERM_LIST_PLACEHOLDER
+These are the places where one thing has two or more names, found while rewriting HISTORY. Settle each one in the glossary and rename the on-screen label to match.
+1. **mech / ExoS / suit:** the biggest one. HISTORY now says ExoS for the machine. BASICS, the SUITS tab, the SUIT BAY module and STAYS ABOARD still say "suit". Pick one, or define "suit" as the ExoS slot.
+2. **ExoS passive sensor:** "EM ears", "passive EM", "EM", "ESM", "passive sensors". HISTORY uses ESM (the contact tag). EM LISTEN stays for the ship's scan sensor only. The old tags EM / VIS / SND / EYE are now EO / RDR / ESM / IR / ACO / MZL / LINK / SHIP.
+3. **heat / IR / THERMAL / Thermal optics:** four names for one channel. Give each its role, or merge them.
+4. **noise:** it means EMIT + SOUND (R13) and also the NOISE zone. Give it one meaning.
+5. **job / contract / offer:** a FACTION JOB or BROKER JOB on the map is a contract offer. Settle which word means what.
+6. **intel:** the free scan intel from a LIKED faction, and INTEL, the job-card listing. Two things share one name.
+7. **turning point / moment:** HISTORY says turning point. `aar.ts` and BASICS say moment.
+8. **NORM / NORMAL:** the button says NORM, while the HUD and HANGAR say NORMAL.
+9. **levers / fork setting (lit ✓):** the Escort fork control has two names (ties in with fix-list item 12).
+10. **ALARM / LINK:** the old notes say ALARM, but the UI tag reads LINK.
+11. **loadout screen / HANGAR:** HISTORY uses HANGAR.
+12. **land / drop, "where you land" / drop zone:** HISTORY uses drop and drop zone.
+13. **QUIT / BAIL CONTRACT / SAVE & QUIT / EXTRACT:** keep each for its own action. The glossary says which does what.
+14. **REPAIR / REPAIR WORST:** the button reads REPAIR WORST.
