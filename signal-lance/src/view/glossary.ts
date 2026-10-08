@@ -201,6 +201,7 @@ const LIVE_TERMS: Entry[] = [
   { id: 'AIM', name: 'AIM', screen: 'hunt', line: 'The gun aims for ' + TUNE.LIVE_AIM_TIME + ' s before each shot. The ExoS can walk while it aims.' },
   { id: 'GUN COOLING', name: 'GUN COOLING', screen: 'hunt', line: 'After a shot the gun cools for ' + TUNE.LIVE_FIRE_COOLDOWN + ' s. Then it aims again by itself at the same target, if it can shoot.' },
   { id: 'LIVE TOY', name: 'LIVE TOY', screen: 'hunt', line: 'A test page for live time. It has its own company and its own save. The main game does not change.' },
+  { id: 'AUTO FIRE', name: 'AUTO FIRE', screen: 'hunt', line: 'Pick which weapons this ExoS fires by itself. GUN shoots the contact with the best odds. MORTAR lobs only while the ExoS has no other order.' },
   { id: 'AUTO-PAUSE', name: 'AUTO-PAUSE', screen: 'hunt', line: 'The game pauses by itself when something needs a decision. The yellow line says why. Switch each reason on or off on the start screen.' },
   { id: 'AP.CONTACT', name: 'PAUSED: NEW CONTACT', screen: 'hunt', line: 'A new contact came onto your picture. A loose track that jumps about never pauses the game again.' },
   { id: 'AP.FIXED', name: 'PAUSED: FIXED TRACK', screen: 'hunt', line: 'A loose track became a FIXED TRACK. You can now FIRE at it. This pauses once for each contact.' },

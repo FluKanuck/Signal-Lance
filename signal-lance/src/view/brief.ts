@@ -230,6 +230,8 @@ const LIVE_TEST = {
   question: 'Does live time with auto-pause make the hunt flow, and still feel like a plan?',
   newThings: [
     'This is a separate test page. Your company here is not your company in the main game.',
+    'FIXED (r25 live D4): a new contact no longer cuts a route. The game pauses, and every route stays as you drew it.',
+    'NEW: AUTO FIRE (above PLAY). Pick the weapons this ExoS fires by itself. GUN shoots the contact with the best odds. MORTAR lobs only while the ExoS has no other order.',
     'FIXED (r25 live D3, your fix list): at a choke point the ExoS behind waits its turn. A nudge no longer cancels its route.',
     'NEW: no limit on looks along a route. Tap the route, then FORWARD: from that point the ExoS looks where it walks again.',
     'NEW: pinch the map with two fingers to zoom. Z+ and Z− go back to the two fixed zooms.',
@@ -253,6 +255,7 @@ const LIVE_TEST = {
     'The hunt opens paused. Tap PLAY (bottom right) or the space bar to start the clock. Tap PAUSE to stop it at any time.',
     'Every order works while paused: draw a route, set looks, FIRE, RADAR, UPLINK. Then tap PLAY and watch it happen.',
     'Pinch the map to zoom in for fine drawing. Tap a route for FORWARD (look where it walks) or a look.',
+  'AUTO FIRE sets which weapons each ExoS fires by itself.',
   'Actions take time. A move takes as long as the walk. RADAR, UPLINK, PICK UP, HAND OFF, ECM and MORTAR each take a few seconds. A ring on the ExoS fills while it works.',
     'A new order replaces what the ExoS is doing. A move you stop gives back the EN for the part it did not walk.',
     'FIRE aims for ' + TUNE.LIVE_AIM_TIME + ' s, then shoots. The gun then cools for ' + TUNE.LIVE_FIRE_COOLDOWN + ' s. It keeps the target and fires again by itself while it can shoot. An ExoS can aim and walk at the same time.',

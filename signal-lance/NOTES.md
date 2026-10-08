@@ -1928,6 +1928,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            rule only ends a move near its end; the walker behind yields; A before B in one gap), FACE_WAYPOINTS_MAX 3 → 99 (toy),
            FORWARD points (cmdForward), PINCH_MIN 0.45 / PINCH_MAX 3, PATH_STEP 0.25, PATH_CLEAR 0.3, PATH_RELAX 8 (replaces
            PATH_SMOOTH Chaikin). Runner --live seeds 1-60: no stalls. Turns runner byte-identical | -
+   round25 fix list 6-7 (r25-live-d4) | Jamie: "a new signal shouldnt remove the drawn lines"; "a button that sets auto fire
+           at contacts and you can select the weapons per mech" | the R17 move stop is off on the toy (auto-pause covers it;
+           routes stay); AUTO FIRE per ExoS (m.auto GUN / MORTAR; the mortar waits for no order so it never cuts a route).
+           No tuning change. Runner --live: no stalls. Turns runner byte-identical | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

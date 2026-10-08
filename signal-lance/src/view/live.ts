@@ -2,7 +2,8 @@
 // strip gives that ExoS the orders.
 import { G } from '../sim/state.ts';
 import { TUNE } from '../tune.ts';
-import { togglePause, liveSelect, apCueText } from '../sim/live.ts';
+import { togglePause, liveSelect, apCueText, setAuto, autoOn } from '../sim/live.ts';
+import { fitted } from '../sim/kit.ts';
 import { $, syncButtons } from './hud.ts';
 import { V } from './state.ts';
 import { hideWpMenu, ptr } from './input.ts';
@@ -69,3 +70,28 @@ cv.addEventListener('pointermove', (e: PointerEvent) => {
 });
 const lift = (e: PointerEvent) => { touches.delete(e.pointerId); if (touches.size < 2) pinch = null; if (!touches.size) ptr.id = -1; };
 cv.addEventListener('pointerup', lift); cv.addEventListener('pointercancel', lift);
+
+// R25 fix 7: AUTO FIRE. The button opens a small menu for the active ExoS: one switch per weapon it carries.
+const WEAPONS: ['GUN' | 'MORTAR', string][] = [['GUN', 'GUN'], ['MORTAR', 'MORTAR']];
+function autoMenu() {
+  const M = $('autoMenu'); if (!M || M.hidden) return;
+  const p = G.p, ws = WEAPONS.filter(([k]) => fitted(p, k));
+  M.innerHTML = '<div>AUTO FIRE · ExoS ' + p.id + '</div>' + (ws.length ? ws.map(([k, n]) => '<button data-w="' + k + '" class="' + (p.auto && p.auto[k] ? 'on' : '') + '">' + n + ': ' + (p.auto && p.auto[k] ? 'ON' : 'OFF') + '</button>').join('') : '<div>No weapon fitted.</div>') + '<button data-w="CLOSE">CLOSE</button>';
+}
+$('bAuto')?.addEventListener('pointerdown', (e: any) => { e.preventDefault(); e.stopPropagation(); });
+$('bAuto')?.addEventListener('pointerup', (e: any) => { e.preventDefault(); e.stopPropagation(); if (G.mode !== 'hunt') return; $('autoMenu').hidden = !$('autoMenu').hidden; autoMenu(); });
+$('autoMenu')?.addEventListener('pointerdown', (e: any) => { e.preventDefault(); e.stopPropagation(); });
+$('autoMenu')?.addEventListener('pointerup', (e: any) => {
+  e.preventDefault(); e.stopPropagation();
+  const b = e.target.closest && e.target.closest('button[data-w]'); if (!b) return;
+  if (b.dataset.w === 'CLOSE') { $('autoMenu').hidden = true; return; }
+  const w = b.dataset.w; setAuto(G.p, w, !(G.p.auto && G.p.auto[w])); autoMenu(); syncButtons();
+});
+let autoFor = '';
+setInterval(() => { // the button says what the active ExoS fires by itself; the menu follows the active ExoS
+  const b = $('bAuto'); if (!b || !G.p) return;
+  const on = G.mode === 'hunt' && autoOn(G.p), w = on ? WEAPONS.filter(([k]) => G.p.auto[k]).map(([, n]) => n).join('+') : 'OFF';
+  b.innerHTML = 'AUTO FIRE<br><small>' + w + '</small>'; b.classList.toggle('on', on); b.dataset.label = 'AUTO FIRE';
+  if (G.mode !== 'hunt') $('autoMenu').hidden = true;
+  if (autoFor !== G.p.id) { autoFor = G.p.id; autoMenu(); }
+}, 150);

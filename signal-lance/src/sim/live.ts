@@ -26,7 +26,7 @@ import { pathCost } from './world.ts';
 import { allyStep, allyHolding } from './escort.ts';
 import { cargoLost, onCargoLost, onAllyLost, onAllyOut, onClear, onAllOut, isType, pickupBlock, doPickup, handoffBlock, doHandoff, isCarrier } from './mission.ts';
 import { moveAlong, moveTick, updateShells, addEmit, inExtract, leaveMap, allOut, doShot, shootBlock, fireRange, turnCost, freeTurn,
-  uplinkBlock, doUplink, canPay, pay, playerTarget, replan, MODE_SPEED, doMove } from './turns.ts';
+  uplinkBlock, doUplink, canPay, pay, playerTarget, replan, MODE_SPEED, doMove, shotOdds, mortarBlock, doMortar } from './turns.ts';
 
 export const PLAYER_AP = 99; // a live ExoS never runs out of AP: the rules that still ask for AP always pass
 
@@ -69,6 +69,7 @@ export function liveStep(dt: number) {
   for (const e of G.units) if (!e.dead) enemyThink(e, dt);
   if (G.ally && !G.ally.dead && !G.ally.out) allyThink(dt);
   autoRefire();
+  autoFire();
   for (const m of G.lance) if (m.en > m.enMax) m.en = m.enMax; // a stopped move's refund never overfills the pool (it refilled while walking)
   if (G.p && (G.p.dead || G.p.out)) { const n = livingMechs().find(m => !m.out); if (n) liveSelect(n); }
   watchForPause();
@@ -261,6 +262,28 @@ function autoRefire() {
   }
 }
 
+// ---- R25 fix 7 (Jamie: "a button that sets auto fire at contacts and you can select the weapons per mech"): AUTO FIRE.
+// m.auto = { GUN, MORTAR }, set per ExoS. GUN: when the gun is free it aims at the contact it can lock with the best odds
+// (the selected one first, if it can). MORTAR: an aimed shell at a contact it qualifies on, only while the ExoS has no other
+// order (a lob would stop its route), the closest fix first. ----
+export function setAuto(m, w: 'GUN' | 'MORTAR', on: boolean) { m.auto = { ...(m.auto || {}), [w]: on }; hooks.sync(); }
+export function autoOn(m) { return !!(m.auto && (m.auto.GUN || m.auto.MORTAR)); }
+function autoFire() {
+  for (const m of G.lance) {
+    if (m.dead || m.out || !m.auto) continue;
+    if (m.auto.GUN && !m.aim && !(m.cool > 0)) {
+      const ok = G.pc.filter(c => c.on && shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, fireRange(m)) === '');
+      const sel = m === G.p && G.sel && ok.includes(G.sel) ? G.sel : null;
+      const best = sel || ok.map(c => ({ c, p: (shotOdds(m, c) || { pct: 0 }).pct })).sort((a, b) => b.p - a.p)[0]?.c;
+      if (best) liveAim(m, best);
+    }
+    if (m.auto.MORTAR && !m.lact && !(m.mcool > 0)) {
+      const ok = G.pc.filter(c => c.on && mortarBlock(m, c) === '').sort((a, b) => a.unc - b.unc);
+      if (ok[0]) doMortar(m, ok[0]);
+    }
+  }
+}
+
 // ---- the field: each enemy gets a turn's AP every round and runs its usual brain, one action at a time ----
 // R25 cp B: continuous. AP flows in every second (AP_PER_TURN ÷ LIVE_ROUND_SEC, whole points), and the unit decides every
 // LIVE_ENEMY_THINK seconds (and as soon as an action ends). Its brain's turn counters (patience, pulse rhythm) advance by
@@ -379,10 +402,12 @@ export function liveEcmOn() {
 export function liveDoing(m) {
   const a = m.lact, parts: string[] = [];
   if (!a && m === G.p && G.plan && G.plan.path && G.paused) parts.push('ROUTE SET: PLAY to go');
+  if (autoOn(m)) parts.push('AUTO ' + ['GUN', 'MORTAR'].filter(w => m.auto[w]).join('+'));
   if (a) parts.push(a.k === 'MOVE' ? 'MOVING' : a.k === 'PULSE' ? 'RADAR ' + Math.max(0, a.t).toFixed(1) + 's' : (a.k === 'PICKUP' ? 'PICK UP' : a.k === 'HANDOFF' ? 'HAND OFF' : a.k) + ' ' + Math.max(0, a.t).toFixed(1) + 's');
   if (m.aim) parts.push('AIM ' + Math.max(0, m.aim.t).toFixed(1) + 's');
   else if (m.cool > 0) parts.push('GUN COOLING ' + m.cool.toFixed(1) + 's');
-  return parts.length ? parts.join(' · ') : 'IDLE';
+  if (!a && !m.aim && !(m.cool > 0) && !parts.some(p => p.startsWith('ROUTE'))) parts.push('IDLE');
+  return parts.join(' · ');
 }
 // 0..1 progress of m's current timed action (the ring on the map), or -1
 export function liveProgress(m) {

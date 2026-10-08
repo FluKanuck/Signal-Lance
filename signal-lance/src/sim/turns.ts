@@ -460,7 +460,7 @@ export function doMove(m, pl) {
     const d = Math.hypot(w.fx, w.fy) || 1; m.fx = w.fx / d; m.fy = w.fy / d; m.holdFace = true; a.wpDone++;
     updateSensors(0); return true;
   };
-  if (isMech(m) && TUNE.MOVE_INTERRUPT) { // R17: what the suit already had at the start of the move (anything else is new)
+  if (isMech(m) && TUNE.MOVE_INTERRUPT && !G.live) { // R25 fix 6: the toy never stops a move for a new contact (auto-pause stops the clock; the route stays). R17: what the suit already had at the start of the move (anything else is new)
     a.known = new Set(G.pc.filter(c => c.on).map(c => c.id));
     if (G.live) for (const id of Object.keys(G.apTrack || {})) a.known.add(id); // R25: the track rule: a contact the lance already had (now flickering, or lost) never stops a move again
   }

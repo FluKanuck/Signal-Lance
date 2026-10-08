@@ -431,3 +431,36 @@ describe('R25 fix list', () => {
     expect(maxTurn * 180 / Math.PI).toBeLessThan(40);
   });
 });
+
+// ---- R25 fix list 6 + 7 ----
+import { setAuto } from '../src/sim/live.ts';
+describe('R25 fix list 6-7', () => {
+  it('6: a new contact never cuts a walking route on the toy (auto-pause stops the clock instead)', () => {
+    startHunt(3); G.paused = false;
+    const m = G.p; cmdTarget(m.x + 8 * T, m.y); cmdMove();
+    const path = m.path; run(0.3);
+    const u = G.units[0]; G.pc.push({ on: true, id: u.id, tx: u.x, ty: u.y, unc: 5 * T, lost: 0, gap: 1.6, snd: false, shr: false } as any); // a brand new contact
+    step(DT);
+    expect(m.path).toBe(path); expect(m.lact && m.lact.k).toBe('MOVE'); // the route goes on
+    expect(G.moveStat.intr.length).toBe(0);
+  });
+  it('7: AUTO FIRE GUN aims at a contact it can lock, with no order', () => {
+    startHunt(3); G.paused = false;
+    const m = G.p, u = G.units.find(x => x.mobile) || G.units[0];
+    u.x = m.x + 3 * T; u.y = m.y; m.fx = 1; m.fy = 0;
+    G.pc.push({ on: true, id: u.id, tx: u.x, ty: u.y, unc: 0, lost: 0, gap: 50, snd: false, shr: false } as any);
+    if (shootBlock(m, G.pc[G.pc.length - 1], TUNE.PLAYER_FIRE_UNC, fireRange(m)) !== '') return; // no line of sight on this seed's spot
+    step(DT); expect(m.aim).toBeNull(); // off: nothing
+    expect(G.paused).toBe(true); // a new contact: auto-pause
+    G.paused = false; setAuto(m, 'GUN', true); step(DT); // (the new contact paused the game: PLAY)
+    expect(m.aim && m.aim.id).toBe(u.id);
+  });
+  it('7: AUTO FIRE MORTAR waits while the ExoS has an order (it never stops a route)', () => {
+    startHunt(3); G.paused = false;
+    const m = G.lance[0]; m.auto = { MORTAR: true }; m.mcool = 0;
+    cmdTarget(m.x + 8 * T, m.y); cmdMove();
+    const u = G.units[0]; G.pc.push({ on: true, id: u.id, tx: m.x + 8 * T, ty: m.y, unc: 0, lost: 0, gap: 50, snd: false, shr: false } as any);
+    step(DT);
+    expect(m.lact && m.lact.k).toBe('MOVE');
+  });
+});

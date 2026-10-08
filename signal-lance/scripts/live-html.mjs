@@ -6,7 +6,10 @@ const CSS = '<style>/* R25 live toy */ body.live #init span{min-width:44px;min-h
   ' body.live #bEnd.on{background:#2f6b3f;border-color:#7e9;color:#fff}' +
   ' #apBanner{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px + env(safe-area-inset-bottom,0px));z-index:3;pointer-events:none;' +
   'font:bold 15px monospace;color:#ff6;background:rgba(0,0,0,.72);border:1px solid #ff6;border-radius:6px;padding:4px 10px;white-space:nowrap}' +
-  ' #apBanner[hidden]{display:none} #apRow button{flex:1;min-width:0;font-size:12px}</style>\n';
+  ' #apBanner[hidden]{display:none} #apRow button{flex:1;min-width:0;font-size:12px}' +
+  ' #autoMenu{position:fixed;z-index:4;right:calc(140px + env(safe-area-inset-right,0px));bottom:calc(80px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:6px;' +
+  'background:rgba(10,20,30,.92);border:1px solid #8fe3ff;border-radius:8px;padding:8px;font:bold 12px monospace;color:#8fe3ff}' +
+  ' #autoMenu[hidden]{display:none} #autoMenu button{min-height:48px;min-width:150px} #bAuto.on{background:#5a3a14;border-color:#fc6;color:#fff}</style>\n';
 let out = src.replace('<script type="module" src="/src/main.ts"></script>', '<script type="module" src="/src/main-live.ts"></script>');
 out = out.replace(/<title>[^<]*<\/title>/, '<title>Signal Lance Live Toy</title>');
 // the auto-pause switches sit under the splash's toggle row (view/live.ts fills them)
@@ -19,6 +22,11 @@ out = out.replace('<div id="hud"></div>', '<div id="hud"></div>\n<div id="apBann
 const WPX = '<button id="bWpX">✕ LOOK</button>';
 if (!out.includes(WPX)) throw new Error('live-html: the look menu changed');
 out = out.replace(WPX, WPX + '<button id="bWpF">FORWARD</button>');
+// R25 fix 7: AUTO FIRE above PLAY, and its weapon menu
+const END = '<button id="bEnd">END TURN</button>';
+if (!out.includes(END)) throw new Error('live-html: the right column changed');
+out = out.replace(END, '<button id="bAuto">AUTO FIRE</button>\n  ' + END);
+out = out.replace('<div id="apBanner" hidden></div>', '<div id="apBanner" hidden></div>\n<div id="autoMenu" hidden></div>');
 out = out.replace('</style>', '</style>\n' + CSS.trim());
 if (out === src || !out.includes('main-live.ts')) throw new Error('live-html: signal-lance.html changed shape');
 writeFileSync('signal-lance-live.html', out);
