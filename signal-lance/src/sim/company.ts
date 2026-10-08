@@ -11,7 +11,7 @@ import { DEFAULT_FIT, toFit, fitRounds, fitShells, kitOf, launchBlock } from './
 import { ITEMS, byId } from './items.ts';
 import { fresh, newContract, repairWorst } from './contract.ts';
 import { syncHits } from './combat.ts';
-import { newCity, cityOn, rollCityOffers, fuelPriceAt, jump, settle, standingLine, dangerOf, feeOf, pathFuel } from './city.ts';
+import { newCity, cityOn, rollCityOffers, fuelPriceAt, jump, settle, standingLine, dangerOf, feeOf, pathFuel, relKey } from './city.ts';
 
 export const CO_VERSION = 5; // R21 cp2: suits. cp3: the books; cp4: the ship. R23: the city // bump when the save's shape changes (an old save then offers NEW COMPANY)
 export type Op = {
@@ -437,6 +437,7 @@ export function thinBooksCompany() {
 export function cityTestCompany(kind: 'Hated' | 'Liked') {
   newCompany(2301);
   const C = G.co, Y = C.city, F = Y.districts.filter(d => d.fac === 'FOUNDRY'), home = kind === 'Hated' ? 'FOUNDRY' : 'CORP';
+  Y.rel[relKey('CORP', 'FOUNDRY')] = 'RIVALS'; // R23 tuning 2: the Corporate side posts jobs against its rival
   if (kind === 'Hated') Y.standing.FOUNDRY = TUNE.STANDING_HATED - 20; else Y.standing.CORP = TUNE.STANDING_LIKED + 20;
   const pairs = Y.districts.filter(d => d.fac === home).flatMap(h => F.filter(f => f.id !== h.id).map(f => ({ h, f, n: pathFuel(Y, h.id, f.id) }))).sort((a, b) => a.n - b.n);
   Y.at = pairs[0].h.id;

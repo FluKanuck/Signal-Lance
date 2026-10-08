@@ -158,11 +158,17 @@ export function intelFrom(o = runningOffer()): Fac {
 export function cityOffer(r: () => number, hunts: number, avoid = -1) {
   const C: City = G.co.city, away = C.districts.filter(d => d.id !== C.at && d.id !== avoid);
   const d = away[Math.floor(r() * away.length)], tgt = d.fac;
-  const kind = r() < TUNE.CITY_BROKER_CHANCE ? 'BROKER' : 'FACTION', others = FACS().filter(f => f !== tgt);
-  const emp = kind === 'FACTION' ? others[Math.floor(r() * others.length)] : '';
+  const roll = r(), emp = roll < TUNE.CITY_BROKER_CHANCE ? '' : employerFor(tgt, r), kind = emp ? 'FACTION' : 'BROKER'; // tuning 2: no one to post it = a broker job
   const o: any = { seed: (r() * 4294967296) >>> 0, hunts, d: d.id, kind, emp, tgt, tier: dangerOf(tgt), fuel: pathFuel(C, C.at, d.id) };
   o.fee = feeOf(o);
   return o;
+}
+// R23 tuning 2 (Jamie: go): who posts a job against tgt. A rival of the target if it has one; else a faction that isn't its
+// ally; allies never hire you against each other ('' = nobody: the job goes to a broker).
+export function employerFor(tgt: Fac, r: () => number): Fac {
+  const others = FACS().filter(f => f !== tgt), riv = others.filter(f => relOf(f, tgt) === 'RIVALS'), ok = others.filter(f => relOf(f, tgt) !== 'ALLIES');
+  const L = riv.length ? riv : ok;
+  return L.length ? L[Math.floor(r() * L.length)] : '';
 }
 export function rollCityOffers(r: () => number) {
   const [h0, h1] = TUNE.CONTRACT_HUNTS_RANGE, O: any[] = [];
@@ -171,9 +177,9 @@ export function rollCityOffers(r: () => number) {
   if (O.length > 2 && O.every(o => o.tier === O[0].tier)) {
     const C: City = G.co.city, alt = C.districts.filter(d => d.id !== C.at && dangerOf(d.fac) !== O[0].tier);
     if (alt.length) {
-      const d = alt[Math.floor(r() * alt.length)], o = O[O.length - 1], others = FACS().filter(f => f !== d.fac);
+      const d = alt[Math.floor(r() * alt.length)], o = O[O.length - 1];
       Object.assign(o, { d: d.id, tgt: d.fac, tier: dangerOf(d.fac), fuel: pathFuel(C, C.at, d.id) });
-      if (o.kind === 'FACTION' && o.emp === d.fac) o.emp = others[Math.floor(r() * others.length)];
+      if (o.kind === 'FACTION') { o.emp = employerFor(d.fac, r); if (!o.emp) o.kind = 'BROKER'; }
       o.fee = feeOf(o);
     }
   }

@@ -46,7 +46,9 @@ describe('offers in districts (R23 A)', () => {
       for (const o of G.co.offers) {
         expect(o.d).not.toBe(C.at); expect(o.tgt).toBe(C.districts[o.d].fac);
         expect(o.fuel).toBe(pathFuel(C, C.at, o.d)); expect(o.tier).toBe(dangerOf(o.tgt)); expect(o.fee).toBe(feeOf(o));
-        if (o.kind === 'FACTION') { expect(o.emp).not.toBe(o.tgt); expect(FACS()).toContain(o.emp); } else expect(o.emp).toBe('');
+        if (o.kind === 'FACTION') { expect(o.emp).not.toBe(o.tgt); expect(FACS()).toContain(o.emp); expect(relOf(o.emp, o.tgt)).not.toBe('ALLIES'); // tuning 2: allies never hire you against each other
+          if (FACS().some(f => f !== o.tgt && relOf(f, o.tgt) === 'RIVALS')) expect(relOf(o.emp, o.tgt)).toBe('RIVALS'); } // a rival posts it when there is one
+        else expect(o.emp).toBe('');
       }
       expect(new Set(G.co.offers.map((o: any) => o.tier)).size).toBeGreaterThan(1);
     }

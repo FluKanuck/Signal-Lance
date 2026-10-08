@@ -8,6 +8,7 @@ export const TEST = {
   title: 'Round 23 test: Who you’ll anger',
   question: 'On a city map of faction districts, does picking the next contract become a trade between pay and who you’ll anger?',
   newThings: [
+    'TUNED (r23-s4): who hires you follows the relations: a faction job is posted by a RIVAL of the target when it has one, and allies never hire you against each other (no one to post it = a broker job).',
     'NEW (r23-s3): FACTIONS HAVE FRIENDS AND ENEMIES. Each new city rolls how the three factions stand with each other: RIVALS, NEUTRAL or ALLIES (the line under the map). Work for a faction and its rivals like you less, its allies more; hit one and its allies are angry, its rivals pleased (×' + TUNE.STANDING_SPILL + ' of the change). The job card’s “Complete it” line shows every faction it moves.',
     'TUNED (r23-s3): grudges last longer (they fade ' + TUNE.STANDING_DRIFT + ' a contract, was 5) and HATED / LIKED start sooner (' + TUNE.STANDING_HATED + ' / +' + TUNE.STANDING_LIKED + ', was ±40).',
     'NEW (r23-s1): THE CITY replaces the offers list (CONTRACTS tab). A map of ' + TUNE.CITY_DISTRICTS[0] + '–' + TUNE.CITY_DISTRICTS[1] + ' districts held by three factions (placeholders): Corporate, Foundry, Syndicate. ▼ SHIP is where you are; the numbers are the three jobs. Tap a district to see its job.',

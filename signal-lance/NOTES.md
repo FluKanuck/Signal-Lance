@@ -1759,6 +1759,15 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            321→309; hated by someone at the end 4→8 / 2→7 / 6→12 / 2→6 of 20; liked 2→7 / 0→7 / 3→10 / 0→4; jobs on hated ground
            7→18% / 8→30% / 8→29% / 5→15%; liked intel 1→30% / 0→39% / 12→48% / 0→20%; top fee turned down 93 / 13 / 29 / 0%.
            Loyal falls hardest: its patron's rivals hate it, and the jobs that don't hit the patron sit on hated ground. BUILD r23-s3 | -
+   round23 headless 2 (r23-s3 numbers) | Loyal folds 14, ends at 195 cr: its patron rarely posts work, the employer is random so
+           allies hire you against each other | Jamie "go": a faction job's employer is a RIVAL of the target if it has one,
+           else a faction that isn't its ally; nobody = the job is a broker job (city.ts employerFor). No TUNE change. The Hated /
+           Liked test company sets Corporate & Foundry to RIVALS. --personality all (cautious / aggressive / loyal / mercenary),
+           r23-s3 → r23-s4: folded 10→11 / 12→14 / 14→13 / 15→14; played (complete) 110 (56)→118 (64) / 102 (43)→83 (34) /
+           126 (50)→114 (48) / 99 (37)→97 (40); avg end cr 167→181 / 536→461 / 195→446 / 309→562; hated by someone 8→11 / 7→7 /
+           12→12 / 6→9; liked 7→8 / 7→7 / 10→11 / 4→6; jobs on hated ground 18→19% / 30→41% / 29→42% / 15→24%; liked intel
+           30→25% / 39→49% / 48→60% / 20→32%; top fee turned down 92 / 11 / 18 / 0%. Patrons now post work, and that work is
+           against their rivals, who hate you: Loyal and Aggressive spend ~40% of jobs on hated ground. BUILD r23-s4 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,
