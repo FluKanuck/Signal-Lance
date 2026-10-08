@@ -72,6 +72,7 @@ Never skip a gate because a later one is more exciting to plan. Park the idea on
 - **Don't over-read small samples.** Two runs is an impression; ~10 runs is a result. But if Jamie says the problem is clear, trust his read.
 - **"Not fun" is data.** Frame every flat result as progress: what it ruled out, what it points to.
 - **Protect finishing.** Rounds should fit in a weekend or less. If a round is ballooning, cut it.
+- **Clear words (Jamie, 2026-10-08).** The game is technical, so every player-facing line must be clear. Every brief that adds or renames a term, a tag, a button or a stat says so in CHANGE: the term needs a glossary entry and a long-press line in the house standard (`.claude/skills/signal-lance-writing/SKILL.md`, 80% ASD-STE100). Write briefs and the roadmap in the same plain style: short sentences, active voice, one name per thing.
 
 ## Round brief template
 

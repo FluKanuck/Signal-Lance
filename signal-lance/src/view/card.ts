@@ -4,6 +4,7 @@ import { TUNE } from '../tune.ts';
 import { G } from '../sim/state.ts';
 import { cmdId, traitLines, revealed, matchVariants } from '../sim/ids.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
+import { showWhy } from './explain.ts';
 
 const TYPES = ['PATROL', 'TURRET', 'EMPLACEMENT'];
 const esc = (t: string) => String(t).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
@@ -43,5 +44,7 @@ $('bIdX').addEventListener('click', () => { $('idp').hidden = true; });
 $('bIdCard').addEventListener('click', () => { $('idp').hidden = true; showCard('idp'); });
 $('bCardX').addEventListener('click', closeCard);
 $('bTBCard').addEventListener('click', () => showCard('tb'));
-for (const [id, fn] of [['bCard', () => showCard()], ['bId', showPicker]] as const)
-  $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+for (const [id, fn] of [['bCard', () => showCard()], ['bId', showPicker]] as const) { // R24 A2: on release, so a long-press explains instead
+  $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); });
+  $(id).addEventListener('pointerup', e => { e.preventDefault(); e.stopPropagation(); if ($(id).classList.contains('lockd')) { if ($(id).dataset.why) showWhy($(id).dataset.why); return; } fn(); }); // R24 A3: greyed = say why
+}

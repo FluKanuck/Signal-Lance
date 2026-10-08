@@ -565,9 +565,9 @@ export const TUNE = {
     THERMAL_POD:  { name: 'THERMAL POD', section: 'Before the drop', price: 160, does: 'Scan: THERMAL builds ×1.4 faster and is ×0.6 as loud' },
     EM_SUITE:     { name: 'EM SUITE', section: 'Before the drop', price: 160, does: 'Scan: EM LISTEN builds ×1.4 faster and is ×0.6 as loud' },
     QUIET_DROP:   { name: 'QUIET DROP RIG', section: 'Drop', price: 200, does: 'Half as much of the field wakes at the drop' },
-    SUIT_BAY:     { name: 'SUIT BAY', section: 'Drop', price: 150, does: 'Carries one more ExoS (the hull carries 2)', many: true },
-    REPAIR_BAY:   { name: 'REPAIR BAY', section: 'After the mission', price: 220, does: 'One part fewer per repair; rebuilds take half the parts' },
-    MEDBAY:       { name: 'MEDBAY', section: 'After the mission', price: 200, does: 'Bench 1 contract shorter; a CRITICAL operator left behind has a 35% chance to be pulled out' },
+    SUIT_BAY:     { name: 'EXOS BAY', section: 'Drop', price: 150, does: 'Carries one more ExoS (the hull carries 2)', many: true },
+    REPAIR_BAY:   { name: 'REPAIR BAY', section: 'After the mission', price: 220, does: 'A repair takes one part fewer. A rebuild takes half the parts' },
+    MEDBAY:       { name: 'MEDBAY', section: 'After the mission', price: 200, does: 'A BENCHED operator sits out 1 contract fewer. A CRITICAL operator left behind has a 35% chance to come back alive' },
     SALVAGE_HOLD: { name: 'SALVAGE HOLD', section: 'After the mission', price: 120, does: 'The hold carries 12 more parts' },
     ARMOURY:      { name: 'ARMOURY', section: 'After the mission', price: 140, does: 'Reloads (+10 rounds, +1 shell) cost 1 part instead of credits' },
     FUEL_TANKS:   { name: 'FUEL TANKS', section: 'Between missions', price: 120, does: 'Holds 6 more fuel' },
@@ -629,6 +629,12 @@ export const TUNE = {
   AAR_ENEMY_FIRST: 1,          // R22: added to an enemy-side event's weight (the field's side is what you can't see during the hunt)
   AAR_REDACT_BEARING: 8,       // R22: compass points a redacted bearing is rounded to (8 = N, NE, E ...)
   AAR_COST_MAX: 7,             // R22: the most lines WHAT IT COST lists
+  // --- Round 24: say what it means (display knobs only: no rule reads these) ---
+  LONGPRESS_MS: 450,           // R24 A2: a still finger (or button) held this long opens the explain card; the press then does nothing else
+  WARN_HITS_LEFT: 2,           // R24 A5 (C12): an ExoS with this many CORE hits left or fewer shows the low-hits mark and HUD line
+  LASTKNOWN_ROUNDS: 3,         // R24 A5 (C15): rounds a "last seen" mark stays where a contact dropped off the picture
+  HUD_COMPACT_H: 430,          // R24 B6 (C03): window height (CSS px) at or below which the HUD shrinks to one line (iPhone landscape); tap it for the full block
+  CAM_SAFE_PAD: 10,            // R24 B7 (C07): px kept between the uncovered map area and the overlays round it
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

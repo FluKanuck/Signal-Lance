@@ -3,24 +3,39 @@
 // newThings (condensed) to the top of HISTORY, so a returning tester can page back through everything since they last played.
 import { $ } from './hud.ts';
 import { TUNE } from '../tune.ts';
+import { ENTRIES } from './glossary.ts';
+import type { Entry, Screen } from './glossary.ts';
 
 export const TEST = {
-  title: 'Round 23 test: Who you’ll anger',
-  question: 'On a city map of faction districts, does picking the next contract become a trade between pay and who you’ll anger?',
+  title: 'Round 24 test: Say what it means',
+  question: 'With long-press explanations and clear reasons on greyed buttons, can you read the hunt without help?',
   newThings: [
-    'TUNED (r23-s4): who hires you follows the relations: a faction job is posted by a RIVAL of the target when it has one, and allies never hire you against each other (no one to post it = a broker job).',
-    'NEW (r23-s3): FACTIONS HAVE FRIENDS AND ENEMIES. Each new city rolls how the three factions stand with each other: RIVALS, NEUTRAL or ALLIES (the line under the map). Work for a faction and its rivals like you less, its allies more; hit one and its allies are angry, its rivals pleased (×' + TUNE.STANDING_SPILL + ' of the change). The job card’s “Complete it” line shows every faction it moves.',
-    'TUNED (r23-s3): grudges last longer (they fade ' + TUNE.STANDING_DRIFT + ' a contract, was 5) and HATED / LIKED start sooner (' + TUNE.STANDING_HATED + ' / +' + TUNE.STANDING_LIKED + ', was ±40).',
-    'NEW (r23-s1): THE CITY replaces the offers list (CONTRACTS tab). A map of ' + TUNE.CITY_DISTRICTS[0] + '–' + TUNE.CITY_DISTRICTS[1] + ' districts held by three factions (placeholders): Corporate, Foundry, Syndicate. ▼ SHIP is where you are; the numbers are the three jobs. Tap a district to see its job.',
-    'Jobs live in districts and hit the faction that holds it. FACTION JOB: one faction pays you to hit a rival (fee ×' + TUNE.CITY_FACTION_PAY + '): the employer likes you more, the target less. BROKER JOB: deniable (fee ×' + TUNE.CITY_BROKER_PAY + '): only the target notices, and less.',
-    'Fuel to a job = the links you jump on the map (' + TUNE.CITY_FUEL_PER_LINK + ' a link). Fuel at the market is priced by whoever holds the district the ship is in.',
-    'STANDING: one bar per faction along the top, ' + TUNE.STANDING_MIN + ' to +' + TUNE.STANDING_MAX + '. HATED at ' + TUNE.STANDING_HATED + ' or below: their jobs are a danger step up, ' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% more of their field is awake when you drop, their fuel costs ×' + TUNE.STANDING_HATED_FUEL_MULT + '. LIKED at +' + TUNE.STANDING_LIKED + ': their own jobs pay ×' + TUNE.STANDING_LIKED_PAY + ', jobs against their enemies come with free intel (the scan opens with radar band 1 on the whole map), their fuel costs ×' + TUNE.STANDING_LIKED_FUEL_MULT + '.',
-    'Every contract it all fades ' + TUNE.STANDING_DRIFT + ' toward 0: a grudge can wear off. Only a completed job moves standing.',
-    'WHAT IT COST lists the standing changes at a contract’s end. SEND LOG carries [CITY] lines (jumps, the job picked, standing, fuel prices).',
-    'TEST BED: “Hated” and “Liked”: the same job against the Foundry, once when they hate you, once posted by a Corporate side that likes you. TAKE IT opens its scan.',
+    'NEW (r24-s4): a long-press, or a right-click on a computer, never presses the button. A button with no explanation yet says so. Two operators never share a first name.',
+    'NEW (r24-s3): the words on every screen follow one rule: one name per thing, short sentences, and the reason for every limit.',
+    'NEW: the company tab for repairs, rounds and shells is now REFIT. The ship module is the EXOS BAY. WHAT IT COST names the ExoS (ExoS B LOST), not its operator.',
+    'NEW: ESCORT has a ROUTE bar above the bottom buttons. It has one button for each way at each fork ahead. A ✓ marks the way you set.',
+    'NEW: when the transport takes a hit, a line at the top says how many hits it has left. At half or less, the line turns red.',
+    'NEW: the scan says which DROP ZONE is picked and how to change it.',
+    'NEW: the contract result shows THE BOOKS: credits at the start, hunt pay, spending, the fee and bonus, wages, upkeep and credits now. Each line adds up.',
+    'NEW: job cards show the completion bonus (+' + TUNE.CONTRACT_BONUS + ' cr) next to the fee. BAIL CONTRACT says that you lose both, and that hunt pay you earned stays.',
+    'NEW: THE BOOKS on the company screen list every way the company can fold.',
+    'NEW (r24-s2): on a phone held sideways, the HUD is one line: the ExoS, AP, EN, the objective and any warning. Tap the line to see the full HUD, and tap it again to close it.',
+    'NEW: the map keeps your active ExoS, the selected contact and the objective clear of the buttons. Contact labels near the right edge flip to the left.',
+    'NEW: map labels no longer print on top of each other. ExoS names, PAINTED and contact labels move apart, on the hunt map and the after-action map.',
+    'TEST BED: “Crowded phone”. Three contacts and the uplink sit near the right edge. Find and tap each one.',
+    'NEW (r24-s1): long-press anything to see what it is. Hold a finger on a button, a HUD word, a contact, a tag, a mark or the ground. On a computer, right-click it.',
+    'The explain card opens at the top left. Any tap closes it. A long-press never fires the button or sets a move.',
+    'NEW: a greyed button says why when you tap it. Example: FIRE · NO SIGHT, then “No line of sight. Move until the contact is in view.”',
+    'NEW: the greyed button shows its reason in words: NO SIGHT, NO LOCK, OUT OF RANGE, HEARD ONLY, LEG DAMAGED, NEED AP.',
+    'NEW: low hits. A hit ExoS with ' + TUNE.WARN_HITS_LEFT + ' CORE hits or fewer left gets a red ring and “! N” on the map. The HUD says “A: 2 CORE hits left”.',
+    'NEW: LAST SEEN. A contact that drops off your picture leaves a faded mark with its round, for ' + TUNE.LASTKNOWN_ROUNDS + ' rounds. You can’t target it.',
+    'NEW: GAMEPLAY BASICS reads from the glossary, by screen. BACK is at the top too.',
+    'One name per thing: ExoS (not mech), NORMAL (not NORM), the part names MAST, ARMS, CORE, BACK and LEGS, ESM (not passive ears), SCAN (the tag that was SHIP).',
+    'FIXED: a tap on empty ground or on your own ExoS clears the selected contact. A greyed NORMAL or SPRINT no longer traps a lame ExoS. The objective line says which ExoS its distance is from.',
+    'TEST BED: “Read it cold”. One hunt turn with a blocked FIRE, a lame ExoS, one low on hits, an UNKNOWN ESM contact and a LAST SEEN mark.',
   ],
-  round: 23,
-  howTo: 'Play Hated, then Liked, and look at what changed. Then play a contract or two: pick a job on the city map and tap the answers after each hunt. When you finish, tap SEND LOG and send it to Jamie.',
+  round: 24,
+  howTo: 'Play “Read it cold” and “Crowded phone” first. Long-press everything you don’t know, then tap each greyed button. Then play a contract or two and tap the answers after each hunt. When you finish, tap SEND LOG and send it to Jamie.',
 };
 const R20_NEW = [
     'NEW (r20-s4): learn why. After every hunt the result screen has THE SCAN: a line per stretch of your scan (which sensors, where each looked: full map or the map area its ring was in, the altitude, the minutes, what came back, the risk it added), then what the drop rolled (the step, how many were awake, painted or not, units that joined). SEND LOG carries the same lines as [SCAN].',
@@ -74,136 +89,171 @@ const R17_NEW = [
 // Earlier rounds, newest first: what each one added (page back with ‹ on the splash).
 export const HISTORY = [
   { round: 23, title: 'Round 23: Who you’ll anger', lines: [
-    'THE CITY (CONTRACTS tab): districts held by Corporate, Foundry and Syndicate; ▼ SHIP where you are; the three jobs sit in districts. Fuel = links jumped; the district’s holder prices the fuel.',
-    'FACTION JOB (×' + TUNE.CITY_FACTION_PAY + '): a rival of the target hires you; the employer likes you more, the target less. BROKER JOB (×' + TUNE.CITY_BROKER_PAY + '): deniable, only the target notices.',
-    'STANDING per faction. HATED (≤ ' + TUNE.STANDING_HATED + '): danger +1, +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of their field awake, dear fuel. LIKED (≥ +' + TUNE.STANDING_LIKED + '): their jobs pay more, free intel against their enemies, cheap fuel. Fades ' + TUNE.STANDING_DRIFT + ' a contract.',
-    'Factions are RIVALS, NEUTRAL or ALLIES with each other (rolled per city): every standing change spills onto the others.',
+    'THE CITY (CONTRACTS tab): Corporate, Foundry and Syndicate hold the districts. ▼ SHIP shows where you are. The three jobs are in districts. Fuel = the links you jump. The faction that holds the ship’s district sets the fuel price.',
+    'FACTION JOB (×' + TUNE.CITY_FACTION_PAY + '): a rival of the target hires you. The employer likes you more, and the target likes you less. BROKER JOB (×' + TUNE.CITY_BROKER_PAY + '): the job is deniable. Only the target notices.',
+    'STANDING: one bar per faction. HATED (≤ ' + TUNE.STANDING_HATED + '): danger +1 step, +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of their field awake, fuel costs more. LIKED (≥ +' + TUNE.STANDING_LIKED + '): their jobs pay more, a FREE SCAN against their enemies, fuel costs less. Standing fades ' + TUNE.STANDING_DRIFT + ' a contract.',
+    'Factions are RIVALS, NEUTRAL or ALLIES with each other. Each city rolls this. Every standing change spills onto the other factions.',
   ] },
   { round: 22, title: 'Round 22: What happened', lines: [
-    'After every hunt, the AFTER-ACTION PAGE: WHAT HAPPENED (up to ' + TUNE.AAR_MAX_MOMENTS + ' turning points: who found whom, hits that mattered, how the job swung, the end) and WHAT IT COST (people, repairs, pay, salvage, the books; ← T7 = the moment behind it). Tap a moment: it shows on the map as it was at that turn. DETAILS keeps the old panels.',
-    'HELD THE FIELD (job done): the whole story, and your downed ExoS come home (rebuild at half cost). FIELD LOST: the enemy side is ??? with a rough direction, and the wrecks stay out there.',
-    'The books: every job pays ×' + TUNE.PAY_MULT + ', a completed contract adds a ' + TUNE.CONTRACT_BONUS + ' cr bonus, and a new company starts with ' + TUNE.START_FUEL + ' fuel.',
+    'After every hunt, the AFTER-ACTION PAGE opens. WHAT HAPPENED lists up to ' + TUNE.AAR_MAX_MOMENTS + ' turning points: who found whom, hits that mattered, how the job swung, and the end.',
+    'WHAT IT COST lists people, repairs, pay, salvage and the books. “← T7” = the turning point behind that line. Tap a turning point to see it on the map as it was at that turn. DETAILS keeps the old panels.',
+    'HELD THE FIELD (job done): you see the whole story, and your downed ExoS come home (rebuild at half cost). FIELD LOST: the enemy side shows as ??? with a rough direction, and the wrecks stay out there.',
+    'The books: every job pays ×' + TUNE.PAY_MULT + '. A completed contract adds a ' + TUNE.CONTRACT_BONUS + ' cr bonus. A new company starts with ' + TUNE.START_FUEL + ' fuel.',
   ] },
   { round: 21, title: 'Round 21: The company', lines: [
-    'The game opens on your COMPANY, saved on this phone. Named operators with one skill each (STEADY AIM, QUIET MOVER, SHARP EARS, SENSOR TECH) earn XP and level up. A downed suit leaves its operator CRITICAL: carry them out and they are benched for a while; leave them and they are KIA, on the MEMORIAL. Recruits come between contracts.',
-    'The roster: 3 ExoS with their own fits and damage, carried from hunt to hunt and contract to contract. Pick a lance of 1 to 3 before every hunt.',
-    'The books: three contract offers (danger, 2 to 4 hunts, fee on completion, fuel to get there). Wages and ship upkeep are paid when a contract ends; debt once, then the company folds. Repairs and rebuilds take parts (salvaged from kills, or bought); the MARKET sells parts, fuel, items, the odd ExoS and recruits; the hangar fits only what you own.',
-    'The ship: 7 hardpoints for modules (sensor boosts, quiet drop rig, suit bay, repair bay, medbay, salvage hold, fuel tanks, hull armour, berths and more). A painted ship may take a hull hit.',
+    'The game opens on your COMPANY, and it saves the company on this phone. Named operators have one skill each (STEADY AIM, QUIET MOVER, SHARP EARS, SENSOR TECH). They earn XP and level up.',
+    'When an ExoS goes down, its operator is CRITICAL. Carry them out, and they are benched for a while. Leave them, and they are KIA, on the MEMORIAL. Recruits come between contracts.',
+    'The roster: 3 ExoS, each with its own fit and damage. You keep them from hunt to hunt and from contract to contract. Before every hunt, pick a lance of 1 to 3.',
+    'The books: three contract offers (danger, 2 to 4 hunts, a fee on completion, fuel to get there). You pay wages and ship upkeep when a contract ends. The company can be in debt once. After that, it folds.',
+    'Repairs and rebuilds use parts (salvaged from kills, or bought). The MARKET sells parts, fuel, items, an ExoS now and then, and recruits. The hangar fits only what you own.',
+    'The ship: 7 hardpoints for modules (sensor boosts, quiet drop rig, ExoS bay, repair bay, medbay, salvage hold, fuel tanks, hull armour, berths and more). A painted ship may take a hull hit.',
   ] },
   { round: 20, title: 'Round 20: Eyes from the ship', lines: [
-    'The ship’s scan is live: START CLOCK / PAUSE, no time cap. RADAR = where (pings everything, even silent units; outlines zones; opens the north and south drop zones). THERMAL = what’s alive (zone types, warm units and their size). EM LISTEN = who (only transmitters: a count, then a fix and the CARD’s best guess).',
-    'Run any mix of sensors at once, each with its own ring (drag near one to move it) or FULL MAP. ALT HIGH / MID / LOW: high = big weak fuzzy rings, quiet; low = small strong sharp rings (thermal most), loud. Contacts carry three bars for how hard each sensor has looked.',
-    'The RISK meter climbs while sensors are on and cools with them all off. New steps may call units in; the step you drop at wakes part of the field and (step 2+) may paint the ship. Patrols walk and new ones arrive while you wait. Some jobs have a SCAN WINDOW, shown first on the job card.',
-    'After the hunt, THE SCAN on the result screen gives a line per stretch of your scan (set-up, minutes, what came back, risk added) and what the drop rolled; SEND LOG carries them as [SCAN].',
+    'The ship’s scan is live: START CLOCK / PAUSE, with no time cap. RADAR = where. It pings everything, even silent units, outlines zones and opens the north and south drop zones.',
+    'THERMAL = what’s alive: zone types, warm units and their size. EM LISTEN = who. It hears only transmitters: first a count, then a fix and the CARD’s best guess.',
+    'Run any mix of sensors at once. Each sensor has its own ring (drag near a ring to move it), or use FULL MAP. Three bars on a contact show how hard each sensor looked.',
+    'ALT HIGH / MID / LOW. HIGH: big, weak, fuzzy rings, and quiet. LOW: small, strong, sharp rings (thermal most), and loud.',
+    'The RISK meter climbs while sensors are on and cools with them all off. A new step may add enemy units. The step you drop at wakes part of the field. From step 2, it may paint the ship.',
+    'Patrols walk, and new patrols arrive while you wait. Some jobs have a SCAN WINDOW. The job card shows it first.',
+    'After the hunt, THE SCAN on the result screen gives one line per stretch of your scan (set-up, minutes, what came back, risk added). It also shows what the drop rolled. SEND LOG sends these as [SCAN] lines.',
   ] },
   { round: 19, title: 'Round 19: Listen before you land', lines: [
-    'After the job pick the ship can LISTEN: SKIP / SHORT / MEDIUM / LONG. SHORT = the roster and zone outlines; MEDIUM = zone types and a choice of 3 drop zones; LONG = blips for everything that emits, with the CARD’s best guess. Blips start the hunt as stale SHIP contacts. Zones are only known through the scan.',
-    'Listening costs: extra enemy units (any level), part of the field awake with a rough fix on your drop zone (MEDIUM+), and at LONG maybe a painted ship: 2 patrols waiting near where you land. The dial shows the risk; the result screen shows what happened.',
-    'Hunt 1 is built after its scan (the fits then lock for the contract).',
-    'Every suit knows when a radar paints it (a red PAINTED ring). The RWR module adds the readout: range rings, a spoke to the radar, search vs lock, a best-guess ID, and once you move a wedge that swings to where it must be.',
-    'Text on phones is bigger: menus scroll instead of shrinking; the game never scales below 85%.',
+    'After you pick a job, the ship can LISTEN: SKIP / SHORT / MEDIUM / LONG. SHORT = the roster and zone outlines. MEDIUM = zone types and a choice of 3 drop zones. LONG = blips for everything that emits, with the CARD’s best guess.',
+    'Blips start the hunt as stale SHIP contacts. You only know the zones through the scan.',
+    'Listening has costs. At any level: extra enemy units. MEDIUM and up: part of the field is awake, with a rough fix on your drop zone. LONG: maybe a painted ship, with 2 patrols waiting near your drop zone. The dial shows the risk. The result screen shows what happened.',
+    'The game builds hunt 1 after its scan. The fits then lock for the contract.',
+    'Every ExoS knows when a radar paints it (a red PAINTED ring). The RWR module adds the readout: range rings, a spoke to the radar, search vs lock and a best-guess ID. When you move, a wedge swings to where the radar must be.',
+    'Text on phones is bigger. Menus scroll instead of shrinking. The game never scales below 85%.',
   ] },
   { round: 18, title: 'Round 18: Fit for the job', lines: [
-    'The HANGAR is the loadout screen: tap a part of the ExoS, then a hardpoint, to fit it. Start from Scout (Wisp), Line (Warden) or Brawler (Bulwark).',
-    'Weight: over rated load every move is louder and costs more Energy per tile (creep too); far over, +1 AP a move. Power = reactor output − draw; batteries add pool.',
-    'Each location is a part: losing it takes its modules offline. The BACK is only hit from behind. THERMAL: reactor + size + firing / sprinting heat; turrets carry thermal sights; Thermal optics lets you read heat. A sniper turret hits out to 20 tiles.',
-    'Contacts carry stacked sense tags (EO, RDR, ESM, IR, ACO, MZL) with the suit that made each; gold = holding the fix. ESM sits on the best fit of your bearings; noise only widens it. Cover shows as a shield.',
-    'INTEL lists what the field listens on; the result screen says what found you first. PLAY SEED replays a hunt; QUIT goes back to the hangar; the game scales to its window.',
+    'The HANGAR is the loadout screen. Tap a part of the ExoS, then tap a hardpoint to fit something to it. Start from Scout (Wisp), Line (Warden) or Brawler (Bulwark).',
+    'Weight: over the rated load, every move is louder and costs more Energy per tile (CREEP too). Far over it, each move costs +1 AP. Power = reactor output − draw. Batteries add to the pool.',
+    'Each location is a part. When you lose a part, its modules go offline. Only shots from behind hit the BACK.',
+    'THERMAL: heat comes from the reactor, the frame’s size, firing and sprinting. Turrets carry IR sights. Thermal optics lets you read heat. A sniper turret hits targets up to 20 tiles away.',
+    'Contacts carry stacked sense tags (EO, RDR, ESM, IR, ACO, MZL), each with the ExoS that made it. Gold = the tag that holds the fix. ESM sits on the best fit of your bearing lines. A noise zone only widens it. Cover shows as a shield.',
+    'INTEL lists what the field listens on. The result screen says what found you first. PLAY SEED replays a hunt. QUIT goes back to the hangar. The game scales to its window.',
   ] },
   { round: 17, title: 'Round 17: Eyes on the street', lines: [
-    'Drag from your ExoS to draw your move freehand (it goes round walls; scrap you draw through is crossed on purpose). Cyan = this turn’s AP, red dashed = past it. Drag the end handle to carry on, or drag the middle to redraw from there. Tap-to-move still works.',
-    'Aim your eyes as you walk: tap a point on your line, then tap where it should look. Drag the eye marker to move it; up to 3 per move. Turning is free now.',
-    'Your eyes work on every step. Anything new stops the move on that tile ("CONTACT — move stopped"), and you keep the AP you didn’t spend.',
-    'Scrap and rubble are low cover (−15%, walls −25%). Aiming at a target in cover outlines the piece giving it.',
+    'Drag from your ExoS to draw your move freehand. The line goes round walls. If you draw through scrap, the move crosses it (on purpose). Cyan = this turn’s AP. Red dashed = past it.',
+    'Drag the end handle to extend the line, or drag the middle to redraw from there. Tap-to-move still works.',
+    'Aim your eyes as you walk. Tap a point on your line. Then tap where the ExoS should look. Drag the eye marker to move it. You can place up to 3 per move. Turning is free now.',
+    'Your eyes work on every step. Anything new stops the move on that tile ("CONTACT — move stopped"). You keep the AP you didn’t spend.',
+    'Scrap and rubble are low cover (−15%). Walls are −25%. When you aim at a target in cover, the game outlines the piece that gives the cover.',
   ] },
   { round: 16, title: 'Round 16: Rolled ground', lines: [
-    'Every hunt is a new district packed from irregular city pieces (half blocks, strips, L shapes, hand-drawn blocks), cut off at the map edge; the job card gives its size. Bigger districts have a bigger field.',
-    'Brown speckled scrap and rubble: slow (2 tiles of movement a tile), loud (+3 sound), low cover. Rusty walls are set pieces and street barricades; chicanes can be weaved through but not seen past.',
-    'You start in a cleared staging area. Hover or hold a finger on anything on the map to see what it is. Cover you share with your target (both up against it) does not count.',
-    'Escort: up to three routes per fork (NORTH / AHEAD / SOUTH), levers to set forks ahead, a ring for where the next move ends, HOLD and HURRY orders, and the transport in the turn strip.',
-    'Every mech leaves on its own: walk into the green zone and tap EXTRACT. The hunt ends once all your living mechs are out.',
+    'Every hunt is a new district. The game packs it from irregular city pieces (half blocks, strips, L shapes, hand-drawn blocks) and cuts it at the map edge. The job card gives its size. Bigger districts have a bigger field.',
+    'Brown speckled scrap and rubble: slow (2 tiles of movement a tile), loud (+3 sound), low cover. Rusty walls are set pieces and street barricades. You can weave through a chicane, but you cannot see past it.',
+    'You start in a cleared staging area. Hover over anything on the map, or hold a finger on it, to see what it is. Cover that you share with your target (you both stand against it) does not count.',
+    'ESCORT: up to three routes per fork (NORTH / AHEAD / SOUTH), and ROUTE buttons to set forks ahead. A ring shows where the next move ends. You can give HOLD and HURRY orders. The transport is in the turn strip.',
+    'Every ExoS leaves on its own: walk into the green zone and tap EXTRACT. The hunt ends when all your living ExoS are out.',
   ] },
   { round: 15, title: 'Round 15: Pick your fights', lines: [
-    'Jobs come in four types, shown on top of each job card: UPLINK (stand in the ring and uplink), BOUNTY, RETRIEVE and ESCORT.',
-    'BOUNTY: every kill pays that enemy’s bounty (prices on the CARD). Reach the quota for a win, then extract when you choose. The field has extra enemies.',
-    'RETRIEVE: PICK UP the guarded cargo. That alerts the whole field, which hunts the carrier (who can’t sprint). HAND OFF to the other mech, carry it out the right edge.',
-    'ESCORT: a friendly transport walks from the left edge to the right. Keep it alive; at each fork it waits for you to tap a route on the map.',
+    'Jobs come in four types, shown at the top of each job card: UPLINK (stand in the ring and tap UPLINK), BOUNTY, RETRIEVE and ESCORT.',
+    'BOUNTY: every kill pays that enemy’s bounty (prices on the CARD). Reach the quota to win, then tap EXTRACT when you choose. The field has extra enemies.',
+    'RETRIEVE: PICK UP the guarded cargo. This alerts the whole field, and the field hunts the carrier. The carrier cannot SPRINT. HAND OFF to the other ExoS. Carry the cargo out the right edge.',
+    'ESCORT: a friendly transport walks from the left edge to the right edge. Keep it alive. At each fork, it waits for you to tap a route on the map.',
   ] },
   { round: 14, title: 'Round 14: Read the signature', lines: [
-    'Every enemy is one of 9 variants (3 patrols, 3 turrets, 3 emplacements). They fight differently.',
-    'Tap a contact to see what your sensors picked up (EMIT, pulses, moved or still, steps or a shot heard). The CARD lists the 9 with one bold TELL each; "3 fit" shows how many still match.',
-    'ID calls a contact. A turret or emplacement call freezes its track; a right call before eyes adds +10% to hit.',
-    'The TEST BED (loadout screen): short scenarios that test one thing each.',
+    'Every enemy is one of 9 variants (3 patrols, 3 turrets, 3 emplacements). The variants fight differently.',
+    'Tap a contact to see what your sensors detected (EMIT, pulses, moved or still, steps or a shot heard). The CARD lists the 9 variants, each with one bold TELL. "3 fit" shows how many variants still match.',
+    'ID calls a contact. A call on a turret or emplacement freezes its track. A right call before your eyes see the contact adds +10% to hit.',
+    'The TEST BED (on the HANGAR screen) has short scenarios. Each one tests one thing.',
   ] },
   { round: 13, title: 'Round 13: Loud gets company', lines: [
-    'Noise is two things. EMIT (orange) is electronic: radar, ECM and uplink. It builds up, fades slowly and carries far.',
-    'SOUND (pale ring with ticks) is moving and shooting. One radius per turn, heard through walls, gone at your next turn. A heard-only contact is a hollow SOUND square: never enough to shoot.',
-    'Patrols carry radios (a small steady EMIT), so passive sensors find them. Turrets stay silent.',
-    'Two legs: lose one and you can only CREEP; lose both and you creep at half distance.',
-    'THE PACK (splash toggle): one enemy that senses you alerts others nearby, and patrols leave their posts to hunt you.',
+    'You make noise in two ways. EMIT (orange) is electronic: radar, ECM and uplink. It grows, fades slowly and carries far.',
+    'SOUND (pale ring with ticks) comes from moving and shooting. It has one radius per turn, carries through walls, and is gone at your next turn. A contact that you only hear is a hollow SOUND square. It is never enough to shoot at.',
+    'Patrols carry radios (a small, steady EMIT), so passive sensors find them. Turrets stay silent.',
+    'Two legs: lose one, and you can only CREEP. Lose both, and you CREEP at half distance.',
+    'THE PACK (splash toggle): when one enemy senses you, it alerts others nearby. Patrols leave their posts to hunt you.',
   ] },
   { round: 12, title: 'Round 12: Pick your shot', lines: [
-    'Shots roll to hit: FIRE shows your chance and the yellow ODDS line shows why (range, target moved, cover, a loud target).',
-    'A hit strikes a part: core, legs, weapon or sensors. Same rules for the enemy. Part damage carries through the contract; REPAIR fixes the worst part first.',
+    'Shots roll to hit. FIRE shows your chance, and the yellow ODDS line shows why (range, target moved, cover, a loud target).',
+    'A hit strikes a part: CORE, LEGS, ARMS (weapon) or MAST (sensors). The same rules apply to the enemy. Part damage carries through the contract. REPAIR fixes the worst part first.',
   ] },
 ];
 // End-of-hunt questions (tap one answer each; optional). Answers go into the log line, next to the hunt's job type.
 export const QUESTIONS = [
-  { k: 'pick', q: 'I picked this job for…', a: ['The pay', 'Who it angers', 'Who it pleases', 'The fuel', 'The danger'] }, // R23 focus 1: is the choice real
-  { k: 'anger', q: 'Who I angered…', a: ['Will cost me later', 'Doesn’t matter yet', 'Didn’t notice', 'Not sure'] }, // focus 2: does standing behave
-  { k: 'city', q: 'The city screen felt…', a: ['Clear', 'OK', 'Busy', 'Not sure'] }, // "busy, a lot of screens" (#100)
-];
+  { k: 'cold', q: 'Did you understand the hunt without needing to ask anyone?', a: ['Yes', 'Mostly', 'No', 'Something else'] }, // R24 focus 2
+  { k: 'why', q: 'When a button was greyed, did you know why?', a: ['Yes, it said', 'Mostly', 'No', 'Didn’t notice'] }, // A3
+  { k: 'press', q: 'The long-press card was…', a: ['Useful', 'Too long', 'Hard to open', 'Didn’t use it'] }, // A2
+]
 
-const BASICS = [
-  ['After', 'After each hunt the after-action page opens. WHAT HAPPENED: up to ' + TUNE.AAR_MAX_MOMENTS + ' turning points (T = the turn): first detections both ways, hits that mattered, objective swings, and the end; the end, any suit down or KIA and the first time the enemy found you are always there. WHAT IT COST: people, repairs, pay, salvage, the ship, and the books at a contract’s end (← T7 = the moment that caused it). Tap a moment to pulse it on the map: the units show as they were at that turn. HELD THE FIELD (job done) shows the enemy side in full and brings your downed ExoS home (rebuild at half cost); FIELD LOST shows it as ??? with a rough direction and leaves the wrecks (full rebuild). DETAILS: the old result panels.'],
-  ['City', 'CONTRACTS shows the city: districts held by three factions, ▼ SHIP where you are, numbers on the three jobs. Tap a district for its job. FACTION JOB: a faction pays ×' + TUNE.CITY_FACTION_PAY + ' to hit a rival (employer +' + TUNE.STANDING_EMPLOYER_GAIN + ', target −' + TUNE.STANDING_TARGET_LOSS + ' when done). BROKER JOB: deniable, ×' + TUNE.CITY_BROKER_PAY + ' (target −' + TUNE.STANDING_BROKER_LOSS + ', nobody gains). Fuel = links jumped. Standing bars: HATED (≤ ' + TUNE.STANDING_HATED + '): danger +1 step, +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of their field awake at the drop, fuel ×' + TUNE.STANDING_HATED_FUEL_MULT + ' in their districts. LIKED (≥ +' + TUNE.STANDING_LIKED + '): their jobs pay ×' + TUNE.STANDING_LIKED_PAY + ', free intel against their enemies (radar band 1 on the scan), fuel ×' + TUNE.STANDING_LIKED_FUEL_MULT + '. Everything fades ' + TUNE.STANDING_DRIFT + ' toward 0 each contract. Factions are RIVALS, NEUTRAL or ALLIES with each other (rolled per city, shown under the map): every change spills ×' + TUNE.STANDING_SPILL + ' onto the others (work for one and its rivals dislike you; hit one and its allies do).'],
-  ['Company', 'The game opens on your COMPANY (saved on this phone). CONTRACTS: the city map with three jobs, and the books. ROSTER: your operators; the letter buttons put one in a suit. SUITS: each ExoS’s damage, rounds and shells, repairs (parts + credits). MARKET: parts, fuel, hangar items, an ExoS now and then, recruits. SHIP: 7 hardpoints for modules. RECRUITS: hire new operators between contracts (the roster holds ' + TUNE.OP_CAP + '). MEMORIAL: who you lost. Damage carries from contract to contract. The three offers are never all one danger. TAKE IT on an offer runs the usual job → scan → hangar → hunt flow; after the contract you come back here. NEW COMPANY (tap twice) starts over. HANGAR · TOOLS: hangar, test bed, PLAY SEED, log.'],
-  ['Books', 'A completed contract pays its fee plus a ' + TUNE.CONTRACT_BONUS + ' cr completion bonus. Hold the field (win the job) and every ExoS that went down comes home: its rebuild costs half. Bail or lose and the wreck is gone: full rebuild. Credits: hunt pay and contract fees come in; wages (per operator, more for veterans), ship upkeep and hull repairs go out when a contract ends. Below 0 you take debt once; still in debt a contract later, or more than ' + TUNE.DEBT_LIMIT + ' down, and the company folds. FUEL: each contract costs fuel to reach. PARTS: repairs and rebuilds use them; kills salvage them into the hold. The hangar only fits items the company owns.'],
-  ['Ship', 'Seven hardpoints, one module each (SHIP tab, between contracts). Scan modules make one sensor faster and quieter; QUIET DROP RIG wakes less of the field; SUIT BAY carries one more ExoS (the hull carries 2); REPAIR BAY, MEDBAY, SALVAGE HOLD and ARMOURY help after a hunt; FUEL TANKS, EFFICIENT ENGINES and HULL ARMOUR between contracts; OPERATOR BERTHS room for 2 more operators. A painted ship may take a hull hit.'],
-  ['Lance', 'Before every hunt, the job screen shows each suit with a button: tap it to pick its operator or leave it aboard (STAYS ABOARD). 1 to ' + TUNE.START_SUITS + ' suits drop; more suits = more guns and more eyes, but more to carry home. Destroyed suits can’t drop until rebuilt; benched operators can’t drop.'],
-  ['Operators', 'Each ExoS has a named operator with one skill: STEADY AIM (+to hit), QUIET MOVER (quieter steps), SHARP EARS (hears further), SENSOR TECH (IDs firm up faster). Coming back from a hunt gives XP (more on a win); at level 2 (★ veteran) and 3 the skill gets stronger. A suit that is destroyed goes down and its operator is CRITICAL: end another suit’s turn inside the red ring to carry them, then get out. Carried out = benched ' + TUNE.OP_BENCH + ' contracts; left behind = KIA.'],
-  ['Goal', 'Each job has a type (top of the job card). UPLINK: stand in the gold ring and tap UPLINK on 3 turns, or destroy every enemy. BOUNTY: kills pay their bounty (prices on the CARD); reach the quota for a win, then extract at the right edge when you choose. RETRIEVE: PICK UP the cargo (the whole field then hunts the carrier, who can’t sprint), HAND OFF if needed, carry it out the right edge. ESCORT: keep the transport alive from the left edge to the right; at each fork, tap a route on the map (NORTH, AHEAD or SOUTH, where the streets are open). You can set the route at forks ahead of time (lit ✓); an unset fork stops it. HOLD makes it wait a round; HURRY makes it sprint its next move (3 of each per hunt). The gold dashed ring shows where its next move ends; T in the turn strip is its turn. To leave, walk into the green zone on the right and tap EXTRACT, mech by mech; the hunt ends when all your living mechs are out. Lose if both mechs are destroyed.'],
-  ['Scan', 'After you take a job the ship scans before you drop. Turn sensors on (any mix; each has its own ring), drag a ring onto what matters (or FULL MAP: the whole map, weaker), START CLOCK; PAUSE to think. RADAR = where: pings every unit (silent too) but never names it, outlines zones, opens drop zones. THERMAL = what’s alive: zone types, warm units and their size (cold turrets hidden). EM LISTEN = who: only transmitters, a count, then a fix and the CARD’s best guess. Full strength inside the solid ring, none past the dashed one. The three bars on a contact = how hard radar / thermal / EM have looked. RISK climbs while sensors are on (radar most) and cools with all of them off: a new step may call a unit in, and the step you drop at sets how much of the field is awake and (step 2+) whether the ship is painted. Patrols walk and new ones arrive while you wait. ALT HIGH / MID / LOW: high = bigger rings, weaker and fuzzier, quieter; low = small rings, stronger and sharper (thermal most), louder. Some jobs have a SCAN WINDOW (top of the job card): the scan ends then. The west edge is always a drop zone; north and south open once RADAR has looked. What the ship fixed starts the hunt as stale SHIP contacts. After the hunt, THE SCAN on the result screen says what each stretch of your scan found and cost, and what the drop rolled. Hunt 1 is built after its scan.'],
-  ['Suit', 'The HANGAR (loadout screen) builds both ExoS. Tap a part of the suit to see its hardpoints (SENSOR, WEAPON, INTERNAL, UTILITY, MOBILITY, OPEN takes anything) and tap one to fit a module. Frames: Wisp (light, quiet on EM, few hardpoints, no back), Warden (the all-rounder), Bulwark (heavy, loud on EM, lots of room). LOAD: every module and plate weighs something; over the rated load every move is louder and every tile costs more Energy (creep too), far over it moves cost +1 AP, over max it can’t launch. POWER: Energy back each turn = reactor output − what your modules draw; batteries add to the pool. Plates add hits to a location. Hunt 1’s hangar opens after its scan, so you can build for what you heard; the fit then locks for the whole contract.'],
-  ['Heat', 'IR (heat) is a third channel. Your steady heat is your reactor (Hot core runs warm, Cold-burn cold) plus your frame’s size; firing and sprinting add heat that cools a little each turn. A thermal sight (turrets carry them; you can fit Thermal optics) sees heat like eyes see you, in line of sight and ahead of its facing, out to about ' + TUNE.IR_TILES_PER_PT + ' tiles per point of heat (max ' + TUNE.IR_RANGE + '). The HUD shows your IR and that range. A heat fix is good enough to shoot at but doesn’t tell you the variant.'],
-  ['RWR', 'Every suit knows when an enemy radar has swept over it: a red dashed ring, PAINTED and the round (no direction). The RWR module (MAST sensor) gives the readout. Rings round the suit = close / medium / far (a guess from signal strength). A spoke = where it came from (±' + TUNE.RWR_BEARING_ERR + '°); tip icon: open arc = search, filled diamond = lock; label = the CARD’s best guess. Solid spoke = heard where you stand. Once you move: faint frozen spoke + dashed wedge (where the radar must be from here) + a “heard here” tick on the map. Tap a spoke for details.'],
-  ['Parts', 'Each location is a part with its own hits: MAST (sensors), ARMS (weapon), CORE, BACK and LEGS. A destroyed part takes what is mounted on it offline, and the button says which part (SNS, WPN, BCK). The BACK is only hit by shots from behind your facing. CORE gone = the ExoS is destroyed.'],
-  ['Turns', 'Everyone acts in initiative order (strip, top right). On your mech\'s turn you spend AP (the ● pips). END TURN passes to the next unit.'],
-  ['Move', 'Tap the map to plot a path, or drag from your ExoS to draw one freehand (it goes round walls; scrap you draw through is crossed on purpose). Drag the round end handle to carry it on, or drag from the middle to redraw from there. Pick CREEP, NORM or SPRINT, then tap MOVE. Faster covers more ground but is louder. A drawn path is cyan as far as your AP goes, red dashed past it. No path carries over to the next turn.'],
-  ['Look', 'Your eyes see ahead of your facing (and all round up close), on every step of a move. Facing follows the way you walk. On a drawn path, tap a point, then tap where it should look (an eye marker drops there; drag it to move it): the suit turns there and keeps looking that way (up to ' + TUNE.FACE_WAYPOINTS_MAX + ' per move). Turning to face something is free, for you and the enemy. If a step shows something new, the move stops on that tile and you keep the AP you didn’t spend.'],
-  ['Find', 'Enemies are hidden. A contact is a red square with a circle: the circle is how unsure you are. The tags by its name are the senses that have fixed it lately, stacked: gold = the one holding the fix now, cyan = the others, with the suit that made it (EO A = A’s eyes, exact; RDR radar, “2W” = through 2 walls so still fuzzy; ESM crossed passive bearings; IR heat; ACO sound only; MZL its muzzle flash, it shot at you; SHIP the pre-drop scan’s blip; dim = stale). A grey, struck-through IR tag = your thermal optics are looking right at it and see no heat: it runs cold. An amber dashed box round the gold tag = a noise zone is still blurring that fix. A vaguer fix never drags a good one away, and a turret or emplacement you know stays put. Passive sensors draw cyan bearing lines; two crossing lines make a fix. RADAR gives a sharp fix but is very loud.'],
-  ['Fight', 'Tap a contact to select it. FIRE needs a tight fix, range and line of sight; the button says why if it\'s blocked, or shows your hit chance. Hits strike a part (core, legs, arms, mast; the back only from behind). Cover close to the target costs −' + TUNE.HIT_COVER + '% for a wall or set piece, −' + TUNE.HIT_COVER_LOW + '% for scrap (low cover), unless you are right up against the same piece of cover yourself. When you aim, the cover piece is outlined and a shield shows by your target (the ODDS line gives the number). MORTAR fires on a fix with no line of sight, but scatters more on a fuzzy one.'],
-  ['Noise', 'Two kinds. EMIT (orange bar, orange dashed ring) is electronic: radar, ECM and uplink add to it, it fades a little each turn, and passive sensors pick it up from far away. SOUND (pale ring with ticks) is moving and shooting: one radius per turn (the loudest thing you did), heard through walls, gone at your next turn.'],
-  ['Ground', 'Every hunt is a new district (the job card gives its size), packed from irregular city pieces, so streets jog, narrow and dead-end. Blue dotted areas are quiet ground: you are harder to hear there. Amber hatched areas are noise: fixes on anything inside are blurry. You only see the zones the ship’s scan found (grey dashed “ZONE ?” = there is one, type unknown). Brown speckled scrap is slow (2 tiles of movement a tile) and loud (+3 sound), but it is low cover (−' + TUNE.HIT_COVER_LOW + '% to hit). Rusty outlined shapes are walls: set pieces in the blocks, and barricades that shut a street. A chicane (walls on alternate lanes) can be weaved through but not seen past.'],
-  ['ID', 'Enemies come in 10 variants (4 of them turrets, including the sniper: a Long gun that hits out to 20 tiles, but only on a firm lock). Tap a contact to see what your sensors have picked up about it, open the CARD to compare, then tap ID to call it. A turret or emplacement call freezes its track; a right call before eyes adds +10% to hit.'],
-  ['ECM', 'ECM masks you each turn it is on. GHOST places a fake contact for enemies.'],
-  ['Camera', 'Drag to pan. Z+ / Z− zoom. CTR recentres. QUIT in a contract hunt asks: SAVE & QUIT (stop now; RESUME on the company screen puts you back on this turn) or BAIL CONTRACT (give it up: no fee, wages and upkeep still paid; the menu shows the cost). Elsewhere QUIT (tap twice) goes back to the hangar. Nobody is hurt by a quit.'],
-  ['Tips', 'Hover the mouse over anything on the map, or hold a finger on it, to see what it is and what it does.'],
-  ['Debug', 'DEBUG: REROLL JOBS (job screen) rolls two new jobs for the same hunt, e.g. to get the job type you want to test. The log line notes it.'],
+// R24 A4: GAMEPLAY BASICS reads from the glossary. Grouped by screen: a few plain how-to lines, then every glossary term of
+// that screen (its name and line). The how-to lines follow the house standard (strict: 20 words or fewer a sentence).
+const BASICS: { title: string; screens: Screen[]; how: string[] }[] = [
+  { title: 'The city and the company', screens: ['city', 'company'], how: [
+    'The game opens on your COMPANY. It saves on this phone.',
+    'CONTRACTS shows the city map. Tap a district to see its JOB, then tap TAKE IT.',
+    'Before every hunt, pick who drops in each ExoS. Tap the button next to it.',
+    'Between contracts, use the tabs: REFIT for repairs, MARKET to buy, SHIP for modules.',
+  ] },
+  { title: 'The ship’s scan', screens: ['scan'], how: [
+    'After you take a job, the ship scans the district before you drop.',
+    'Turn sensors on. Drag each ring onto what matters, or use FULL MAP.',
+    'Tap START CLOCK. Tap PAUSE to think. Time passes only while the clock runs.',
+    'Watch the RISK. When you are ready, pick a DROP ZONE and tap NEXT.',
+  ] },
+  { title: 'The hangar', screens: ['hangar'], how: [
+    'Tap a part of the ExoS, then tap a hardpoint to fit an item you own.',
+    'The readout shows LOAD, POWER and what you give off: EMIT, IR and SOUND.',
+    'The fits lock when you LAUNCH HUNT 1, until the contract ends.',
+  ] },
+  { title: 'The hunt', screens: ['hunt'], how: [
+    'Everyone acts in the ORDER strip, top right. On your ExoS’s turn, spend its AP.',
+    'To move, tap the map or drag from your ExoS. Pick CREEP, NORMAL or SPRINT. Then tap MOVE.',
+    'Tap a contact to select it. Then FIRE, ID or RADAR use it.',
+    'A greyed button says why on a tap. END TURN passes to the next unit.',
+    'On a phone the HUD is one line. Tap it to see all of it.',
+  ] },
+  { title: 'Contacts', screens: ['contact'], how: [
+    'Enemies are hidden. Your sensors fix them as contacts. The tags say which sensor fixed each one.',
+    'Gold is the tag that holds the fix now. The letters after a tag name the ExoS that sensed it.',
+  ] },
+  { title: 'Map marks', screens: ['map'], how: [
+    'Long-press any mark, ring, line or patch of ground to see what it is.',
+  ] },
+  { title: 'The CARD', screens: ['card'], how: [
+    'Open the CARD to compare what your sensors noted with each variant. Then tap ID to make your call.',
+  ] },
+  { title: 'After the hunt', screens: ['after'], how: [
+    'The after-action page opens after every hunt. WHAT HAPPENED lists the turning points.',
+    'Tap SAVE & NEXT to go on.',
+  ] },
 ];
+const BASICS_EXTRA = [ // facts the glossary doesn't hold (house standard, strict)
+  ['Camera', 'Drag the map to pan. Z+ and Z− zoom. CTR centres on the active ExoS.'],
+  ['Debug', 'DEBUG: REROLL JOBS rolls new jobs for the same hunt. It is for testers, to get the job type they want.'],
+];
+function basicsHtml() {
+  const term = (e: Entry) => '<div class="bst"><b>' + esc(e.name) + '</b>: ' + esc(e.line) + '</div>';
+  return '<p><b>Long-press anything to see what it is.</b> On a computer, right-click it. A tap on a greyed button says why it is greyed.</p>' +
+    BASICS.map(B => '<h4>' + esc(B.title) + '</h4>' + B.how.map(l => '<p>' + esc(l) + '</p>').join('') +
+      ENTRIES.filter(e => B.screens.includes(e.screen)).map(term).join('')).join('') +
+    '<h4>More</h4>' + BASICS_EXTRA.map(([h, t]) => '<p><b>' + h + ':</b> ' + esc(t) + '</p>').join('');
+}
 
 // Simple legend, drawn with the same colours as the game.
 const LEGEND = `<svg viewBox="0 0 300 300" width="300" height="300" style="max-width:100%;font:bold 12px monospace" aria-label="Map legend">
 <rect x="0" y="0" width="300" height="300" fill="#2c2d30" rx="6"/>
 <circle cx="28" cy="26" r="9" fill="#fff"/><line x1="28" y1="26" x2="44" y2="26" stroke="#fff" stroke-width="3"/><circle cx="28" cy="26" r="15" fill="none" stroke="#9cf" stroke-width="2"/>
-<text x="60" y="30" fill="#ddd">Your mech (blue ring = its turn)</text>
+<text x="60" y="30" fill="#ddd">Your ExoS (blue ring = its turn)</text>
 <circle cx="28" cy="64" r="14" fill="none" stroke="#f33" stroke-width="2"/><rect x="23" y="59" width="10" height="10" fill="#f33"/>
 <text x="60" y="68" fill="#ddd">Contact (circle = how unsure)</text>
 <circle cx="28" cy="102" r="14" fill="none" stroke="#f90" stroke-width="2"/><rect x="23" y="97" width="10" height="10" fill="#f90"/>
-<text x="60" y="106" fill="#ddd">Lost contact (last guess)</text>
+<text x="60" y="106" fill="#ddd">LOST TRACK (last guess)</text>
 <line x1="10" y1="146" x2="48" y2="128" stroke="#3dd" stroke-width="2"/>
-<text x="60" y="142" fill="#ddd">Bearing line (cross two)</text>
+<text x="60" y="142" fill="#ddd">BEARING (cross two)</text>
 <circle cx="28" cy="176" r="15" fill="rgba(255,204,51,.15)" stroke="#fc3" stroke-width="2"/><path d="M28 168 L36 176 L28 184 L20 176 Z" fill="none" stroke="#fc3" stroke-width="2"/>
-<text x="60" y="180" fill="#ddd">Uplink</text>
+<text x="60" y="180" fill="#ddd">UPLINK</text>
 <circle cx="28" cy="214" r="15" fill="none" stroke="rgba(255,150,50,.6)" stroke-width="2" stroke-dasharray="6 4"/>
 <text x="60" y="218" fill="#ddd">EMIT: how far sensors hear you</text>
 <circle cx="250" cy="214" r="13" fill="none" stroke="rgba(232,244,255,.7)" stroke-width="2"/><path d="M263 214 h6 M231 214 h6 M250 195 v6 M250 227 v6" stroke="rgba(232,244,255,.7)" stroke-width="2"/>
 <text x="198" y="246" fill="#ddd">SOUND ring</text>
 <rect x="12" y="236" width="32" height="20" fill="rgba(90,150,255,.24)" stroke="rgba(120,175,255,.7)" stroke-width="2" stroke-dasharray="2 4"/>
-<text x="60" y="251" fill="#ddd">Quiet ground</text>
+<text x="60" y="251" fill="#ddd">QUIET</text>
 <rect x="12" y="268" width="32" height="20" fill="rgba(255,200,70,.12)" stroke="rgba(255,200,70,.7)" stroke-width="2" stroke-dasharray="8 4"/>
 <path d="M12 288 L32 268 M22 288 L42 268 M32 288 L44 276" stroke="rgba(255,200,70,.35)"/>
-<text x="60" y="283" fill="#ddd">Noise zone</text>
+<text x="60" y="283" fill="#ddd">NOISE</text>
 </svg>`;
 // Screen layout sketch.
 const LAYOUT = `<svg viewBox="0 0 300 150" width="300" height="150" style="max-width:100%;font:bold 11px monospace" aria-label="Screen layout">
@@ -232,7 +282,8 @@ function showPage() {
 export function buildBrief(build: string) {
   const seen = seenGet(), missed = HISTORY.filter(h => seen && h.round > seen && h.round !== TEST.round).length;
   $('spTitle').textContent = TEST.title + ' · ' + build;
-  $('spBody').innerHTML = '<p><b>The game:</b> you run two mechs, A and B. Find hidden enemies with your sensors, then win the hunt.</p>' +
+  $('spBody').innerHTML = '<p><b>The game:</b> you run a company of ExoS (A, B and C). Find hidden enemies with your sensors, then win the hunt.</p>' +
+    '<p><b>Long-press anything to see what it is.</b> On a computer, right-click it.</p>' +
     '<p><b>This test:</b> ' + esc(TEST.question) + '</p>' +
     (missed ? '<p style="color:#fc3"><b>Welcome back.</b> Last time you played Round ' + seen + '. Tap ‹ (or swipe) for the ' + missed + ' round' + (missed > 1 ? 's' : '') + ' of changes since.</p>' : '') +
     '<div id="spHist"><div class="zrow" style="justify-content:space-between"><button id="spPrev">‹ OLDER</button><button id="spNext">NEWER ›</button></div><div id="spPage"></div></div>' +
@@ -244,7 +295,7 @@ export function buildBrief(build: string) {
   $('spHist').addEventListener('pointerdown', e => { sx = e.clientX; });
   $('spHist').addEventListener('pointerup', e => { if (sx >= 0 && Math.abs(e.clientX - sx) > 50) go(e.clientX < sx ? 1 : -1); sx = -1; });
   seenSet(TEST.round);
-  $('bsText').innerHTML = BASICS.map(([h, t]) => '<p><b>' + h + ':</b> ' + esc(t) + '</p>').join('');
+  $('bsText').innerHTML = basicsHtml();
   $('bsArt').innerHTML = LAYOUT + LEGEND;
 }
 

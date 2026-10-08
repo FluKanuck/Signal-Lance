@@ -25,6 +25,13 @@ html,body{-webkit-text-size-adjust:100%;text-size-adjust:100%;height:100%;margin
 button{min-width:60px;min-height:52px;font:bold 13px monospace;background:var(--btn);color:var(--fg);border:1px solid var(--line);border-radius:6px;touch-action:manipulation;padding:0 8px}
 button.on{background:var(--btnOn)}
 #tip{position:fixed;z-index:4;max-width:min(320px,80vw);background:rgba(20,22,26,.94);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font:12px/1.4 monospace;pointer-events:none;white-space:normal}
+#explain{position:fixed;z-index:30;top:calc(var(--top) + env(safe-area-inset-top,0px));left:calc(8px + env(safe-area-inset-left,0px));max-width:min(380px,calc(100vw - 32px));max-height:calc(100vh - var(--top) - 24px);overflow:auto;background:rgba(18,22,30,.97);color:var(--fg);border:1px solid #9cf;border-radius:8px;padding:8px 10px;font:13px/1.45 monospace;white-space:normal;box-shadow:0 4px 16px rgba(0,0,0,.6);zoom:var(--s)} /* R24 A2: the explain card (the HUD panel's slot) */
+#explain .exq{opacity:.6}
+#bsText h4{margin:14px 0 4px;color:#9cf} #bsText .bst{margin:2px 0 2px 10px}
+#hud [data-g],#init span{pointer-events:auto} /* R24 A2: HUD terms can be long-pressed */
+#hud.compact,#hud.open{pointer-events:auto;cursor:pointer;background:rgba(20,22,26,.82);border:1px solid var(--line);border-radius:6px;padding:3px 8px} /* R24 B6: the one-line HUD and its opened panel */
+#hud.open{white-space:normal;max-width:min(560px,calc(100vw / var(--s) - 230px));max-height:calc(100vh - var(--top) - 70px);overflow:auto;background:rgba(20,22,26,.95);z-index:8}
+#hud .hl .more{opacity:.6}
 #hud{white-space:nowrap;font-size:13px;position:fixed;top:calc(var(--top) + env(safe-area-inset-top,0px));left:calc(8px + env(safe-area-inset-left,0px));z-index:2;pointer-events:none;line-height:1.5;text-shadow:0 0 3px #000}
 #pbar{display:inline-block;width:80px;height:8px;border:1px solid var(--fg);vertical-align:middle}
 #pfill{height:100%;background:var(--fg)}
@@ -74,6 +81,11 @@ button.on{background:var(--btnOn)}
 #logta{width:100%;font:11px monospace;background:var(--btn);color:var(--fg)}
 #note{width:min(520px,100%);min-height:48px;font:16px monospace;background:var(--btn);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:0 10px;box-sizing:border-box}
 #resWhy{max-width:600px}
+#routeBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px * var(--s) + env(safe-area-inset-bottom,0px));display:flex;gap:10px;flex-wrap:wrap;justify-content:center;z-index:2;zoom:var(--s);font-size:12px;background:rgba(17,17,17,.82);border:1px solid #3a4a3a;border-radius:6px;padding:4px 8px;max-width:92vw}
+#routeBar .rf{display:flex;gap:4px;align-items:center}#routeBar .rf.wait b{color:#7e9}
+#routeBar button{min-height:36px;min-width:64px;font-size:12px;padding:0 8px}#routeBar button.on{background:#2f6b3f;border-color:#7e9;color:#fff}
+#allyWarn{position:fixed;left:50%;top:calc(var(--top,0px) + 8px);transform:translateX(-50%);z-index:3;zoom:var(--s);background:#2a2a14;border:1px solid #fc3;color:#fc3;padding:6px 12px;border-radius:6px;font-weight:bold;max-width:80vw;text-align:center}#allyWarn.bad{background:#3a1414;border-color:#f66;color:#f88}
+body.aaron #routeBar,body.aaron #allyWarn{display:none}
 #brow{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(6px + env(safe-area-inset-bottom,0px));display:flex;gap:6px;z-index:2}
 #bMove{min-width:84px;background:var(--btnOn)}
 #bUp{min-width:84px;border-color:#fc3}
@@ -199,6 +211,7 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
 
 <canvas id="cv"></canvas>
 <div id="tip" hidden></div>
+<div id="explain" hidden></div>
 <div id="hud"></div>
 <div id="init"></div>
 <div id="wpMenu" hidden><button id="bWpX">✕ LOOK</button></div>
@@ -214,9 +227,11 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
   <div class="zrow"><button id="bZin">Z+</button><button id="bZout">Z−</button></div>
   <div class="zrow"><button id="bCtr">CTR</button><button id="bQuit">QUIT</button></div>
 </div>
+<div id="routeBar" hidden></div>
+<div id="allyWarn" hidden></div>
 <div id="brow">
   <button id="bCreep">CREEP</button>
-  <button id="bNorm">NORM</button>
+  <button id="bNorm">NORMAL</button>
   <button id="bSprint">SPRINT</button>
   <button id="bMove">MOVE</button>
   <button id="bUp">UPLINK</button>
@@ -235,7 +250,7 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
     <div id="hbody"><div id="hsuit"></div><div id="hside"><div id="hloc"></div><div id="hread"></div></div></div>
   </div>
   <div id="lside">
-    <div id="lpre" hidden><div id="pintel"></div><button id="bPreGo">LAUNCH HUNT 1</button><button id="bPreBack">BACK TO THE SCAN</button></div>
+    <div id="lpre" hidden><div id="pintel"></div><button id="bPreGo" class="go">LAUNCH HUNT 1</button><button id="bPreBack">BACK TO THE SCAN</button></div>
     <div id="lnorm" style="display:contents">
     <div id="lver"></div>
     <div id="intel"></div>
@@ -328,7 +343,7 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
   <div class="zrow"><button id="bBasics">GAMEPLAY BASICS</button><button id="bCont" class="go">CONTINUE</button></div>
 </div>
 <div id="basics" class="panel doc" hidden>
-  <div class="dtitle">Gameplay basics</div>
+  <div class="zrow" style="justify-content:space-between;width:100%"><div class="dtitle">Gameplay basics</div><button id="bBack0">BACK</button></div>
   <div class="drow"><div id="bsText" class="dtext"></div><div id="bsArt" class="dart"></div></div>
   <button id="bBack" class="go">BACK</button>
 </div>

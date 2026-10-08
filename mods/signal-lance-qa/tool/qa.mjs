@@ -2,6 +2,7 @@
 // QA panel playtest tool, the CLI testers call through Bash. Starts the daemon on first use.
 //   node qa.mjs <session> look [--image] [--zoom x,y,w,h]   the screen as text (+ a screenshot path to Read)
 //   node qa.mjs <session> tap <button id | label | x,y>
+//   node qa.mjs <session> hold <button id | label | x,y>         long-press (right-click on desktop): opens the explain card
 //   node qa.mjs <session> drag x,y x,y [x,y ...]            draw a path / pan the map
 //   node qa.mjs <session> scroll <panel> [dy]               scroll a menu panel (dy px, negative = up)
 //   node qa.mjs <session> type <text> [--into id]
@@ -31,7 +32,7 @@ if (!session || !cmd) { console.log('usage: node qa.mjs <session> <command> ... 
 const flags = {}, pos = [];
 for (let i = 0; i < rest.length; i++) { if (rest[i].startsWith('--')) { const k = rest[i].slice(2), v = rest[i + 1]; if (v === undefined || v.startsWith('--')) flags[k] = true; else { flags[k] = v; i++; } } else pos.push(rest[i]); }
 const NOTE = { cat: 'category', sev: 'severity', did: 'what_i_did' };
-const args = cmd === 'tap' ? { target: pos.join(' ') } : cmd === 'drag' ? { points: pos } : cmd === 'scroll' ? { panel: pos[0], dy: pos[1] || 300 }
+const args = cmd === 'tap' || cmd === 'hold' ? { target: pos.join(' ') } : cmd === 'drag' ? { points: pos } : cmd === 'scroll' ? { panel: pos[0], dy: pos[1] || 300 }
   : cmd === 'type' ? { text: pos.join(' '), into: flags.into || '' } : cmd === 'key' ? { key: pos[0] } : cmd === 'wait' ? { timeout: 1000 * Number(pos[0] || 30) }
   : cmd === 'fallback' ? { action: pos[0], args: pos.slice(1), why: flags.why || '' } : cmd === 'think' ? { text: pos.join(' ') }
   : cmd === 'end' ? { summary: pos.join(' '), handoff: flags.handoff || '' } : cmd === 'checkpoint' ? { k: pos[0] }

@@ -67,7 +67,7 @@ export function damagePart(u, p: string, n: number) {
 export function eyesRange(o) { return TUNE.EYES_RANGE * (partGone(o, 'SENSORS') ? TUNE.PART_SENSORS_EYES_MULT : 1); }
 
 // Per-part damage read, the existing words: ok / scratched / bloodied / badly / gone.
-export const PART_ABBR = { CORE: 'COR', LEGS: 'LEG', WEAPON: 'WPN', SENSORS: 'SNS', BACK: 'BCK' };
+export const PART_ABBR = { CORE: 'CORE', LEGS: 'LEGS', WEAPON: 'ARMS', SENSORS: 'MAST', BACK: 'BACK' }; // R24: one name per part = the hangar's location name (was COR / LEG / WPN / SNS / BCK)
 export function partWord(u, p) {
   const f = u.parts[p] / u.pmax[p];
   return f <= 0 ? 'gone' : f <= TUNE.DMG_BADLY ? 'badly' : f <= TUNE.DMG_BLOODIED ? 'bloodied' : f < 1 ? 'scratched' : 'ok';

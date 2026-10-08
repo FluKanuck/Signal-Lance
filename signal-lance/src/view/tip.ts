@@ -1,5 +1,6 @@
 // R16 debrief (Jamie): every map item says what it is and what it does. Mouse: hover. Touch: hold a finger still for
-// TIP_HOLD_MS (a hold never moves, selects or pans). View only: reads sim state, changes nothing.
+// LONGPRESS_MS (a hold never moves, selects or pans). R24 A2: a touch hold (or a right-click) opens the explain card: the
+// tip's lines plus the glossary lines of the terms on it. View only: reads sim state, changes nothing.
 import { TUNE } from '../tune.ts';
 import { fireRange } from '../sim/turns.ts';
 import { G } from '../sim/state.ts';
@@ -10,55 +11,86 @@ import { zoneKnowOf } from '../sim/scan.ts';
 import { partsRead } from '../sim/combat.ts';
 import { isType, carrier } from '../sim/mission.ts';
 import { forksAhead, allyNextStop } from '../sim/escort.ts';
-import { contactLabel, routeBtn } from './render.ts';
+import { contactLabel, routeBtn, sensorTags } from './render.ts';
+import { soundRadius } from '../sim/sound.ts';
+import { heardRange } from '../sim/sensors.ts';
+import { lowHits, hitsLeft } from '../sim/warn.ts';
+import { gloss } from './glossary.ts';
+import { showExplainText } from './explain.ts';
 import { V, camZ } from './state.ts';
 import { $ } from './hud.ts';
 
-export const TIP_HOLD_MS = 450; // touch: how long a still finger waits before the tip shows
 const near = (wx, wy, x, y, r) => Math.hypot(wx - x, wy - y) <= r;
 const tiles = (u) => (u / T).toFixed(1);
 
-// What is at world point (wx, wy)? [title, effect lines], or null. Things first, then the ground under them.
+// What is at world point (wx, wy)? [title, effect lines, glossary ids], or null. Things first, then the ground under them.
+let gids: string[] = []; // the glossary terms the last tipAt touched (the explain card adds their lines)
 export function tipAt(wx: number, wy: number): [string, string[]] | null {
+  gids = [];
   const z = camZ(), R = 18 / z;
-  for (const f of forksAhead()) for (const l of f.legs) { const b = routeBtn(l.i); if (near(wx, wy, b.x, b.y, 30 / z)) return [l.name + ' route' + (f.set === l.i ? ' (set)' : ''), [
-    G.ally.leg < 0 && G.ally.node === f.node ? 'The transport is waiting here: tap to send it this way.' : 'A lever for a fork ahead: tap to set it (tap again to clear). Reaching a set fork, the transport carries straight on, even mid-move; an unset fork stops it until you choose.',
-    'It walks ' + TUNE.ESCORT_MOVE + ' tiles a round (' + TUNE.ESCORT_SPRINT + ' on a HURRY).']]; }
-  const nx = allyNextStop(); if (nx && near(wx, wy, nx.x, nx.y, R)) return ['Next move ends here', [nx.why === 'HOLD' ? 'It holds this round (HOLD order).' : nx.why === 'FORK' ? 'It will stop at this fork: no lever set.' : 'Where the transport\'s next move takes it.']];
-  for (const m of G.lance) if (!m.dead && near(wx, wy, m.x, m.y, R)) return ['Your mech ' + m.id, [partsRead(m), 'AP ' + m.ap + ' · EN ' + Math.round(m.en) + ' · EMIT ' + Math.round(m.emit) + ' · ammo ' + m.ammo, 'Tap it on its turn to turn and face somewhere.']];
+  for (const f of forksAhead()) for (const l of f.legs) { const b = routeBtn(l.i); if (near(wx, wy, b.x, b.y, 30 / z)) { gids = ['ROUTE', 'FORK']; return ['ROUTE ' + l.name + (f.set === l.i ? ' ✓ (set)' : ''), [
+    G.ally.leg < 0 && G.ally.node === f.node ? 'The transport waits here. Tap this ROUTE and it goes this way.' : 'A ROUTE at a fork ahead. Tap it to set it, and tap it again to clear it. At a set fork, the transport goes on without a stop. At an unset fork, it waits for you.',
+    'It walks ' + TUNE.ESCORT_MOVE + ' tiles a round (' + TUNE.ESCORT_SPRINT + ' on a HURRY).']]; } }
+  const nx = allyNextStop(); if (nx && near(wx, wy, nx.x, nx.y, R)) { gids = ['NEXT']; return ['NEXT MOVE', [nx.why === 'HOLD' ? 'The transport holds this round (HOLD order).' : nx.why === 'FORK' ? 'The transport will stop at this fork. No ROUTE is set.' : 'The transport’s next move ends here.']]; }
+  for (const m of G.lance) if (near(wx, wy, m.x, m.y, R) && (!m.dead || m.crit)) {
+    if (m.dead) { gids = ['DOWN', 'CRITICAL']; return ['ExoS ' + m.id + (m.carriedBy ? ' · CARRIED BY ' + m.carriedBy : ' · DOWN'), [m.carriedBy ? 'A lancemate carries its operator. EXTRACT the carrier to bring them home.' : 'Its operator is CRITICAL. End a lancemate’s turn next to it to carry them out.']]; }
+    gids = ['ExoS', ...(lowHits(m) ? ['HITS LEFT'] : []), ...(G.p === m && soundRadius(m) > 0 ? ['SOUND'] : []), ...(m.paintTurn !== undefined ? ['PAINTED'] : [])];
+    return ['ExoS ' + m.id, [partsRead(m), 'CORE hits left ' + hitsLeft(m) + (lowHits(m) ? ' (low)' : '') + '.', 'AP ' + m.ap + ' · EN ' + Math.round(m.en) + ' · EMIT ' + Math.round(m.emit) + ' · AMMO ' + m.ammo, 'Tap it on its turn to turn it and face somewhere.']];
+  }
   const a = G.ally;
-  if (a && near(wx, wy, a.x, a.y, R)) return a.dead ? ['Transport (destroyed)', ['The escort failed.']] : ['Transport', [a.hits + '/' + a.maxHits + ' hits. Unarmed. The field can see, hear and shoot it like your mechs.', 'Win: it walks out the right edge. Lose it and the hunt fails.', 'Orders (your turn, no AP): HOLD = skip its next move (' + a.holdsLeft + ' left); HURRY = sprint its next move, ' + TUNE.ESCORT_SPRINT + ' tiles, louder (' + a.hurriesLeft + ' left).' + (a.order ? ' Pending: ' + a.order + '.' : '')]];
+  if (a && near(wx, wy, a.x, a.y, R)) return a.dead ? ['Transport (destroyed)', ['The escort failed.']] : ['Transport', [a.hits + '/' + a.maxHits + ' hits. Unarmed. The enemy can see, hear and shoot it like your ExoS.', 'Win: it walks out the right edge. Lose it and the hunt fails.', 'Orders (your turn, no AP): HOLD skips its next move (' + a.holdsLeft + ' left). HURRY makes its next move a SPRINT: ' + TUNE.ESCORT_SPRINT + ' tiles, louder (' + a.hurriesLeft + ' left).' + (a.order ? ' Pending: ' + a.order + '.' : '')]];
   for (const c of G.pc) {
     if (!c.on || !near(wx, wy, cx(c), cy(c), Math.max(R, Math.min(c.unc, 40 / z)))) continue;
     const lost = c.lost > c.gap;
+    const tg = sensorTags(c).map(g => g.t.split(' ')[0]).map(t => t === 'GHOST' ? '' : t).filter(Boolean);
+    gids = ['contact', ...(contactLabel(c).includes('UNKNOWN') ? ['UNKNOWN'] : []), ...(contactLabel(c).includes(' fit') ? ['fit'] : []), ...(G.sel === c ? ['SELECTED'] : []), ...(lost ? ['LOST TRACK'] : []), ...tg, 'FIX'];
     return ['Contact: ' + contactLabel(c), [
-      c.snd ? 'Heard only (a sound): something is roughly here. Never enough to shoot at.' : c.shr ? 'Shared alarm contact. Never a lock.' : 'A fix from your sensors.',
-      'Circle = how unsure you are: ±' + tiles(c.unc) + ' tiles' + (lost ? ' (lost track: it grows while that unit acts)' : '') + '.',
-      'FIRE needs ±' + TUNE.PLAYER_FIRE_UNC + ' or better, range ' + (fireRange(G.p) || '—') + ' and line of sight. Tap it to select.']];
+      c.snd ? 'Heard only (a SOUND). Something is roughly here. A SOUND fix is never enough to FIRE at.' : c.shr ? 'A LINK track, shared by your lance. It is never a lock.' : 'A fix from your sensors.',
+      'The circle shows how unsure the fix is: ±' + tiles(c.unc) + ' tiles' + (lost ? '. LOST TRACK: it grows while that unit acts' : '') + '.',
+      'FIRE needs ±' + TUNE.PLAYER_FIRE_UNC + ' or better, range ' + (fireRange(G.p) || '—') + ' and line of sight. Tap the contact to select it.']];
   }
   for (const u of G.units) if (u.dead && near(wx, wy, u.x, u.y, R)) return ['Wreck: ' + u.type.toLowerCase() + ' ' + u.variant, ['Destroyed.']];
-  if (G.ghost.on && near(wx, wy, G.ghost.x, G.ghost.y, R)) return ['Ghost (your decoy)', ['Enemies see a fake contact here for ' + G.ghost.turns + ' more of its owner\'s turns.']];
+  if (G.ghost.on && near(wx, wy, G.ghost.x, G.ghost.y, R)) { gids = ['GHOST']; return ['GHOST (your fake contact)', ['Enemies see a fake contact here for ' + G.ghost.turns + ' more of its owner’s turns.']]; }
+  for (const k of V.lk.marks) if (near(wx, wy, k.x, k.y, R)) { gids = ['LAST SEEN']; return ['LAST SEEN · round ' + k.turn, ['A contact dropped off your picture here. It may have moved. You can’t target this mark.']]; } // R24 A5 (C15)
+  { const p = G.p; if (p && !p.dead && G.mode === 'hunt') { // R24 A2: the rings round the active ExoS
+    const d = Math.hypot(wx - p.x, wy - p.y), band = 14 / z, sr = soundRadius(p) * T, er = heardRange(p) * T;
+    if (sr > 0 && Math.abs(d - sr) <= band) { gids = ['SOUND']; return ['SOUND ring (' + (Math.round(soundRadius(p) * 10) / 10) + ' tiles)', ['Enemies inside this ring heard your last move or shot this turn.']]; }
+    if (er > 0 && Math.abs(d - er) <= band) { gids = ['EMIT']; return ['EMIT ring (~' + Math.round(heardRange(p)) + ' tiles)', ['Enemy ESM inside this ring can hear your EMIT now.']]; }
+  } }
+  for (const b of G.pb) { // R24 A2: bearing lines
+    if (!b.on) continue;
+    const dx = Math.cos(b.ang), dy = Math.sin(b.ang), t = (wx - b.x) * dx + (wy - b.y) * dy;
+    if (t > 0 && Math.abs((wx - b.x) * dy - (wy - b.y) * dx) <= 10 / z) { gids = ['BEARING']; return ['BEARING', [b.tri ? 'Your ESM heard an EMIT this way. Cross it with a line from another place to fix the contact.' : 'A jammed bearing: a direction only.']]; }
+  }
   const U = G.up, ring = (TUNE.UPLINK_RADIUS + 0.5) * T;
-  if (isType('UPLINK') && near(wx, wy, U.x, U.y, ring)) return ['Uplink: ' + U.name, ['Stand in the ring and tap UPLINK (' + TUNE.AP_UPLINK + ' AP, loud: +' + TUNE.SIG_UPLINK + ' EMIT). ' + TUNE.UPLINK_TURNS + ' uplinks win. Done ' + U.prog + '/' + TUNE.UPLINK_TURNS + '.']];
-  if (isType('RETRIEVE') && !carrier() && near(wx, wy, U.x, U.y, ring)) return ['Cargo: ' + U.name, ['Stand on it and PICK UP (' + TUNE.RETRIEVE_PICKUP_AP + ' AP). The whole field is alerted and hunts the carrier, who can\'t sprint. Carry it out the right edge.']];
+  if (isType('UPLINK') && near(wx, wy, U.x, U.y, ring)) { gids = ['UPLINK']; return ['UPLINK: ' + U.name, ['Done ' + U.prog + '/' + TUNE.UPLINK_TURNS + '.']]; }
+  if (isType('RETRIEVE') && !carrier() && near(wx, wy, U.x, U.y, ring)) { gids = ['CARGO', 'PICK UP']; return ['CARGO: ' + U.name, ['The ring shows the PICK UP range.']]; }
   return groundAt(Math.floor(wx / T), Math.floor(wy / T));
 }
 function groundAt(tx: number, ty: number): [string, string[]] | null {
   if (tx < 0 || ty < 0 || tx >= W || ty >= H) return null;
   const out: string[] = [], zn0 = zoneAtTile(tx, ty), zn = zn0 && zoneKnowOf(zn0) >= 2 ? zn0 : null; // R19: only zones the scan named (R20: zone by zone)
-  if (zn && zn.type === 'QUIET') out.push('QUIET ground (' + zn.name + '): anything standing here is read at ' + Math.round(TUNE.ZONE_TYPES.QUIET.SIG_MULT * 100) + '% of its EMIT and sound.');
-  if (zn && zn.type === 'NOISE') out.push('NOISE zone (' + zn.name + '): radio fixes on anything here are blurred (×' + TUNE.ZONE_TYPES.NOISE.UNC_MULT + ', at least ±' + TUNE.ZONE_TYPES.NOISE.UNC_FLOOR + '). Eyes and radar still work.');
+  if (zn && zn.type === 'QUIET') { gids.push('QUIET'); out.push('QUIET (' + zn.name + '): anything here gives off ' + Math.round(TUNE.ZONE_TYPES.QUIET.SIG_MULT * 100) + '% of its EMIT and SOUND.'); }
+  if (zn && zn.type === 'NOISE') { gids.push('NOISE'); out.push('NOISE (' + zn.name + '): fixes on anything here are blurred (×' + TUNE.ZONE_TYPES.NOISE.UNC_MULT + ', at least ±' + TUNE.ZONE_TYPES.NOISE.UNC_FLOOR + '). Eyes and RADAR still work.'); }
+  if (zn0 && zoneKnowOf(zn0) === 1) gids.push('ZONE ?');
   const ext = tx >= W - TUNE.EXTRACT_COLS;
-  if (ext) return ['Extraction', ['Stand in here and tap EXTRACT to take that mech off the map (no AP; its turn ends). The hunt ends once all your living mechs are out' + (isType('ESCORT') ? ': a WIN if the transport walked out first, else you left it.' : isType('RETRIEVE') ? ': a WIN if the carrier extracted with the cargo.' : isType('BOUNTY') ? ': a WIN at or over the quota.' : '.'), ...out]];
+  if (ext) { gids.push('EXTRACTION', 'EXTRACT'); return ['EXTRACTION', ['Stand in here and tap EXTRACT. That ExoS leaves the map, and its turn ends. The hunt ends when all your ExoS that can act are out.', isType('ESCORT') ? 'It is a WIN if the transport walked out first.' : isType('RETRIEVE') ? 'It is a WIN if the carrier extracted with the cargo.' : isType('BOUNTY') ? 'It is a WIN at or over the quota.' : '', ...out]]; }
   if (isSolid(tx, ty)) {
     const piece = solid[ty * W + tx] === 2;
     return [piece ? 'Wreck / barricade' : 'Building', [piece ? 'A set piece or street blocker (fallen gantry, containers, a collapsed front).' : 'A city block.', 'Blocks movement, sight and shots. Radar sees through up to ' + TUNE.RADAR_MAX_WALLS + ' wall tiles.', 'Cover: −' + TUNE.HIT_COVER + '% to hit a unit just behind it, unless the shooter is up against the same piece.']];
   }
-  if (isClutter(tx, ty)) return ['Scrap and rubble', ['Slow: each tile costs ' + TUNE.CLUTTER_TILE_COST + ' tiles of movement (same for enemies).', 'Loud: a move into it adds ' + TUNE.CLUTTER_SOUND + ' to that move\'s sound.', 'Low cover: shots at a unit in or just behind it get −' + TUNE.HIT_COVER + '% (not if the shooter is up against the same patch).', ...out]];
+  if (isClutter(tx, ty)) { gids.push('scrap', 'COVER'); return ['Scrap and rubble', ['Slow: each tile costs ' + TUNE.CLUTTER_TILE_COST + ' tiles of movement (same for enemies).', 'Loud: a move into it adds ' + TUNE.CLUTTER_SOUND + ' to that move\'s sound.', 'Low cover: shots at a unit in or just behind it get −' + TUNE.HIT_COVER_LOW + '% (not if the shooter is up against the same patch).', ...out]]; }
   if (!canReach(tx, ty)) return ['Closed yard', ['No way in from the streets.']];
-  return out.length ? [zn.type === 'QUIET' ? 'Quiet ground' : 'Noise zone', out] : (MAP.id === 'hive' ? null : ['Street', ['Open ground: no cover, clear sightlines. Tap to plan a move here.']]);
+  return out.length ? [zn.type === 'QUIET' ? 'QUIET' : 'NOISE', out] : (MAP.id === 'hive' ? null : ['Street', ['Open ground: no cover, clear sightlines. Tap to plan a move here.']]);
 }
 
+// ---- R24 A2: the explain card for a touch hold or a right-click on the map ----
+export function explainAt(wx: number, wy: number) {
+  const t = tipAt(wx, wy); if (!t) return;
+  const seen = new Set<string>(), add: string[] = [];
+  for (const id of gids) { const e = gloss(id); if (e && !seen.has(e.id)) { seen.add(e.id); add.push(e.name + ': ' + e.line); } }
+  showExplainText(t[0], [...t[1], ...add], 'map.' + (gids[0] || t[0].split(/[ :·(]/)[0]));
+}
 // ---- showing it ----
 let shown = false;
 export function showTip(sx: number, sy: number, wx: number, wy: number) {

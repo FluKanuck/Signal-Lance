@@ -76,7 +76,7 @@ describe('shots', () => {
     const c = observe(G.pc, e.id, m.x + 3 * T, m.y, 5 * T, 0, 0, true, true);
     expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, fireRange(m))).toBe('FUZZY');
     damagePart(m, 'WEAPON', m.parts.WEAPON);
-    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, fireRange(m))).toBe('WPN');
+    expect(shootBlock(m, c, TUNE.PLAYER_FIRE_UNC, fireRange(m))).toBe('ARMS');
   });
   it('hit chance stays inside HIT_MIN..HIT_MAX', () => {
     startHunt(1); const m = G.lance[0], e = G.units[0];

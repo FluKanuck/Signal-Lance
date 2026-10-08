@@ -252,15 +252,15 @@ export function costLines(shown: { turn: number; sub: string; a?: string; b?: st
   const out: CostLine[] = [], ref = (f: (m) => boolean) => { const m = shown.find(f); return m ? m.turn : null; };
   const ct = G.ct, co = ct ? G.co : null; // a test-bed hunt is outside the company
   for (const m of G.lance) {
-    const nm = nameOf(m), f = m.op ? fateOf(m) : '';
+    const f = m.op ? fateOf(m) : '';
     if (m.op && f === 'KIA') out.push({ text: m.op.name + ' (' + m.id + ') KIA' + (co ? ': on the memorial' : ''), ref: ref(x => (x.sub === 'KIA' || x.sub === 'DOWN') && x.b === m.id) });
-    else if (m.op && f === 'SAVED') out.push({ text: m.op.name + ' (' + m.id + ') CRITICAL, lives: benched ' + (co ? benchOf(m) : TUNE.OP_BENCH) + ' contract' + (benchOf(m) === 1 ? '' : 's'), ref: ref(x => (x.sub === 'DOWN' || x.sub === 'CARRY') && x.b === m.id) });
+    else if (m.op && f === 'SAVED') out.push({ text: m.op.name + ' (' + m.id + ') CRITICAL, carried out: BENCHED for ' + (co ? benchOf(m) : TUNE.OP_BENCH) + ' contract' + (benchOf(m) === 1 ? '' : 's'), ref: ref(x => (x.sub === 'DOWN' || x.sub === 'CARRY') && x.b === m.id) });
     const lost = Math.max(0, (m.hits0 ?? m.maxHits) - Math.max(0, m.hits));
     const rb = co ? suitCost('rebuild', m.id) : null, rec = !!(ct && ct.carry && ct.carry[m.id] && ct.carry[m.id].recovered);
-    if (m.dead && !(m.hits0 === 0)) out.push({ text: nm + (rec ? ' recovered from the field: rebuild ' : ' LOST' + (co && TUNE.RECOVER_HELD ? ' (field lost, wreck left)' : '') + ': rebuild ') + (rb ? rb.parts + ' parts + ' + rb.cr + ' cr' : TUNE.COST_REBUILD + ' cr'), ref: ref(x => x.sub === 'DOWN' && x.b === m.id) });
+    if (m.dead && !(m.hits0 === 0)) out.push({ text: 'ExoS ' + m.id + (rec ? ' recovered from the field: rebuild ' : ' LOST' + (co && TUNE.RECOVER_HELD ? ' (field lost, wreck left)' : '') + ': rebuild ') + (rb ? rb.parts + ' parts + ' + rb.cr + ' cr' : TUNE.COST_REBUILD + ' cr'), ref: ref(x => x.sub === 'DOWN' && x.b === m.id) });
     else if (lost > 0) {
       const wrecked = (m.partsLost || []).filter(p => p !== 'CORE').map(partName);
-      out.push({ text: nm + ': ' + lost + ' hit' + (lost > 1 ? 's' : '') + ' to repair' + (wrecked.length ? ' (' + wrecked.join(', ') + ' wrecked)' : '') + (co ? ', ' + lost * partsPerRepair() + ' parts + ' + lost * TUNE.REPAIR_CR + ' cr' : ''),
+      out.push({ text: 'ExoS ' + m.id + ': ' + lost + ' hit' + (lost > 1 ? 's' : '') + ' to repair' + (wrecked.length ? ' (' + wrecked.join(', ') + ' wrecked)' : '') + (co ? ', ' + lost * partsPerRepair() + ' parts + ' + lost * TUNE.REPAIR_CR + ' cr' : ''),
         ref: ref(x => x.sub === 'PART' && x.b === m.id) });
     }
   }

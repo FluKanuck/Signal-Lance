@@ -448,7 +448,7 @@ export function doPulse(m, x, y) { // R18: costs and EMIT from its radar row
 // '' = can shoot; otherwise the one-word reason shown on the FIRE button.
 export function shootBlock(m, c, uncMax, range) {
   if (!c || !c.on || !fitted(m, 'GUN')) return 'NONE'; // R18: no gun row fitted
-  if (!gunOf(m)) return offWhy(m, 'GUN') || 'WPN'; // R12. R18: its part is gone (ARMS = WEAPON)
+  if (!gunOf(m)) return offWhy(m, 'GUN') || 'ARMS'; // R12. R18: its part is gone (ARMS = WEAPON)
   if (m.ammo <= 0) return 'AMMO';
   if (m.turnShots >= TUNE.SHOTS_PER_TURN) return 'CAP';
   if (m.ap < TUNE.AP_SHOT) return 'AP';
@@ -627,3 +627,5 @@ export function cmdMortarOn(c) { if (mortarBlock(G.p, c) === '') { G.sel = c; do
 export function cmdMortarAt(x, y) { if (mortarBlindBlock(G.p, x, y) === '') doMortarBlind(G.p, x, y); } // R9 run1
 export function cmdFace(x, y) { freeTurn(G.p, x, y); replan(); }
 export function cmdSelect(c) { G.sel = c; freeTurn(G.p, cx(c), cy(c)); replan(); } // select + turn to face (if affordable)
+// R24 fix list 10 (C19): clear the selection (a tap on empty ground or on your own ExoS). FIRE and ID go back to the best contact.
+export function cmdDeselect() { G.sel = null; }

@@ -25,8 +25,8 @@ describe('A4: locations are parts', () => {
     expect(has(A, 'GHOST')).toBe(true); expect(has(A, 'GUN')).toBe(true);     // CORE, ARMS
     const c = observe(G.pc, G.units[0].id, A.x + 3 * T, A.y, 0.3 * T, 0, 0, true, true);
     A.ap = 8; A.turnShots = 0; A.mUsed = 0;
-    damagePart(A, 'BACK', A.parts.BACK); expect(mortarBlock(A, c)).toBe('BCK');
-    damagePart(A, 'WEAPON', A.parts.WEAPON); expect(shootBlock(A, c, TUNE.PLAYER_FIRE_UNC, 12)).toBe('WPN');
+    damagePart(A, 'BACK', A.parts.BACK); expect(mortarBlock(A, c)).toBe('BACK');
+    damagePart(A, 'WEAPON', A.parts.WEAPON); expect(shootBlock(A, c, TUNE.PLAYER_FIRE_UNC, 12)).toBe('ARMS');
   });
   it('every suit has a BACK part with a hit of its own, on top of the R17 pool', () => {
     startHunt(1); const B = G.lance[1];
@@ -105,8 +105,8 @@ describe('A9: mods', () => {
   });
   it('the hangar allows one of each module row (batteries excepted)', () => {
     const b = DEFAULT_FIT;
-    expect(hangarWhy(b, 'autocannon')).toBe('one per suit'); expect(hangarWhy(b, 'battery')).toBe(''); expect(hangarWhy(b, 'lamp')).toBe('');
-    expect(hangarWhy(b, 'hotcore')).toBe('one reactor per suit'); expect(hangarWhy(b, 'hotcore', 'coldburn')).toBe(''); // swapping the reactor is fine
+    expect(hangarWhy(b, 'autocannon')).toBe('one per ExoS'); expect(hangarWhy(b, 'battery')).toBe(''); expect(hangarWhy(b, 'lamp')).toBe('');
+    expect(hangarWhy(b, 'hotcore')).toBe('one reactor per ExoS'); expect(hangarWhy(b, 'hotcore', 'coldburn')).toBe(''); // swapping the reactor is fine
   });
 });
 

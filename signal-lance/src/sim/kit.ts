@@ -21,9 +21,9 @@ export const PART_LOC: Record<string, Loc> = { SENSORS: 'MAST', WEAPON: 'ARMS', 
 export function online(u, loc: Loc) { const p = LOC_PART[loc]; return !(u && u.parts && u.parts[p] !== undefined && u.parts[p] <= 0); }
 export function has(u, tag: string) { return kit(u).some(k => k.item.tags.includes(tag) && online(u, k.loc)); }
 export function fitted(u, tag: string) { return kit(u).some(k => k.item.tags.includes(tag)); } // carried, working or not
-// "SNS" when everything carrying the tag sits on a part that's gone (the button's one-word reason), '' otherwise
+// "MAST" when everything carrying the tag sits on a part that's gone (the button's one-word reason), '' otherwise
 export function offWhy(u, tag: string) { const k = kit(u).find(k => k.item.tags.includes(tag)); return k && !has(u, tag) ? PART_SHORT[LOC_PART[k.loc]] : ''; }
-const PART_SHORT = { SENSORS: 'SNS', WEAPON: 'WPN', CORE: 'COR', BACK: 'BCK', LEGS: 'LEG' };
+const PART_SHORT = { SENSORS: 'MAST', WEAPON: 'ARMS', CORE: 'CORE', BACK: 'BACK', LEGS: 'LEGS' }; // R24: the part's one name (the hangar's location name)
 export function active(u, id: string) { return kit(u).some(k => k.item.id === id && online(u, k.loc)); }
 const first = (u, f: (i: Item) => any) => { const k = kit(u).find(k => f(k.item) && online(u, k.loc)); return k ? f(k.item) : null; };
 // R18 (A9): a mod in the same location changes the radar's per-use EM (Cold processor: SENSOR EM × 0.6)
@@ -110,7 +110,7 @@ export function toFit(l): Fit { return l && l.frame ? l : fitFromLoad({ ...LOAD_
 export const HANGAR_TEMPLATES: { id: string; role: string; blurb: string; fit: () => Fit }[] = [
   { id: 'scout', role: 'Scout', blurb: 'Wisp. Light and quiet on EM; Lamp radar to find things first. Few hits, no BACK: no mortar.',
     fit: () => makeFit('wisp', [['MAST', 'lamp'], ['MAST', 'emarray'], ['MAST', 'mask'], ['ARMS', 'autocannon'], ['CORE', 'hotcore'], ['CORE', 'battery']]) },
-  { id: 'line', role: 'Line', blurb: 'Warden. The R17 suit: passive, mask and ghost, autocannon, a plate on the core.',
+  { id: 'line', role: 'Line', blurb: 'Warden. The R17 ExoS: passive, mask and ghost, autocannon, a plate on the core.',
     fit: () => structuredClone(DEFAULT_FIT) },
   { id: 'brawler', role: 'Brawler', blurb: 'Bulwark. Plated arms, core and legs, a mortar on the back. Loud on EM, slow to kill.',
     fit: () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'hotcore'], ['CORE', 'battery'], ['BACK', 'mortar']], ['ARMS', 'CORE', 'LEGS']) },
@@ -121,9 +121,9 @@ export const HANGAR_TEMPLATES: { id: string; role: string; blurb: string; fit: (
 export function hangarWhy(b: Fit, id: string, replacing: string | null = null) {
   if (id === replacing) return '';
   const all = LOCS.flatMap(l => itemsIn(b, l)), it = byId(ITEMS, id), rep = byId(ITEMS, replacing);
-  if (it?.tags.includes('REACTOR') && !rep?.tags.includes('REACTOR') && all.some(i => i.tags.includes('REACTOR'))) return 'one reactor per suit';
+  if (it?.tags.includes('REACTOR') && !rep?.tags.includes('REACTOR') && all.some(i => i.tags.includes('REACTOR'))) return 'one reactor per ExoS';
   if (id === 'battery') return '';
-  return all.some(i => i.id === id) ? 'one per suit' : '';
+  return all.some(i => i.id === id) ? 'one per ExoS' : '';
 }
 
 // A field unit's fit from its FIELD_TYPES row (+ variant STATS): FRAME, RADAR, PASSIVE, ARMOUR plates, AMMO rounds, CELLS.

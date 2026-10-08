@@ -1,11 +1,14 @@
 // Round 14 part 0: the test bed. Every scenario loads with its hand placements; each round's scenarios get their own checks.
 import { describe, it, expect, afterEach } from 'vitest';
+import { moveModeBlock } from '../src/sim/reasons.ts';
+import { lowHits } from '../src/sim/warn.ts';
 import { TUNE } from '../src/tune.ts';
 import { G } from '../src/sim/state.ts';
 import { T, canReach, tilesCrossed } from '../src/sim/world.ts';
 import { SCENARIOS, scenarioByName, startScenario, leaveScenario, scenarioList } from '../src/sim/scenarios.ts';
 import { playOut } from '../src/sim/autoplay.ts';
 import { partHurt, partGone } from '../src/sim/combat.ts';
+import { shootBlock, fireRange } from '../src/sim/turns.ts';
 
 afterEach(() => leaveScenario());
 const tile = (u) => [Math.floor(u.x / T), Math.floor(u.y / T)];
@@ -67,5 +70,29 @@ describe('R13 scenarios', () => {
     expect(partHurt(A, 'LEGS')).toBe(true); expect(partGone(A, 'LEGS')).toBe(false);
     expect(partHurt(B, 'LEGS')).toBe(false);
     expect(G.units.filter(u => u.type === 'PATROL').length).toBe(3);
+  });
+});
+
+describe('R24 scenarios', () => {
+  it('Read it cold: FIRE blocked by LOS on the radar fix, B lame, C low on hits, an UNKNOWN ESM contact, a LAST SEEN mark', () => {
+    const s = scenarioByName('Read it cold'); startScenario(s);
+    const [A, B, C] = G.lance; A.ap = 4; // its turn's AP (the view starts the turn)
+    const tur = G.pc.find(c => c.on && c.id === G.units[0].id), pat = G.pc.find(c => c.on && c.id === G.units[1].id);
+    expect(tur && pat).toBeTruthy();
+    expect(shootBlock(A, tur, TUNE.PLAYER_FIRE_UNC, fireRange(A))).toBe('LOS');
+    expect(shootBlock(A, pat, TUNE.PLAYER_FIRE_UNC, fireRange(A))).toBe('FUZZY');
+    expect(pat.seen.PASSIVE).toBeDefined();
+    expect(moveModeBlock(B, 'NORMAL')).toBe('LEGS');
+    expect(lowHits(C)).toBe(true); expect(lowHits(A)).toBe(false);
+    expect(s.lastSeen[0].field).toBe(2); expect(G.pc.some(c => c.on && c.id === G.units[2].id)).toBe(false); // the marked unit is off the picture
+  });
+});
+
+describe('R24 scenarios (B)', () => {
+  it('Crowded phone: three live contacts and the uplink near the right edge, all on the lance picture', () => {
+    const s = scenarioByName('Crowded phone'); startScenario(s);
+    expect(G.pc.filter(c => c.on).length).toBe(3);
+    for (const u of G.units) expect(u.x / T).toBeGreaterThan(35);
+    expect(G.up.x / T).toBeGreaterThan(40);
   });
 });
