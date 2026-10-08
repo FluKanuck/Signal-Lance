@@ -17,15 +17,25 @@ export const AUTO_DT = 0.05;
 // R19: the scripted lance never lobs at or chases a contact the ship's blip alone gave it (it reads them for Escort legs only)
 function target() { const c = playerTarget(); return c && c.src === 'SCAN' ? null : c; }
 export const AUTO = { loud: false, quiet: false }; // R13: --loud = SPRINT every move, pulse radar whenever it can. R14: --quiet = CREEP every move
+// R23 cp B: a runner personality's hunt weights (TUNE.BOT_PERSONALITY). move: the move mode (unless --loud / --quiet);
+// carry: this hunt it goes back for a CRITICAL lancemate (rolled per hunt by the runner); bailLost: Bounty, suits down before
+// it leaves; push: Bounty, rounds it keeps hunting past the quota; leaveCarried: once it carries someone, it heads out.
+// The defaults are the R22 bot exactly.
+export const BOT = { move: 'NORMAL', carry: false, bailLost: 1, push: 0, leaveCarried: false };
 
 // run the current action (move / pulse / shot) to completion
 export function runAct() { for (let n = 0; G.act && G.mode === 'hunt' && n < 20000; n++) step(AUTO_DT); }
 
 // R15 Bounty: the round the scripted lance first reached the site, per hunt; it hunts from there this many rounds, then leaves
-const siteAt = new WeakMap<object, number>(), BOT_HUNT_ROUNDS = 10;
+const siteAt = new WeakMap<object, number>(), quotaAt = new WeakMap<object, number>(), BOT_HUNT_ROUNDS = 10;
 // Where this activation walks to (world coords)
 function goal() {
   const p = G.p, out = { x: (W - 1.5) * T, y: p.y };
+  if (BOT.carry) { // R23 cp B (#101): go back for a CRITICAL lancemate nobody carries yet (end the turn next to it), the nearest
+    const d = G.lance.filter(m => m !== p && m.crit && !m.carriedBy).sort((a, b) => Math.hypot(a.x - p.x, a.y - p.y) - Math.hypot(b.x - p.x, b.y - p.y))[0];
+    if (d) return { x: d.x, y: d.y };
+    if (BOT.leaveCarried && G.lance.some(m => m.carriedBy === p.id)) return out; // the cautious: carrying someone = going home
+  }
   if (isType('ESCORT') && (!G.ally || G.ally.out || G.ally.dead)) return out; // R16: the transport is out: follow it
   if (isType('RETRIEVE') && G.mission.cargoOut) return out; // R16: the cargo is out: leave too
   if (isType('ESCORT')) { // R15 s3: shadow the transport a few tiles ahead of it, never into extraction first
@@ -37,7 +47,12 @@ function goal() {
     return !c ? G.up : isCarrier(p) ? out : { x: c.x, y: c.y };
   }
   if (!isType('BOUNTY')) return G.up;
-  if (quotaMet() || G.lance.some(m => m.dead)) return out; // at quota, or cutting its losses
+  if (G.lance.filter(m => m.dead).length >= BOT.bailLost) return out; // cutting its losses (R23: bailLost suits down; R22 = 1)
+  if (quotaMet()) { // at quota: leave (R23 aggressive: hunt on for BOT.push rounds while it can hear something)
+    if (!quotaAt.has(G.mission)) quotaAt.set(G.mission, G.turn);
+    const c = target(); if (!BOT.push || !c || G.turn - quotaAt.get(G.mission) >= BOT.push) return out;
+    return { x: cx(c), y: cy(c) };
+  }
   if (!siteAt.has(G.mission)) {                            // the guarded site first, fighting what it meets (as the uplink bot)
     if (upDist(p) > 2) return G.up;
     siteAt.set(G.mission, G.turn);
@@ -71,8 +86,8 @@ export function playerTurn() {
     if (pickupBlock(G.p) === '' || (isCarrier(G.p) && wantHandoff())) { cmdObjective(); continue; } // R15 s2
     const g = goal();
     if (!moved && far(g)) {
-      cmdMoveMode(AUTO.loud ? 'SPRINT' : AUTO.quiet ? 'CREEP' : 'NORMAL'); cmdTarget(g.x, g.y); moved = true;
-      if (AUTO.loud && G.plan && !G.plan.path && G.plan.why !== 'LEGS') { cmdMoveMode('NORMAL'); cmdTarget(g.x, g.y); } // can't afford any sprint
+      cmdMoveMode(AUTO.loud ? 'SPRINT' : AUTO.quiet ? 'CREEP' : BOT.move); cmdTarget(g.x, g.y); moved = true;
+      if ((AUTO.loud || BOT.move === 'SPRINT') && G.plan && !G.plan.path && G.plan.why !== 'LEGS') { cmdMoveMode('NORMAL'); cmdTarget(g.x, g.y); } // can't afford any sprint
       if (G.plan && !G.plan.path && G.plan.why === 'LEGS') { cmdMoveMode('CREEP'); cmdTarget(g.x, g.y); } // R12: legs gone = creep
       if (G.plan && G.plan.path) { const n = G.moveStat.intr.length; cmdMove(); runAct(); if (G.moveStat.intr.length > n) moved = false; continue; } // R17: stopped by something new: react, then it may walk on
     }

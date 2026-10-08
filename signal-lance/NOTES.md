@@ -1147,6 +1147,16 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      an objective or kill moment, else the end.
    - Hated / Liked test bed: test company seed 2301, the job against the Foundry in a Foundry district nearest to the ship.
      TAKE IT starts the job on the test company (never saved) and opens hunt 1's scan; DONE asks the question.
+   - Personalities (cp B) live in the runner and the scripted lance only (sim/personality.ts, autoplay BOT); the game
+     never reads them. No --personality = the R22 bot exactly (the regression baseline); --pick low = cautious's pick only.
+   - Hunt weights reuse what the bot already does: the move mode, the scan preset (cautious 'fast': radar full map 2 min;
+     the others none), Bounty's cut-your-losses rule (bailLost suits down), and Bounty's hunt after the quota (push rounds,
+     aggressive 10). Carry: one roll per hunt from the job seed (never the hunt RNG) on the carry weight; on = each suit's
+     goal is the nearest uncarried CRITICAL lancemate first. Cautious (carry 1) heads out once it carries someone.
+   - Campaign: picks per sim/personality.ts. Loyal's patron = the employer of its first faction job. The fuel reserve is
+     bought after the jump's fuel only while the credits stay above the next contract's running costs. Every style
+     repairs and buys parts between contracts (the R22 runner already did); none buys modules or items (#42 stays parked).
+   - The /sl-balance mod reads per-contract --json lines; companies and personalities aren't wired into it (not small).
 ```
 
 ## TWEAK LOG
@@ -1727,6 +1737,14 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            played 102 (complete 42) | KIA 132 | avg end credits 325 (r22-s5: 10 | 123 (58) | 170 | 478). Played LOW 8 / MEDIUM
            30 / HIGH 64: Corporate's HIGH jobs ×1.2 top the fee list, so the fee bot takes more HIGH. Folds: suits 9, fuel 4,
            ops 1; 3 stranded with no lance. --contracts 20 --check OK. BUILD r23-s1 | -
+   round23 cp B (r23-s2) | brief: runner personalities | NEW BOT_PERSONALITY (cautious CREEP / scan fast / carry 1 / bail 1 /
+           reserve 3; aggressive SPRINT / carry 0.5 / bail 3 / push 10; loyal NORMAL / carry 0.5 / reserve 1; mercenary NORMAL /
+           carry 0.5). --company 10 --companies 20 --personality all (cautious / aggressive / loyal / mercenary): folded 11 / 13 /
+           11 / 16; played (complete) 123 (69) / 109 (50) / 138 (76) / 100 (39); KIA 94 / 121 / 143 / 134; avg end cr 255 / 517
+           / 650 / 321; L/M/H 64-59-0 / 1-34-74 / 27-42-69 / 8-31-61; hated by someone at the end 4 / 2 / 6 / 2 of 20; jobs in
+           hated ground 7 / 8 / 8 / 5%; liked intel 1 / 0 / 12 / 0%; top fee turned down 93 / 9 / 38 / 0%. The carry weight works
+           (Carry them out: 9/10 carried vs 0/10) but company CRITICALs are mostly wipes: carried 43 of 143 (cautious) vs 33 of
+           172 (mercenary); the R22 bot 31 of 174. No --personality: unchanged. BUILD r23-s2 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

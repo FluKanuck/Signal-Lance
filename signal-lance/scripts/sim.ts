@@ -26,7 +26,9 @@
 //   --scan quiet|fast|mixed|loud|none       R20: the live scan's preset before every hunt (quiet = EM on the objective 8 min; fast = radar
 //                                      full map 2 min; mixed = radar wide 2 → thermal on the objective 3 → EM there 5); drop nearest
 //   --scansweep 40                     R20: 40 contracts per preset: wins, risk / step / painted / joined at the drop, per mission
-//   --pick low                         R22: with --company, take the lowest-danger offer in reach (default: the highest fee)
+//   --pick low                         R22: with --company, take the lowest-danger offer in reach (default: the highest fee). R23: = cautious's pick
+//   --personality cautious|aggressive|loyal|mercenary|all   R23: with --company, the company plays that style in both layers
+//                                      (TUNE.BOT_PERSONALITY); all = the same seeds once per style, side by side, plus a sample history each
 //   --aar                              R22: print each hunt's after-action moments (the summary prints with --contracts / --company anyway)
 //   --company 10 [--companies 5]       R21: 10 contracts back to back on one company (seed --from; --companies: that many companies, seeds from --from up): operators, XP, CRITICAL / KIA, bench, credits, fuel, folds
 //   --listensweep 40                   R19: 40 contracts at each listen level (drop auto): win rate per level and per mission, and what
@@ -34,8 +36,10 @@
 import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
-import { newCompany, hire, hireBlock, companyLine, autoCrew, suitRefit, suitRefitBlock, suitCost, lanceSize, buy, offerBlock, fuelCost, takeOffer, endContract } from '../src/sim/company.ts';
-import { playOut as autoPlayOut, AUTO } from '../src/sim/autoplay.ts';
+import { newCompany, hire, hireBlock, companyLine, autoCrew, suitRefit, suitRefitBlock, suitCost, lanceSize, buy, offerBlock, fuelCost, takeOffer, endContract, runningCosts } from '../src/sim/company.ts';
+import { hated, intelFrom, facName } from '../src/sim/city.ts';
+import { personality, pickOffer, nextPatron, seedRoll } from '../src/sim/personality.ts';
+import { playOut as autoPlayOut, AUTO, BOT } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
 import { idTick, idSummary } from '../src/sim/ids.ts';
 import { scenarioByName, startScenario, leaveScenario, SCENARIOS } from '../src/sim/scenarios.ts';
@@ -283,11 +287,26 @@ function contracts(n: number) {
   return { res, hunts };
 }
 
-// R21: N contracts back to back on one company. The scripted lance takes job 1, repairs greedily (R11 refit), hires every
-// recruit it has room for, and never goes back for a CRITICAL suit (it only carries one by chance: #42). Cp3 adds the books.
-function companyRun(n: number, seed = FROM) {
+// R21: N contracts back to back on one company. The scripted lance takes job 1, repairs greedily (R11 refit), buying parts
+// as the repairs need them, and hires up to one spare operator. Cp3 adds the books.
+// R23 cp B: --personality cautious|aggressive|loyal|mercenary picks the contract by that rule (sim/personality.ts), keeps
+// its fuel reserve, scans with its preset, and plays the hunt with its weights (autoplay BOT): move mode, Bounty bail and
+// quota push, and going back for a CRITICAL lancemate (rolled per hunt on its carry weight). No --personality = the R22 bot
+// exactly (top fee, never goes back; --pick low = the cautious pick only).
+const PERSONA = sarg('--personality'); // '' | a name | all
+let MUTE = false; // --personality all: the per-company lines are silenced (the side-by-side table prints instead)
+const say = (...a: any[]) => { if (!MUTE) console.log(...a); };
+function setPersona(name: string) {
+  Object.assign(BOT, { move: 'NORMAL', carry: false, bailLost: 1, push: 0, leaveCarried: false });
+  if (!name) return null;
+  const P = personality(name); Object.assign(BOT, { move: P.move, bailLost: P.bailLost, push: P.push, leaveCarried: P.carry >= 1 });
+  return P;
+}
+const foldWhy = (f: string) => !f ? '' : /ExoS/.test(f) ? 'suits' : /fuel/.test(f) ? 'fuel' : /operator/.test(f) ? 'ops' : /debt/.test(f) ? 'debt' : 'other';
+function companyRun(n: number, seed = FROM, pname = PERSONA === 'all' ? '' : PERSONA) {
+  const P = setPersona(pname), rule = P ? P.pick : PICK === 'low' ? 'cautious' : 'fee';
   newCompany(seed, [loadA(), loadB()]);
-  const per: any[] = [], sizes: Record<number, number> = {}; let crits = 0, carried = 0, hired = 0, played = 0;
+  const per: any[] = [], sizes: Record<number, number> = {}, story: string[] = []; let crits = 0, carried = 0, hired = 0, played = 0, turned = 0, inHated = 0, intel = 0, stranded = '', patron = '';
   const C = G.co, buyFirst = (k: string, max = 99) => { let got = 0; const i = C.market.findIndex((l: any) => l.k === k); while (i >= 0 && got < max && buy(i)) got++; return got; };
   // repair everything it can afford: buy parts as the repairs need them (rebuild first, then hits, then reloads)
   const repairAll = () => { for (const what of ['rebuild', 'repair', 'rounds', 'shell']) for (let k = 0; k < 60; k++) { let any = false;
@@ -295,54 +314,93 @@ function companyRun(n: number, seed = FROM) {
     if (!any) break; } };
   for (let c = 0; c < n && !C.folded; c++) {
     while (hireBlock(0) === '' && C.ops.length < C.suits.length + 1) { hire(0); hired++; } // keeps one spare operator, no more
-    // the highest fee it can reach, buying the fuel it needs first (before any repair spends the credits)
+    // the offers it can reach, buying the fuel it needs first (before any repair spends the credits)
     const short = (o: any) => Math.max(0, fuelCost(o) - C.fuel), fl = C.market.find((l: any) => l.k === 'fuel');
-    const pick = C.offers.map((o: any, i: number) => ({ o, i })).filter((x: any) => short(x.o) === 0 || (fl && short(x.o) <= fl.qty && short(x.o) * fl.price <= C.credits)).sort((a: any, b: any) => PICK === 'low' ? a.o.tier - b.o.tier || b.o.fee - a.o.fee : b.o.fee - a.o.fee)[0]; // R22 --pick low: the safest offer in reach
-    if (pick) buyFirst('fuel', short(pick.o));
+    const cands = C.offers.map((o: any, i: number) => ({ o, i })).filter((x: any) => short(x.o) === 0 || (fl && short(x.o) <= fl.qty && short(x.o) * fl.price <= C.credits));
+    const top = cands.slice().sort((a: any, b: any) => b.o.fee - a.o.fee)[0], pick = pickOffer(rule, cands, patron);
+    if (pick) { buyFirst('fuel', short(pick.o)); if (P && P.reserve) { const want = fuelCost(pick.o) + P.reserve - C.fuel; for (let k = 0; k < want && fl && C.credits - fl.price >= runningCosts(); k++) buyFirst('fuel', 1); } } // R23: the reserve, if it can spare the credits
     repairAll(); autoCrew();
-    if (!pick || offerBlock(pick.i) || !lanceSize()) { console.log(`  contract ${c + 1}: stranded (${!lanceSize() ? 'no lance' : 'no fuel'}; ${C.credits} cr, ${C.fuel} fuel)`); break; }
-    const cr0 = C.credits, tier0 = C.offers[pick.i].tier, hunts0 = C.offers[pick.i].hunts; // R22: what the contract did to the books
-    takeOffer(pick.i); played++;
+    if (!pick || offerBlock(pick.i) || !lanceSize()) { stranded = !lanceSize() ? 'no lance' : 'no fuel'; say(`  contract ${c + 1}: stranded (${stranded}; ${C.credits} cr, ${C.fuel} fuel)`); break; }
+    if (pick.i !== top.i) turned++;
+    const o = C.offers[pick.i], cr0 = C.credits, tier0 = o.tier, hunts0 = o.hunts, hate = !!o.kind && hated(o.tgt), gift = o.kind ? intelFrom(o) : ''; // R22: what the contract did to the books
+    if (hate) inHated++; if (gift) intel++;
+    const where = o.kind ? C.city.districts[o.d].name : '';
+    takeOffer(pick.i); played++; patron = nextPatron(patron, o);
     while (G.ct.status === 'ACTIVE') {
       autoCrew(); if (!lanceSize()) { G.ct.status = 'FAILED'; endContract('FAILED'); break; } // every suit that can drop does
       sizes[lanceSize()] = (sizes[lanceSize()] || 0) + 1;
+      if (P) { BOT.carry = seedRoll(G.ct.jobs[0].seed, 23) < P.carry; if (P.scan !== 'none' && TUNE.SCAN_ENABLED && TUNE.SCAN_MODE === 'active') { G.scan = null; previewJob(0); replayScan(presetCmds(P.scan)); chooseDrop(nearestDrop()); } }
       takeJob(0); playOut(G.ct.huntSeed); aarNote(`co ${C.code} C${c + 1} H${G.ct.results.length}`); // R22
       for (const m of G.lance) if (m.crit) { crits++; if (m.carriedBy) carried++; }
       if (G.mode === 'hunt') { G.ct.status = 'FAILED'; endContract('FAILED'); break; } // a stall ends the contract
       if (G.ct.status === 'ACTIVE') { rollJobs(); repairAll(); }
     }
-    per.push({ c: c + 1, status: G.ct.status, wins: G.ct.wins, hunts: G.ct.results.length, tier: G.ct.tier ?? tier0, cr: C.credits, fuel: C.fuel, delta: C.credits - cr0, len: hunts0 });
-    if (VERBOSE) console.log(`  C${c + 1} ${G.ct.status} ${G.ct.wins}/${G.ct.results.length} | ${companyLine()} | ${C.news.join(' ')}`);
+    per.push({ c: c + 1, status: G.ct.status, wins: G.ct.wins, hunts: G.ct.results.length, tier: G.ct.tier ?? tier0, cr: C.credits, fuel: C.fuel, delta: C.credits - cr0, len: hunts0, kind: o.kind || '' });
+    if (o.kind) story.push(`C${c + 1} ${o.kind === 'FACTION' ? 'for ' + facName(o.emp) + ' vs ' + facName(o.tgt) : 'broker vs ' + facName(o.tgt)} in ${where} (${TUNE.DANGER_NAMES[o.tier]}, ${o.fee} cr${hate ? ', HATED ground' : ''}${gift ? ', ' + facName(gift) + ' intel' : ''}${pick.i !== top.i ? ', passed on ' + top.o.fee + ' cr' : ''}) → ${G.ct.status} ${G.ct.wins}/${G.ct.results.length}, ${C.credits - cr0 >= 0 ? '+' : ''}${C.credits - cr0} cr → ${C.credits} cr, ${C.fuel} fuel` +
+      ((C.city.last || []).filter((l: string) => !/fades/.test(l)).length ? ' · ' + C.city.last.filter((l: string) => !/fades/.test(l)).map((l: string) => l.replace(/ \(.*$/, '')).join(', ') : '') + (C.rec.kia ? ` · KIA so far ${C.rec.kia}` : ''));
+    if (VERBOSE) say(`  C${c + 1} ${G.ct.status} ${G.ct.wins}/${G.ct.results.length} | ${companyLine()} | ${C.news.join(' ')}`);
     C.news = [];
   }
+  if (C.folded) story.push('FOLDED: ' + C.folded);
   const R = C.rec, lv = [1, 2, 3].map(l => C.ops.filter((o: any) => o.lvl === l).length);
-  console.log(`== COMPANY ${C.code}: ${played} of ${n} contracts | complete ${R.complete} | failed ${R.failed} | hunts won ${R.wins}/${R.hunts} | ${C.folded ? 'FOLDED: ' + C.folded : 'still going'}`);
-  console.log(`  operators: KIA ${R.kia}, CRITICAL ${crits} (carried out ${carried}), hired ${hired} | roster at the end ${C.ops.length}: level 1 ×${lv[0]}, 2 ×${lv[1]}, 3 ×${lv[2]}, benched ${C.ops.filter((o: any) => o.status === 'BENCH').length}`);
-  console.log('  lance size per hunt: ' + Object.entries(sizes).map(([k, v]) => `${k} suits ×${v}`).join(', '));
-  console.log('  credits / fuel after each contract: ' + per.map(p => `C${p.c} ${p.status[0]}${['L', 'M', 'H'][p.tier] ?? ''} ${p.cr}cr/${p.fuel}f`).join(' · '));
-  console.log('  end: ' + companyLine());
-  if (C.memorial.length) console.log('  memorial: ' + C.memorial.map((m: any) => `${m.name} (${m.skill}${m.lvl}, ${m.when})`).join(', '));
-  console.log('  (the scripted lance never goes back for a CRITICAL suit and buys no ship modules or items: it undervalues the ship and market, #42)');
+  say(`== COMPANY ${C.code}${pname ? ' (' + pname + ')' : ''}: ${played} of ${n} contracts | complete ${R.complete} | failed ${R.failed} | hunts won ${R.wins}/${R.hunts} | ${C.folded ? 'FOLDED: ' + C.folded : 'still going'}`);
+  say(`  operators: KIA ${R.kia}, CRITICAL ${crits} (carried out ${carried}), hired ${hired} | roster at the end ${C.ops.length}: level 1 ×${lv[0]}, 2 ×${lv[1]}, 3 ×${lv[2]}, benched ${C.ops.filter((o: any) => o.status === 'BENCH').length}`);
+  say('  lance size per hunt: ' + Object.entries(sizes).map(([k, v]) => `${k} suits ×${v}`).join(', '));
+  say('  credits / fuel after each contract: ' + per.map(p => `C${p.c} ${p.status[0]}${['L', 'M', 'H'][p.tier] ?? ''} ${p.cr}cr/${p.fuel}f`).join(' · '));
+  say('  end: ' + companyLine());
+  if (C.memorial.length) say('  memorial: ' + C.memorial.map((m: any) => `${m.name} (${m.skill}${m.lvl}, ${m.when})`).join(', '));
+  if (!pname) say('  (the R22 bot: it never goes back for a CRITICAL suit and buys no ship modules or items, #42. --personality gives it a style)');
   if (!MANY) aarReport(); // R22 (several companies: one summary at the end)
-  return { folded: !!C.folded, played, complete: R.complete, kia: R.kia, cr: C.credits, per };
+  return { folded: !!C.folded, why: foldWhy(C.folded) || (stranded ? 'stranded' : ''), played, complete: R.complete, kia: R.kia, cr: C.credits, per, crits, carried, turned, inHated, intel, story,
+    standing: C.city ? { ...C.city.standing } : null, patron };
 }
 // R21 cp3: --company N --companies K: K companies of N contracts (seeds FROM..FROM+K-1), the summary per company and in total
-let MANY = false; const PICK = sarg('--pick') || 'high'; // R22: --pick low = the company takes the lowest danger it can reach (default: the highest fee)
-function companies(n: number, k: number) {
+let MANY = false; const PICK = sarg('--pick') || 'high'; // R22: --pick low = the company takes the lowest danger it can reach (R23: the cautious pick)
+function companies(n: number, k: number, pname?: string) {
   MANY = true;
   const out: any[] = [];
-  for (let i = 0; i < k; i++) out.push(companyRun(n, FROM + i));
+  for (let i = 0; i < k; i++) out.push(companyRun(n, FROM + i, pname));
   const sum = (key: string) => out.reduce((a, r) => a + r[key], 0);
   // R22 (R21's open question): does a contract pay its way? credits after it ends vs before it was taken (fuel bought before)
   const all = out.flatMap(r => r.per);
   for (const [t, nm] of [[0, 'LOW'], [1, 'MEDIUM'], [2, 'HIGH']] as [number, string][]) {
-    const L = all.filter((p: any) => p.tier === t); if (!L.length) { console.log(`  ${nm}: none played`); continue; }
+    const L = all.filter((p: any) => p.tier === t); if (!L.length) { say(`  ${nm}: none played`); continue; }
     const pays = L.filter((p: any) => p.delta >= 0);
-    console.log(`  ${nm}: ${L.length} played, complete ${L.filter((p: any) => p.status === 'COMPLETE').length}, paid its way ${pays.length} (avg ${Math.round(L.reduce((a: number, p: any) => a + p.delta, 0) / L.length)} cr; complete avg ${Math.round(L.filter((p: any) => p.status === 'COMPLETE').reduce((a: number, p: any) => a + p.delta, 0) / Math.max(1, L.filter((p: any) => p.status === 'COMPLETE').length))} cr) · ` + L.map((p: any) => `${p.len}h ${p.status[0]} ${p.delta >= 0 ? '+' : ''}${p.delta}`).join(', '));
+    say(`  ${nm}: ${L.length} played, complete ${L.filter((p: any) => p.status === 'COMPLETE').length}, paid its way ${pays.length} (avg ${Math.round(L.reduce((a: number, p: any) => a + p.delta, 0) / L.length)} cr; complete avg ${Math.round(L.filter((p: any) => p.status === 'COMPLETE').reduce((a: number, p: any) => a + p.delta, 0) / Math.max(1, L.filter((p: any) => p.status === 'COMPLETE').length))} cr)` + (VERBOSE ? ' · ' + L.map((p: any) => `${p.len}h ${p.status[0]} ${p.delta >= 0 ? '+' : ''}${p.delta}`).join(', ') : ''));
   }
-  console.log(`  contracts survived per company: ` + out.map(r => r.per.filter((p: any) => p.status === 'COMPLETE').length + '/' + r.played + (r.folded ? ' fold' : '')).join(' · '));
-  aarReport();
-  console.log(`== ${k} COMPANIES × ${n} contracts: folded ${out.filter(r => r.folded).length} | contracts played ${sum('played')} (complete ${sum('complete')}) | KIA ${sum('kia')} | avg credits at the end ${Math.round(sum('cr') / k)}`);
+  say(`  contracts survived per company: ` + out.map(r => r.per.filter((p: any) => p.status === 'COMPLETE').length + '/' + r.played + (r.folded ? ' fold' : '')).join(' · '));
+  if (!MUTE) aarReport();
+  say(`== ${k} COMPANIES × ${n} contracts${pname ? ' (' + pname + ')' : ''}: folded ${out.filter(r => r.folded).length} | contracts played ${sum('played')} (complete ${sum('complete')}) | KIA ${sum('kia')} | avg credits at the end ${Math.round(sum('cr') / k)}`);
+  return out;
+}
+// R23 cp B: --personality all: the same seeds once per personality, side by side
+function personalities(n: number, k: number) {
+  const names = Object.keys(TUNE.BOT_PERSONALITY), R: Record<string, any[]> = {};
+  for (const p of names) { MUTE = true; R[p] = companies(n, k, p); MUTE = false; }
+  const col = (f: (o: any[]) => string) => names.map(p => f(R[p]).padEnd(22)).join('');
+  const sum = (o: any[], k2: string) => o.reduce((a, r) => a + r[k2], 0), pc = (a: number, b: number) => b ? Math.round(100 * a / b) + '%' : '-';
+  const facs = TUNE.CITY_ENABLED ? Object.keys(TUNE.CITY_FACTIONS) : [];
+  console.log(`== PERSONALITIES: ${k} companies × ${n} contracts each (seeds ${FROM}..${FROM + k - 1})`);
+  console.log('  ' + ''.padEnd(26) + names.map(p => p.toUpperCase().padEnd(22)).join(''));
+  const row = (label: string, f: (o: any[]) => string) => console.log('  ' + label.padEnd(26) + col(f));
+  row('folded', o => String(o.filter(r => r.folded).length));
+  row('  suits/fuel/ops/debt', o => ['suits', 'fuel', 'ops', 'debt'].map(w => o.filter(r => r.why === w).length).join('/'));
+  row('stranded (no fold)', o => String(o.filter(r => r.why === 'stranded').length));
+  row('played (complete)', o => sum(o, 'played') + ' (' + sum(o, 'complete') + ')');
+  row('complete rate', o => pc(sum(o, 'complete'), sum(o, 'played')));
+  row('played L / M / H', o => [0, 1, 2].map(t => o.flatMap(r => r.per).filter((p: any) => p.tier === t).length).join(' / '));
+  row('faction / broker jobs', o => o.flatMap(r => r.per).filter((p: any) => p.kind === 'FACTION').length + ' / ' + o.flatMap(r => r.per).filter((p: any) => p.kind === 'BROKER').length);
+  row('KIA', o => String(sum(o, 'kia')));
+  row('CRITICAL (carried out)', o => sum(o, 'crits') + ' (' + sum(o, 'carried') + ')');
+  row('avg credits at the end', o => String(Math.round(sum(o, 'cr') / o.length)));
+  for (const at of [2, 4, 6, 8, n]) row(`  cr / fuel after C${at}`, o => { const L = o.map(r => r.per[at - 1]).filter(Boolean); return L.length ? Math.round(L.reduce((a, p) => a + p.cr, 0) / L.length) + ' / ' + (L.reduce((a, p) => a + p.fuel, 0) / L.length).toFixed(1) + ' (' + L.length + ')' : '-'; });
+  for (const f of facs) row(`end standing ${TUNE.CITY_FACTIONS[f].short}`, o => { const v = o.map(r => r.standing[f]); return 'avg ' + Math.round(v.reduce((a, b) => a + b, 0) / v.length) + ' · H' + v.filter(x => x <= TUNE.STANDING_HATED).length + ' L' + v.filter(x => x >= TUNE.STANDING_LIKED).length; });
+  if (facs.length) row('hated by someone at end', o => o.filter(r => facs.some(f => r.standing[f] <= TUNE.STANDING_HATED)).length + ' of ' + o.length);
+  if (facs.length) row('liked by someone at end', o => o.filter(r => facs.some(f => r.standing[f] >= TUNE.STANDING_LIKED)).length + ' of ' + o.length);
+  if (facs.length) row('jobs in hated territory', o => pc(sum(o, 'inHated'), sum(o, 'played')) + ' (' + sum(o, 'inHated') + ')');
+  if (facs.length) row('jobs with liked intel', o => pc(sum(o, 'intel'), sum(o, 'played')) + ' (' + sum(o, 'intel') + ')');
+  row('top fee turned down', o => pc(sum(o, 'turned'), sum(o, 'played')) + ' (' + sum(o, 'turned') + ')');
+  if (facs.length) for (const p of names) { console.log(`  -- ${p} sample (company seed ${FROM}${p === 'loyal' && R[p][0].patron ? ', patron ' + facName(R[p][0].patron) : ''}):`); for (const l of R[p][0].story) console.log('     ' + l); }
 }
 
 // R18 (A12): what found each lance suit first, on which channel, from how far
@@ -565,7 +623,9 @@ function scenarioRuns(name: string, n: number) {
 if (SCEN) {
   scenarioRuns(SCEN, RUNS);
 } else if (arg('--company', 0) > 0) {
-  if (arg('--companies', 1) > 1) companies(arg('--company', 0), arg('--companies', 1)); else companyRun(arg('--company', 0));
+  if (PERSONA === 'all') personalities(arg('--company', 0), arg('--companies', 1)); // R23 cp B
+  else if (PERSONA && !TUNE.BOT_PERSONALITY[PERSONA]) throw new Error('--personality: cautious | aggressive | loyal | mercenary | all');
+  else if (arg('--companies', 1) > 1) companies(arg('--company', 0), arg('--companies', 1)); else companyRun(arg('--company', 0));
 } else if (CONTRACTS > 0 && BOTH) {
   log0('######## NORMAL'); AUTO.loud = false; contracts(CONTRACTS); const a = last;
   log0('######## --loud'); AUTO.loud = true; contracts(CONTRACTS); const b = last;

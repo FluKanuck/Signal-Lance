@@ -601,6 +601,17 @@ export const TUNE = {
   STANDING_LIKED_PAY: 1.25,    // R23 (#47): a LIKED faction's own jobs pay their fee × this
   STANDING_LIKED_INTEL: 'RADAR', // R23: a job against a LIKED faction's enemy: the scan opens with this layer at band 1 everywhere ('RADAR' pings, zone outlines and drop zones; 'EM' the emitter count; '' none)
   STANDING_LIKED_FUEL_MULT: 0.75, // R23: fuel bought in a LIKED faction's district costs FUEL_PRICE × this
+  // --- Round 23 cp B: runner personalities (sim/personality.ts; the runner and the scripted lance only, never the game) ---
+  // Each keeps its weights across both layers. Hunt: move (CREEP / NORMAL / SPRINT), scan (a runner scan preset: none / fast /
+  // mixed), carry (chance per hunt it goes back for a CRITICAL lancemate), bailLost (Bounty: suits down before it cuts its
+  // losses), push (Bounty: rounds it keeps hunting past the quota). Campaign: pick (its contract rule), reserve (fuel it keeps
+  // after the jump, bought if it can).
+  BOT_PERSONALITY: {
+    cautious:   { move: 'CREEP',  scan: 'fast', carry: 1,   bailLost: 1, push: 0,  pick: 'cautious',   reserve: 3 },
+    aggressive: { move: 'SPRINT', scan: 'none', carry: 0.5, bailLost: 3, push: 10, pick: 'aggressive', reserve: 0 },
+    loyal:      { move: 'NORMAL', scan: 'none', carry: 0.5, bailLost: 1, push: 0,  pick: 'loyal',      reserve: 1 },
+    mercenary:  { move: 'NORMAL', scan: 'none', carry: 0.5, bailLost: 1, push: 0,  pick: 'fee',        reserve: 0 },
+  } as Record<string, { move: string; scan: string; carry: number; bailLost: number; push: number; pick: string; reserve: number }>,
   // --- Round 22: the after-action page (sim/aar.ts). The hunt records three kinds of events; the page shows the turning points ---
   AAR_MAX_MOMENTS: 6,          // R22: the most turning points WHAT HAPPENED lists (in turn order)
   AAR_WEIGHT_SEEN: 2,          // R22: a first detection (enemy on a suit or the lance on an enemy) as a turning point
