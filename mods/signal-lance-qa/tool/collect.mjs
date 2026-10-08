@@ -40,7 +40,7 @@ for (const id of readdirSync(B, { withFileTypes: true }).filter(d => d.isDirecto
   sessions.push({ id, persona: meta.persona, model: meta.model, device: meta.device, length: meta.length, hand: meta.hand, knowledge: meta.knowledge, seed: meta.seed,
     done: !!res, actions: res?.actions ?? ev.filter(e => e.kind === 'action').length, images: res?.images ?? ev.filter(e => e.kind === 'look' && e.shot).length,
     notes: mine.filter(f => f.source === 'tester').length, fallbacks: ev.filter(e => e.kind === 'fallback').length, thinks: ev.filter(e => e.kind === 'think').length,
-    screens: [...screens].sort(), hunts: ev.filter(e => /screen hunt → res|→ res/.test(e.result || '')).length, pageErrors: res?.pageErrors ?? 0, summary: res?.summary || '' });
+    screens: [...screens].sort(), hunts: screens.has('res') ? 1 : 0, /* reached a hunt result screen */ pageErrors: res?.pageErrors ?? 0, summary: res?.summary || '' });
 }
 // a tester "noticed" a violation if one of their bug notes was stamped while it was showing
 for (const f of F) if (f.source === 'tester' && f.category === 'bug') for (const v of f.violations || []) { const r = oracle.get(v.replace(/-?\d+(\.\d+)?/g, '#')); if (r) r.noticed = true; }

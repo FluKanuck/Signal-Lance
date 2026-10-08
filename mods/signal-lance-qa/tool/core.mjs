@@ -18,7 +18,7 @@ export const DEVICES = {
   desktop: { viewport: { width: 1280, height: 800 }, deviceScaleFactor: 1 },
 };
 // Budgets per session (actions = every command but look/think/status; images = looks with a screenshot)
-const BUDGET = { haiku: { actions: 160, images: 40 }, short: { actions: 140, images: 35 }, long: { actions: 110, images: 30 } }; // r23-models: 80 actions could not finish one 3-suit hunt
+const BUDGET = { haiku: { actions: 140, images: 40 }, short: { actions: 140, images: 35 }, long: { actions: 110, images: 30 } }; // r23-models: 80 actions could not finish one 3-suit hunt
 export const budgetFor = (m) => m.actions ? { actions: +m.actions, images: +(m.images || 30) } : m.model === 'haiku' ? BUDGET.haiku : m.length === 'long' ? BUDGET.long : BUDGET.short; // a plan may fix it (the model comparison does)
 
 // The campaign's seeds come from Math.random in the view: seed it before the page loads, so a session repeats

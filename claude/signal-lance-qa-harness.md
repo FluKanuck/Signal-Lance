@@ -1,6 +1,6 @@
 # Signal Lance QA panel: plan
 
-**Status:** plan agreed 2026-10-08. **Step 1 (the `__qa` hook) is done:** `npm run smoke` in `mods/signal-lance-qa/` passes on iPhone, iPad and desktop. Decision 8 (models) waits on step 4. Branch `claude/charming-franklin-tmygre`.
+**Status:** plan agreed 2026-10-08. **Step 1 (the `__qa` hook) is done:** `npm run smoke` in `mods/signal-lance-qa/` passes on iPhone, iPad and desktop. **Steps 2–4 done** (tool + watch pane, first tester, model comparison); step 4 settled decision 8. Branch `claude/charming-franklin-tmygre`.
 
 A Claude Code mod in which one lead agent runs a panel of tester agents. The testers play the built game in a real browser, each in a QA persona. They report what's missing, what's confusing, what UI/UX could be better and what's broken. The lead runs many short and long sessions, merges duplicate findings, and writes a report the design lead can read.
 
@@ -17,7 +17,7 @@ The QA panel complements the headless runner (`npm run sim`), which answers the 
 | 5 | What testers know | **About 60% blind** (no docs), **25% returning** (given a primer from earlier batches), **15% briefed** (given the round brief). |
 | 6 | Session length | **Split**: short single-mission sessions and long campaign (company / city) runs, done as relays. |
 | 7 | Seeds | **A fixed core set plus a few random ones** per batch. Every seed is recorded. |
-| 8 | Models | **Provisional:** **Haiku** for broad "click everything" bug hunts, **Sonnet** for the persona testers, **Opus** for the lead, merging duplicate findings and the report. Haiku 5.5 and Sonnet 5.5 are new, so step 4 (the model comparison) decides the tester split from evidence. Haiku 5.5 may be able to do more of the persona work. |
+| 8 | Models | **Decided by step 4** ([`signal-lance-qa-models.md`](signal-lance-qa-models.md)): Haiku for fresh recruit, thumb on the bus and breaker; Sonnet for tactics veteran, accessibility and round designer; Opus for the lead, judge and blind scoring. *Original:* **Haiku** for broad "click everything" bug hunts, **Sonnet** for the persona testers, **Opus** for the lead, merging duplicate findings and the report. Haiku 5.5 and Sonnet 5.5 are new, so step 4 (the model comparison) decides the tester split from evidence. Haiku 5.5 may be able to do more of the persona work. |
 | 9 | Personas | **Six fixed core personas, plus one per batch made by the lead** to fill a coverage gap. |
 | 10 | Output | **Markdown report** in `claude/` plus an **interactive web page** (filters, screenshot gallery, triage). |
 | 11 | When it runs | **On demand** (`/sl-qa`) first, then a step of the build round once it has proved useful. |

@@ -16,7 +16,7 @@ const A = resolve(RUNS, a.batch, 'analysis');
 const json = (f, d) => existsSync(f) ? JSON.parse(readFileSync(f, 'utf8')) : d;
 const F = readFileSync(resolve(A, 'findings.jsonl'), 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
 const C = json(resolve(A, 'clusters.json'), null); if (!C) { console.log('no clusters.json yet: run the judge first'); process.exit(1); }
-const S = json(resolve(A, 'sessions.json'), []), O = json(resolve(A, 'oracle.json'), []);
+const S = json(resolve(A, 'sessions.json'), []), O = json(resolve(A, 'oracle.json'), []), SC = json(resolve(A, 'scores.json'), null); // scores: the blind quality pass (model comparison)
 const byId = Object.fromEntries(F.map(f => [f.id, f]));
 const W = { blocker: 8, major: 4, minor: 2, polish: 1 }, SEV = ['blocker', 'major', 'minor', 'polish'];
 const DEVN = { iphone: 'iPhone', ipad: 'iPad', desktop: 'desktop' };
@@ -24,12 +24,13 @@ const uniq = (x) => [...new Set(x.filter(Boolean))];
 
 // reach: distinct sessions (a long run's hands count once, by chain), personas, devices, models
 const chainOf = (sid) => sid.replace(/-h\d+$/, '');
+const multiDev = uniq(S.map(s => s.device)).length > 1; // device-only means something only when the batch covered more than one device
 for (const c of C) {
   const fs = (c.findings || []).map(id => byId[id]).filter(Boolean);
   c.sessions = uniq(fs.map(f => chainOf(f.session))); c.personas = uniq(fs.map(f => f.persona)); c.devices = uniq(fs.map(f => f.device)); c.models = uniq(fs.map(f => f.model));
   if (c.oracle_only) { const o = O.find(o => o.example && (c.title.includes(o.example) || (c.summary || '').includes(o.example))); if (o) { c.sessions = uniq(o.sessions.map(chainOf)); c.oracle = o; } }
   c.reach = Math.max(1, c.sessions.length); c.score = (W[c.severity] || 1) * c.reach * (c.noise ? 0.1 : 1);
-  c.deviceOnly = !c.noise && c.sessions.length >= 2 && c.devices.length === 1 ? c.devices[0] : '';
+  c.deviceOnly = multiDev && !c.noise && c.sessions.length >= 2 && c.devices.length === 1 ? c.devices[0] : '';
   c.quotes = fs.slice(0, 6).map(f => ({ id: f.id, who: f.persona + ' · ' + f.model + ' · ' + DEVN[f.device], title: f.title, actual: f.actual, sev: f.severity, shot: f.shot }));
 }
 C.sort((x, y) => y.score - x.score || SEV.indexOf(x.severity) - SEV.indexOf(y.severity));
@@ -48,7 +49,9 @@ const mstat = models.map(m => {
   const valid = fs.filter(f => !noiseIds.has(f.id) && !disagree.has(f.id));
   const clusters = real.filter(c => (c.findings || []).some(id => byId[id]?.model === m));
   const only = clusters.filter(c => (c.findings || []).every(id => byId[id]?.model === m));
-  return { model: m, sessions: ss.length, notes: fs.length, valid: valid.length, noise: fs.filter(f => noiseIds.has(f.id)).length, disagree: fs.filter(f => disagree.has(f.id)).length,
+  const sc = SC ? fs.map(f => SC[f.id]).filter(Boolean) : [], avg = (k) => sc.length ? (sc.reduce((x, y) => x + y[k], 0) / sc.length).toFixed(2) : '–';
+  const blind = SC ? { real2: sc.filter(x => x.real === 2).length, wrong: sc.filter(x => x.real === 0).length, avgReal: avg('real'), avgAct: avg('actionable'), avgInsight: avg('insight'), insight2: sc.filter(x => x.insight === 2).length } : null;
+  return { model: m, sessions: ss.length, ...(blind ? { blind } : {}), notes: fs.length, valid: valid.length, noise: fs.filter(f => noiseIds.has(f.id)).length, disagree: fs.filter(f => disagree.has(f.id)).length,
     clusters: clusters.length, unique: only.length, uniqueMajor: only.filter(c => c.severity === 'blocker' || c.severity === 'major').length,
     perSession: ss.length ? (fs.length / ss.length).toFixed(1) : '0', actions: ss.length ? Math.round(ss.reduce((x, s) => x + (s.actions || 0), 0) / ss.length) : 0,
     images: ss.length ? Math.round(ss.reduce((x, s) => x + (s.images || 0), 0) / ss.length) : 0, fallbacks: ss.reduce((x, s) => x + (s.fallbacks || 0), 0),
@@ -59,7 +62,7 @@ const mstat = models.map(m => {
 const md = [];
 const reachTxt = (c) => c.reach + ' session' + (c.reach > 1 ? 's' : '') + (c.personas.length ? ' · ' + c.personas.length + ' persona' + (c.personas.length > 1 ? 's' : '') : '') + (c.devices.length ? ' · ' + c.devices.map(d => DEVN[d]).join('/') : '');
 md.push('# ' + title, '', `**Date:** ${date} · **Batch:** \`${a.batch}\` · **Sessions:** ${S.length} (${uniq(S.map(s => chainOf(s.id))).length} runs) · **Findings:** ${nTester} from testers, ${F.length - nTester} input fallbacks · **Clusters:** ${real.length}, plus noise · **Oracle violations:** ${O.length} kinds`, '');
-md.push('The QA panel ran agent testers in personas on the real build (`npm run build:qa`), on iPhone, iPad and desktop. The judge merged findings by root cause. Each cluster below counts the distinct runs that reported it. The **page** has filters, tester quotes, screenshots and triage. Plan: `claude/signal-lance-qa-harness.md`.', '');
+md.push('The QA panel ran agent testers in personas on the real build (`npm run build:qa`), on ' + uniq(S.map(s => DEVN[s.device])).join(', ') + '. The judge merged findings by root cause. Each cluster below counts the distinct runs that reported it. The **page** has filters, tester quotes, screenshots and triage. Plan: `claude/signal-lance-qa-harness.md`.', '');
 md.push('## Top 10 (severity × reach)', '', '| # | Cluster | Cat | Sev | Reach | Evidence |', '|---|---|---|---|---|---|');
 real.slice(0, 10).forEach((c, i) => md.push(`| ${i + 1} | **${c.title}** | ${c.category} | ${c.severity} | ${reachTxt(c)} | ${c.evidence || ''} |`));
 md.push('');
@@ -81,6 +84,11 @@ if (models.length > 1) {
   md.push('## Models', '', '| Model | Sessions | Notes / session | Valid | Noise | Oracle disagrees | Clusters hit | Only this model (major+) | Avg actions | Avg images | Fallbacks | Screens / session | Hunts finished |', '|---|---|---|---|---|---|---|---|---|---|---|---|---|');
   for (const m of mstat) md.push(`| ${m.model} | ${m.sessions} | ${m.perSession} | ${m.valid} | ${m.noise} | ${m.disagree} | ${m.clusters} | ${m.unique} (${m.uniqueMajor}) | ${m.actions} | ${m.images} | ${m.fallbacks} | ${m.screens} | ${m.hunts} |`);
   md.push('');
+  if (SC) {
+    md.push('Blind quality pass (an Opus judge scored every finding without knowing the model; 0–2 each):', '', '| Model | Real & correct (2) | Wrong / artifact (0) | Avg real | Avg actionable | Avg insight | High-insight (2) |', '|---|---|---|---|---|---|---|');
+    for (const m of mstat) if (m.blind) md.push(`| ${m.model} | ${m.blind.real2} | ${m.blind.wrong} | ${m.blind.avgReal} | ${m.blind.avgAct} | ${m.blind.avgInsight} | ${m.blind.insight2} |`);
+    md.push('');
+  }
 }
 const noise = C.filter(c => c.noise);
 if (noise.length) md.push('## Noise / tool limits', '', noise.map(c => `- ${c.title}: ${(c.findings || []).length} findings`).join('\n'), '');
@@ -104,9 +112,10 @@ if (shotList.length) {
 for (const c of real) for (const q of c.quotes) q.img = q.shot && shots[q.shot] ? q.shot : '';
 
 // ---------- the page ----------
+for (const m of mstat) if (m.blind) Object.assign(m, { blindReal2: m.blind.real2, blindWrong: m.blind.wrong, avgInsight: m.blind.avgInsight });
 const data = { title, batch: a.batch, date, sessions: S.map(s => ({ id: s.id, persona: s.persona, model: s.model, device: s.device, length: s.length, hand: s.hand, seed: s.seed, actions: s.actions, notes: s.notes, screens: s.screens.length, summary: s.summary })),
   clusters: real.map(c => ({ id: c.id, title: c.title, category: c.category, severity: c.severity, summary: c.summary, repro: c.repro, evidence: c.evidence, evidence_note: c.evidence_note, suggestion: c.suggestion, reach: c.reach, personas: c.personas, devices: c.devices, models: c.models, deviceOnly: c.deviceOnly, oracleOnly: !!c.oracle_only, quotes: c.quotes, n: (c.findings || []).length })),
-  noise: noise.map(c => ({ title: c.title, n: (c.findings || []).length })), models: models.length > 1 ? mstat : [], counts: { findings: nTester, fallbacks: F.length - nTester, oracle: O.length } };
+  noise: noise.map(c => ({ title: c.title, n: (c.findings || []).length })), devices: uniq(S.map(s => DEVN[s.device])), models: models.length > 1 ? mstat : [], counts: { findings: nTester, fallbacks: F.length - nTester, oracle: O.length } };
 const tpl = readFileSync(resolve(here, 'page.html'), 'utf8');
 const html = tpl.replace('/*__DATA__*/null', JSON.stringify(data).replace(/</g, '\\u003c')).replace('/*__SHOTS__*/null', JSON.stringify(shots)).replace(/__TITLE__/g, title.replace(/[<&]/g, ''));
 writeFileSync(resolve(A, 'page.html'), html);

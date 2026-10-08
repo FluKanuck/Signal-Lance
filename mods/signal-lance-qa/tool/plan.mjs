@@ -16,8 +16,8 @@ const SEEDS = JSON.parse(readFileSync(resolve(here, '../seeds.json'), 'utf8'));
 const HANDS = Number(a.hands || 2), RANDOM = Number(a.random ?? 2); // one random short + one random long by default
 // The core personas: model and knowledge per decision 5 + 8 (blind ~60%, returning ~25%, briefed ~15%; Haiku for the breaker)
 export const CORE = [
-  { persona: 'fresh-recruit', model: 'sonnet', knowledge: 'blind' },
-  { persona: 'thumb-on-the-bus', model: 'sonnet', knowledge: 'blind' },
+  { persona: 'fresh-recruit', model: 'haiku', knowledge: 'blind' },   // step 4 (claude/signal-lance-qa-models.md): Haiku found 3x the correct findings at equal accuracy
+  { persona: 'thumb-on-the-bus', model: 'haiku', knowledge: 'blind' },
   { persona: 'breaker', model: 'haiku', knowledge: 'blind' },
   { persona: 'accessibility', model: 'sonnet', knowledge: 'blind' },
   { persona: 'tactics-veteran', model: 'sonnet', knowledge: 'returning' },

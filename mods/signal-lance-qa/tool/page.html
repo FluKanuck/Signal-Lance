@@ -109,7 +109,7 @@ const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? 
 
 $('h1').textContent = D.title;
 document.title = D.title;
-$('meta').textContent = `Batch ${D.batch} · ${D.date} · ${D.sessions.length} sessions on iPhone, iPad and desktop`;
+$('meta').textContent = `Batch ${D.batch} · ${D.date} · ${D.sessions.length} sessions on ${(D.devices || []).join(', ')}`;
 const nSev = (s) => D.clusters.filter(c => c.severity === s).length;
 const devOnly = D.clusters.filter(c => c.deviceOnly).length, orc = D.clusters.filter(c => c.oracleOnly).length;
 for (const [v, l] of [[D.clusters.length, 'clusters'], [nSev('blocker'), 'blockers'], [nSev('major'), 'major'], [D.counts.findings, 'tester findings'], [D.counts.fallbacks, 'input fallbacks'], [devOnly, 'device-only'], [orc, 'oracle-only bugs']])
@@ -177,7 +177,7 @@ $('zoom').onclick = () => $('zoom').close();
 
 if (D.models.length) {
   $('modelsSec').hidden = false;
-  const cols = [['model', 'Model'], ['sessions', 'Sessions'], ['perSession', 'Notes / session'], ['valid', 'Valid'], ['noise', 'Noise'], ['disagree', 'Oracle disagrees'], ['clusters', 'Clusters hit'], ['unique', 'Only this model'], ['uniqueMajor', '(major+)'], ['actions', 'Avg actions'], ['images', 'Avg images'], ['fallbacks', 'Fallbacks'], ['screens', 'Screens / session'], ['hunts', 'Hunts finished']];
+  const cols = [['model', 'Model'], ['sessions', 'Sessions'], ['perSession', 'Notes / session'], ['valid', 'Valid'], ['noise', 'Noise'], ['disagree', 'Oracle disagrees'], ['clusters', 'Clusters hit'], ['unique', 'Only this model'], ['uniqueMajor', '(major+)'], ['actions', 'Avg actions'], ['images', 'Avg images'], ['fallbacks', 'Fallbacks'], ['screens', 'Screens / session'], ['hunts', 'Hunts finished'], ...(D.models[0].blindReal2 !== undefined ? [['blindReal2', 'Blind: real & correct'], ['blindWrong', 'Blind: wrong'], ['avgInsight', 'Blind: avg insight']] : [])];
   $('models').append(el('tr', {}, cols.map(([, l]) => el('th', {}, l))), ...D.models.map(m => el('tr', {}, cols.map(([k]) => el('td', {}, m[k])))));
 }
 $('sessions').append(el('tr', {}, ['Session', 'Persona', 'Model', 'Device', 'Length', 'Seed', 'Actions', 'Notes', 'Summary'].map(h => el('th', {}, h))),
