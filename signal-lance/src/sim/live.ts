@@ -131,9 +131,20 @@ function separate() {
     if (d >= r2) continue;
     if (d < 1e-6) { dx = 1; dy = 0; d = 1e-6; } // the same spot: push along x
     const gap = r2 - d, nx = dx / Math.max(d, 1e-6), ny = dy / Math.max(d, 1e-6);
-    const fa = fixed(a) ? 0 : fixed(b) ? 1 : 0.5, fb = fixed(b) ? 0 : fixed(a) ? 1 : 0.5;
+    let fa = fixed(a) ? 0 : fixed(b) ? 1 : 0.5, fb = fixed(b) ? 0 : fixed(a) ? 1 : 0.5;
+    if (fa === 0.5) { // R25 fix 1: two walkers in a file: the one behind yields, the one in front walks on
+      const ab = follows(a, b), ba = follows(b, a);
+      if (ab && !ba) { fa = 1; fb = 0; } else if (ba && !ab) { fa = 0; fb = 1; }
+      else if (ab && ba) { fa = 0; fb = 1; } // both squeezing into one gap: the first in the list (A before B) goes, the other waits behind
+    }
     nudge(a, -nx * gap * fa, -ny * gap * fa); nudge(b, nx * gap * fb, ny * gap * fb);
   }
+}
+// is walker a heading toward b (b ahead of it on its route)?
+function follows(a, b) {
+  if (!a.moving || !a.path || a.pi >= a.path.length) return false;
+  const w = a.path[a.pi], dx = w.x - a.x, dy = w.y - a.y, d = Math.hypot(dx, dy) || 1;
+  return ((b.x - a.x) * dx + (b.y - a.y) * dy) / d > 0;
 }
 function nudge(u, dx: number, dy: number) { const x = u.x + dx, y = u.y + dy; if (!isSolid(Math.floor(x / T), Math.floor(y / T))) { u.x = x; u.y = y; } }
 // one ROUND of the clock: what used to happen once a turn
@@ -202,7 +213,10 @@ function stepLact(m, dt: number) {
   if (a.k === 'PULSE' && a.age >= a.radarT) m.radarOn = false;
   if (a.k === 'MOVE' && m.path) { // R25 cp C: blocked by another unit (the spacing push holds it back): end the move here
     if (a.sx === undefined || Math.hypot(m.x - a.sx, m.y - a.sy) > 0.25 * T) { a.sx = m.x; a.sy = m.y; a.st = a.age; }
-    else if (a.age - a.st > TUNE.LIVE_STUCK_TIME) { m.path = null; a.stuck = true; }
+    else { // R25 fix 1 (Jamie: a nudge at a choke point cancelled the route): wait; give up only next to the end, or after a long wait
+      const e = m.path[m.path.length - 1], near = Math.hypot(e.x - m.x, e.y - m.y) <= TUNE.LIVE_STUCK_NEAR * T, waited = a.age - a.st;
+      if ((near && waited > TUNE.LIVE_STUCK_TIME) || waited > TUNE.LIVE_STUCK_GIVEUP) { m.path = null; a.stuck = true; }
+    }
   }
   const done = a.k === 'MOVE' ? !m.path || a.age > 120 : a.t <= 0;
   if (!done) return;

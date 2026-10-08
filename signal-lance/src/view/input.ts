@@ -41,8 +41,8 @@ order('bEcm', cmdEcm);
 order('bGhost', () => { V.ghostArm = !V.ghostArm && canGhost(); if (V.ghostArm) V.mortarArm = false; });
 order('bFire', cmdFire);
 order('bMortar', () => { V.mortarWhy = ''; V.mortarArm = !V.mortarArm && mortarBlindBlock(G.p) === ''; if (V.mortarArm) V.ghostArm = V.faceArm = false; }); // R9 run1: arms targeting; tap again cancels
-btn('bZin', () => { V.zoomI = 0; });
-btn('bZout', () => { V.zoomI = 1; });
+btn('bZin', () => { V.zoomI = 0; V.pinch = 1; });
+btn('bZout', () => { V.zoomI = 1; V.pinch = 1; }); // R25: Z+ / Z− also clear a pinch
 btn('bCtr', () => { V.follow = true; });
 // R18 (Jamie): back to the start (hangar) screen. Two taps: the first arms it for 3 s ("SURE?"), the second quits.
 let quitT: any = 0;
@@ -108,6 +108,7 @@ export function showWpMenu(d: number) {
   const pl = drawnPlan(), q = pl && along(pl.full, d); if (!q) return;
   const z = camZ(), sx = vw / 2 + (q.x - V.camX) * z, sy = vh / 2 + (q.y - V.camY) * z, M = $('wpMenu');
   V.wpMenu = d; M.hidden = !waypointNear(d); // r17-s3: only ✕ (remove), and only on a point that already looks somewhere
+  if (G.live) { M.hidden = false; $('bWpX').hidden = !waypointNear(d); } // R25 fix 3: the toy always offers FORWARD
   M.style.left = Math.max(8, Math.min(vw - 150, sx - 60)) + 'px'; M.style.top = Math.max(70, Math.min(vh - 120, sy - 80)) + 'px';
 }
 export function hideWpMenu() { V.wpMenu = null; $('wpMenu').hidden = true; }

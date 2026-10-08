@@ -396,7 +396,7 @@ export function render() {
       for (let i = 1; i < F.length; i++) ctx.lineTo(F[i].x, F[i].y);
       ctx.stroke(); ctx.setLineDash([]);
     }
-    for (const w of pl.wps) { const q = F[w.i]; eyesCone(q.x, q.y, w.fx, w.fy, 0.1); }
+    for (const w of pl.wps) { if (w.fwd) continue; const q = F[w.i]; eyesCone(q.x, q.y, w.fx, w.fy, 0.1); } // R25 fix 3: a FORWARD point has no cone
     if (P) {
       ctx.strokeStyle = '#8fe3ff'; ctx.lineWidth = 3.5 / z; ctx.beginPath(); ctx.moveTo(P[0].x, P[0].y);
       for (let i = 1; i < P.length; i++) ctx.lineTo(P[i].x, P[i].y);
@@ -415,6 +415,13 @@ export function render() {
     for (const w of (G.planD ? G.planD.wps : [])) {
       const q = along(F, w.d); if (!q) continue;
       const on = kept.has(Math.round(w.d * 100)), d = Math.hypot(w.fx, w.fy) || 1;
+      if (w.fwd) { // R25 fix 3: a FORWARD point: a green chevron along the route and FWD
+        const n = along(F, Math.min(pl.length, w.d + 0.3)) || q, ang = Math.atan2(n.y - q.y, n.x - q.x), r = 10 / z;
+        ctx.strokeStyle = ctx.fillStyle = on ? '#7e9' : '#888'; ctx.lineWidth = 3 / z;
+        ctx.beginPath(); ctx.moveTo(q.x + Math.cos(ang) * r, q.y + Math.sin(ang) * r); ctx.lineTo(q.x + Math.cos(ang + 2.4) * r, q.y + Math.sin(ang + 2.4) * r);
+        ctx.lineTo(q.x + Math.cos(ang - 2.4) * r, q.y + Math.sin(ang - 2.4) * r); ctx.closePath(); ctx.fill();
+        ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText('FWD', q.x + 12 / z, q.y - 8 / z); continue;
+      }
       ctx.strokeStyle = ctx.fillStyle = on ? '#8fe3ff' : '#888'; ctx.lineWidth = 3 / z;
       ctx.beginPath(); ctx.moveTo(q.x, q.y - 9); ctx.lineTo(q.x + 9, q.y); ctx.lineTo(q.x, q.y + 9); ctx.lineTo(q.x - 9, q.y); ctx.closePath(); ctx.fill();
       const mk = markerPos(w, F); // r17-s3: the look marker (an eye): drag it to move where this point looks

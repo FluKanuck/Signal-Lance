@@ -15,6 +15,10 @@ if (!out.includes(ROW)) throw new Error('live-html: the splash toggle row change
 out = out.replace(ROW, ROW + '\n  <div class="zrow" id="apRow"></div>');
 // the auto-pause banner over the map
 out = out.replace('<div id="hud"></div>', '<div id="hud"></div>\n<div id="apBanner" hidden></div>');
+// R25 fix 3: the FORWARD button beside ✕ LOOK on a route point
+const WPX = '<button id="bWpX">✕ LOOK</button>';
+if (!out.includes(WPX)) throw new Error('live-html: the look menu changed');
+out = out.replace(WPX, WPX + '<button id="bWpF">FORWARD</button>');
 out = out.replace('</style>', '</style>\n' + CSS.trim());
 if (out === src || !out.includes('main-live.ts')) throw new Error('live-html: signal-lance.html changed shape');
 writeFileSync('signal-lance-live.html', out);

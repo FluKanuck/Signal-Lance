@@ -4,6 +4,7 @@ import { TUNE } from './tune.ts';
 
 TUNE.TIME_MODE = 'live';
 TUNE.FREE_POS = true; // R25 cp C: free positions
+TUNE.FACE_WAYPOINTS_MAX = 99; // R25 fix 2 (Jamie: "no limits on facing commands")
 document.body.classList.add('live');
 try {
   const S = Storage.prototype, P = 'live:';

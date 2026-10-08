@@ -308,33 +308,62 @@ export function drawnPoints(m, pts: { x: number; y: number }[]) {
   }
   return simplify(out);
 }
-// R25 cp D (free positions): the line as drawn. The stroke is smoothed (PATH_SMOOTH rounds of Chaikin corner-cutting, the
-// ends kept), points inside a wall are dropped (the last one moves to the nearest open point), a stretch that would cut
-// through or graze a wall bends round it on the tightest clear line (findPath, tightened), then only wobbles smaller than
-// PATH_SIMPLIFY go. Never snapped to tiles.
-function drawnFree(m, pts: { x: number; y: number }[]) {
-  let P = [{ x: m.x, y: m.y }, ...pts];
-  for (let k = 0; k < TUNE.PATH_SMOOTH && P.length > 2; k++) {
-    const Q = [P[0]];
-    for (let i = 0; i < P.length - 1; i++) {
-      const a = P[i], b = P[i + 1];
-      if (i > 0) Q.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 });
-      if (i < P.length - 2) Q.push({ x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 });
+// R25 cp D (free positions): the line as drawn. R25 fix 5 (Jamie: "when your path crosses a corner, it always does a really
+// jagged approximation of the path around the obstacle rather than smoothly flowing around it"): the stroke is resampled
+// every PATH_STEP tiles and every point is pushed out to PATH_CLEAR from the walls (a point inside a wall goes to the
+// nearest open point first). Only a stretch that still crosses a wall is joined by findPath (tightened). Then the whole line
+// relaxes PATH_RELAX times: each point moves halfway to its neighbours' middle and back out to PATH_CLEAR, kept only if both
+// its stretches stay clear. So it flows round a corner instead of stepping through tile centres. Never snapped to tiles.
+function wallPush(q: { x: number; y: number }, clear: number) { // move q out to `clear` tiles from every wall near it
+  const c = clear * T;
+  for (let it = 0; it < 3; it++) {
+    const tx = Math.floor(q.x / T), ty = Math.floor(q.y / T); let best = Infinity, nx = 0, ny = 0;
+    for (let oy = -1; oy <= 1; oy++) for (let ox = -1; ox <= 1; ox++) {
+      if (!isSolid(tx + ox, ty + oy)) continue;
+      const rx = Math.max((tx + ox) * T, Math.min((tx + ox + 1) * T, q.x)), ry = Math.max((ty + oy) * T, Math.min((ty + oy + 1) * T, q.y));
+      const d = Math.hypot(q.x - rx, q.y - ry);
+      if (d < best && d > 1e-6) { best = d; nx = (q.x - rx) / d; ny = (q.y - ry) / d; }
     }
-    Q.push(P[P.length - 1]); P = Q;
+    if (best >= c) return q;
+    const p = { x: q.x + nx * (c - best), y: q.y + ny * (c - best) };
+    if (isSolid(Math.floor(p.x / T), Math.floor(p.y / T))) return q;
+    q = p;
   }
-  const last = P[P.length - 1], end = freePoint(last.x, last.y);
-  const out = [{ x: m.x, y: m.y }];
+  return q;
+}
+const segOK = (a, b) => { // no wall between, nor a hair to either side
+  if (tilesCrossed(a.x, a.y, b.x, b.y, 1) !== 0) return false;
+  const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, px = -dy / L * 0.12 * T, py = dx / L * 0.12 * T;
+  return tilesCrossed(a.x + px, a.y + py, b.x + px, b.y + py, 1) === 0 && tilesCrossed(a.x - px, a.y - py, b.x - px, b.y - py, 1) === 0;
+};
+function resample(P, step: number) {
+  const out = [P[0]];
   for (let i = 1; i < P.length; i++) {
-    let q = P[i];
-    if (i === P.length - 1 && end) q = end;
-    else if (!canReach(Math.floor(q.x / T), Math.floor(q.y / T))) continue;
-    const l = out[out.length - 1];
-    if (plain(l, q) < 0.05) continue;
-    if (clearWide(l, q)) { out.push({ x: q.x, y: q.y }); continue; }
+    const a = out[out.length - 1], b = P[i], L = Math.hypot(b.x - a.x, b.y - a.y) / T;
+    const n = Math.floor(L / step);
+    for (let k = 1; k <= n; k++) out.push({ x: a.x + (b.x - a.x) * k * step / L, y: a.y + (b.y - a.y) * k * step / L });
+    const l = out[out.length - 1]; if (Math.hypot(b.x - l.x, b.y - l.y) > 1e-6) out.push(b);
+  }
+  return out;
+}
+function drawnFree(m, pts: { x: number; y: number }[]) {
+  const start = { x: m.x, y: m.y };
+  let P = resample([start, ...pts], TUNE.PATH_STEP);
+  for (let i = 1; i < P.length; i++) { let q = P[i]; if (isSolid(Math.floor(q.x / T), Math.floor(q.y / T))) q = freePoint(q.x, q.y) || q; P[i] = wallPush(q, TUNE.PATH_CLEAR); }
+  const out = [start];
+  for (let i = 1; i < P.length; i++) {
+    const q = P[i], l = out[out.length - 1];
+    if (isSolid(Math.floor(q.x / T), Math.floor(q.y / T))) continue;
+    if (plain(l, q) < 0.02) continue;
+    if (segOK(l, q)) { out.push(q); continue; }
     const seg = findPath(l.x, l.y, q.x, q.y);
     if (!seg) continue;
-    for (let k = 1; k < seg.length; k++) out.push(seg[k]);
+    for (const s of resample(seg, TUNE.PATH_STEP).slice(1)) out.push(wallPush(s, TUNE.PATH_CLEAR));
+  }
+  for (let it = 0; it < TUNE.PATH_RELAX; it++) for (let i = 1; i < out.length - 1; i++) { // relax: flow round corners
+    const a = out[i - 1], b = out[i + 1], p = out[i];
+    const c = wallPush({ x: p.x + ((a.x + b.x) / 2 - p.x) * 0.5, y: p.y + ((a.y + b.y) / 2 - p.y) * 0.5 }, TUNE.PATH_CLEAR);
+    if (!isSolid(Math.floor(c.x / T), Math.floor(c.y / T)) && segOK(a, c) && segOK(c, b)) out[i] = c;
   }
   return simplify(out, TUNE.PATH_SIMPLIFY);
 }
@@ -427,6 +456,7 @@ export function doMove(m, pl) {
     tile: Math.floor(m.y / T) * W + Math.floor(m.x / T) };
   if (nw) a.arrive = (i: number) => { // R17: a facing waypoint: turn as it reaches the tile, hold until the next one / the end
     const w = pl.wps.find(w => w.i === i); if (!w) return false;
+    if (w.fwd) { m.holdFace = false; const n = m.path && m.path[m.pi]; if (n) faceTo(m, n.x, n.y); a.wpDone++; updateSensors(0); return true; } // R25 fix 3: FORWARD: look where it walks again
     const d = Math.hypot(w.fx, w.fy) || 1; m.fx = w.fx / d; m.fy = w.fy / d; m.holdFace = true; a.wpDone++;
     updateSensors(0); return true;
   };
@@ -625,6 +655,14 @@ export function cmdWaypoint(d: number, fx: number, fy: number, lx?: number, ly?:
   if (w) { w.fx = fx; w.fy = fy; w.lx = lx; w.ly = ly; }
   else if (G.planD.wps.length >= TUNE.FACE_WAYPOINTS_MAX) return false;
   else G.planD.wps.push({ d, fx, fy, lx, ly });
+  replan(); return true;
+}
+// R25 fix 3 (Jamie: "a marker we can tap along a route to cancel the facing and have view return forward"): a FORWARD point
+// d tiles along the drawn path. From there the ExoS looks where it walks. It replaces a look at the same point.
+export function cmdForward(d: number) {
+  if (!G.planD || !G.plan || !G.plan.drawn || !playerFree() || d <= 0.05 || d > G.plan.length + 1e-6) return false;
+  G.planD.wps = G.planD.wps.filter(w => Math.abs(w.d - d) >= WP_SAME);
+  G.planD.wps.push({ d, fx: 0, fy: 0, fwd: true });
   replan(); return true;
 }
 export function waypointNear(d: number) { return G.planD ? G.planD.wps.find(w => Math.abs(w.d - d) < WP_SAME) || null : null; }

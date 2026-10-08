@@ -3,7 +3,7 @@ import { TUNE } from '../tune.ts';
 import { newLk } from '../sim/warn.ts';
 import type { LkState } from '../sim/warn.ts';
 export const V = {
-  zoomI: 0, camX: 0, camY: 0, follow: true, // camera follows the player until you drag; CTR re-attaches it
+  zoomI: 0, pinch: 1, camX: 0, camY: 0, follow: true, // camera follows the player until you drag; CTR re-attaches it
   dbg: false,
   faceArm: false, ghostArm: false, mortarArm: false, mortarWhy: '',          // armed tap modes (tap own mech → face; GHOST → place)
   hitFlash: 0,                              // red screen border after taking a hit
@@ -20,4 +20,4 @@ export const V = {
   uiS: 1,                                   // R18 fix (Jamie, iPad split screen): UI scale for this window (1 = the phone the game was laid out on)
 };
 // R18 fix: the map's zoom (screen px per world unit) scales with the window too, so a big screen shows the same district bigger
-export const camZ = () => TUNE.ZOOMS[V.zoomI] * V.uiS;
+export const camZ = () => TUNE.ZOOMS[V.zoomI] * V.uiS * V.pinch; // R25 fix 4: × the pinch (toy page; always 1 on the main game)

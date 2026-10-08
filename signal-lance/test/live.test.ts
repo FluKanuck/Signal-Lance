@@ -374,3 +374,60 @@ describe('routes go on PLAY', () => {
     expect(m.lact).toBeNull();
   });
 });
+
+// ---- R25 fix list (Jamie's play of r25-live-d2) ----
+import { cmdDraw, cmdWaypoint, cmdForward } from '../src/sim/turns.ts';
+describe('R25 fix list', () => {
+  let fp: any, fw: any;
+  beforeEach(() => { fp = TUNE.FREE_POS; TUNE.FREE_POS = true; fw = TUNE.FACE_WAYPOINTS_MAX; TUNE.FACE_WAYPOINTS_MAX = 99; });
+  afterEach(() => { TUNE.FREE_POS = fp; TUNE.FACE_WAYPOINTS_MAX = fw; leaveScenario(); loadMap(HIVE); });
+  const ctr = (x: number, y: number) => ({ x: (x + 0.5) * T, y: (y + 0.5) * T });
+  const tiny = (rows: string[]) => loadMap({ id: 'test', rows, anchors: HIVE.anchors, info: { grid: 'test' } });
+  it('1: three ExoS through a one-tile gap all finish their routes (a nudge never cancels one)', () => {
+    startScenario({ ...scenarioByName('Crunch'), map: undefined, uplink: [0, 0], lance: [{ tile: [1, 2] }, { tile: [1, 3] }, { tile: [1, 4] }], field: [{ type: 'TURRET', tile: [2, 2] }], mission: 'UPLINK' });
+    tiny(['.....#.....', '.....#.....', '.....#.....', '...........', '.....#.....', '.....#.....', '.....#.....']); // the only way east: row 3, column 5
+    G.lance.forEach((m, i) => { const p = ctr(1, 2 + i); m.x = p.x; m.y = p.y; m.en = 100; });
+    for (const u of G.units) { u.x = u.y = -50 * T; } // a field far away, so the hunt runs on
+    const k = TUNE.AUTOPAUSE_IDLE; TUNE.AUTOPAUSE_IDLE = false;
+    try {
+      G.paused = true;
+      G.lance.forEach((m, i) => { liveSelect(m); G.pmode = 'NORMAL'; cmdTarget(ctr(9, 2 + i).x, ctr(9, 2 + i).y); });
+      togglePause();
+      for (let t = 0; t < 25 && G.lance.some(m => m.lact); t += DT) { step(DT); G.paused = false; }
+      expect(G.mode).toBe('hunt');
+      for (const [i, m] of G.lance.entries()) expect(Math.hypot(m.x - ctr(9, 2 + i).x, m.y - ctr(9, 2 + i).y)).toBeLessThan(1.2 * T);
+    } finally { TUNE.AUTOPAUSE_IDLE = k; }
+  });
+  it('2: no limit on looks along a route', () => {
+    tiny(['....................', '....................', '....................']);
+    startHunt(3); tiny(['....................', '....................', '....................']);
+    const m = G.p; m.x = ctr(1, 1).x; m.y = ctr(1, 1).y; G.paused = true;
+    cmdDraw(Array.from({ length: 17 }, (_, i) => ctr(2 + i, 1)));
+    for (let d = 1; d <= 6; d++) expect(cmdWaypoint(d * 2, 0, -1)).toBe(true);
+    expect(G.plan.wps.length).toBe(6);
+  });
+  it('3: a FORWARD point drops the held look; the ExoS looks where it walks again', () => {
+    startHunt(3); tiny(['....................', '....................', '....................']);
+    const m = G.p; m.x = ctr(1, 1).x; m.y = ctr(1, 1).y; m.en = 100; G.paused = true;
+    cmdDraw(Array.from({ length: 15 }, (_, i) => ctr(2 + i, 1)));
+    cmdWaypoint(2, 0, -1); expect(cmdForward(6)).toBe(true);
+    togglePause();
+    for (let t = 0; t < 2.2 && m.lact; t += DT) { step(DT); G.paused = false; }
+    expect(m.holdFace).toBe(true); expect(m.fy).toBeLessThan(-0.9); // looking north after the look point
+    for (let t = 0; t < 3 && m.lact && m.x < ctr(8, 1).x; t += DT) { step(DT); G.paused = false; }
+    expect(m.holdFace).toBe(false); expect(m.fx).toBeGreaterThan(0.9); // FORWARD: east, along the route
+  });
+  it('5: a stroke that clips a corner flows round it (no sharp steps), never through a wall', () => {
+    tiny(['............', '............', '............', '.....####...', '.....####...', '.....####...', '............']);
+    const m: any = { x: ctr(1, 5).x, y: ctr(1, 5).y };
+    const S = Array.from({ length: 40 }, (_, i) => { const t = i / 39; return { x: (1.5 + t * 9) * T, y: (5.5 - Math.sin(t * Math.PI) * 3.2) * T }; }); // an arc that clips the block's corner
+    const P = drawnPoints(m, S);
+    let maxTurn = 0;
+    for (let i = 1; i < P.length - 1; i++) {
+      const a1 = Math.atan2(P[i].y - P[i - 1].y, P[i].x - P[i - 1].x), a2 = Math.atan2(P[i + 1].y - P[i].y, P[i + 1].x - P[i].x);
+      let d = Math.abs(a2 - a1); if (d > Math.PI) d = 2 * Math.PI - d; maxTurn = Math.max(maxTurn, d);
+    }
+    for (let i = 1; i < P.length; i++) expect(tilesCrossed(P[i - 1].x, P[i - 1].y, P[i].x, P[i].y, 1)).toBe(0);
+    expect(maxTurn * 180 / Math.PI).toBeLessThan(40);
+  });
+});

@@ -1923,6 +1923,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            speed they are set to" | a route (drawn or tapped) is the ExoS's order: each ExoS keeps its own route + mode (m.pend)
            while you pick another; PLAY sends every ExoS with a route at its own mode (no MOVE); a route finished while the
            clock runs goes at once. MOVE still works (goes now). No tuning change | -
+   round25 fix list 1-5 (r25-live-d3) | Jamie, iPhone: a nudge at a choke point cancelled a route; no limit on looks; a
+           FORWARD marker; pinch zoom; jagged routes round corners | NEW LIVE_STUCK_NEAR 2, LIVE_STUCK_GIVEUP 12 (the stuck
+           rule only ends a move near its end; the walker behind yields; A before B in one gap), FACE_WAYPOINTS_MAX 3 → 99 (toy),
+           FORWARD points (cmdForward), PINCH_MIN 0.45 / PINCH_MAX 3, PATH_STEP 0.25, PATH_CLEAR 0.3, PATH_RELAX 8 (replaces
+           PATH_SMOOTH Chaikin). Runner --live seeds 1-60: no stalls. Turns runner byte-identical | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,
