@@ -4,23 +4,37 @@ import { W, H, T } from '../sim/world.ts';
 import { G } from '../sim/state.ts';
 import { cx, cy } from '../sim/sensors.ts';
 import { forksAhead } from '../sim/escort.ts';
+import { cmdDeselect } from '../sim/turns.ts';
 import { endPlayerTurn, replan, playerFree, cmdLeg, cmdEscortOrder, cmdExtract, cmdMoveMode, cmdTarget, cmdMove, cmdObjective, cmdRadar, cmdEcm, canGhost, cmdGhost, cmdFire, cmdMortarOn, cmdMortarAt, mortarBlindBlock, cmdFace, cmdSelect, cmdDraw, cmdWaypoint, cmdClearWaypoint, waypointNear, along, nearestAlong } from '../sim/turns.ts';
 import { V, camZ } from './state.ts';
 import { cv, vw, vh, resize, routeBtn, markerPos, rwrTips } from './render.ts';
 import { $, syncButtons, refreshHud } from './hud.ts';
-import { showTip, hideTip, TIP_HOLD_MS } from './tip.ts';
+import { showTip, hideTip, explainAt } from './tip.ts';
+import { showWhy, hideExplain } from './explain.ts';
+import { moveModeBlock } from '../sim/reasons.ts';
 
 // ============================ INPUT ===================================
-export function btn(id, fn) { $(id).addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fn(); }); }
-// action buttons: only on your turn, between actions
-export function order(id, fn) { btn(id, () => { if (playerFree()) { fn(); if (!G.act) { replan(); syncButtons(); } } }); }
+// R24 A2: buttons act on release (pointerup), so a long-press can open the explain card instead (explain.ts swallows it)
+export function btn(id, fn) {
+  const b = $(id);
+  b.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); });
+  b.addEventListener('pointerup', e => { e.preventDefault(); e.stopPropagation(); fn(); });
+}
+// action buttons: only on your turn, between actions. R24 A3: a greyed one says why on a normal tap (its data-why reason).
+export function order(id, fn) {
+  btn(id, () => {
+    const b = $(id);
+    if (b.classList.contains('lockd')) { if (b.dataset.why) showWhy(b.dataset.why); return; }
+    if (playerFree()) { fn(); if (!G.act) { replan(); syncButtons(); } }
+  });
+}
 order('bEnd', () => { V.ghostArm = V.faceArm = V.mortarArm = false; V.lookArm = null; hideWpMenu(); endPlayerTurn(); });
 order('bUp', cmdObjective); // R15: UPLINK, or PICK UP / HAND OFF
 order('bHold', () => cmdEscortOrder('HOLD'));   // R16: the convoy skips its next move
 order('bHurry', () => cmdEscortOrder('HURRY')); // R16: the convoy sprints its next move
 order('bExtract', cmdExtract); // R16: this mech leaves the map (the hunt ends once every living mech is out)
 order('bMove', () => { if (V.faceArm) { V.faceArm = false; return; } V.lookArm = null; hideWpMenu(); cmdMove(); }); // doubles as CANCEL while face mode is armed
-for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) order(id, () => cmdMoveMode(m));
+for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) order(id, () => { if (moveModeBlock(G.p, m) === '') cmdMoveMode(m); }); // R24 fix list 11 (C23): a greyed mode never sets the mode
 order('bRadar', cmdRadar);
 order('bEcm', cmdEcm);
 order('bGhost', () => { V.ghostArm = !V.ghostArm && canGhost(); if (V.ghostArm) V.mortarArm = false; });
@@ -94,6 +108,7 @@ function aimAt(wx: number, wy: number) {
 }
 const toWorld = (sx, sy) => { const z = camZ(); return [(sx - vw / 2) / z + V.camX, (sy - vh / 2) / z + V.camY]; };
 const tipHere = (sx, sy) => { const [wx, wy] = toWorld(sx, sy); showTip(sx, sy, wx, wy); };
+const explainHere = (sx, sy) => { const [wx, wy] = toWorld(sx, sy); explainAt(wx, wy); }; // R24 A2: a touch hold opens the explain card
 cv.addEventListener('pointerdown', e => {
   e.preventDefault();
   if (ptr.id !== -1) return; // ignore second finger
@@ -103,13 +118,13 @@ cv.addEventListener('pointerdown', e => {
   try { cv.setPointerCapture(e.pointerId); } catch (_) {}
   // R16: a still finger (or button) held TIP_HOLD_MS shows what is under it; that press then never taps or pans
   clearTimeout(ptr.holdT); clearTimeout(ptr.hideT); hideTip();
-  ptr.holdT = setTimeout(() => { if (ptr.id !== -1 && !ptr.pan && !ptr.mode) { ptr.held = true; tipHere(ptr.lx, ptr.ly); } }, TIP_HOLD_MS);
+  ptr.holdT = setTimeout(() => { if (ptr.id !== -1 && !ptr.pan && !ptr.mode) { ptr.held = true; if (e.pointerType === 'mouse') tipHere(ptr.lx, ptr.ly); else explainHere(ptr.lx, ptr.ly); } }, TUNE.LONGPRESS_MS);
 });
 cv.addEventListener('pointerleave', e => { if (e.pointerType === 'mouse' && ptr.id === -1) hideTip(); });
 cv.addEventListener('pointermove', e => {
   if (ptr.id === -1 && e.pointerType === 'mouse') { tipHere(e.clientX, e.clientY); return; } // R16: mouse hover
   if (e.pointerId !== ptr.id) return;
-  if (ptr.held) { ptr.lx = e.clientX; ptr.ly = e.clientY; tipHere(e.clientX, e.clientY); return; } // slide the held finger to read other things
+  if (ptr.held) { ptr.lx = e.clientX; ptr.ly = e.clientY; if (e.pointerType === 'mouse') tipHere(e.clientX, e.clientY); else explainHere(e.clientX, e.clientY); return; } // slide the held finger to read other things
   if (!ptr.pan && !ptr.mode && Math.hypot(e.clientX - ptr.sx, e.clientY - ptr.sy) > TUNE.DRAG_PX) {
     clearTimeout(ptr.holdT);
     const pl = drawnPlan();
@@ -145,7 +160,7 @@ export function ptrEnd(e) {
   if (tap && ptr.cand === 'aim') { const [wx, wy] = toWorld(e.clientX, e.clientY); aimAt(wx, wy); V.lookArm = null; syncButtons(); return; } // R17: LOOK, tapped
   if (tap && ptr.cand === 'marker') { armLook(ptr.d); syncButtons(); return; } // r17-s3: tap a marker = pick it again (✕ to remove)
   if (tap && (ptr.cand === 'path' || ptr.cand === 'extend')) { armLook(ptr.d); syncButtons(); return; } // r17-s3: tap the path = the next tap says where it looks
-  if (ptr.held) { ptr.held = false; ptr.hideT = setTimeout(hideTip, e.pointerType === 'mouse' ? 0 : 1500); return; } // R16: a hold was a look, not a tap
+  if (ptr.held) { ptr.held = false; if (e.pointerType === 'mouse') hideTip(); return; } // R16: a hold was a look, not a tap (R24: the explain card stays until the next tap)
   if (tap) onTap(e.clientX, e.clientY);
 }
 cv.addEventListener('pointerup', ptrEnd);
@@ -170,7 +185,7 @@ export function onTap(sx, sy) {
   // armed face change: tapping yourself again cancels, anywhere else sets the facing
   if (V.faceArm) { V.faceArm = false; if (!onSelf) cmdFace(wx, wy); syncButtons(); return; }
   // tap your own mech = arm a face change
-  if (onSelf) { V.faceArm = true; V.ghostArm = V.mortarArm = false; syncButtons(); return; }
+  if (onSelf) { cmdDeselect(); V.faceArm = true; V.ghostArm = V.mortarArm = false; syncButtons(); return; } // R24 fix list 10 (C19): also clears the selection
   // armed ghost: this tap places the decoy
   if (V.ghostArm) {
     V.ghostArm = false;
@@ -187,8 +202,8 @@ export function onTap(sx, sy) {
     const r = Math.max(TUNE.TAP_CONTACT_PX / z, Math.min(c.unc, 40 / z));
     if (Math.hypot(wx - cx(c), wy - cy(c)) <= r) { cmdSelect(c); syncButtons(); return; } // select + turn to face (if affordable)
   }
-  // anywhere else = set a move destination; MOVE executes it
-  cmdTarget(wx, wy); syncButtons();
+  // anywhere else = set a move destination; MOVE executes it. R24 fix list 10 (C19): it also clears the selection.
+  cmdDeselect(); cmdTarget(wx, wy); syncButtons();
 }
 
 // Block page scroll / pinch / double-tap zoom (but let text fields work).
@@ -201,3 +216,5 @@ document.addEventListener('gesturestart', e => e.preventDefault());
 document.addEventListener('dblclick', e => e.preventDefault());
 window.addEventListener('resize', resize);
 window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+// R24 A2: desktop right-click on the map = a long-press (the explain card for what is there)
+cv.addEventListener('contextmenu', e => { e.preventDefault(); hideTip(); explainHere(e.clientX, e.clientY); });

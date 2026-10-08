@@ -629,6 +629,10 @@ export const TUNE = {
   AAR_ENEMY_FIRST: 1,          // R22: added to an enemy-side event's weight (the field's side is what you can't see during the hunt)
   AAR_REDACT_BEARING: 8,       // R22: compass points a redacted bearing is rounded to (8 = N, NE, E ...)
   AAR_COST_MAX: 7,             // R22: the most lines WHAT IT COST lists
+  // --- Round 24: say what it means (display knobs only: no rule reads these) ---
+  LONGPRESS_MS: 450,           // R24 A2: a still finger (or button) held this long opens the explain card; the press then does nothing else
+  WARN_HITS_LEFT: 2,           // R24 A5 (C12): an ExoS with this many CORE hits left or fewer shows the low-hits mark and HUD line
+  LASTKNOWN_ROUNDS: 3,         // R24 A5 (C15): rounds a "last seen" mark stays where a contact dropped off the picture
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

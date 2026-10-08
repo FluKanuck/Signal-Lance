@@ -21,9 +21,9 @@ export const PART_LOC: Record<string, Loc> = { SENSORS: 'MAST', WEAPON: 'ARMS', 
 export function online(u, loc: Loc) { const p = LOC_PART[loc]; return !(u && u.parts && u.parts[p] !== undefined && u.parts[p] <= 0); }
 export function has(u, tag: string) { return kit(u).some(k => k.item.tags.includes(tag) && online(u, k.loc)); }
 export function fitted(u, tag: string) { return kit(u).some(k => k.item.tags.includes(tag)); } // carried, working or not
-// "SNS" when everything carrying the tag sits on a part that's gone (the button's one-word reason), '' otherwise
+// "MAST" when everything carrying the tag sits on a part that's gone (the button's one-word reason), '' otherwise
 export function offWhy(u, tag: string) { const k = kit(u).find(k => k.item.tags.includes(tag)); return k && !has(u, tag) ? PART_SHORT[LOC_PART[k.loc]] : ''; }
-const PART_SHORT = { SENSORS: 'SNS', WEAPON: 'WPN', CORE: 'COR', BACK: 'BCK', LEGS: 'LEG' };
+const PART_SHORT = { SENSORS: 'MAST', WEAPON: 'ARMS', CORE: 'CORE', BACK: 'BACK', LEGS: 'LEGS' }; // R24: the part's one name (the hangar's location name)
 export function active(u, id: string) { return kit(u).some(k => k.item.id === id && online(u, k.loc)); }
 const first = (u, f: (i: Item) => any) => { const k = kit(u).find(k => f(k.item) && online(u, k.loc)); return k ? f(k.item) : null; };
 // R18 (A9): a mod in the same location changes the radar's per-use EM (Cold processor: SENSOR EM × 0.6)

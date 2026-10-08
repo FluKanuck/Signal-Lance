@@ -76,14 +76,14 @@ function readout() {
   const parts = splitHits('MECH', fitHits(f)), radar = itemsAll(f).find(i => i.radar)?.radar, gun = itemsAll(f).find(i => i.gun), mortar = itemsAll(f).find(i => i.mortar);
   const mv = (m: string) => TUNE.SOUND_RANGE[m] + S.over.snd;
   const lines = [
-    '<div><b>LOAD</b> ' + bar(S.load, S.max, S.load > S.max ? 'bad' : over ? 'warn' : '') + ' ' + S.load + ' / ' + S.rated + ' <small>(max ' + S.max + ')</small>' +
+    '<div><b data-g="LOAD">LOAD</b> ' + bar(S.load, S.max, S.load > S.max ? 'bad' : over ? 'warn' : '') + ' ' + S.load + ' / ' + S.rated + ' <small>(max ' + S.max + ')</small>' +
       (over ? '<br><small class="warnt">overload ' + (S.load - S.rated) + ': +' + S.over.snd + ' sound per move, +' + S.over.en + ' EN per tile (creep too)' + (S.over.ap ? ', +' + S.over.ap + ' AP per move' : '') + '</small>' : ''),
-    '<div><b>POWER</b> ' + (S.regen >= 0 ? '+' : '') + S.regen + '/turn <small>(out ' + S.totals.output + ' − draw ' + S.totals.draw + ')</small> · pool ' + S.pool + '</div>',
-    '<div><b>EM</b> ' + bar(S.emBase, 3, 'em') + ' ' + S.emBase.toFixed(1) + ' <small>passive hears you ~' + Math.round(heardAt(S.emBase)) + 't once you emit</small>' +
+    '<div><b data-g="POWER">POWER</b> ' + (S.regen >= 0 ? '+' : '') + S.regen + '/turn <small>(out ' + S.totals.output + ' − draw ' + S.totals.draw + ')</small> · pool ' + S.pool + '</div>',
+    '<div><b data-g="EMIT">EMIT</b> ' + bar(S.emBase, 3, 'em') + ' ' + S.emBase.toFixed(1) + ' <small>enemy ESM hears you ~' + Math.round(heardAt(S.emBase)) + 't once you emit</small>' +
       (radar ? '<br><small>radar pulse: +' + Math.round(radarEmit(f)) + ' EMIT, ' + radar.ap + ' AP ' + radar.en + ' EN</small>' : '') + '</div>',
-    (TUNE.THERMAL_ENABLED ? '<div><b>IR</b> ' + bar(S.irBase, 10, 'ir') + ' ' + S.irBase + ' <small>thermal sights see you ~' + Math.round(Math.min(TUNE.IR_RANGE, TUNE.IR_TILES_PER_PT * S.irBase)) + 't in line of sight; +' + TUNE.IR_FIRE + ' a shot, +' + TUNE.IR_SPRINT + ' a sprint, cools ' + TUNE.IR_COOL_PER_TURN + '/turn</small></div>' : '') +
-    '<div><b>ACO</b> ' + bar(mv('NORMAL'), 14, 'snd') + ' move ' + mv('CREEP') + '/' + mv('NORMAL') + '/' + mv('SPRINT') + (gun ? ' · shot ' + gun.gun.snd : '') + (mortar ? ' · lob ' + mortar.mortar.snd : '') + ' <small>tiles</small></div>',
-    '<div><b>HITS</b> ' + Object.keys(parts).map(p => PART_ABBR[p] + ' ' + parts[p]).join(' · ') + (gun ? ' · ' + fitRounds(f) + ' rds' : '') + '</div>',
+    (TUNE.THERMAL_ENABLED ? '<div><b data-g="IR">IR</b> ' + bar(S.irBase, 10, 'ir') + ' ' + S.irBase + ' <small>IR sights see you ~' + Math.round(Math.min(TUNE.IR_RANGE, TUNE.IR_TILES_PER_PT * S.irBase)) + 't in line of sight; +' + TUNE.IR_FIRE + ' a shot, +' + TUNE.IR_SPRINT + ' a sprint, cools ' + TUNE.IR_COOL_PER_TURN + '/turn</small></div>' : '') +
+    '<div><b data-g="SOUND">SOUND</b> ' + bar(mv('NORMAL'), 14, 'snd') + ' move ' + mv('CREEP') + '/' + mv('NORMAL') + '/' + mv('SPRINT') + (gun ? ' · shot ' + gun.gun.snd : '') + (mortar ? ' · lob ' + mortar.mortar.snd : '') + ' <small>tiles</small></div>',
+    '<div><b data-g="HITS">HITS</b> ' + Object.keys(parts).map(p => PART_ABBR[p] + ' ' + parts[p]).join(' · ') + (gun ? ' · ' + fitRounds(f) + ' rds' : '') + '</div>',
   ];
   const w = launchBlock(f);
   return lines.join('') + (w ? '<div class="badt">✕ ' + esc(w) + '</div>' : '<div class="okt">✓ launches</div>');

@@ -10,6 +10,11 @@ import { launch, showStart, showResult } from './view/screens.ts';
 import { hideWpMenu } from './view/input.ts';
 import { showTbResult } from './view/testbed.ts';
 import './view/card.ts';
+import './view/explain.ts';
+import { stepLk, newLk } from './sim/warn.ts';
+import { cx, cy } from './sim/sensors.ts';
+import { unitById } from './sim/state.ts';
+import { T } from './sim/world.ts';
 declare const __QA__: boolean;
 
 hooks.sync = syncButtons;
@@ -34,6 +39,13 @@ function frame(now) {
     follow(dt);
   }
   V.hitFlash = Math.max(0, V.hitFlash - dt); // portrait = frozen behind the rotate overlay
+  if (G.mode === 'hunt') { // R24 A5 (C15): LAST SEEN marks (a new hunt starts a fresh set)
+    if (V.lkHunt !== G.units) { // R24: a test-bed scenario may start with marks
+      V.lk = newLk(); V.lkHunt = G.units;
+      for (const k of (G.tb && G.tb.lastSeen) || []) { const u = G.units[k.field]; if (u) V.lk.marks.push({ id: u.id, x: (k.tile[0] + 0.5) * T, y: (k.tile[1] + 0.5) * T, turn: G.turn }); }
+    }
+    stepLk(V.lk, G.pc.map(c => ({ id: c.id, on: !!c.on, x: cx(c), y: cy(c) })), G.turn, id => { const u = unitById(id); return !u || !!u.dead; });
+  }
   render();
   updateHud(dt);
   requestAnimationFrame(frame);

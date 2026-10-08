@@ -3,6 +3,7 @@ import { TUNE } from '../tune.ts';
 import { has, radarOf, mortarOf } from '../sim/kit.ts';
 import { fireRange } from '../sim/turns.ts';
 import { partsRead, coverInfo } from '../sim/combat.ts';
+import { lowHits, hitsLeft } from '../sim/warn.ts';
 import { W, H, T, solid, clutter } from '../sim/world.ts';
 import { G, unitById } from '../sim/state.ts';
 import { bestContact } from '../sim/bot.ts';
@@ -63,7 +64,7 @@ function soundRing(x, y, r, z, alpha, label?) {
 // one tag per sense that fixed it within TAG_KEEP s, stacked; gold = the sense behind the current fix, cyan = the rest.
 // R18 fix list 13 (Jamie: "Let's go to the industry standard"): EO electro-optical, ESM electronic support measures, ACO acoustic,
 // MZL muzzle flash, LINK a shared (datalink) track. The suit letters after it = which of your suits made that fix lately.
-const TAGS = { EYES: 'EO', RADAR: 'RDR', PASSIVE: 'ESM', THERMAL: 'IR', SOUND: 'ACO', FLASH: 'MZL', ALARM: 'LINK', GHOST: 'GHOST', SCAN: 'SHIP' }; // R19: SHIP = the pre-drop scan's blip
+const TAGS = { EYES: 'EO', RADAR: 'RDR', PASSIVE: 'ESM', THERMAL: 'IR', SOUND: 'ACO', FLASH: 'MZL', ALARM: 'LINK', GHOST: 'GHOST', SCAN: 'SCAN' }; // R19: the pre-drop scan's blip (R24: SCAN, was SHIP: SHIP is the ship)
 const TAG_ORDER = ['EYES', 'RADAR', 'THERMAL', 'PASSIVE', 'FLASH', 'SOUND', 'ALARM', 'GHOST', 'SCAN'];
 export function sensorTags(c): { t: string; win: boolean; noise: boolean; none?: boolean }[] {
   const seen = c.seen || {}, out = [];
@@ -333,7 +334,7 @@ export function render() {
     if (nx) {
       ctx.strokeStyle = '#fc3'; ctx.lineWidth = 3 / z; ctx.setLineDash([6 / z, 4 / z]); ctx.beginPath(); ctx.arc(nx.x, nx.y, 14 / z + 6, 0, 6.2832); ctx.stroke(); ctx.setLineDash([]);
       ctx.fillStyle = '#fc3'; ctx.font = 'bold ' + (11 / z) + 'px monospace';
-      ctx.fillText(nx.why === 'HOLD' ? 'HOLDS' : nx.why === 'FORK' ? 'NEXT · waits at fork' : nx.why === 'END' ? 'NEXT · out' : 'NEXT', nx.x + 16 / z + 6, nx.y + 4 / z);
+      ctx.fillText(nx.why === 'HOLD' ? 'HOLDS' : nx.why === 'FORK' ? 'NEXT MOVE · waits at fork' : nx.why === 'END' ? 'NEXT MOVE · out' : 'NEXT MOVE', nx.x + 16 / z + 6, nx.y + 4 / z);
     }
     // R16 (Jamie: railway levers): a route button on every fork ahead. Lit = the lever is set (it will carry on that way)
     for (const f of forksAhead()) for (const l of f.legs) {
@@ -509,6 +510,13 @@ export function render() {
     const g = G.ghost; ctx.strokeStyle = '#b6f'; ctx.lineWidth = 2 / z; ctx.beginPath();
     ctx.moveTo(g.x, g.y - 10); ctx.lineTo(g.x + 10, g.y); ctx.lineTo(g.x, g.y + 10); ctx.lineTo(g.x - 10, g.y); ctx.closePath(); ctx.stroke();
   }
+  // R24 A5 (C15): LAST SEEN marks: a faded dashed square where a contact dropped off the picture, with its round
+  for (const k of V.lk.marks) {
+    const a = 0.55 * (1 - (G.turn - k.turn) / (TUNE.LASTKNOWN_ROUNDS + 1));
+    ctx.globalAlpha = a; ctx.strokeStyle = ctx.fillStyle = '#c9a070'; ctx.lineWidth = 1.5 / z; ctx.setLineDash([3 / z, 3 / z]);
+    ctx.strokeRect(k.x - 7, k.y - 7, 14, 14); ctx.setLineDash([]);
+    ctx.font = (10 / z) + 'px monospace'; ctx.fillText('last seen R' + k.turn, k.x + 10, k.y + 4 / z); ctx.globalAlpha = 1;
+  }
   // contacts (red = tracked now, orange = lost/fading). R18 fix list 5: labels are collected here and laid out afterwards, so
   // contacts close together stack their labels instead of printing on top of each other.
   const labels: { c: any; x: number; y: number; a: number; lines: { t: string; col: string; font: string; h: number }[]; tags: { t: string; win: boolean; noise: boolean; none?: boolean }[]; old: boolean }[] = [];
@@ -605,7 +613,7 @@ export function render() {
         ctx.beginPath(); ctx.arc(m.x, m.y, TUNE.OP_CARRY_RANGE * T, 0, 6.2832); ctx.stroke();
         const R = TUNE.OP_CARRY_RANGE * T; ctx.textAlign = 'center'; // above / below the ring, clear of the lancemate's label
         ctx.fillText(m.id + ' ' + (m.op ? m.op.name.split(' ')[0] + ' ' : '') + (carried ? 'CARRIED BY ' + m.carriedBy : 'CRITICAL'), m.x, m.y - R - 6 / z);
-        if (!carried) { ctx.font = (10 / z) + 'px monospace'; ctx.fillText('end a turn in the ring to carry', m.x, m.y + R + 12 / z); }
+        if (!carried) { ctx.font = (10 / z) + 'px monospace'; ctx.fillText('end a lancemate’s turn in the ring to carry them', m.x, m.y + R + 12 / z); }
         ctx.textAlign = 'left'; continue;
       }
       ctx.fillText(m.id + ' ✕', m.x + 12, m.y - 10); continue;
@@ -616,6 +624,11 @@ export function render() {
     if (act) { ctx.strokeStyle = '#9cf'; ctx.lineWidth = 2 / z; ctx.beginPath(); ctx.arc(m.x, m.y, 15, 0, 6.2832); ctx.stroke(); }
     ctx.fillStyle = act ? '#9cf' : '#a9b0b8'; ctx.fillText(m.id + (m.op ? ' ' + m.op.name.split(' ')[0] + (m.op.lvl >= 2 ? '★' : '') : ''), m.x + 12, m.y - 10); // R21: the operator (★ = veteran)
     if (G.lance.some(d => d.carriedBy === m.id)) { ctx.fillStyle = '#70c080'; ctx.fillText('carrying ' + G.lance.filter(d => d.carriedBy === m.id).map(d => d.id).join(' '), m.x + 12, m.y + 4 / z); }
+    if (lowHits(m)) { // R24 A5 (C12): the low-hits mark: a pulsing red ring and "! N" (CORE hits left)
+      const a = 0.6 + 0.4 * Math.sin(performance.now() / 200);
+      ctx.strokeStyle = 'rgba(255,80,80,' + a + ')'; ctx.lineWidth = 2.5 / z; ctx.beginPath(); ctx.arc(m.x, m.y, 12, 0, 6.2832); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,110,110,' + a + ')'; ctx.fillText('! ' + hitsLeft(m), m.x - 14 - ctx.measureText('! ' + hitsLeft(m)).width, m.y - 10);
+    }
   }
   drawAarHl(ctx, z); // R22: the tapped after-action moment
   if (G.mode === 'hunt') { drawPainted(z); drawRwr(G.p, z); } // R19 cp3; fix list 1: the built-in warning on every suit

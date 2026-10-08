@@ -33,6 +33,7 @@ const SHELP: Record<string, string> = {
   EM: '<b>WHO.</b> Passive and slow. Only things that transmit: first counted, then a bearing fix with the CARD’s best guess that firms up the longer you listen.',
 };
 const live = () => G.scan && G.scan.mode === 'active';
+const gt = (id: string, text = id) => '<span data-g="' + id + '">' + text + '</span>'; // R24 A2: long-press a term
 const ALT_HELP: Record<string, string> = { // R20 fix list 5
   HIGH: 'rings cover more ground, but every sensor is weaker (thermal much weaker) and fixes are fuzzier. Quieter on the risk meter.',
   MID: 'the standard scan.',
@@ -79,11 +80,11 @@ function renderLive() {
   const S = G.scan, on = sensorsOn(S);
   $('sSens').innerHTML = SENSORS.map(s => '<button class="ss s-' + s + (S.on[s] ? ' on' : '') + (S.on[s] && s === sel ? ' sel' : '') + '" data-s="' + s + '">' + SNAME[s] + '<small>' + (S.on[s] ? (S.wide[s] ? 'FULL MAP' : 'ON') : 'off') + '</small></button>').join('');
   $('bWide').innerHTML = (S.on[sel] && S.wide[sel] ? 'RING' : 'FULL MAP') + '<small>' + SNAME[sel] + '</small>'; // R20 fix list 2: the whole map, said plainly
-  $('sAlt').innerHTML = '<span>ALT</span>' + ALTS.map((a, i) => '<button class="sa' + (S.alt === a ? ' on' : '') + '" data-a="' + i + '">' + a + '</button>').join(''); // R20 fix list 5
+  $('sAlt').innerHTML = '<span data-g="ALT">ALT</span>' + ALTS.map((a, i) => '<button class="sa' + (S.alt === a ? ' on' : '') + '" data-a="' + i + '">' + a + '</button>').join(''); // R20 fix list 5
   $('bWide').classList.toggle('on', !!S.wide[sel]); ($('bWide') as HTMLButtonElement).disabled = !S.on[sel];
   const m = (x: number) => (Math.round(x * 4) / 4).toString();
   const doing = !S.run ? (S.over ? 'WINDOW CLOSED: drop now' : 'paused') : on.length ? 'scanning: ' + on.map(x => SNAME[x]).join(' + ') : 'waiting: risk cooling';
-  $('sClock').innerHTML = (S.run ? '● ' : '') + 'CLOCK ' + m(S.t) + ' ship-min' + (S.deadline ? ' · <span class="' + (S.deadline - S.t <= 3 ? 'badt' : 'warnt') + '">DEADLINE ' + S.deadline + ' (' + m(Math.max(0, S.deadline - S.t)) + ' left)</span>' : '') + ' · ' + doing +
+  $('sClock').innerHTML = (S.run ? '● ' : '') + gt('CLOCK') + ' ' + m(S.t) + ' ship-min' + (S.deadline ? ' · <span class="' + (S.deadline - S.t <= 3 ? 'badt' : 'warnt') + '">' + gt('SCAN WINDOW') + ' ' + S.deadline + ' (' + m(Math.max(0, S.deadline - S.t)) + ' left)</span>' : '') + ' · ' + doing +
     (S.deadline ? '<span class="bar"><span style="width:' + Math.min(100, 100 * S.t / S.deadline) + '%;background:#e0c050"></span></span>' : '');
   $('sRisk').innerHTML = riskHtml(S);
   $('sHelp').innerHTML = '<b>ALT ' + S.alt + ':</b> ' + ALT_HELP[S.alt] + '<br>' + (S.on[sel] ? '<b style="color:' + SCOL[sel] + '">' + SNAME[sel] + '</b> ' + SHELP[sel] : 'Turn a sensor on to aim it. Several can run at once, each with its own ring.');
@@ -98,7 +99,7 @@ function riskHtml(S) {
   const lo = riskAt(k), fill = Math.min(100, 100 * (S.risk - lo) / Math.max(1e-6, nx - lo));
   const now = k ? pc(stepVal(TUNE.SCAN_RISK_ALERT, k)) + ' of the field awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k)) + ' chance the ship is painted' : '') : 'nobody stirs';
   const next = k + 1 > S.peak && stepVal(TUNE.SCAN_RISK_EXTRA, k + 1) ? pc(stepVal(TUNE.SCAN_RISK_EXTRA, k + 1)) + ' chance a unit is called in; ' : '';
-  return '<b class="' + (k ? 'badt' : 'okt') + '">RISK ' + S.risk.toFixed(1) + ' · STEP ' + k + '</b> <span class="bar"><span style="width:' + fill + '%;background:' + (k ? '#ff8a80' : '#70c080') + '"></span></span>' +
+  return '<b class="' + (k ? 'badt' : 'okt') + '">' + gt('RISK') + ' ' + S.risk.toFixed(1) + ' · ' + gt('STEP') + ' ' + k + '</b> <span class="bar"><span style="width:' + fill + '%;background:' + (k ? '#ff8a80' : '#70c080') + '"></span></span>' +
     '<span style="opacity:.9">Drop now: ' + now + '. Step ' + (k + 1) + ' at ' + nx + ': ' + next + pc(stepVal(TUNE.SCAN_RISK_ALERT, k + 1)) + ' awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k + 1) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k + 1)) + ' painted' : '') + '. Radar is loud; with every sensor off the meter cools.</span>' + cityHtml(S);
 }
 // R23: what standing does here: a HATED target wakes more of its field; a LIKED faction's intel is already on the map
@@ -106,7 +107,7 @@ function cityHtml(S) {
   const o = runningOffer(); if (!o) return '';
   const add = cityAlertAdd();
   return (add ? '<span class="badt">' + esc(facName(o.tgt)) + ' HATES you: +' + Math.round(add * 100) + '% of its field awake at the drop, on top of the risk.</span>' : '') +
-    (S.gift ? '<span class="okt">' + esc(facName(S.gift)) + ' LIKES you: free intel, ' + (TUNE.STANDING_LIKED_INTEL === 'EM' ? 'the emitters counted' : 'radar band 1 on the whole map') + ' (no risk).</span>' : '');
+    (S.gift ? '<span class="okt">' + esc(facName(S.gift)) + ' LIKES you: FREE SCAN, ' + (TUNE.STANDING_LIKED_INTEL === 'EM' ? 'the emitters counted' : 'RADAR band 1 on the whole map') + ' (no RISK).</span>' : '');
 }
 // R20: what the ship knows, one line per sensor (plain words, the CARD's names)
 function liveLines() {
@@ -121,7 +122,7 @@ function liveLines() {
   const stale = I.filter(i => i.fix && i.mobile && S.t - i.fix.t >= 2).length;
   if (S.adds.length) { const c = S.adds.filter(a => a.why === 'called in').length, a = S.adds.length - c; L.push('<span class="badt">The field has grown: ' + (c ? c + ' called in by your scanning' : '') + (c && a ? ', ' : '') + (a ? a + ' arrived while you were on station' : '') + '.</span>'); }
   if (stale) L.push('<span class="warnt">' + stale + ' moving contact' + (stale > 1 ? 's' : '') + ' last seen 2+ min ago: ' + (stale > 1 ? 'they have' : 'it has') + ' moved since.</span>');
-  if (M.drops > 1) L.push('<b>Drop zone:</b> tap a numbered circle on the map or a button below.');
+  if (M.drops > 1) L.push('<b>' + gt('DROP ZONE') + ':</b> tap a numbered circle on the map or a button below.');
   else L.push('<span style="opacity:.75">Point RADAR at a dim “?” apron on the map edge to clear it as a drop zone.</span>');
   return L;
 }

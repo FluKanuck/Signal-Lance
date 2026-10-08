@@ -15,6 +15,7 @@ import { syncHits } from './combat.ts';
 import { makeAlly } from './escort.ts';
 import { onSuitDown } from './company.ts';
 import { playOut } from './autoplay.ts';
+import { observe } from './sensors.ts';
 
 type Tile = [number, number];
 export type Scenario = {
@@ -22,7 +23,7 @@ export type Scenario = {
   tryThis: string;                       // one plain line: what Jamie should do
   seed: number;                          // RETRY replays it exactly
   uplink: Tile;
-  lance: { load?: any; fit?: any; tile: Tile; face?: Tile; legsLost?: number; en?: number; lost?: boolean; op?: [string, string, number]; downed?: boolean }[]; // [A, B]; face = a tile to face (default: the uplink); R16: lost = out before it starts (one suit). R21: op = [name, skill, level] (an operator aboard); downed = CRITICAL on the board from the start
+  lance: { load?: any; fit?: any; tile: Tile; face?: Tile; legsLost?: number; en?: number; lost?: boolean; op?: [string, string, number]; downed?: boolean; coreLeft?: number }[]; // R24: coreLeft = CORE hits left at the start // [A, B]; face = a tile to face (default: the uplink); R16: lost = out before it starts (one suit). R21: op = [name, skill, level] (an operator aboard); downed = CRITICAL on the board from the start
   field: { type: string; variant?: string; tile: Tile; face?: Tile; state?: string }[];
   zones?: { type: 'QUIET' | 'NOISE'; x: number; y: number; name?: string }[];
   tune?: Record<string, any>;            // TUNE overrides for this scenario only (top-level keys); restored afterwards
@@ -36,6 +37,8 @@ export type Scenario = {
   auto?: boolean;                        // R22: the scripted lance plays it straight through (the after-action page is what's tested)
   endAs?: string;                        // R22: the hunt ends this way at the moment it would have ended (same seed, same events)
   city?: 'Hated' | 'Liked';              // R23: a city scenario (books style, no hunt): a test company's city screen, then the first job's scan
+  contacts?: { field: number; unc: number; src: string; who?: string }[]; // R24: contacts on the lance's picture at the start (a field unit's index, the fix size in tiles, the sense)
+  lastSeen?: { field: number; tile: Tile }[]; // R24: LAST SEEN marks at the start (the view seeds its marks from these)
   books?: boolean;                       // R21 cp3: a company-screen scenario (no hunt): the view opens a test company's contract offers // R20: scan = live-scan commands already run when it opens (encodeCmds) // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen (R20: listen -1 = the live scan, yours to run)
 };
 
@@ -61,6 +64,17 @@ const AAR_HUNT = {
   question: { q: 'Did the list tell you why it went that way?', a: ['Yes, I can see why', 'Partly', 'No, it missed what mattered', 'Too much to read'] },
 };
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 24 (say what it means): read the hunt cold. Every warning and greyed reason on one turn. Pack off. ----
+  {
+    name: 'Read it cold', round: 24, seed: 2401, mission: 'UPLINK', packed: D1701,
+    tryThis: 'Don’t move yet. Long-press each thing you don’t know: the HUD words, the contacts, their tags and the faded mark. Then tap each greyed button.',
+    uplink: [41, 13],
+    lance: [{ tile: [20, 13], face: [41, 13], fit: 'line' }, { tile: [18, 13], face: [41, 13], fit: 'line', legsLost: 1 }, { tile: [16, 13], face: [41, 13], fit: 'brawler', coreLeft: 2 }],
+    field: [{ type: 'TURRET', variant: 'sentry', tile: [24, 8], face: [24, 0] }, { type: 'PATROL', variant: 'line', tile: [36, 13], face: [20, 13], state: 'PATROL' }, { type: 'TURRET', variant: 'hush', tile: [42, 14] }],
+    contacts: [{ field: 0, unc: 1, src: 'RADAR' }, { field: 1, unc: 4, src: 'PASSIVE', who: 'A+B' }],
+    lastSeen: [{ field: 2, tile: [42, 14] }],
+    question: { q: 'Could you tell what each thing meant, and why each greyed button was greyed?', a: ['Yes, all of it', 'Most of it', 'No, I had to guess', 'Something else'] },
+  },
   // ---- Round 23 (who you'll anger): the city. No hunt: a test company looks at one job against the Foundry, in a Foundry
   // district. Hated: the Foundry hates you. Liked: the same job, posted by the Corporate side, who like you. TAKE IT opens the
   // first hunt's scan (nothing is played). ----
@@ -387,6 +401,7 @@ export function startScenario(s: Scenario, launch = true) {
       if (L.lost) { m.dead = true; m.hits = 0; m.x = m.y = -10 * T; } // R16: off the map, out of the order (as a contract's lost mech)
       if (L.op) m.op = { id: 'T' + i, name: L.op[0], skill: L.op[1], lvl: L.op[2], xp: 0, status: 'OK', bench: 0, hunts: 0, hurtIn: -1 }; // R21
       if (L.downed) { m.parts.CORE = 0; syncHits(m); m.dead = true; onSuitDown(m); } // R21: down on the board, operator CRITICAL
+      if (L.coreLeft !== undefined) { m.parts.CORE = Math.min(m.parts.CORE, L.coreLeft); syncHits(m); } // R24: low on hits
     });
     setActive(G.lance.find(m => !m.dead));
     G.units = s.field.map((f, i) => {
@@ -398,6 +413,7 @@ export function startScenario(s: Scenario, launch = true) {
       return u;
     });
     if (s.ally) G.ally = makeAlly(s.ally); // R15 Escort
+    for (const k of s.contacts || []) { const u = G.units[k.field]; observe(G.pc, u.id, u.x, u.y, k.unc * T, 0, 0, true, true, false, k.src, 1, k.who || 'A'); } // R24: what the lance already knows
     if (s.earned) G.mission.earned = s.earned === 'quota' ? G.mission.quota : s.earned; // R15 Bounty: start part (or all) of the way to the quota
   });
   G.tb = s;

@@ -1162,6 +1162,39 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      whole completed job (employer gain and target loss each spill), summed per faction, then rounded. The employer is still
      picked at random from the target's two rivals-or-not (relations don't steer who posts jobs yet).
    - The /sl-balance mod reads per-contract --json lines; companies and personalities aren't wired into it (not small).
+- Round 24 (say what it means: words, layout and feedback, no rule changes):
+   - The glossary lives in src/view/glossary.ts (view: it holds words). The reason codes live in src/sim/reasons.ts (sim decides
+     the reason). A Vitest check holds every REASONS code to a glossary entry `why.<ACTION>.<CODE>`.
+   - "One name per thing", the term list settled (renamed on screen where the label showed):
+     ExoS = the machine (HUD "MECH A" → "ExoS A", tips, legend). The SUITS tab, SUIT BAY and STAYS ABOARD keep their words for now
+     (checkpoint C finishes the sweep). ESM = the passive EM sensor and its tag (job card "EM: … passive ears" → "ESM: … hear your
+     EMIT"); EM LISTEN = the ship's scan sensor only. EMIT = what you give off electronically (hangar "EM" row → EMIT). SOUND = the
+     noise you make (hangar "ACO" row → SOUND; HUD SOUND). ACO = the contact tag for a SOUND fix. IR = heat, the stat and the tag;
+     THERMAL = the ship's heat sensor; enemy "thermal sights" → "IR sights". NOISE = the zone only (EMIT + SOUND are named
+     separately). JOB = a card on the city map, CONTRACT = the job you took. FREE SCAN = a LIKED faction's gift (was "free intel");
+     INTEL = the job card's listing. TURNING POINT (aar "moment": checkpoint C). NORM → NORMAL. Escort "levers" → ROUTE (HUD "ROUTES:
+     C2 NORTH ✓ / not set"). LINK (not ALARM). HANGAR. DROP / DROP ZONE. QUIT / BAIL CONTRACT / SAVE & QUIT / EXTRACT each their own
+     entry. REPAIR WORST. Scan "DEADLINE" → SCAN WINDOW (the job card's name). Contact tag SHIP → SCAN (SHIP = the ship).
+     HUD "T 1:23" → TIME (T = the transport in the ORDER strip). The transport's next-stop label NEXT → NEXT MOVE (NEXT is the scan's button).
+   - Parts have one name each: the hangar's location names MAST / ARMS / CORE / BACK / LEGS (was COR / LEG / WPN / SNS / BCK in
+     the HUD, the part read, hitText and the reason codes). Log lines read "HIT LEGS" now.
+   - Low hits = CORE hits left (an ExoS goes DOWN when its CORE runs out, and a hit on a part that is gone spills to the CORE), so the
+     HUD line reads "A: 2 CORE hits left" (the brief's "2 hits left", made exact).
+   - LAST SEEN marks: view state (V.lk), stepped by sim/warn.ts each frame: a contact that goes off (not a kill) leaves a mark at its
+     last fix centre; it shows rounds n .. n + LASTKNOWN_ROUNDS − 1, or until the contact comes back. Not saved by SAVE & QUIT.
+   - Long-press: buttons now act on release (pointerup), so a hold can open the card instead. The old map hold tip became the explain
+     card on touch (mouse hover keeps the small tip). A tap while the card is open closes it. On the map that tap does nothing else;
+     on a button it closes the card and the button acts. [ASK] lines are not logged twice for the same id within 1.5 s.
+   - Card slot: the explain card sits top left, the HUD block's place (checkpoint B's panel slot). It may cover the HUD while open.
+   - A greyed button greyed only because it isn't your turn says TURN.WAIT. ID with nothing selected says ID.NONE.
+   - C19: a tap on empty ground (a move target) or on your own ExoS (face mode) also clears the selected contact. cmdDeselect.
+   - C23: the view never sends a mode the ExoS can't use (moveModeBlock). If the mode in force becomes blocked (a leg damaged), the
+     view drops it to CREEP (NORMAL for the cargo carrier). cmdMoveMode itself is unchanged, so the runner plays as before.
+   - Fix list 3 (C04): the objective line says which ExoS the distance is from ("29t from A"). Fix list 6 (C51): a broker card reads
+     "(deniable: no faction employs you)", not "nobody gains".
+   - Read it cold: packed district 1701 (the R17 street). A sentry turret up the north alley (a RADAR fix ±1: FIRE says NO SIGHT),
+     a line patrol east (an ESM fix ±4, UNKNOWN), B with one LEGS hit, C a brawler with 2 CORE hits, a hush turret east with a
+     LAST SEEN mark. New scenario fields: lance.coreLeft, contacts, lastSeen.
 ```
 
 ## TWEAK LOG
@@ -1784,6 +1817,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            now asks: SAVE & QUIT (sim/huntsave.ts saves the whole hunt: G as a graph, map grids, zones, RNG, AAR keys; RESUME puts
            you back on that turn; the save is used up on resume) or BAIL CONTRACT (the cost shown before you commit). Vitest: a hunt
            saved mid-turn and restored plays out identically, company hunts included. No rule change. BUILD r23-s6 | -
+   round24 cp A (r24-s1) | brief: say what it means (the glossary, long-press, greyed reasons, BASICS, two warnings) + fix list 1,
+           2, 3, 6, 10, 11 | NEW LONGPRESS_MS 450 (was tip.ts TIP_HOLD_MS 450), WARN_HITS_LEFT 2, LASTKNOWN_ROUNDS 3 (display only). No
+           rule change. Runner: unchanged rules (CHECK OK). BUILD r24-s1 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

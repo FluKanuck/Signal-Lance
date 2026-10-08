@@ -92,6 +92,8 @@ function contracts() {
       '<span>Field ×' + TUNE.DANGER_FIELD[o.tier] + ' · <span class="' + (b === 'FUEL' ? 'badt' : '') + '">' + fuelCost(o) + ' fuel to get there</span> (you have ' + C.fuel + ')</span>' +
       '<div class="zrow"><button class="cotake' + (b ? ' lockd' : '') + '" data-i="' + i + '">' + (b ? why[b] || 'can’t' : 'TAKE IT') + '</button></div></div>'; }).join('') + books;
 }
+// R24 A2: a term the player can long-press (its glossary entry)
+const gt = (id: string, text = id) => '<span data-g="' + id + '">' + text + '</span>';
 // ---- R23: THE CITY: standing bars along the top, the map on the left, the tapped district's offers on the right ----
 let selD = -1;
 const BANDC = { HATED: '#ff8a80', NEUTRAL: '#b0b0b0', LIKED: '#7ee08a' };
@@ -99,7 +101,7 @@ const pm = (n: number) => (n > 0 ? '+' : '') + n;
 function standingBars() {
   const S = G.co.city.standing, span = TUNE.STANDING_MAX - TUNE.STANDING_MIN, pos = (v: number) => (100 * (v - TUNE.STANDING_MIN) / span).toFixed(1) + '%';
   return '<div class="cybars">' + FACS().map(f => { const v = S[f], b = band(v), z = pos(0);
-    return '<div class="cybar"><span><b style="color:' + TUNE.CITY_FACTIONS[f].colour + '">' + esc(facName(f)) + '</b> ' + pm(v) + ' <b style="color:' + BANDC[b] + '">' + b + '</b></span>' +
+    return '<div class="cybar"><span><b style="color:' + TUNE.CITY_FACTIONS[f].colour + '">' + esc(facName(f)) + '</b> ' + pm(v) + ' <b style="color:' + BANDC[b] + '">' + gt(b) + '</b></span>' +
       '<div class="cytrack"><i style="left:' + pos(TUNE.STANDING_HATED) + '"></i><i style="left:' + pos(TUNE.STANDING_LIKED) + '"></i><u style="left:' + (v < 0 ? pos(v) : z) + ';width:' + (Math.abs(v) * 100 / span).toFixed(1) + '%;background:' + BANDC[b] + '"></u><i class="z" style="left:' + z + '"></i></div></div>'; }).join('') + '</div>';
 }
 function cityMap(busy: boolean) {
@@ -131,12 +133,12 @@ function cityScreen(busy: boolean) {
   if (!busy && !here.length) side += '<span style="opacity:.7">No job here. Tap a numbered district.</span>';
   for (const { o, i } of here) {
     const b = offerBlock(i), need = Math.min(o.hunts, Math.ceil(o.hunts * TUNE.CONTRACT_WIN_SHARE)), dl = effectsOf(o), gift = intelFrom(o);
-    side += '<div class="cyoff"><b>' + (i + 1) + ' · ' + (o.kind === 'FACTION' ? 'FACTION JOB' : 'BROKER JOB') + ': ' + esc(offerTitle(o)) + '</b>' +
-      '<span>' + TUNE.DANGER_NAMES[o.tier] + ' danger · ' + o.hunts + ' hunts (win ' + need + ') · pays <b style="color:#fc3">' + o.fee + ' cr</b> on completion' + (o.kind === 'FACTION' && liked(o.emp) ? ' (×' + TUNE.STANDING_LIKED_PAY + ': ' + esc(facName(o.emp)) + ' LIKES you)' : '') + '</span>' +
-      '<span><span class="' + (b === 'FUEL' ? 'badt' : '') + '">' + fuelCost(o) + ' fuel to get there</span> (you have ' + C.fuel + ')</span>' +
-      '<span>Complete it: ' + dl.map(([f, v, d]) => esc(facName(f)) + ' ' + pm(v) + (d ? '' : ' (word gets round)')).join(', ') + (o.kind === 'BROKER' ? ' (deniable: nobody gains)' : '') + '</span>' +
+    side += '<div class="cyoff"><b>' + (i + 1) + ' · ' + (o.kind === 'FACTION' ? gt('FACTION JOB') : gt('BROKER JOB')) + ': ' + esc(offerTitle(o)) + '</b>' +
+      '<span>' + TUNE.DANGER_NAMES[o.tier] + ' ' + gt('DANGER', 'danger') + ' · ' + o.hunts + ' hunts (win ' + need + ') · pays <b style="color:#fc3">' + o.fee + ' cr</b> on completion' + (o.kind === 'FACTION' && liked(o.emp) ? ' (×' + TUNE.STANDING_LIKED_PAY + ': ' + esc(facName(o.emp)) + ' LIKES you)' : '') + '</span>' +
+      '<span><span class="' + (b === 'FUEL' ? 'badt' : '') + '">' + fuelCost(o) + ' ' + gt('FUEL', 'fuel') + ' to get there</span> (you have ' + C.fuel + ')</span>' +
+      '<span>Complete it (' + gt('STANDING', 'standing') + '): ' + dl.map(([f, v, d]) => esc(facName(f)) + ' ' + pm(v) + (d ? '' : ' (word gets round)')).join(', ') + (o.kind === 'BROKER' ? ' (deniable: no faction employs you)' : '') + '</span>' +
       (hated(o.tgt) ? '<span class="badt">' + esc(facName(o.tgt)) + ' HATES you: +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of its field awake at the drop, danger a step up.</span>' : '') +
-      (gift ? '<span class="okt">' + esc(facName(gift)) + ' LIKES you: free intel, the scan opens with ' + (TUNE.STANDING_LIKED_INTEL === 'EM' ? 'the emitters counted' : 'radar band 1 on the whole map') + '.</span>' : '') +
+      (gift ? '<span class="okt">' + esc(facName(gift)) + ' LIKES you: ' + gt('FREE SCAN') + ', the scan opens with ' + (TUNE.STANDING_LIKED_INTEL === 'EM' ? 'the emitters counted' : 'radar band 1 on the whole map') + '.</span>' : '') +
       '<div class="zrow"><button class="cotake' + (b ? ' lockd' : '') + '" data-i="' + i + '">' + (b ? why[b] || 'can’t' : 'TAKE IT') + '</button></div></div>';
   }
   if (busy && G.ct.offer && G.ct.offer.kind) side += '<span>On a ' + esc(offerTitle(G.ct.offer)) + ' job here.</span>';
