@@ -16,6 +16,7 @@ node mods/signal-lance-qa/tool/qa.mjs <SESSION> <command> ...
 | `look --image` | Also saves a screenshot and prints its path. Open the path with the **Read** tool to see it. Use it when you judge how something looks or reads, when the map matters, and at least once on every new screen. Images are budgeted. |
 | `look --zoom x,y,w,h` | A sharp close-up of part of the screen (screen px), for small text. Also budgeted. |
 | `tap <control>` | Tap a control by its `[id]`, its label (`tap DROP`, `tap "END TURN"`) or a screen point (`tap 450,200`). Map taps are points. |
+| `hold <control>` | Long-press a control, a HUD word or a map point (on desktop: right-click). The game opens an explain card. The tool prints it as `EXPLAIN CARD`. Any tap closes it. |
 | `drag x,y x,y [x,y ...]` | Drag a finger along the points: draw a move path from your suit, or pan the map. |
 | `scroll <panel> [dy]` | Scroll a menu panel (dy in px, negative = up). `look` says `MORE BELOW in: ...` when a panel has more. |
 | `type <text> --into <id>` | Type into a text field. |

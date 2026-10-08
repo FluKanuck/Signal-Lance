@@ -114,6 +114,31 @@ class Session {
     this.feed('action', { cmd: 'tap', target: what, result: r.split('\n')[0] });
     return r;
   }
+  // r24: a long-press (touch: a real held finger through CDP; desktop: a right-click). Opens the game's explain card.
+  async hold(target) {
+    this.spend('action');
+    const v = await this.qa('view'); v.panelText = await this.panelText();
+    let x, y, what;
+    const xy = /^(-?\d+)\s*,\s*(-?\d+)$/.exec(String(target).trim());
+    if (xy) { x = +xy[1]; y = +xy[2]; what = x + ',' + y; }
+    else {
+      const t = String(target).trim().toLowerCase();
+      const b = v.buttons.find(b => b.id.toLowerCase() === t) || v.buttons.find(b => b.text.toLowerCase() === t) || v.buttons.find(b => b.text.toLowerCase().startsWith(t)) || v.buttons.find(b => b.text.toLowerCase().includes(t));
+      if (!b) return 'NO VISIBLE CONTROL matching "' + target + '". (Nothing was held.) Hold a control by its id or label, or a point as x,y.';
+      x = b.x; y = b.y; what = (b.id ? '[' + b.id + '] ' : '') + b.text;
+    }
+    if (DEVICES[this.m.device].hasTouch) {
+      this.cdp ||= await this.p.context().newCDPSession(this.p);
+      const pt = [{ x, y, id: 1 }];
+      await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchStart', touchPoints: pt });
+      await this.p.waitForTimeout(700);
+      await this.cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] });
+    } else await this.p.mouse.click(x, y, { button: 'right' });
+    await this.p.waitForTimeout(150);
+    const r = await this.changed(v, 'held ' + what);
+    this.feed('action', { cmd: 'hold', target: what, result: r.split('\n')[0] });
+    return r;
+  }
   async drag(points) {
     this.spend('action');
     const v = await this.qa('view'); v.panelText = await this.panelText();
@@ -207,6 +232,8 @@ class Session {
       const ap = (x) => x.suits?.find(s => s.active)?.ap; if (ap(before) !== ap(v) && before.active === v.active) bits.push('AP ' + ap(before) + ' → ' + ap(v));
       if ((before.contacts || []).length !== (v.contacts || []).length) bits.push('contacts ' + (before.contacts || []).length + ' → ' + (v.contacts || []).length);
     }
+    if (v.explain && v.explain !== before.explain) bits.push('explain card opened: ' + v.explain);
+    else if (before.explain && !v.explain) bits.push('explain card closed');
     if ((before.scanRings || '') !== (v.scanRings || '')) bits.push('scan: ' + (v.scanRings || 'no rings')); // r24: a ring drag shows only on the canvas
     const bt = new Set(before.buttons.map(b => b.text)), nt = v.buttons.filter(b => !bt.has(b.text)).map(b => b.text);
     if (nt.length) bits.push('new/changed controls: ' + nt.slice(0, 8).join(' | '));
@@ -224,6 +251,7 @@ export function viewText(v, short = false) {
   const head = ['SCREEN ' + v.screens.join('+'), 'mode ' + v.mode];
   if (v.mode === 'hunt') head.push('turn ' + v.turn, v.myMove ? 'YOUR MOVE' : 'phase ' + v.phase, 'mission ' + v.mission, 'active suit ' + v.active, 'move mode ' + v.moveMode, ...(v.armed?.length ? ['armed: ' + v.armed.join(',')] : []));
   L.push(head.join(' · ') + ' · viewport ' + v.viewport.w + 'x' + v.viewport.h);
+  if (v.explain) L.push('EXPLAIN CARD (open, any tap closes it): ' + v.explain);
   if (v.mode === 'hunt' && !short) {
     if (v.hud) L.push('HUD: ' + v.hud);
     if (v.init) L.push('ORDER: ' + v.init);

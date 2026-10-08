@@ -21,6 +21,7 @@ async function handle({ cmd, session, args = {} }) {
   switch (cmd) {
     case 'look': return s.look(args);
     case 'tap': return s.tap(args.target);
+    case 'hold': return s.hold(args.target);
     case 'drag': return s.drag(args.points);
     case 'scroll': return s.scroll(args.panel, args.dy);
     case 'type': return s.type(args.text, args.into);
