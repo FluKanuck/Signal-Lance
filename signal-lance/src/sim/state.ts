@@ -4,6 +4,7 @@ import { addDropZones, dropPts, freshScan, applyScan } from './scan.ts';
 import { rollDistrict } from './blocks.ts';
 import { rand, setSeed } from './rng.ts';
 import { startRound } from './turns.ts';
+import { liveBegin } from './live.ts';
 import { rollZones, zoneAtTile, areaScale } from './zones.ts';
 import { recordHunt } from './contract.ts';
 import { aarReset, aarSnap, aarEnd } from './aar.ts';
@@ -249,7 +250,9 @@ export function newHunt(loads?, prep?: () => void, ids?: string[]) {
   if (G.scan) applyScan(); // R19: what the ship heard (stale blips, notes), the patrols' drift and the listen's costs
   if (prep) prep();
   aarSnap(); // R22: hits and levels at the start (WHAT IT COST)
+  G.live = false;
   startRound();
+  if (TUNE.TIME_MODE === 'live') liveBegin(); // R25: the toy page runs the hunt on one clock (live.ts)
 }
 
 // Roll this run's uplink point. R6: reseeds the RNG first, so one seed fixes the whole setup

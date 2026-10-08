@@ -4,7 +4,7 @@ import { rand } from './rng.ts';
 import { G, unitById, isFriend, friends } from './state.ts';
 import { killContact, cx, cy } from './sensors.ts';
 import { partGone } from './combat.ts';
-import { canPay, doMove, doPulse, doShot, freeTurn, planMove, shootBlock } from './turns.ts';
+import { canPay, doMove, doPulse, shoot, freeTurn, planMove, shootBlock } from './turns.ts';
 import { pickPackTarget, wounded, packOn } from './pack.ts';
 import { aarPack } from './aar.ts';
 import { has, gunOf, radarOf } from './kit.ts';
@@ -58,8 +58,8 @@ export function enemyDecide(e) {
   const range = gunOf(e)?.range || 0; // R18: its gun row (was ENEMY_FIRE_RANGE)
   const pk = packOn() && e.mobile ? packTarget(e) : null; // R15: packOn() = PACK_ENABLED, or a Retrieve after the flip
   // 1. shoot whenever its lock rule allows (2-shot cap and AP included); the pack's target first, if it can
-  if (pk && shootBlock(e, pk.c, F.FIRE_UNC, range) === '') { e.state = 'FIRE'; e.acted = true; return () => doShot(e, pk.c); }
-  if (c && shootBlock(e, c, F.FIRE_UNC, range) === '') { e.state = 'FIRE'; e.acted = true; return () => doShot(e, c); }
+  if (pk && shootBlock(e, pk.c, F.FIRE_UNC, range) === '') { e.state = 'FIRE'; e.acted = true; return () => shoot(e, pk.c); }
+  if (c && shootBlock(e, c, F.FIRE_UNC, range) === '') { e.state = 'FIRE'; e.acted = true; return () => shoot(e, c); }
   const b = c ? null : freshBearing(e.eb, 5);
   if (!e.mobile) return staticDecide(e, c, b);
   if (e.moved) return null;

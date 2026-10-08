@@ -224,6 +224,42 @@ const BASICS_EXTRA = [ // facts the glossary doesn't hold (house standard, stric
   ['Camera', 'Drag the map to pan. Z+ and Z− zoom. CTR centres on the active ExoS.'],
   ['Debug', 'DEBUG: REROLL JOBS rolls new jobs for the same hunt. It is for testers, to get the job type they want.'],
 ];
+// R25 "Live toy": the toy page (TIME_MODE 'live') has its own splash, questions and hunt how-to. The main game's stay as above.
+const LIVE_TEST = {
+  title: 'LIVE TOY (Round 25)',
+  question: 'Does live time with auto-pause make the hunt flow, and still feel like a plan?',
+  newThings: [
+    'This is a separate test page. Your company here is not your company in the main game.',
+    'NEW (r25 live A): one clock runs the hunt. Every ExoS and every enemy acts at the same time. There are no turns and no AP.',
+    'The hunt opens paused. Tap PLAY (bottom right) or the space bar to start the clock. Tap PAUSE to stop it at any time.',
+    'Every order works while paused: draw a route, set looks, FIRE, RADAR, UPLINK. Then tap PLAY and watch it happen.',
+    'Actions take time. A move takes as long as the walk. RADAR, UPLINK, PICK UP, HAND OFF, ECM and MORTAR each take a few seconds. A ring on the ExoS fills while it works.',
+    'A new order replaces what the ExoS is doing. A move you stop gives back the EN for the part it did not walk.',
+    'FIRE aims for ' + TUNE.LIVE_AIM_TIME + ' s, then shoots. The gun then cools for ' + TUNE.LIVE_FIRE_COOLDOWN + ' s. It keeps the target and fires again by itself while it can shoot. An ExoS can aim and walk at the same time.',
+    'EN comes back every second. EMIT falls every second. A SOUND lasts ' + TUNE.LIVE_ROUND_SEC + ' s.',
+    'Tap a letter at the top right, or tap an ExoS on the map, to give that ExoS orders.',
+    'Coming next in this toy: the game pauses by itself when something happens. Then free movement off the tile grid, and a smoother route tool.',
+  ],
+  round: 25,
+  howTo: 'Play a few hunts here, then the same seed in the main game (PLAY SEED). Tap the answers after each hunt. When you finish, tap SEND LOG and send it to Jamie.',
+};
+const LIVE_QUESTIONS = [
+  { k: 'walk', q: 'Did the walks drag?', a: ['No', 'A little', 'Yes', 'Something else'] },
+  { k: 'rush', q: 'Did you feel rushed, or need fast taps?', a: ['Never', 'Once or twice', 'Often', 'Something else'] },
+  { k: 'plan', q: 'Did it feel like watching your plan play out?', a: ['Yes', 'Partly', 'No', 'Something else'] },
+];
+const LIVE_HUNT_HOW = [
+  'The hunt opens paused. PLAY starts the clock. PAUSE stops it. The space bar does both.',
+  'Everyone acts at the same time. Tap a letter at the top right, or an ExoS on the map, to pick it.',
+  'To move, tap the map or drag from your ExoS. Pick CREEP, NORMAL or SPRINT. Then tap MOVE.',
+  'Actions take time. A ring fills on the ExoS while it works. A new order replaces the old one.',
+  'Tap a contact to select it. FIRE aims, shoots, then the gun cools down. It keeps firing at that target while it can.',
+];
+if (TUNE.TIME_MODE === 'live') {
+  Object.assign(TEST, LIVE_TEST);
+  QUESTIONS.splice(0, QUESTIONS.length, ...LIVE_QUESTIONS);
+  const hunt = BASICS.find(B => B.title === 'The hunt'); if (hunt) hunt.how = LIVE_HUNT_HOW;
+}
 function basicsHtml() {
   const term = (e: Entry) => '<div class="bst"><b>' + esc(e.name) + '</b>: ' + esc(e.line) + '</div>';
   return '<p><b>Long-press anything to see what it is.</b> On a computer, right-click it. A tap on a greyed button says why it is greyed.</p>' +

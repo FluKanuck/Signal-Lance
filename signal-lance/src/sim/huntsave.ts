@@ -85,6 +85,7 @@ export function huntSaveBlock(): string {
   if (G.mode !== 'hunt') return 'NOT IN A HUNT';
   if (G.tb || (G.co && G.co.testbed)) return 'TEST BED';
   if (!G.co || !G.ct || G.ct.status !== 'ACTIVE') return 'NO CONTRACT';
+  if (G.live) return 'LIVE TOY'; // R25: a live hunt can't be saved mid-hunt (its actions hold timers)
   if (G.phase !== 'PLAYER' || G.act) return 'WAIT';
   return '';
 }

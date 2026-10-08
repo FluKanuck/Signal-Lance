@@ -182,6 +182,31 @@ const TERMS: Entry[] = [
   { id: 'THE BOOKS', name: 'THE BOOKS', screen: 'after', line: 'The company’s money at a contract’s end: fee, bonus, wages, upkeep and repairs, then the credits left.' },
 ];
 
+// R25 "Live toy": on the toy page (TIME_MODE 'live') some terms mean something else, and some are new.
+const LIVE_LINES: Record<string, string> = {
+  ROUND: 'Every ' + TUNE.LIVE_ROUND_SEC + ' s of the clock is one ROUND. RWR warnings, the GHOST and LAST SEEN marks count in ROUNDS.',
+  ORDER: 'Your ExoS, by letter. The bright one takes your orders. Tap a letter to pick that ExoS. Everyone acts at the same time.',
+  AP: 'Not used on this page. Time is the cost: each action takes some seconds.',
+  EN: 'Energy. Fast moves, RADAR, ECM and GHOST use it. Your reactor gives some back every second.',
+  EMIT: 'Your electronic noise. RADAR, ECM and UPLINK add to it. Enemy ESM hears it from far away. It falls every second.',
+  SOUND: 'The noise of your moves and shots, drawn as a pale ring. Enemies inside it hear you, through walls. It lasts ' + TUNE.LIVE_ROUND_SEC + ' s.',
+  ECM: 'ECM hides your EMIT to ' + pc(TUNE.ECM_MASK_MULT) + ' while it is on. It takes ' + TUNE.LIVE_ACT_TIME.ECM + ' s to start and uses EN every second. Tap again to stop it.',
+  GHOST: 'A fake contact for the enemy. Tap GHOST, then tap the map. It lasts ' + TUNE.GHOST_TURNS + ' ROUNDS. Enemies hunt it like an ExoS.',
+};
+const LIVE_TERMS: Entry[] = [
+  { id: 'PAUSE', name: 'PAUSE', screen: 'hunt', line: 'Stops the clock. Every order still works while paused. Tap PLAY to start the clock again. The space bar does both.' },
+  { id: 'PLAY', name: 'PLAY', screen: 'hunt', line: 'Starts the clock. Everyone acts at the same time until you PAUSE.' },
+  { id: 'TIME', name: 'TIME', screen: 'hunt', line: 'The hunt clock, in minutes and seconds.' },
+  { id: 'IDLE', name: 'IDLE', screen: 'hunt', line: 'This ExoS has no order. It stands, looks and listens.' },
+  { id: 'AIM', name: 'AIM', screen: 'hunt', line: 'The gun aims for ' + TUNE.LIVE_AIM_TIME + ' s before each shot. The ExoS can walk while it aims.' },
+  { id: 'GUN COOLING', name: 'GUN COOLING', screen: 'hunt', line: 'After a shot the gun cools for ' + TUNE.LIVE_FIRE_COOLDOWN + ' s. Then it aims again by itself at the same target, if it can shoot.' },
+  { id: 'LIVE TOY', name: 'LIVE TOY', screen: 'hunt', line: 'A test page for live time. It has its own company and its own save. The main game does not change.' },
+];
+if (TUNE.TIME_MODE === 'live') {
+  for (const e of TERMS) if (LIVE_LINES[e.id]) e.line = LIVE_LINES[e.id];
+  TERMS.splice(TERMS.findIndex(e => e.id === 'ExoS') + 1, 0, ...LIVE_TERMS);
+}
+
 // ---- blocked reasons (A3): what blocks the control, and what would unblock it ----
 // short = the word on the greyed button. line = the explain card. ACT_NAME = the button's label.
 const ACT_NAME: Record<string, string> = { FIRE: 'FIRE', MORTAR: 'MORTAR', RADAR: 'RADAR', ECM: 'ECM', GHOST: 'GHOST', UPLINK: 'UPLINK', PICKUP: 'PICK UP', HANDOFF: 'HAND OFF',
@@ -189,7 +214,7 @@ const ACT_NAME: Record<string, string> = { FIRE: 'FIRE', MORTAR: 'MORTAR', RADAR
 const PART_LINE = (p: string) => 'The ' + p + ' part is gone, so this stops for the rest of the hunt. REPAIR WORST between hunts repairs it.';
 export const WHY_SHORT: Record<string, string> = { NONE: 'NONE', AP: 'NEED AP', EN: 'NEED EN', CAP: 'USED', SOUND: 'HEARD ONLY', FUZZY: 'NO LOCK', RANGE: 'OUT OF RANGE',
   LOS: 'NO SIGHT', AMMO: 'NO AMMO', SHELLS: 'NO SHELLS', CLOSE: 'TOO CLOSE', DONE: 'DONE', HELD: 'CARRIED', ZONE: 'NOT IN ZONE', FORK: 'AT FORK', USED: 'NONE LEFT',
-  CARGO: 'CARRIER', SEEN: 'SEEN', ON: 'ON MAP', NOPLAN: 'TAP OR DRAW', WAIT: 'WAIT', LEGS: 'LEG DAMAGED',
+  CARGO: 'CARRIER', SEEN: 'SEEN', ON: 'ON MAP', NOPLAN: 'TAP OR DRAW', WAIT: 'WAIT', LEGS: 'LEG DAMAGED', COOL: 'COOLING',
   ...Object.fromEntries(PART_CODES.map(p => [p, p + ' GONE'])) };
 const SHORT_BY_ACT: Record<string, string> = { 'FIRE.NONE': 'NO TARGET', 'MORTAR.NONE': 'NO TARGET', 'ID.NONE': 'TAP ONE', 'RADAR.NONE': 'NO RADAR', 'UPLINK.NONE': 'NO UPLINK',
   'PICKUP.NONE': 'NO CARGO', 'HANDOFF.NONE': 'NO CARGO', 'ORDER.NONE': 'NO TRANSPORT', 'EXTRACT.NONE': 'NONE', 'MOVE.LEGS': 'LEG DAMAGED', 'MODE.LEGS': 'LEG DAMAGED', 'FIRE.LEGS': 'LEGS GONE',
@@ -200,6 +225,7 @@ const WHY_LINE: Record<string, string> = {
   'FIRE.NONE': 'No contact to shoot at. Find one with your sensors first, then tap it to select it.',
   'FIRE.AMMO': 'No gun rounds left. Buy more on the REFIT tab between hunts (+10 RDS).',
   'FIRE.CAP': 'This ExoS fired ' + TUNE.SHOTS_PER_TURN + ' times this turn. It can fire again next turn.',
+  'FIRE.COOL': 'The gun is aiming or cooling down after a shot. It is ready again in ' + TUNE.LIVE_FIRE_COOLDOWN + ' s or less. (LIVE TOY only.)',
   'FIRE.SOUND': 'You only heard this contact. A SOUND fix is never tight enough. Get eyes, RADAR or ESM on it.',
   'FIRE.FUZZY': 'The fix is too fuzzy: FIRE needs ±' + TUNE.PLAYER_FIRE_UNC + ' tiles or better. Get closer, use RADAR, or get eyes on it.',
   'FIRE.RANGE': 'The contact is out of your gun’s range. Move closer.',
@@ -207,6 +233,7 @@ const WHY_LINE: Record<string, string> = {
   'MORTAR.NONE': 'No contact for an aimed shell. Tap MORTAR, then tap the map for a blind shell.',
   'MORTAR.SHELLS': 'No mortar shells left. Buy more on the REFIT tab between hunts (+1 SHELL).',
   'MORTAR.CAP': 'This ExoS fired its mortar this turn. It can fire again next turn.',
+  'MORTAR.COOL': 'The mortar is cooling down after a shell. It is ready again in ' + TUNE.LIVE_MORTAR_COOLDOWN + ' s or less. (LIVE TOY only.)',
   'MORTAR.SOUND': 'You only heard this contact. Tap the map for a blind shell, or tighten the fix first.',
   'MORTAR.FUZZY': 'The fix is too fuzzy for an aimed shell: it needs ±' + TUNE.MORTAR_MAX_UNC + ' tiles or better. Tap the map for a blind shell.',
   'MORTAR.CLOSE': 'Too close for the mortar. Move away, or pick a point further off.',

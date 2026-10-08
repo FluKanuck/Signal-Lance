@@ -12,6 +12,7 @@ import { $, syncButtons, refreshHud } from './hud.ts';
 import { showTip, hideTip, explainAt } from './tip.ts';
 import { showWhy, hideExplain } from './explain.ts';
 import { moveModeBlock } from '../sim/reasons.ts';
+import { liveSelect } from '../sim/live.ts';
 
 // ============================ INPUT ===================================
 // R24 A2: buttons act on release (pointerup), so a long-press can open the explain card instead (explain.ts swallows it)
@@ -171,6 +172,10 @@ export function onTap(sx, sy) {
   const z = camZ();
   const wx = (sx - vw / 2) / z + V.camX, wy = (sy - vh / 2) / z + V.camY;
   const onSelf = Math.hypot(wx - G.p.x, wy - G.p.y) <= TUNE.SELF_TAP_PX / z;
+  if (G.live && !V.mortarArm && !V.ghostArm && !V.faceArm) { // R25: tap another ExoS = give it the orders
+    const o = G.lance.find(m => m !== G.p && !m.dead && !m.out && Math.hypot(wx - m.x, wy - m.y) <= Math.max(TUNE.SELF_TAP_PX, 22) / z);
+    if (o) { liveSelect(o); V.lookArm = null; hideWpMenu(); syncButtons(); return; }
+  }
   // R9 run1: armed mortar: tap a contact = aimed lob on its fix (if it qualifies), anywhere else = blind lob there
   if (V.mortarArm) {
     for (const c of G.pc) {

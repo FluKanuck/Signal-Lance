@@ -111,7 +111,7 @@ export function ageContacts(list, dt) {
     const actor = G.order[G.oi], mine = unitById(c.id);
     const hold = list === G.pc && frozen(c.id); // R14: an ID'd static: the track freezes (no growth, no fading)
     if (hold) continue;
-    if (!TUNE.UNC_GROW_OWN_TURN || !mine || actor === mine) c.unc += TUNE.UNC_GROW * T * dt;
+    if (G.live || !TUNE.UNC_GROW_OWN_TURN || !mine || actor === mine) c.unc += TUNE.UNC_GROW * T * dt;
     if (c.lost - c.gap > TUNE.CONTACT_LINGER + (c.keep || 0)) { c.on = false; if (G.sel === c) G.sel = null; }
   }
 }

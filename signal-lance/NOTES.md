@@ -25,6 +25,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
 - QA panel (`claude/signal-lance-qa-harness.md`): `src/sim/invariants.ts` (rule checks the harness runs after every
   tester action), `src/view/qa.ts` (`window.__qa`, only in `npm run build:qa` → `dist-qa/`, never in `docs/`).
 - `npm run build` → `dist/signal-lance.html` (one self-contained file; republish it to the artifact).
+- R25 live toy (separate page): `npm run build:live` → `dist/signal-lance-live.html` + `docs/live/index.html`. Entry
+  `src/main-live.ts` (`live-boot.ts` sets `TIME_MODE` 'live' and prefixes every storage key with `live:`, then the game).
+  `signal-lance-live.html` is generated from `signal-lance.html` by `scripts/live-html.mjs`. Rules: `src/sim/live.ts` (the
+  clock, each unit's action slot, the gun's aim + cooldown, the field's rounds). View: `src/view/live.ts` + `G.live` branches.
 
 ## ASSUMPTIONS
 
@@ -1224,6 +1228,23 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Low hits waits for the first hit (a fresh scout has 1 CORE hit: a warning from the drop was noise in testing).
    - Crowded phone: district 1701, A and B on the street at x 31-33, a sentry, a fire emplacement and a line patrol at x 36-42
      round the uplink at [41, 13], all three on the picture at the start (RADAR, RADAR, ESM).
+   R25 "Live toy" (toy page only; TIME_MODE 'live')
+   - One clock. A ROUND is LIVE_ROUND_SEC 4 s, not the brief's SEC_PER_TURN 2: a turn's NORMAL walk (4 AP × 2 tiles) takes
+     ~3.6 s at 2.2 tiles/s, so 4 s keeps EN, EMIT and heat per second the same as per turn. LIVE_ACT_TIME follows
+     AP × 4 s ÷ AP_PER_TURN (UPLINK 2 AP → 4 s: one round per UPLINK step, as in turns).
+   - Your ExoS have AP 99 at all times: every rule that asks for AP passes, and time is the cost. Field units keep a turn's AP
+     each round (their brain still thinks in turns: one move a round, patience in rounds), so they are no faster than in turns.
+   - The gun is its own slot: aim (LIVE_AIM_TIME), shot, cooldown. Aiming doesn't stop a move (a moving shooter takes the
+     "moved" to-hit penalty, cleared after LIVE_MOVED_WINDOW s still). Every other action (move, RADAR, UPLINK, PICK UP,
+     HAND OFF, ECM on, MORTAR) uses the body slot: a new one replaces the old; a stopped move hands back its unwalked EN.
+   - A held target refires by itself (LIVE_AUTO_REFIRE) so the phone never needs fast taps. SHOTS_PER_TURN / MORTAR_PER_ACTIVATION
+     don't apply; COOL (new reason code) blocks instead.
+   - GHOST stays instant (a timed GHOST added nothing); it lasts GHOST_TURNS rounds.
+   - SOUND lasts LIVE_ROUND_SEC after it was made or grew. Lost-contact circles grow all the time (UNC_GROW_OWN_TURN is moot).
+   - The R17 move interrupt still stops a move on a new contact (checkpoint B adds the auto-pause on top).
+   - Carrying a CRITICAL operator: a lancemate within OP_CARRY_RANGE at a round tick picks them up.
+   - A live hunt can't SAVE & QUIT (its action slots hold timers): huntSaveBlock says LIVE TOY.
+   - The transport walks one step-plan per round, as in turns. Initiative isn't used.
 ```
 
 ## TWEAK LOG
@@ -1858,6 +1879,11 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            TAKE JOB, module slots), a desktop right-click fired the control under the card, two operators shared a first name.
            A long-press or right-click never fires a control now (a control with no entry shows a plain card). ROUTE bar buttons
            read the ROUTE entry. First names are unique on a roster (+ recruits). No rule change. Runner CHECK OK | -
+   round25 cp A (r25-live-a, toy page) | brief: live time on a separate page | NEW TIME_MODE 'turns' (toy: 'live'),
+           LIVE_ROUND_SEC 4, LIVE_ACT_TIME { UPLINK 4, PICKUP 2, HANDOFF 1, ECM 1, PULSE 2, MORTAR 2 }, LIVE_AIM_TIME 0.8,
+           LIVE_FIRE_COOLDOWN 2, LIVE_MORTAR_COOLDOWN 4, LIVE_AUTO_REFIRE true, LIVE_MOVED_WINDOW 2, LIVE_ENEMY_STAGGER 1,
+           LIVE_START_PAUSED true. Main game: turns runner output byte-identical to r24-s4 (--contracts 20 --check); BUILD
+           stays r24-s4. Toy BUILD r25-live-a | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

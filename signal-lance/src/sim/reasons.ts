@@ -9,8 +9,8 @@ import { isCarrier } from './mission.ts';
 export const PART_CODES = ['MAST', 'ARMS', 'CORE', 'BACK', 'LEGS'] as const;
 
 export const REASONS: Record<string, readonly string[]> = {
-  FIRE: ['NONE', ...PART_CODES, 'AMMO', 'CAP', 'AP', 'SOUND', 'FUZZY', 'RANGE', 'LOS'],            // turns.ts shootBlock
-  MORTAR: ['NONE', ...PART_CODES, 'SHELLS', 'CAP', 'AP', 'SOUND', 'FUZZY', 'CLOSE', 'RANGE'], // mortarBlock + mortarBlindBlock (offWhy can name any part)
+  FIRE: ['NONE', ...PART_CODES, 'AMMO', 'CAP', 'COOL', 'AP', 'SOUND', 'FUZZY', 'RANGE', 'LOS'],            // turns.ts shootBlock (R25 COOL: live toy only)
+  MORTAR: ['NONE', ...PART_CODES, 'SHELLS', 'CAP', 'COOL', 'AP', 'SOUND', 'FUZZY', 'CLOSE', 'RANGE'], // mortarBlock + mortarBlindBlock (offWhy can name any part)
   RADAR: ['NONE', 'AP', 'EN', ...PART_CODES],                                                // hud.ts: radarOf / offWhy / costWhy
   ECM: ['AP', 'EN', ...PART_CODES],
   GHOST: ['AP', 'EN', 'ON', ...PART_CODES],

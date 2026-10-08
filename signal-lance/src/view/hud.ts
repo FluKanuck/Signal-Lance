@@ -20,6 +20,10 @@ import { moveModeBlock } from '../sim/reasons.ts';
 import { lowHits, hitsLeft } from '../sim/warn.ts';
 import { whyShort } from './glossary.ts';
 import { cmdMoveMode } from '../sim/turns.ts';
+import { liveDoing, planSecs } from '../sim/live.ts';
+// R25 live toy: an action's cost in seconds instead of AP
+const cost = (ap: number, secs: number) => G.live ? secs + 's' : ap + 'AP';
+const perTurn = (n: number) => G.live ? Math.round(n / TUNE.LIVE_ROUND_SEC * 10) / 10 + '/s' : n + '/turn';
 // R24 B6: a tap on the compact HUD opens the full block; the next tap closes it (a long-press explains instead: explain.ts)
 document.getElementById('hud')?.addEventListener('pointerup', () => { if (window.innerHeight <= TUNE.HUD_COMPACT_H || V.hudOver) { V.hudOpen = !V.hudOpen; hudT = 0; } });
 // R24 A2: a HUD term the player can long-press (its glossary entry)
@@ -35,6 +39,11 @@ export function refreshHud() { hudT = 0; }
 function initStrip() {
   if (G.mode !== 'hunt') return '';
   let h = '';
+  if (G.live) { // R25: your ExoS by letter (tap one to pick it), then the transport. Everyone acts at once: no order.
+    for (const m of G.lance) if (!m.out) h += '<span data-g="ORDER" data-m="' + m.id + '" class="me' + (m === G.p ? ' now' : '') + (m.dead ? ' done' : '') + '">' + m.id + '</span>';
+    if (G.ally && !G.ally.dead && !G.ally.out) h += '<span data-g="T" class="ally">T</span>';
+    return h;
+  }
   G.order.forEach((m, i) => {
     if (m.dead) return;
     const mech = G.lance.includes(m);
@@ -63,20 +72,20 @@ export function updateHud(dt) {
   $('init').innerHTML = initStrip();
   const p = G.p, mine = G.phase === 'PLAYER';
   const others = G.lance.filter(m => m !== p);
-  const turn = g('ROUND') + ' ' + G.turn + '  ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + (p.op ? ' · ' + p.op.name + ' (' + TUNE.OP_SKILL_NAMES[p.op.skill] + ' ' + p.op.lvl + (p.op.lvl >= 2 ? '★' : '') + ')' : '') + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>' + g('TAP WHERE TO FACE') + '</b>' : '') + (V.lookArm !== null ? '  <b style="color:#ff6">TAP WHERE IT SHOULD LOOK</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine && TUNE.AP_TURN > 0 ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') + // r17-s4: turning costs nothing (AP_TURN 0): no cost shown
-    (mine ? '  ' + g('shots') + ' ' + p.turnShots + '/' + TUNE.SHOTS_PER_TURN : '') +
+  const turn = (G.live ? g('TIME') + ' ' + fmtTime(G.time) + (G.paused ? '  <b style="color:#ff6">' + g('PAUSE', 'PAUSED') + '</b>' : '') : g('ROUND') + ' ' + G.turn) + '  ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + (p.op ? ' · ' + p.op.name + ' (' + TUNE.OP_SKILL_NAMES[p.op.skill] + ' ' + p.op.lvl + (p.op.lvl >= 2 ? '★' : '') + ')' : '') + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>' + g('TAP WHERE TO FACE') + '</b>' : '') + (V.lookArm !== null ? '  <b style="color:#ff6">TAP WHERE IT SHOULD LOOK</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine && TUNE.AP_TURN > 0 ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') + // r17-s4: turning costs nothing (AP_TURN 0): no cost shown
+    (mine && !G.live ? '  ' + g('shots') + ' ' + p.turnShots + '/' + TUNE.SHOTS_PER_TURN : '') + (G.live ? '  <b style="color:#8fe3ff">' + liveDoing(p) + '</b>' : '') +
     (mine && G.plan && G.plan.drawn ? '  <b style="color:#8fe3ff">DRAWN PATH · ' + g('looks') + ' ' + G.plan.wps.length + '/' + TUNE.FACE_WAYPOINTS_MAX + (V.wpWhy ? ' (' + V.wpWhy + ')' : '') + '</b>' : '') + // R17
-    (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">' + g('MOVE STOPPED', 'MOVE STOPPED: CONTACT (' + G.intr.ap + ' AP kept)') + '</b>' : '');
+    (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">' + g('MOVE STOPPED', 'MOVE STOPPED: CONTACT' + (G.live ? '' : ' (' + G.intr.ap + ' AP kept)')) + '</b>' : '');
   const pips = '<span id="ap">' + '●'.repeat(p.ap) + '○'.repeat(Math.max(0, TUNE.AP_BANK_MAX - p.ap)) + '</span>';
-  const full = turn + '<br>' + g('AP') + ' ' + pips + '  (+' + TUNE.AP_PER_TURN + '/turn)' +
-    '<br>' + g('EN') + ' <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.en / p.enMax) + '%"></div></span> ' + Math.round(p.en) + '/' + p.enMax + '  (+' + (p.regen ?? TUNE.ENERGY_REGEN) + '/turn)' +
-    '<br>' + g('EMIT') + ' <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.emit / TUNE.SIGNAL_MAX) + '%;background:#f93"></div></span> ' + Math.round(p.emit) + '  (−' + TUNE.SIGNAL_DECAY + '/turn)' +
+  const full = turn + (G.live ? '' : '<br>' + g('AP') + ' ' + pips + '  (+' + TUNE.AP_PER_TURN + '/turn)') +
+    '<br>' + g('EN') + ' <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.en / p.enMax) + '%"></div></span> ' + Math.round(p.en) + '/' + p.enMax + '  (+' + perTurn(p.regen ?? TUNE.ENERGY_REGEN) + ')' +
+    '<br>' + g('EMIT') + ' <span id="pbar"><div id="pfill" style="width:' + Math.round(100 * p.emit / TUNE.SIGNAL_MAX) + '%;background:#f93"></div></span> ' + Math.round(p.emit) + '  (−' + perTurn(TUNE.SIGNAL_DECAY) + ')' +
       '  <b style="color:' + (p.sound ? '#e8f4ff' : '#778') + '">' + g('SOUND') + ' ' + (p.sound ? Math.round(soundRadius(p) * 10) / 10 : '–') + '</b>' + // R13: this activation's sound radius
 
     '<br><b>' + p.id + '</b> ' + partsHud(p) + others.map(o => '  <span style="color:#aab">' + o.id + ' ' + otherLine(o, others.length > 1) + '</span>').join('') + // R21 cp2: every other suit (short when there are several) // R12: per-part read
     warnLine() +
     '<br>' + (has(p, 'GUN') ? '  ' + g('AMMO') + ' ' + p.ammo : '') + (has(p, 'MORTAR') ? '  ' + g('SHELLS') + ' ' + p.shells : '') + '  ' + g('KILLS') + ' ' + G.kills + '/' + G.units.length + '  ' + g('TIME') + ' ' + fmtTime(G.time) + (heardRange(p) > 0 ? '  ' + g('EMIT') + ' heard ~' + Math.round(heardRange(p)) + 't' : '  ' + g('EMIT') + ' silent') + (TUNE.THERMAL_ENABLED ? '  ' + g('IR') + ' ' + Math.round(irOf(p)) + ' (~' + Math.round(irRange(p)) + 't)' : '') + zoneHud(p) + // R18 cp3: heat, and how far a thermal sight sees it
-    (has(p, 'MASK') ? '  ' + g('ECM') + ' ' + (p.mask ? 'ON' : 'off') : '') + (has(p, 'GHOST') && G.ghost.on ? '  ' + g('GHOST') + ' ' + G.ghost.turns + ' turns' : '') +
+    (has(p, 'MASK') ? '  ' + g('ECM') + ' ' + (p.mask ? 'ON' : 'off') : '') + (has(p, 'GHOST') && G.ghost.on ? '  ' + g('GHOST') + ' ' + G.ghost.turns + (G.live ? ' rounds' : ' turns') : '') +
     oddsLine(p) + shotLine('P') + shotLine('E') +
     (G.splash ? '<br><b style="color:' + (G.splash.hit ? '#f63' : '#aaa') + '">SPLASH: ' + (G.splash.hit ? 'hit' : 'miss') + '</b>' : '') +
     goalLine(p) +
@@ -103,7 +112,7 @@ export function updateHud(dt) {
 function compactLine(p, mine: boolean) {
   const low = G.lance.filter(m => lowHits(m)).map(m => m.id + ' ' + hitsLeft(m)).join(' ');
   const prompt = V.faceArm ? 'TAP WHERE TO FACE' : V.lookArm !== null ? 'TAP WHERE IT SHOULD LOOK' : V.mortarArm ? 'MORTAR: TAP A CONTACT OR THE MAP' : G.intr && G.intr.id === p.id ? 'MOVE STOPPED' : '';
-  return '<span class="hl">' + g('ROUND', 'R') + G.turn + ' · ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + '</b> · ' + g('AP') + ' ' + p.ap + '/' + TUNE.AP_BANK_MAX + ' · ' + g('EN') + ' ' + Math.round(p.en) : '<b>ENEMY…</b>') +
+  return '<span class="hl">' + (G.live ? g('TIME') + ' ' + fmtTime(G.time) + (G.paused ? ' <b style="color:#ff6">' + g('PAUSE', 'PAUSED') + '</b>' : '') : g('ROUND', 'R') + G.turn) + ' · ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + '</b> · ' + (G.live ? liveDoing(p) : g('AP') + ' ' + p.ap + '/' + TUNE.AP_BANK_MAX) + ' · ' + g('EN') + ' ' + Math.round(p.en) : '<b>ENEMY…</b>') +
     ' · ' + compactGoal(p) + (low ? ' · <b style="color:#ff8a80">' + g('HITS LEFT', '! ' + low) + '</b>' : '') +
     (prompt ? ' · <b style="color:#ff6">' + (prompt === 'MOVE STOPPED' ? g('MOVE STOPPED') : prompt === 'TAP WHERE TO FACE' ? g('TAP WHERE TO FACE') : prompt) + '</b>' : '') + ' <span class="more">▾</span></span>';
 }
@@ -178,47 +187,48 @@ export function syncButtons() {
   for (const [id, m] of [['bCreep', 'CREEP'], ['bNorm', 'NORMAL'], ['bSprint', 'SPRINT']]) {
     const b = moveModeBlock(p, m); // R13: a leg damaged locks NORMAL and SPRINT. R15: the carrier can't sprint
     const [ws, wk] = b ? W('MODE', b) : ['', ''];
-    setBtn(id, m, b ? ws : TUNE.MOVE_TILES_PER_AP[m] + 't/AP ' + (TUNE.MOVE_ENERGY_PER_TILE[m] + (p.over ? p.over.en || 0 : 0)) + 'EN · snd ' + (TUNE.SOUND_RANGE[m] + (p.over ? p.over.snd : 0)), free && !b, G.pmode === m, wk); // R13: the sound it makes. R24: NORMAL (was NORM)
+    setBtn(id, m, b ? ws : (G.live ? (m === 'CREEP' ? TUNE.CREEP_SPEED : m === 'SPRINT' ? TUNE.SPRINT_SPEED : TUNE.PLAYER_SPEED) + 't/s ' : TUNE.MOVE_TILES_PER_AP[m] + 't/AP ') + (TUNE.MOVE_ENERGY_PER_TILE[m] + (p.over ? p.over.en || 0 : 0)) + 'EN · snd ' + (TUNE.SOUND_RANGE[m] + (p.over ? p.over.snd : 0)), free && !b, G.pmode === m, wk); // R13: the sound it makes. R24: NORMAL (was NORM)
   }
   const pl = G.plan;
   if (V.faceArm) setBtn('bMove', 'CANCEL', 'face', free, true);
-  else { const mw = !pl ? 'NOPLAN' : pl.path ? '' : pl.why; setBtn('bMove', 'MOVE', !pl ? (TUNE.DRAW_PATH_ENABLED ? 'TAP OR DRAW' : 'TAP MAP') : pl.path ? pl.ap + 'AP ' + pl.en + 'EN' : whyShort('MOVE', pl.why), free && pl && pl.path, false, mw ? 'MOVE.' + mw : ''); } // R17: or draw from your ExoS
+  else { const mw = !pl ? 'NOPLAN' : pl.path ? '' : pl.why; setBtn('bMove', 'MOVE', !pl ? (TUNE.DRAW_PATH_ENABLED ? 'TAP OR DRAW' : 'TAP MAP') : pl.path ? (G.live ? planSecs(pl).toFixed(1) + 's ' : pl.ap + 'AP ') + pl.en + 'EN' : whyShort('MOVE', pl.why), free && pl && pl.path, false, mw ? 'MOVE.' + mw : ''); } // R17: or draw from your ExoS
   // radar pulse
   const R = radarOf(p); // R18: the radar row's costs
   $('bRadar').hidden = !fitted(p, 'RADAR');
   // R13 test 2: a module's part gone = the button says which (R18: its own location's part)
   let w = R ? costWhy(R.ap, R.en) : offWhy(p, 'RADAR') || 'NONE';
-  setBtn('bRadar', 'RADAR', w ? W('RADAR', w)[0] : R.ap + 'AP ' + R.en + 'EN +' + R.emit + 'EMIT', free && !w, false, w ? 'RADAR.' + w : '');
+  setBtn('bRadar', 'RADAR', w ? W('RADAR', w)[0] : cost(R.ap, TUNE.LIVE_ACT_TIME.PULSE) + ' ' + R.en + 'EN +' + R.emit + 'EMIT', free && !w, false, w ? 'RADAR.' + w : '');
   // ECM + ghost
   $('bEcm').hidden = !fitted(p, 'MASK'); $('bGhost').hidden = !fitted(p, 'GHOST'); // R18: two rows now
   w = offWhy(p, 'MASK') || costWhy(TUNE.AP_ECM, TUNE.ECM_EN);
-  if (p.mask) setBtn('bEcm', 'ECM ON', TUNE.AP_ECM + 'AP ' + TUNE.ECM_EN + 'EN/turn', free, true);
-  else setBtn('bEcm', 'ECM', w ? W('ECM', w)[0] : TUNE.AP_ECM + 'AP ' + TUNE.ECM_EN + 'EN', free && !w, false, w ? 'ECM.' + w : '');
+  if (p.mask) setBtn('bEcm', 'ECM ON', (G.live ? '' : TUNE.AP_ECM + 'AP ') + TUNE.ECM_EN + 'EN/' + (G.live ? TUNE.LIVE_ROUND_SEC + 's' : 'turn'), free, true);
+  else setBtn('bEcm', 'ECM', w ? W('ECM', w)[0] : cost(TUNE.AP_ECM, TUNE.LIVE_ACT_TIME.ECM) + ' ' + TUNE.ECM_EN + 'EN', free && !w, false, w ? 'ECM.' + w : '');
   w = offWhy(p, 'GHOST') || costWhy(TUNE.AP_ECM, TUNE.GHOST_COST);
-  if (G.ghost.on) setBtn('bGhost', 'GHOST', G.ghost.turns + ' turns', false, true, 'GHOST.ON');
+  if (G.ghost.on) setBtn('bGhost', 'GHOST', G.ghost.turns + (G.live ? ' rounds' : ' turns'), false, true, 'GHOST.ON');
   else if (V.ghostArm) setBtn('bGhost', 'TAP MAP', 'to place', free, true);
-  else setBtn('bGhost', 'GHOST', w ? W('GHOST', w)[0] : TUNE.AP_ECM + 'AP ' + TUNE.GHOST_COST + 'EN', free && !w, false, w ? 'GHOST.' + w : '');
+  else setBtn('bGhost', 'GHOST', w ? W('GHOST', w)[0] : (G.live ? '' : TUNE.AP_ECM + 'AP ') + TUNE.GHOST_COST + 'EN', free && !w, false, w ? 'GHOST.' + w : '');
   // fire
   $('bFire').hidden = !fitted(p, 'GUN');
   w = shootBlock(p, playerTarget(), TUNE.PLAYER_FIRE_UNC, fireRange(p));
   const odds = w ? null : shotOdds(p, playerTarget()); // R12: the hit chance on the button
-  setBtn('bFire', odds ? 'FIRE ' + odds.pct + '%' : 'FIRE', w ? W('FIRE', w)[0] : TUNE.AP_SHOT + 'AP', free && !w, false, w ? 'FIRE.' + w : ''); // R24 fix list 1 (C02): the reason in words, and a tap says why
+  setBtn('bFire', odds ? 'FIRE ' + odds.pct + '%' : 'FIRE', w ? W('FIRE', w)[0] : (G.live ? 'AIM ' + TUNE.LIVE_AIM_TIME + 's' : TUNE.AP_SHOT + 'AP'), free && !w, false, w ? 'FIRE.' + w : ''); // R24 fix list 1 (C02): the reason in words, and a tap says why
   // R9: mortar (only on an ExoS carrying it)
   const M = mortarOf(p);
   $('bMortar').hidden = !fitted(p, 'MORTAR');
   const wb = mortarBlindBlock(p); w = mortarBlock(p, playerTarget());
   if (V.mortarArm) setBtn('bMortar', 'TAP TARGET', V.mortarWhy ? whyShort('MORTAR', V.mortarWhy) : (w ? 'map = blind' : 'contact or map'), free, true);
-  else setBtn('bMortar', 'MORTAR', wb ? W('MORTAR', wb)[0] : (M ? M.ap : 0) + 'AP · ' + p.shells + ' left' + (w ? ' · blind' : ''), free && !wb, false, wb ? 'MORTAR.' + wb : '');
-  setBtn('bEnd', 'END TURN', '', free);
+  else setBtn('bMortar', 'MORTAR', wb ? W('MORTAR', wb)[0] : cost(M ? M.ap : 0, TUNE.LIVE_ACT_TIME.MORTAR) + ' · ' + p.shells + ' left' + (w ? ' · blind' : ''), free && !wb, false, wb ? 'MORTAR.' + wb : '');
+  if (G.live) setBtn('bEnd', G.paused ? 'PLAY ▶' : 'PAUSE ❚❚', G.paused ? 'start the clock' : 'stop the clock', G.mode === 'hunt', G.paused); // R25: the toy page's clock
+  else setBtn('bEnd', 'END TURN', '', free);
   // R14: ID the selected contact (not once eyes have shown what it is)
   const sc = G.sel && G.sel.on ? G.sel : null, idv = sc && G.ids[sc.id] ? G.ids[sc.id].v : '';
   setBtn('bId', 'ID', !sc ? whyShort('ID', 'NONE') : revealed(sc.id) ? 'SEEN' : idv ? idv + '?' : 'UNKNOWN', G.mode === 'hunt' && !!sc && !revealed(sc.id), false, !sc ? 'ID.NONE' : 'ID.SEEN');
   // Round 5: uplink
   $('bUp').hidden = isType('BOUNTY') || isType('ESCORT'); // R15: Bounty and Escort have no objective button (Escort uses route buttons on the map); Retrieve uses it for PICK UP / HAND OFF
   w = G.mode === 'hunt' ? objectiveBlock() : 'RANGE';
-  if (isType('RETRIEVE') && isCarrier(p)) setBtn('bUp', 'HAND OFF', w ? W('HANDOFF', w)[0] : TUNE.RETRIEVE_HANDOFF_AP + 'AP', free && !w, false, w ? 'HANDOFF.' + w : '');
-  else if (isType('RETRIEVE')) setBtn('bUp', 'PICK UP', w === 'HELD' ? G.mission.carrier + ' HAS IT' : w ? W('PICKUP', w)[0] : TUNE.RETRIEVE_PICKUP_AP + 'AP · LOUD', free && !w, false, w ? 'PICKUP.' + w : '');
-  else setBtn('bUp', 'UPLINK', w ? W('UPLINK', w)[0] : TUNE.AP_UPLINK + 'AP +' + TUNE.SIG_UPLINK + 'EMIT', free && !w, false, w ? 'UPLINK.' + w : '');
+  if (isType('RETRIEVE') && isCarrier(p)) setBtn('bUp', 'HAND OFF', w ? W('HANDOFF', w)[0] : cost(TUNE.RETRIEVE_HANDOFF_AP, TUNE.LIVE_ACT_TIME.HANDOFF), free && !w, false, w ? 'HANDOFF.' + w : '');
+  else if (isType('RETRIEVE')) setBtn('bUp', 'PICK UP', w === 'HELD' ? G.mission.carrier + ' HAS IT' : w ? W('PICKUP', w)[0] : cost(TUNE.RETRIEVE_PICKUP_AP, TUNE.LIVE_ACT_TIME.PICKUP) + ' · LOUD', free && !w, false, w ? 'PICKUP.' + w : '');
+  else setBtn('bUp', 'UPLINK', w ? W('UPLINK', w)[0] : cost(TUNE.AP_UPLINK, TUNE.LIVE_ACT_TIME.UPLINK) + ' +' + TUNE.SIG_UPLINK + 'EMIT', free && !w, false, w ? 'UPLINK.' + w : '');
   // R16: EXTRACT, while the active ExoS stands in the extraction zone
   $('bExtract').hidden = G.mode !== 'hunt' || extractBlock() !== '';
   if (!$('bExtract').hidden) setBtn('bExtract', 'EXTRACT', 'leave the map', free);

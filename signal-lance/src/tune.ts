@@ -635,6 +635,17 @@ export const TUNE = {
   LASTKNOWN_ROUNDS: 3,         // R24 A5 (C15): rounds a "last seen" mark stays where a contact dropped off the picture
   HUD_COMPACT_H: 430,          // R24 B6 (C03): window height (CSS px) at or below which the HUD shrinks to one line (iPhone landscape); tap it for the full block
   CAM_SAFE_PAD: 10,            // R24 B7 (C07): px kept between the uncovered map area and the overlays round it
+  // --- R25 "Live toy": live time on the separate toy page (dist/signal-lance-live.html). The main game stays 'turns'. ---
+  TIME_MODE: 'turns' as 'turns' | 'live', // 'turns' = R4 I-go-you-go (the main game). 'live' = one clock, every unit acts at once, PAUSE any time (the toy page sets it)
+  LIVE_ROUND_SEC: 4,           // seconds of live clock that count as one ROUND: per-turn values become per-second (÷ this), enemies get a turn's AP, RWR / GHOST / LAST SEEN age. 4 s ≈ one turn's 8-tile walk at NORMAL
+  LIVE_ACT_TIME: { UPLINK: 4, PICKUP: 2, HANDOFF: 1, ECM: 1, PULSE: 2, MORTAR: 2 }, // seconds the ExoS does nothing else (from AP × LIVE_ROUND_SEC ÷ AP_PER_TURN; UPLINK = one round each)
+  LIVE_AIM_TIME: 0.8,          // seconds of aim before a shot leaves the gun (both sides). Aiming doesn't stop a move
+  LIVE_FIRE_COOLDOWN: 2,       // seconds after a shot before the gun can aim again (both sides; was SHOTS_PER_TURN 2 per turn)
+  LIVE_MORTAR_COOLDOWN: 4,     // seconds after a mortar shell before the next (was MORTAR_PER_ACTIVATION 1 per turn)
+  LIVE_AUTO_REFIRE: true,      // a target you fired at stays held: the gun aims again by itself when its cooldown ends, while the shot is allowed
+  LIVE_MOVED_WINDOW: 2,        // seconds of standing still before "moved" (to-hit) clears
+  LIVE_ENEMY_STAGGER: 1,       // 0..this seconds of random offset per enemy, so the field doesn't all act on the same tick
+  LIVE_START_PAUSED: true,     // a live hunt opens paused: plan first, then tap PLAY
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

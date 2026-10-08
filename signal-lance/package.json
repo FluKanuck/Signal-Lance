@@ -11,7 +11,8 @@
     "sim": "node --experimental-strip-types --no-warnings scripts/sim.ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "build:toy": "vite build --config vite.toy.config.ts && node scripts/toy-post.mjs"
+    "build:toy": "vite build --config vite.toy.config.ts && node scripts/toy-post.mjs",
+    "build:live": "node scripts/live-html.mjs && vite build --config vite.live.config.ts && node scripts/live-post.mjs"
   },
   "devDependencies": {
     "typescript": "^7.0.2",

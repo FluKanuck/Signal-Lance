@@ -13,6 +13,7 @@ import { noteActEnd } from './ids.ts';
 import { ageRwr } from './rwr.ts';
 import { has, fitted, gunOf, radarOf, mortarOf, offWhy, addHeat } from './kit.ts';
 import { aarHitBy, aarKill, aarDown, aarObj } from './aar.ts';
+import { liveStart, cancelLact, liveAim, togglePause, liveUplink, livePickup, liveEcmOn, liveStep } from './live.ts';
 import { onKill, onAllOut, onClear, onAllyOut, onAllyLost, isType, isCarrier, cargoLost, onCargoLost, pickupBlock, doPickup, handoffBlock, doHandoff } from './mission.ts';
 
 // ============================ UPDATE ==================================
@@ -96,6 +97,7 @@ export function updateShells(dt) {
 // R6: advance the sim by dt seconds (was update(); the camera follow moved to the view).
 export function step(dt) {
   if (G.mode !== 'hunt') return;
+  if (G.live) { liveStep(dt); return; } // R25: the toy page's live clock (live.ts)
   if (G.splash && (G.splash.t -= dt) <= 0) G.splash = null; // R9: the splash marker fades in real time
   if (G.pop && (G.pop.t -= dt) <= 0) G.pop = null; // R15: so does the bounty pop
   if (G.intr && (G.intr.t -= dt) <= 0) G.intr = null; // R17: and the interrupt cue
@@ -176,6 +178,7 @@ export function enemyUnseen() {
   return true;
 }
 export function endPlayerTurn() {
+  if (G.live) { togglePause(); return; } // R25: the toy page's END TURN is PAUSE / PLAY
   if (G.mode !== 'hunt' || G.phase !== 'PLAYER' || G.act) return;
   noteCarry(G.p); // R21: ending a turn next to a CRITICAL lancemate picks its operator up
   nextActivation();
@@ -190,7 +193,9 @@ export function enemyStep() {
   a();
   if (!G.act) G.ewait = TUNE.ENEMY_ACT_PAUSE;
 }
-export function startAct(a) { a.t = a.t || 0; a.age = 0; G.act = a; hooks.sync(); }
+export function startAct(a) { a.t = a.t || 0; a.age = 0; if (G.live) { liveStart(a); return; } G.act = a; hooks.sync(); } // R25: live = the unit's own action slot
+// R25: on the toy page a new action replaces the unit's current one (a move hands back its unwalked EN)
+function liveFree(m) { if (G.live && m.lact) cancelLact(m); }
 export function shellsFlying() { for (const s of G.shells) if (s.on) return true; return false; }
 export function stepAction(dt) {
   const a = G.act, p = G.p;
@@ -231,8 +236,10 @@ export function cmdExtract() {
   G.mission.out = (G.mission.out || []).concat(m.id);
   noteCarry(m); // R21: extracting next to a CRITICAL lancemate takes its operator along
   aarObj('OUT', m); // R22
+  if (G.live) { m.lact = null; m.aim = null; m.hold = ''; } // R25
   leaveMap(m);
   if (allOut()) { onAllOut(); return; }
+  if (G.live) { hooks.sync(); return; } // R25: the clock picks the next ExoS (live.ts)
   nextActivation();
 }
 export function faceTo(m, x, y) { const dx = x - m.x, dy = y - m.y, d = Math.hypot(dx, dy); if (d > 0) { m.fx = dx / d; m.fy = dy / d; } }
@@ -378,6 +385,7 @@ export function planDrawn(m, pts: { x: number; y: number }[], mode, wps: any[] =
   return { ...base, why: 'AP' };
 }
 export function doMove(m, pl) {
+  liveFree(m);
   if (pl.mode === 'SPRINT') addHeat(m, TUNE.IR_SPRINT); // R18 cp3: sprinting runs hot
   pay(m, pl.ap, pl.en); makeSound(m, pl.mode, m.over ? m.over.snd : 0); // R18: + overload. R17: the clutter part of the sound waits until the mover actually steps into clutter
   const nw = (pl.wps || []).length, free0 = m.freeTurns || 0;
@@ -398,7 +406,7 @@ export function doMove(m, pl) {
 }
 // R17: every frame of a move. On each new tile: the clutter sound (once, the first time it steps into clutter) and a
 // zero-time sensor look with the current facing (eyes on every tile of the path). Then, for a player suit, the interrupt.
-function moveTick(a) {
+export function moveTick(a) { // R25: exported for the live clock
   const m = a.m;
   const t = Math.floor(m.y / T) * W + Math.floor(m.x / T);
   if (t !== a.tile) {
@@ -439,6 +447,7 @@ export function replan() {
 // ---- radar pulse ----
 export function doPulse(m, x, y) { // R18: costs and EMIT from its radar row
   const R = radarOf(m);
+  liveFree(m);
   pay(m, R.ap, R.en); addEmit(m, R.emit);
   if (x !== null && x !== undefined) faceTo(m, x, y);
   m.radarOn = true; m.pulseSeq = (m.pulseSeq || 0) + 1; // R19: one RWR warning per pulse
@@ -451,6 +460,7 @@ export function shootBlock(m, c, uncMax, range) {
   if (!gunOf(m)) return offWhy(m, 'GUN') || 'ARMS'; // R12. R18: its part is gone (ARMS = WEAPON)
   if (m.ammo <= 0) return 'AMMO';
   if (m.turnShots >= TUNE.SHOTS_PER_TURN) return 'CAP';
+  if (G.live && (m.aim || m.cool > 0)) return 'COOL'; // R25: aiming, or the gun cooling down
   if (m.ap < TUNE.AP_SHOT) return 'AP';
   const x = cx(c), y = cy(c);
   if (c.snd) return 'SOUND'; // R13: heard only, never a lock (says so on the button)
@@ -461,6 +471,8 @@ export function shootBlock(m, c, uncMax, range) {
 }
 // R12: the odds for m shooting at contact c (null if nothing behind it)
 export function shotOdds(m, c) { const u = c && c.on ? unitById(c.id) : null; return u && !u.dead ? hitChance(m, u, c) : null; }
+// R25: a shot order. Live: aim first (LIVE_AIM_TIME), then fire (live.ts). Turns: fire now.
+export function shoot(m, c) { if (G.live) liveAim(m, c); else doShot(m, c); }
 export function doShot(m, c) {
   pay(m, TUNE.AP_SHOT, 0); m.turnShots++; addHeat(m, TUNE.IR_FIRE); // R18 cp3: a shot heats the gun
   faceTo(m, cx(c), cy(c));
@@ -483,6 +495,7 @@ export function mortarBlock(m, c) {
   if (!M) return offWhy(m, 'MORTAR'); // R18: its part is gone (BACK)
   if (m.shells <= 0) return 'SHELLS';
   if (m.mUsed >= TUNE.MORTAR_PER_ACTIVATION) return 'CAP';
+  if (G.live && m.mcool > 0) return 'COOL'; // R25: the tube cooling down
   if (m.ap < M.ap) return 'AP';
   if (c.snd) return 'SOUND'; // R13: no aimed lob on a sound-only contact (blind lobs still work)
   if (c.unc > TUNE.MORTAR_MAX_UNC * T) return 'FUZZY';
@@ -500,6 +513,7 @@ export function mortarBlindBlock(m, x?, y?) {
   if (!M) return offWhy(m, 'MORTAR');
   if (m.shells <= 0) return 'SHELLS';
   if (m.mUsed >= TUNE.MORTAR_PER_ACTIVATION) return 'CAP';
+  if (G.live && m.mcool > 0) return 'COOL'; // R25: the tube cooling down
   if (m.ap < M.ap) return 'AP';
   if (x === undefined) return '';
   const d = Math.hypot(x - m.x, y - m.y);
@@ -518,6 +532,7 @@ export function blindScatter(m, x, y) { const M = mortarOf(m), d = Math.hypot(x 
 // one shell: aim point (ax, ay), scatter radius r. target = the unit whose contact was aimed at (gets the flash);
 // a blind lob has none, so every field unit the splash hits gets the flash instead.
 function lob(m, ax, ay, r, target) {
+  liveFree(m);
   pay(m, mortarOf(m).ap, 0); addHeat(m, TUNE.IR_FIRE); m.mUsed++; m.shells--; m.mShots++;
   makeSound(m, 'MORTAR'); m.fireT = TUNE.SIG_FIRE_TIME; // R13: loud as Sound (no Emissions); fireT is display only now
   const a = rand() * 6.2832, k = Math.sqrt(rand()) * r;
@@ -582,7 +597,7 @@ export function cmdWaypoint(d: number, fx: number, fy: number, lx?: number, ly?:
 export function waypointNear(d: number) { return G.planD ? G.planD.wps.find(w => Math.abs(w.d - d) < WP_SAME) || null : null; }
 export function cmdClearWaypoint(d: number) { if (G.planD) { G.planD.wps = G.planD.wps.filter(w => Math.abs(w.d - d) >= WP_SAME); replan(); } }
 export function cmdClearDraw() { G.planD = null; replan(); }
-export function cmdMove() { if (G.plan && G.plan.path) doMove(G.p, G.plan); }
+export function cmdMove() { if (G.live) replan(); if (G.plan && G.plan.path) doMove(G.p, G.plan); } // R25: live = plan again from where the ExoS stands now
 export function cmdUplink() { if (uplinkBlock() === '') doUplink(); }
 // R15 s3: pick the route leg at the junction the transport holds at (no AP: it's an order, on your turn)
 export function cmdLeg(i: number) { if (playerFree()) { pickLeg(i); hooks.sync(); } } // R16: at the fork it waits at = go; at a fork ahead = set / clear the lever
@@ -595,6 +610,7 @@ export function objectiveBlock() {
 }
 export function cmdObjective() {
   if (!playerFree() || objectiveBlock() !== '') return;
+  if (G.live) { if (isType('RETRIEVE')) livePickup(); else liveUplink(); return; } // R25: a timed order
   if (isType('RETRIEVE')) { if (isCarrier(G.p)) doHandoff(G.p); else doPickup(G.p); hooks.sync(); return; }
   doUplink();
 }
@@ -608,6 +624,7 @@ export function cmdRadar() {
 }
 export function cmdEcm() {
   if (G.p.mask) G.p.mask = false;
+  else if (G.live) { if (has(G.p, 'MASK') && canPay(G.p, 0, TUNE.ECM_EN)) liveEcmOn(); } // R25: switching on takes LIVE_ACT_TIME.ECM
   else if (has(G.p, 'MASK') && canPay(G.p, TUNE.AP_ECM, TUNE.ECM_EN)) { pay(G.p, TUNE.AP_ECM, TUNE.ECM_EN); addEmit(G.p, TUNE.SIGNAL_ECM); G.p.mask = true; }
 }
 export function canGhost() { return !G.ghost.on && has(G.p, 'GHOST') && canPay(G.p, TUNE.AP_ECM, TUNE.GHOST_COST); }
@@ -617,7 +634,7 @@ export function cmdGhost(x, y) {
 }
 export function cmdFire() {
   const c = playerTarget();
-  if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, fireRange(G.p)) === '') { G.sel = c; doShot(G.p, c); }
+  if (shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, fireRange(G.p)) === '') { G.sel = c; shoot(G.p, c); }
 }
 export function cmdMortar() { // R9
   const c = playerTarget();

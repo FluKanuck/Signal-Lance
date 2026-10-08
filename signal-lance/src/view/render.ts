@@ -21,6 +21,7 @@ import { zoneKnow, zoneKnowOf } from '../sim/scan.ts';
 import { BANDS, heardMoving, rwrWedge, rwrFade, rwrGuess, paintFade } from '../sim/rwr.ts';
 import { active } from '../sim/kit.ts';
 import { pathLen } from '../sim/turns.ts';
+import { liveProgress, planSecs } from '../sim/live.ts';
 
 // R17 (parked #59): where a route button sits: along its leg, at the first spot (6 tiles in, then every 2) that isn't under
 // the HUD text or the turn strip on screen. Input and tooltips read the same spot.
@@ -650,6 +651,14 @@ export function render() {
     ctx.fillStyle = act ? '#ffffff' : '#a9b0b8'; ctx.beginPath(); ctx.arc(m.x, m.y, 9, 0, 6.2832); ctx.fill();
     ctx.strokeStyle = ctx.fillStyle; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(m.x, m.y); ctx.lineTo(m.x + m.fx * 16, m.y + m.fy * 16); ctx.stroke();
     if (act) { ctx.strokeStyle = '#9cf'; ctx.lineWidth = 2 / z; ctx.beginPath(); ctx.arc(m.x, m.y, 15, 0, 6.2832); ctx.stroke(); }
+    if (G.live) { // R25: what each ExoS is doing: the rest of its route (dashed) and a ring that fills while a timed action runs
+      if (m.path && m.pi < m.path.length) {
+        ctx.strokeStyle = 'rgba(143,227,255,0.45)'; ctx.lineWidth = 2 / z; ctx.setLineDash([6 / z, 5 / z]);
+        ctx.beginPath(); ctx.moveTo(m.x, m.y); for (let i = m.pi; i < m.path.length; i++) ctx.lineTo(m.path[i].x, m.path[i].y); ctx.stroke(); ctx.setLineDash([]);
+      }
+      const pr = liveProgress(m);
+      if (pr >= 0) { ctx.strokeStyle = m.aim && !m.lact ? '#ff6' : '#8fe3ff'; ctx.lineWidth = 3 / z; ctx.beginPath(); ctx.arc(m.x, m.y, 19, -Math.PI / 2, -Math.PI / 2 + pr * 6.2832); ctx.stroke(); }
+    }
     const S = suitLab.get(m.id), by = S ? S.top + S.fs : m.y - 10; // R24 (C25): the spot reserved for it
     if (S && by > m.y - 10 + 1e-6) { ctx.strokeStyle = '#a9b0b8'; ctx.lineWidth = 1 / z; ctx.beginPath(); ctx.moveTo(m.x + 6, m.y - 4); ctx.lineTo(m.x + 11, by - S.fs * 0.4); ctx.stroke(); }
     ctx.fillStyle = act ? '#9cf' : '#a9b0b8'; ctx.fillText(suitName(m), m.x + 12, by); // R21: the operator (★ = veteran)
@@ -669,7 +678,7 @@ export function render() {
   }
   // R17: while drawing, the cost beside the finger (STOP = this turn's AP runs out before the end of the stroke)
   if (V.drawPt && G.plan && G.plan.drawn) {
-    const pl = G.plan, t = pl.path ? pl.ap + 'AP ' + pl.en + 'EN' + (pl.cut ? ' · STOP' : '') : 'NO MOVE · ' + pl.why;
+    const pl = G.plan, t = pl.path ? (G.live ? planSecs(pl).toFixed(1) + 's ' : pl.ap + 'AP ') + pl.en + 'EN' + (pl.cut ? ' · STOP' : '') : 'NO MOVE · ' + pl.why; // R25: live = how long the walk takes
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0); ctx.font = 'bold 15px monospace';
     const tw = ctx.measureText(t).width, x = Math.min(vw - tw - 8, V.drawPt.sx + 28), y = Math.max(76, V.drawPt.sy - 34);
     ctx.fillStyle = 'rgba(0,0,0,0.65)'; ctx.fillRect(x - 6, y - 16, tw + 12, 22);
