@@ -387,7 +387,9 @@ export function endContract(status: string) {
   if (fee) { C.credits += fee; C.news.push('Contract complete: the fee' + (TUNE.CONTRACT_BONUS ? ' and the completion bonus' : '') + ', ' + fee + ' cr.'); }
   const w = wages(), up = TUNE.UPKEEP_SHIP, hull = C.hullOwed || 0, cost = w + up + hull;
   C.credits -= cost; C.hullOwed = 0;
-  C.ledger = { fee, wages: w, upkeep: up, hull, after: C.credits, n: C.n + 1, status };
+  const K = G.ct, earned = K ? K.earned || 0 : 0, spent = K ? K.spent || 0 : 0;
+  C.ledger = { fee, wages: w, upkeep: up, hull, after: C.credits, n: C.n + 1, status, // R24 fix list 9 (C16): every line, so the screens can sum it
+    start: C.credits + cost - fee - earned + spent, earned, spent, ops: C.ops.length, offered: K ? (K.fee || 0) + (TUNE.CONTRACT_BONUS || 0) : 0, news: [] as string[] };
   C.news.push('Paid ' + cost + ' cr: wages ' + w + ' (' + C.ops.length + ' operators), upkeep ' + up + (hull ? ', hull repairs ' + hull : '') + '. Credits now ' + C.credits + '.');
   if (C.credits < -TUNE.DEBT_LIMIT) fold('debt of ' + -C.credits + ' cr, past the limit of ' + TUNE.DEBT_LIMIT + '.');
   else if (C.credits < 0 && C.debt) fold('still in debt (' + C.credits + ' cr) a contract after going into it.');
@@ -399,6 +401,7 @@ export function endContract(status: string) {
   rollRecruits(); rollOffers(); rollMarket();
   fillCrew();
   if (!C.folded) { const why = stuck(); if (why) fold(why); }
+  C.ledger.news = C.news.slice(); // R24 fix list 7 + 8: the contract end's news (fold reason, debt, bench, standing) for its result screen
 }
 // "code 3F2A · contract 4 · 4 on the roster (2 vets), 1 benched, 1 KIA · …"
 export function companyLine() {

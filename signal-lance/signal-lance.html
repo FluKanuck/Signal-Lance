@@ -81,6 +81,11 @@ button.on{background:var(--btnOn)}
 #logta{width:100%;font:11px monospace;background:var(--btn);color:var(--fg)}
 #note{width:min(520px,100%);min-height:48px;font:16px monospace;background:var(--btn);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:0 10px;box-sizing:border-box}
 #resWhy{max-width:600px}
+#routeBar{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(64px * var(--s) + env(safe-area-inset-bottom,0px));display:flex;gap:10px;flex-wrap:wrap;justify-content:center;z-index:2;zoom:var(--s);font-size:12px;background:rgba(17,17,17,.82);border:1px solid #3a4a3a;border-radius:6px;padding:4px 8px;max-width:92vw}
+#routeBar .rf{display:flex;gap:4px;align-items:center}#routeBar .rf.wait b{color:#7e9}
+#routeBar button{min-height:36px;min-width:64px;font-size:12px;padding:0 8px}#routeBar button.on{background:#2f6b3f;border-color:#7e9;color:#fff}
+#allyWarn{position:fixed;left:50%;top:calc(var(--top,0px) + 8px);transform:translateX(-50%);z-index:3;zoom:var(--s);background:#2a2a14;border:1px solid #fc3;color:#fc3;padding:6px 12px;border-radius:6px;font-weight:bold;max-width:80vw;text-align:center}#allyWarn.bad{background:#3a1414;border-color:#f66;color:#f88}
+body.aaron #routeBar,body.aaron #allyWarn{display:none}
 #brow{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(6px + env(safe-area-inset-bottom,0px));display:flex;gap:6px;z-index:2}
 #bMove{min-width:84px;background:var(--btnOn)}
 #bUp{min-width:84px;border-color:#fc3}
@@ -222,6 +227,8 @@ button.idv.out{opacity:.35}button.idv.out b{text-decoration:line-through}
   <div class="zrow"><button id="bZin">Z+</button><button id="bZout">Z−</button></div>
   <div class="zrow"><button id="bCtr">CTR</button><button id="bQuit">QUIT</button></div>
 </div>
+<div id="routeBar" hidden></div>
+<div id="allyWarn" hidden></div>
 <div id="brow">
   <button id="bCreep">CREEP</button>
   <button id="bNorm">NORMAL</button>

@@ -10,9 +10,17 @@ export const TEST = {
   title: 'Round 24 test: Say what it means',
   question: 'With long-press explanations and clear reasons on greyed buttons, can you read the hunt without help?',
   newThings: [
+    'NEW (r24-s3): the words on every screen follow one rule: one name per thing, short sentences, and the reason for every limit.',
+    'NEW: the company tab for repairs, rounds and shells is now REFIT. The ship module is the EXOS BAY. WHAT IT COST names the ExoS (ExoS B LOST), not its operator.',
+    'NEW: ESCORT has a ROUTE bar above the bottom buttons. It has one button for each way at each fork ahead. A ✓ marks the way you set.',
+    'NEW: when the transport takes a hit, a line at the top says how many hits it has left. At half or less, the line turns red.',
+    'NEW: the scan says which DROP ZONE is picked and how to change it.',
+    'NEW: the contract result shows THE BOOKS: credits at the start, hunt pay, spending, the fee and bonus, wages, upkeep and credits now. Each line adds up.',
+    'NEW: job cards show the completion bonus (+' + TUNE.CONTRACT_BONUS + ' cr) next to the fee. BAIL CONTRACT says that you lose both, and that hunt pay you earned stays.',
+    'NEW: THE BOOKS on the company screen list every way the company can fold.',
     'NEW (r24-s2): on a phone held sideways, the HUD is one line: the ExoS, AP, EN, the objective and any warning. Tap the line to see the full HUD, and tap it again to close it.',
     'NEW: the map keeps your active ExoS, the selected contact and the objective clear of the buttons. Contact labels near the right edge flip to the left.',
-    'NEW: map labels no longer print on top of each other. Suit names, PAINTED and contact labels move apart, on the hunt map and the after-action map.',
+    'NEW: map labels no longer print on top of each other. ExoS names, PAINTED and contact labels move apart, on the hunt map and the after-action map.',
     'TEST BED: “Crowded phone”. Three contacts and the uplink sit near the right edge. Find and tap each one.',
     'NEW (r24-s1): long-press anything to see what it is. Hold a finger on a button, a HUD word, a contact, a tag, a mark or the ground. On a computer, right-click it.',
     'The explain card opens at the top left. Any tap closes it. A long-press never fires the button or sets a move.',
@@ -82,7 +90,7 @@ export const HISTORY = [
   { round: 23, title: 'Round 23: Who you’ll anger', lines: [
     'THE CITY (CONTRACTS tab): Corporate, Foundry and Syndicate hold the districts. ▼ SHIP shows where you are. The three jobs are in districts. Fuel = the links you jump. The faction that holds the ship’s district sets the fuel price.',
     'FACTION JOB (×' + TUNE.CITY_FACTION_PAY + '): a rival of the target hires you. The employer likes you more, and the target likes you less. BROKER JOB (×' + TUNE.CITY_BROKER_PAY + '): the job is deniable. Only the target notices.',
-    'STANDING: one bar per faction. HATED (≤ ' + TUNE.STANDING_HATED + '): danger +1 step, +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of their field awake, fuel costs more. LIKED (≥ +' + TUNE.STANDING_LIKED + '): their jobs pay more, free intel against their enemies, fuel costs less. Standing fades ' + TUNE.STANDING_DRIFT + ' a contract.',
+    'STANDING: one bar per faction. HATED (≤ ' + TUNE.STANDING_HATED + '): danger +1 step, +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of their field awake, fuel costs more. LIKED (≥ +' + TUNE.STANDING_LIKED + '): their jobs pay more, a FREE SCAN against their enemies, fuel costs less. Standing fades ' + TUNE.STANDING_DRIFT + ' a contract.',
     'Factions are RIVALS, NEUTRAL or ALLIES with each other. Each city rolls this. Every standing change spills onto the other factions.',
   ] },
   { round: 22, title: 'Round 22: What happened', lines: [
@@ -97,7 +105,7 @@ export const HISTORY = [
     'The roster: 3 ExoS, each with its own fit and damage. You keep them from hunt to hunt and from contract to contract. Before every hunt, pick a lance of 1 to 3.',
     'The books: three contract offers (danger, 2 to 4 hunts, a fee on completion, fuel to get there). You pay wages and ship upkeep when a contract ends. The company can be in debt once. After that, it folds.',
     'Repairs and rebuilds use parts (salvaged from kills, or bought). The MARKET sells parts, fuel, items, an ExoS now and then, and recruits. The hangar fits only what you own.',
-    'The ship: 7 hardpoints for modules (sensor boosts, quiet drop rig, suit bay, repair bay, medbay, salvage hold, fuel tanks, hull armour, berths and more). A painted ship may take a hull hit.',
+    'The ship: 7 hardpoints for modules (sensor boosts, quiet drop rig, ExoS bay, repair bay, medbay, salvage hold, fuel tanks, hull armour, berths and more). A painted ship may take a hull hit.',
   ] },
   { round: 20, title: 'Round 20: Eyes from the ship', lines: [
     'The ship’s scan is live: START CLOCK / PAUSE, with no time cap. RADAR = where. It pings everything, even silent units, outlines zones and opens the north and south drop zones.',
@@ -120,7 +128,7 @@ export const HISTORY = [
     'The HANGAR is the loadout screen. Tap a part of the ExoS, then tap a hardpoint to fit something to it. Start from Scout (Wisp), Line (Warden) or Brawler (Bulwark).',
     'Weight: over the rated load, every move is louder and costs more Energy per tile (CREEP too). Far over it, each move costs +1 AP. Power = reactor output − draw. Batteries add to the pool.',
     'Each location is a part. When you lose a part, its modules go offline. Only shots from behind hit the BACK.',
-    'THERMAL: heat comes from the reactor, the frame’s size, firing and sprinting. Turrets carry thermal sights. Thermal optics lets you read heat. A sniper turret hits targets up to 20 tiles away.',
+    'THERMAL: heat comes from the reactor, the frame’s size, firing and sprinting. Turrets carry IR sights. Thermal optics lets you read heat. A sniper turret hits targets up to 20 tiles away.',
     'Contacts carry stacked sense tags (EO, RDR, ESM, IR, ACO, MZL), each with the ExoS that made it. Gold = the tag that holds the fix. ESM sits on the best fit of your bearing lines. A noise zone only widens it. Cover shows as a shield.',
     'INTEL lists what the field listens on. The result screen says what found you first. PLAY SEED replays a hunt. QUIT goes back to the hangar. The game scales to its window.',
   ] },
@@ -135,7 +143,7 @@ export const HISTORY = [
     'Every hunt is a new district. The game packs it from irregular city pieces (half blocks, strips, L shapes, hand-drawn blocks) and cuts it at the map edge. The job card gives its size. Bigger districts have a bigger field.',
     'Brown speckled scrap and rubble: slow (2 tiles of movement a tile), loud (+3 sound), low cover. Rusty walls are set pieces and street barricades. You can weave through a chicane, but you cannot see past it.',
     'You start in a cleared staging area. Hover over anything on the map, or hold a finger on it, to see what it is. Cover that you share with your target (you both stand against it) does not count.',
-    'ESCORT: up to three routes per fork (NORTH / AHEAD / SOUTH), and levers to set forks ahead. A ring shows where the next move ends. You can give HOLD and HURRY orders. The transport is in the turn strip.',
+    'ESCORT: up to three routes per fork (NORTH / AHEAD / SOUTH), and ROUTE buttons to set forks ahead. A ring shows where the next move ends. You can give HOLD and HURRY orders. The transport is in the turn strip.',
     'Every ExoS leaves on its own: walk into the green zone and tap EXTRACT. The hunt ends when all your living ExoS are out.',
   ] },
   { round: 15, title: 'Round 15: Pick your fights', lines: [
@@ -176,7 +184,7 @@ const BASICS: { title: string; screens: Screen[]; how: string[] }[] = [
     'The game opens on your COMPANY. It saves on this phone.',
     'CONTRACTS shows the city map. Tap a district to see its JOB, then tap TAKE IT.',
     'Before every hunt, pick who drops in each ExoS. Tap the button next to it.',
-    'Between contracts, use the tabs: SUITS for repairs, MARKET to buy, SHIP for modules.',
+    'Between contracts, use the tabs: REFIT for repairs, MARKET to buy, SHIP for modules.',
   ] },
   { title: 'The ship’s scan', screens: ['scan'], how: [
     'After you take a job, the ship scans the district before you drop.',

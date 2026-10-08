@@ -28,11 +28,16 @@ const SNAME: Record<string, string> = { RADAR: 'RADAR', THERMAL: 'THERMAL', EM: 
 const SCOL: Record<string, string> = { RADAR: '#4fd8c0', THERMAL: '#ff8a50', EM: '#c79bff' };
 const SRGB: Record<string, string> = { RADAR: '79,216,192', THERMAL: '255,138,80', EM: '199,155,255' };
 const SHELP: Record<string, string> = {
-  RADAR: '<b>WHERE.</b> Active and fast. Every unit as an unknown ping (silent ones too), zone outlines, rubble, and which drop zones are clear.',
-  THERMAL: '<b>WHAT’S ALIVE.</b> Passive, medium. Zone types (noise reads hot, quiet cold); warm units as a heat blob, then their size. Cold units stay hidden.',
-  EM: '<b>WHO.</b> Passive and slow. Only things that transmit: first counted, then a bearing fix with the CARD’s best guess that firms up the longer you listen.',
+  RADAR: '<b>WHERE.</b> Active and fast. It shows every unit as an unknown ping, silent ones too. It also shows zone outlines, rubble, and which drop zones are clear.',
+  THERMAL: '<b>WHAT’S ALIVE.</b> Passive, medium range. It shows zone types: NOISE zones read hot, QUIET zones read cold. Warm units show as a heat blob, then their size. Cold units stay hidden.',
+  EM: '<b>WHO.</b> Passive and slow. It hears only units that transmit. First it counts them. Then it gets a bearing fix and the CARD’s best guess. The longer you listen, the firmer the guess.',
 };
 const live = () => G.scan && G.scan.mode === 'active';
+// R24 fix list 4 (C37): the picked drop zone by name. The pick is made; another tap changes it.
+function dropLine() {
+  const D = offeredDrops(), cur = D.find(d => d.i === G.scan.drop);
+  return '<b>' + gt('DROP ZONE') + ':</b> ' + (cur ? '<b style="color:#7ee08a">' + (cur.i + 1) + ' ' + esc(cur.name.toUpperCase()) + '</b> is picked (lit). ' : '') + 'To change it, tap another number on the map or below.';
+}
 const gt = (id: string, text = id) => '<span data-g="' + id + '">' + text + '</span>'; // R24 A2: long-press a term
 const ALT_HELP: Record<string, string> = { // R20 fix list 5
   HIGH: 'rings cover more ground, but every sensor is weaker (thermal much weaker) and fixes are fuzzier. Quieter on the risk meter.',
@@ -98,9 +103,9 @@ function riskHtml(S) {
   const k = riskStep(S.risk), nx = riskAt(k + 1), pc = (x: number) => Math.round(x * 100) + '%';
   const lo = riskAt(k), fill = Math.min(100, 100 * (S.risk - lo) / Math.max(1e-6, nx - lo));
   const now = k ? pc(stepVal(TUNE.SCAN_RISK_ALERT, k)) + ' of the field awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k)) + ' chance the ship is painted' : '') : 'nobody stirs';
-  const next = k + 1 > S.peak && stepVal(TUNE.SCAN_RISK_EXTRA, k + 1) ? pc(stepVal(TUNE.SCAN_RISK_EXTRA, k + 1)) + ' chance a unit is called in; ' : '';
+  const next = k + 1 > S.peak && stepVal(TUNE.SCAN_RISK_EXTRA, k + 1) ? pc(stepVal(TUNE.SCAN_RISK_EXTRA, k + 1)) + ' chance a unit is called in, ' : '';
   return '<b class="' + (k ? 'badt' : 'okt') + '">' + gt('RISK') + ' ' + S.risk.toFixed(1) + ' · ' + gt('STEP') + ' ' + k + '</b> <span class="bar"><span style="width:' + fill + '%;background:' + (k ? '#ff8a80' : '#70c080') + '"></span></span>' +
-    '<span style="opacity:.9">Drop now: ' + now + '. Step ' + (k + 1) + ' at ' + nx + ': ' + next + pc(stepVal(TUNE.SCAN_RISK_ALERT, k + 1)) + ' awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k + 1) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k + 1)) + ' painted' : '') + '. Radar is loud; with every sensor off the meter cools.</span>' + cityHtml(S);
+    '<span style="opacity:.9">Drop now: ' + now + '. Step ' + (k + 1) + ' at ' + nx + ': ' + next + pc(stepVal(TUNE.SCAN_RISK_ALERT, k + 1)) + ' awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k + 1) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k + 1)) + ' painted' : '') + '. RADAR is loud. With every sensor off, the meter cools.</span>' + cityHtml(S);
 }
 // R23: what standing does here: a HATED target wakes more of its field; a LIKED faction's intel is already on the map
 function cityHtml(S) {
@@ -112,7 +117,7 @@ function cityHtml(S) {
 // R20: what the ship knows, one line per sensor (plain words, the CARD's names)
 function liveLines() {
   const S = G.scan, M = liveSummary(S), L: string[] = [];
-  if (!S.t) return ['Turn sensors on, drag each ring onto what matters (or FULL MAP), then START CLOCK. PAUSE to think; time only passes while the clock runs. DROP lands with what you know.'];
+  if (!S.t) return ['Turn sensors on. Drag each ring onto what matters (or FULL MAP). Then tap START CLOCK. Time passes only while the clock runs, so PAUSE to think. DROP lands with what you know.'];
   const I = G.units.map(u => unitIntel(S, u)).filter(Boolean);
   L.push('<b style="color:' + SCOL.RADAR + '">RADAR:</b> ' + M.pings + ' ping' + (M.pings === 1 ? '' : 's') + ' (type unknown) · zones ' + M.zones + '/' + G.zones.length + ' outlined · drops ' + M.drops + '/' + dropPts().length + ' clear');
   const sz = I.filter(i => i.size), big = sz.filter(i => i.size === 'LARGE').length;
@@ -122,7 +127,7 @@ function liveLines() {
   const stale = I.filter(i => i.fix && i.mobile && S.t - i.fix.t >= 2).length;
   if (S.adds.length) { const c = S.adds.filter(a => a.why === 'called in').length, a = S.adds.length - c; L.push('<span class="badt">The field has grown: ' + (c ? c + ' called in by your scanning' : '') + (c && a ? ', ' : '') + (a ? a + ' arrived while you were on station' : '') + '.</span>'); }
   if (stale) L.push('<span class="warnt">' + stale + ' moving contact' + (stale > 1 ? 's' : '') + ' last seen 2+ min ago: ' + (stale > 1 ? 'they have' : 'it has') + ' moved since.</span>');
-  if (M.drops > 1) L.push('<b>' + gt('DROP ZONE') + ':</b> tap a numbered circle on the map or a button below.');
+  if (M.drops > 1) L.push(dropLine()); // R24 fix list 4 (C37): say which zone is picked, so the pick reads as done
   else L.push('<span style="opacity:.75">Point RADAR at a dim “?” apron on the map edge to clear it as a drop zone.</span>');
   return L;
 }
@@ -136,13 +141,13 @@ function heard() {
     const n = S.roster.reduce((a, r) => a + r.n, 0);
     L.push('<b>Roster (' + n + '):</b> ' + Object.keys(by).map(t => TUNE.FIELD_TYPES[t].PLURAL + ' ' + esc(by[t].join(', '))).join(' · '));
   }
-  if (S.lvl === 1) L.push('<b>Zones:</b> ' + G.zones.length + ' heard (grey outlines; quiet or noise unknown).');
+  if (S.lvl === 1) L.push('<b>Zones:</b> ' + G.zones.length + ' heard (grey outlines: QUIET or NOISE not known yet).');
   if (S.lvl >= 2) for (const k of ['QUIET', 'NOISE']) { const zs = G.zones.filter(z => z.type === k); if (zs.length) L.push('<b>' + TUNE.ZONE_TYPES[k].NAME + ':</b> ' + esc(zs.map(z => z.name).join(', '))); }
   if (S.lvl >= 3) {
     const silent = S.roster.reduce((a, r) => a + r.n, 0) - S.blips.length;
     L.push('<b>Blips:</b> ' + S.blips.length + ' emitters (patrols will have moved)' + (silent > 0 ? '; ' + silent + ' silent, not shown' : '') + '.');
   }
-  if (S.lvl >= 2) L.push('<b>Drop zone:</b> tap 1–' + offeredDrops().length + ' on the map or below.');
+  if (S.lvl >= 2) L.push(dropLine());
   return L;
 }
 // ---- the map: the whole district, fitted to the canvas ----

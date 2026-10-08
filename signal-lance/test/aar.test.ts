@@ -126,9 +126,9 @@ describe('the after-action record (R22)', () => {
     const A = G.lance[0]; A.hits0 = A.hits; A.parts.LEGS = 0; A.partsLost = ['LEGS']; A.hits -= 2;
     G.outcome = 'BAIL';
     const C = costLines([{ turn: 7, sub: 'PART', b: A.id }, { turn: 9, sub: 'END' }]);
-    const line = C.find(c => c.text.startsWith(A.id))!;
+    const line = C.find(c => c.text.startsWith('ExoS ' + A.id))!;
     expect(line.text).toContain('LEGS wrecked'); expect(line.ref).toBe(7);
-    expect(costLines([{ turn: 9, sub: 'END' }]).find(c => c.text.startsWith(A.id))!.ref).toBe(null); // its moment not shown: no arrow
+    expect(costLines([{ turn: 9, sub: 'END' }]).find(c => c.text.startsWith('ExoS ' + A.id))!.ref).toBe(null); // its moment not shown: no arrow
   });
   it('a COST line points back to a shown moment in a played company contract', () => {
     newCompany(2205); startCompanyContract(2205);
@@ -141,7 +141,7 @@ describe('the after-action record (R22)', () => {
       for (const c of C) if (c.ref !== null) expect(L.some(l => l.turn === c.ref)).toBe(true);
       const hurt = G.lance.find(m => !m.dead && m.hits < m.hits0 && (m.partsLost || []).some(p => p !== 'CORE'));
       const partShown = hurt && shown.find(m => m.sub === 'PART' && m.b === hurt.id);
-      if (partShown) { expect(C.find(c => c.text.startsWith(hurt.id))!.ref).toBe(partShown.turn); break; }
+      if (partShown) { expect(C.find(c => c.text.startsWith('ExoS ' + hurt.id))!.ref).toBe(partShown.turn); break; }
       if (G.ct.status === 'ACTIVE') rollJobs();
     }
   });

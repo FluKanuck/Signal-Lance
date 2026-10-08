@@ -81,7 +81,7 @@ function readout() {
     '<div><b data-g="POWER">POWER</b> ' + (S.regen >= 0 ? '+' : '') + S.regen + '/turn <small>(out ' + S.totals.output + ' − draw ' + S.totals.draw + ')</small> · pool ' + S.pool + '</div>',
     '<div><b data-g="EMIT">EMIT</b> ' + bar(S.emBase, 3, 'em') + ' ' + S.emBase.toFixed(1) + ' <small>enemy ESM hears you ~' + Math.round(heardAt(S.emBase)) + 't once you emit</small>' +
       (radar ? '<br><small>radar pulse: +' + Math.round(radarEmit(f)) + ' EMIT, ' + radar.ap + ' AP ' + radar.en + ' EN</small>' : '') + '</div>',
-    (TUNE.THERMAL_ENABLED ? '<div><b data-g="IR">IR</b> ' + bar(S.irBase, 10, 'ir') + ' ' + S.irBase + ' <small>IR sights see you ~' + Math.round(Math.min(TUNE.IR_RANGE, TUNE.IR_TILES_PER_PT * S.irBase)) + 't in line of sight; +' + TUNE.IR_FIRE + ' a shot, +' + TUNE.IR_SPRINT + ' a sprint, cools ' + TUNE.IR_COOL_PER_TURN + '/turn</small></div>' : '') +
+    (TUNE.THERMAL_ENABLED ? '<div><b data-g="IR">IR</b> ' + bar(S.irBase, 10, 'ir') + ' ' + S.irBase + ' <small>IR sights see you ~' + Math.round(Math.min(TUNE.IR_RANGE, TUNE.IR_TILES_PER_PT * S.irBase)) + 't in line of sight. +' + TUNE.IR_FIRE + ' a shot, +' + TUNE.IR_SPRINT + ' a sprint, cools ' + TUNE.IR_COOL_PER_TURN + '/turn</small></div>' : '') +
     '<div><b data-g="SOUND">SOUND</b> ' + bar(mv('NORMAL'), 14, 'snd') + ' move ' + mv('CREEP') + '/' + mv('NORMAL') + '/' + mv('SPRINT') + (gun ? ' · shot ' + gun.gun.snd : '') + (mortar ? ' · lob ' + mortar.mortar.snd : '') + ' <small>tiles</small></div>',
     '<div><b data-g="HITS">HITS</b> ' + Object.keys(parts).map(p => PART_ABBR[p] + ' ' + parts[p]).join(' · ') + (gun ? ' · ' + fitRounds(f) + ' rds' : '') + '</div>',
   ];
@@ -144,7 +144,7 @@ function openPick(idx: number) {
     rows.push('<button class="hopt"' + (why ? ' disabled' : '') + ' data-pick="' + id + '"><b>' + esc(it.name) + (id === curId ? ' (fitted)' : '') + '</b> <small>' + esc(meta) + '</small><br><small>' + esc(it.effect + (it.trade !== '—' ? ' · ' + it.trade : '')) + '</small><br><small>' +
       (why ? '<span class="badt">' + esc(why) + '</span>' : delta(mount(f, sel, idx, it))) + '</small></button>');
   }
-  if (!rows.length) rows.push('<div class="hopt">Nothing in this round’s set fits a ' + SLOT_WORD[slot].toLowerCase() + ' hardpoint yet' + (slot === 'M' ? ' (moving is the frame’s own legs; mobility modules come later)' : '') + '.</div>');
+  if (!rows.length) rows.push('<div class="hopt">Nothing in this round’s set fits a ' + SLOT_WORD[slot].toLowerCase() + ' hardpoint yet' + (slot === 'M' ? ' (the frame’s own legs move it. Mobility modules come in a later round)' : '') + '.</div>');
   $('hopts').innerHTML = rows.join('');
   $('hsheet').hidden = false; $('hopts').scrollTop = 0; fitPanels();
 }

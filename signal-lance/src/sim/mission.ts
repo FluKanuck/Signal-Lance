@@ -11,7 +11,7 @@ import { aarObj } from './aar.ts';
 export const MISSION_INFO = {
   UPLINK: { name: 'UPLINK', goal: 'Stand in the gold ring and UPLINK on ' + TUNE.UPLINK_TURNS + ' turns, or clear the field.' },
   BOUNTY: { name: 'BOUNTY', goal: 'Every kill pays its bounty. Reach the quota, then extract when you choose.' },
-  ESCORT: { name: 'ESCORT', goal: 'Get the transport from the left edge out the right. It stops at each fork until you tap a route. Scout ahead.' },
+  ESCORT: { name: 'ESCORT', goal: 'Get the transport from the left edge out the right. It stops at each fork until you pick a ROUTE. Scout ahead.' },
   RETRIEVE: { name: 'RETRIEVE', goal: 'PICK UP the guarded cargo and carry it out the right edge. Grabbing it alerts the whole field.' },
 };
 

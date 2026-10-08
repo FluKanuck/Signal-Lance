@@ -110,7 +110,7 @@ export function toFit(l): Fit { return l && l.frame ? l : fitFromLoad({ ...LOAD_
 export const HANGAR_TEMPLATES: { id: string; role: string; blurb: string; fit: () => Fit }[] = [
   { id: 'scout', role: 'Scout', blurb: 'Wisp. Light and quiet on EM; Lamp radar to find things first. Few hits, no BACK: no mortar.',
     fit: () => makeFit('wisp', [['MAST', 'lamp'], ['MAST', 'emarray'], ['MAST', 'mask'], ['ARMS', 'autocannon'], ['CORE', 'hotcore'], ['CORE', 'battery']]) },
-  { id: 'line', role: 'Line', blurb: 'Warden. The R17 suit: passive, mask and ghost, autocannon, a plate on the core.',
+  { id: 'line', role: 'Line', blurb: 'Warden. The R17 ExoS: passive, mask and ghost, autocannon, a plate on the core.',
     fit: () => structuredClone(DEFAULT_FIT) },
   { id: 'brawler', role: 'Brawler', blurb: 'Bulwark. Plated arms, core and legs, a mortar on the back. Loud on EM, slow to kill.',
     fit: () => makeFit('bulwark', [['MAST', 'emarray'], ['ARMS', 'autocannon'], ['CORE', 'hotcore'], ['CORE', 'battery'], ['BACK', 'mortar']], ['ARMS', 'CORE', 'LEGS']) },
@@ -121,9 +121,9 @@ export const HANGAR_TEMPLATES: { id: string; role: string; blurb: string; fit: (
 export function hangarWhy(b: Fit, id: string, replacing: string | null = null) {
   if (id === replacing) return '';
   const all = LOCS.flatMap(l => itemsIn(b, l)), it = byId(ITEMS, id), rep = byId(ITEMS, replacing);
-  if (it?.tags.includes('REACTOR') && !rep?.tags.includes('REACTOR') && all.some(i => i.tags.includes('REACTOR'))) return 'one reactor per suit';
+  if (it?.tags.includes('REACTOR') && !rep?.tags.includes('REACTOR') && all.some(i => i.tags.includes('REACTOR'))) return 'one reactor per ExoS';
   if (id === 'battery') return '';
-  return all.some(i => i.id === id) ? 'one per suit' : '';
+  return all.some(i => i.id === id) ? 'one per ExoS' : '';
 }
 
 // A field unit's fit from its FIELD_TYPES row (+ variant STATS): FRAME, RADAR, PASSIVE, ARMOUR plates, AMMO rounds, CELLS.

@@ -1195,6 +1195,21 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Read it cold: packed district 1701 (the R17 street). A sentry turret up the north alley (a RADAR fix ±1: FIRE says NO SIGHT),
      a line patrol east (an ESM fix ±4, UNKNOWN), B with one LEGS hit, C a brawler with 2 CORE hits, a hush turret east with a
      LAST SEEN mark. New scenario fields: lance.coreLeft, contacts, lastSeen.
+   - Checkpoint C, one name per thing (the sweep A left): the company tab SUITS → REFIT (EXOS would clash with ExoS under the
+     glossary's case-blind name check). SUIT BAY → EXOS BAY. "suit" / "mech" → ExoS in every player string (job card LANCE, ROSTER,
+     REFIT, the hangar catalogue lines, the test bed, the tips). aar "moment" → TURNING POINT. Escort "levers" → ROUTE (HISTORY too).
+     Enemy "thermal sight" → IR sight. "free intel" → FREE SCAN (HISTORY). WHAT IT COST names the machine ("ExoS B LOST"), not
+     "B Jok".
+   - Money said once, the same way: a COMPLETE contract pays the fee + CONTRACT_BONUS. The job card, the QUIT menu and the books
+     all show both (the card said only the fee: 144 where completion paid 244). BAIL CONTRACT says the hunt pay already earned
+     stays (it is in the company's credits). The bailed and played contract result shows the books as rows that sum
+     (test/ledger.test.ts holds start + pay − spent + fee − wages − upkeep − hull = after = company credits).
+   - ROUTE bar (fix 12): view only, the same cmdLeg the map buttons send. A fork where routes only join (no leg starts there)
+     has nothing to pick, so the bar and the HUD's ROUTES line leave it out. Transport warnings (fix 13): the view watches
+     G.ally.hits frame to frame. At half or fewer hits the line is red and says what 0 means.
+   - Fix 5: DEBUG REROLL shows only with ?dev in the URL.
+   - Found, not fixed (no rule change this round): the REFIT tab's hit total (fitHits, 6 for a Warden) and the hunt's (the part
+     sum, 8) differ. Queued as its own task.
    - B6: compact when the window is HUD_COMPACT_H (430) px tall or less, or when the full block runs past the screen edge or
      down into the left buttons (sticky until the window changes; not checked while DBG is on). The line: R<round>, ExoS, AP n/8,
      EN, the objective with "from <ExoS>", any low hits, and the one live prompt (face / look / mortar / MOVE STOPPED). A tap
@@ -1836,6 +1851,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            rule change. Runner: unchanged rules (CHECK OK). BUILD r24-s1 | -
    round24 cp B (r24-s2) | brief: the phone HUD (compact line, safe-area camera, label de-overlap) | NEW HUD_COMPACT_H 430,
            CAM_SAFE_PAD 10 (display only). No rule change. Runner CHECK OK. BUILD r24-s2 | -
+   round24 cp C (r24-s3) | brief: the writing pass + fix list 4, 5, 7, 8, 9, 12, 13 | no tuning change (display only). Contract
+           ledger gains start / earned / spent / ops / offered / news (books only, the runner's numbers unchanged). Runner CHECK OK.
+           BUILD r24-s3 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

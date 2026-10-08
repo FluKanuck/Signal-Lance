@@ -12,6 +12,7 @@ import { launch, showStart, showResult } from './view/screens.ts';
 import { hideWpMenu } from './view/input.ts';
 import { showTbResult } from './view/testbed.ts';
 import './view/card.ts';
+import { escortTick } from './view/escortui.ts';
 import './view/explain.ts';
 import { stepLk, newLk } from './sim/warn.ts';
 import { cx, cy } from './sim/sensors.ts';
@@ -60,6 +61,7 @@ function frame(now) {
   }
   render();
   updateHud(dt);
+  escortTick(dt); // R24 fix list 12 + 13
   requestAnimationFrame(frame);
 }
 resize();

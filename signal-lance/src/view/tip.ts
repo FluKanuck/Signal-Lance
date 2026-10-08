@@ -29,7 +29,7 @@ export function tipAt(wx: number, wy: number): [string, string[]] | null {
   gids = [];
   const z = camZ(), R = 18 / z;
   for (const f of forksAhead()) for (const l of f.legs) { const b = routeBtn(l.i); if (near(wx, wy, b.x, b.y, 30 / z)) { gids = ['ROUTE', 'FORK']; return ['ROUTE ' + l.name + (f.set === l.i ? ' ✓ (set)' : ''), [
-    G.ally.leg < 0 && G.ally.node === f.node ? 'The transport waits here. Tap this ROUTE to send it this way.' : 'A ROUTE at a fork ahead. Tap it to set it, and tap it again to clear it. At a set fork, the transport goes on without a stop. At an unset fork, it waits for you.',
+    G.ally.leg < 0 && G.ally.node === f.node ? 'The transport waits here. Tap this ROUTE and it goes this way.' : 'A ROUTE at a fork ahead. Tap it to set it, and tap it again to clear it. At a set fork, the transport goes on without a stop. At an unset fork, it waits for you.',
     'It walks ' + TUNE.ESCORT_MOVE + ' tiles a round (' + TUNE.ESCORT_SPRINT + ' on a HURRY).']]; } }
   const nx = allyNextStop(); if (nx && near(wx, wy, nx.x, nx.y, R)) { gids = ['NEXT']; return ['NEXT MOVE', [nx.why === 'HOLD' ? 'The transport holds this round (HOLD order).' : nx.why === 'FORK' ? 'The transport will stop at this fork. No ROUTE is set.' : 'The transport’s next move ends here.']]; }
   for (const m of G.lance) if (near(wx, wy, m.x, m.y, R) && (!m.dead || m.crit)) {
@@ -38,7 +38,7 @@ export function tipAt(wx: number, wy: number): [string, string[]] | null {
     return ['ExoS ' + m.id, [partsRead(m), 'CORE hits left ' + hitsLeft(m) + (lowHits(m) ? ' (low)' : '') + '.', 'AP ' + m.ap + ' · EN ' + Math.round(m.en) + ' · EMIT ' + Math.round(m.emit) + ' · AMMO ' + m.ammo, 'Tap it on its turn to turn it and face somewhere.']];
   }
   const a = G.ally;
-  if (a && near(wx, wy, a.x, a.y, R)) return a.dead ? ['Transport (destroyed)', ['The escort failed.']] : ['Transport', [a.hits + '/' + a.maxHits + ' hits. Unarmed. The field can see, hear and shoot it like your mechs.', 'Win: it walks out the right edge. Lose it and the hunt fails.', 'Orders (your turn, no AP): HOLD = skip its next move (' + a.holdsLeft + ' left); HURRY = sprint its next move, ' + TUNE.ESCORT_SPRINT + ' tiles, louder (' + a.hurriesLeft + ' left).' + (a.order ? ' Pending: ' + a.order + '.' : '')]];
+  if (a && near(wx, wy, a.x, a.y, R)) return a.dead ? ['Transport (destroyed)', ['The escort failed.']] : ['Transport', [a.hits + '/' + a.maxHits + ' hits. Unarmed. The enemy can see, hear and shoot it like your ExoS.', 'Win: it walks out the right edge. Lose it and the hunt fails.', 'Orders (your turn, no AP): HOLD skips its next move (' + a.holdsLeft + ' left). HURRY makes its next move a SPRINT: ' + TUNE.ESCORT_SPRINT + ' tiles, louder (' + a.hurriesLeft + ' left).' + (a.order ? ' Pending: ' + a.order + '.' : '')]];
   for (const c of G.pc) {
     if (!c.on || !near(wx, wy, cx(c), cy(c), Math.max(R, Math.min(c.unc, 40 / z)))) continue;
     const lost = c.lost > c.gap;

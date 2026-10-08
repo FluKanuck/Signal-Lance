@@ -72,23 +72,23 @@ export function renderCompany() {
       (C.memorial.length ? '<span>Lost: ' + esc(C.memorial.map(m => m.name).join(', ')) + '.</span>' : '') + '<span>Tap NEW COMPANY to start again.</span></div>';
     $('bCoGo').hidden = true; $('bCoTools').hidden = false; return;
   }
-  const tabs = ['CONTRACTS', 'ROSTER', 'SUITS', 'MARKET', 'SHIP', 'MEMORIAL'];
+  const tabs = ['CONTRACTS', 'ROSTER', 'REFIT', 'MARKET', 'SHIP', 'MEMORIAL'];
   $('coTabs').innerHTML = tabs.map(t => '<button class="cotab' + (t === tab ? ' on' : '') + '" data-t="' + t + '">' + t + (t === 'MEMORIAL' && C.memorial.length ? ' (' + C.memorial.length + ')' : '') + '</button>').join('');
-  $('coBody').innerHTML = { CONTRACTS: contracts, ROSTER: roster, SUITS: suits, MARKET: market, SHIP: ship, MEMORIAL: memorial }[tab]();
+  $('coBody').innerHTML = { CONTRACTS: contracts, ROSTER: roster, REFIT: suits, MARKET: market, SHIP: ship, MEMORIAL: memorial }[tab]();
   $('bCoGo').hidden = !active(); $('bCoTools').hidden = active() && !tb; // a running contract stays in the company flow
   $('bCoGo').textContent = active() ? 'RESUME CONTRACT (HUNT ' + G.ct.hunt + '/' + G.ct.hunts + ')' : '';
 }
 // ---- CONTRACTS (cp3): the offers, then the books ----
 function contracts() {
   const C = G.co, L = C.ledger;
-  const books = '<div class="opc help"><b>THE BOOKS</b><span>When a contract ends you pay wages ' + wages() + ' cr (' + esc(C.ops.map(o => o.name.split(' ')[0] + ' ' + wageOf(o)).join(', ')) + '), ship upkeep ' + TUNE.UPKEEP_SHIP + (C.hullOwed ? ', hull repairs ' + C.hullOwed : '') + ': <b>' + runningCosts() + ' cr</b>.' +
-    (C.debt ? ' <span class="badt">IN DEBT: be above 0 after the next contract, or the company folds.</span>' : ' Below 0 you take debt once (down to −' + TUNE.DEBT_LIMIT + '); still in debt a contract later, or deeper, and the company folds.') + '</span>' +
-    (L ? '<span>Last contract (' + L.n + ', ' + L.status + '): fee ' + L.fee + ', wages −' + L.wages + ', upkeep −' + L.upkeep + (L.hull ? ', hull −' + L.hull : '') + ' → ' + L.after + ' cr.</span>' : '') + '</div>';
+  const books = '<div class="opc help"><b>THE BOOKS</b><span>When a contract ends, you pay <b>' + runningCosts() + ' cr</b>: wages ' + wages() + ' cr (' + esc(C.ops.map(o => o.name.split(' ')[0] + ' ' + wageOf(o)).join(', ')) + '), ship upkeep ' + TUNE.UPKEEP_SHIP + ' cr' + (C.hullOwed ? ', hull repairs ' + C.hullOwed + ' cr' : '') + '.' +
+    (C.debt ? ' <span class="badt">IN DEBT: be above 0 after the next contract, or the company folds.</span>' : ' Below 0 you take on debt once, down to −' + TUNE.DEBT_LIMIT + '. If you are still in debt a contract later, or deeper than that, the company folds.') + ' The company also folds if every ExoS is destroyed and you cannot rebuild one. It folds if no operator is left to drop. It folds if no contract is in reach and you cannot buy fuel.</span>' + // R24 fix list 7 (C20): every fold rule, not only debt
+    (L ? '<span>Last contract (' + L.n + ', ' + L.status + '): ' + (L.start !== undefined ? 'started at ' + L.start + ', hunt pay +' + L.earned + (L.spent ? ', spent −' + L.spent : '') + ', ' : '') + 'fee +' + L.fee + ', wages −' + L.wages + ', upkeep −' + L.upkeep + (L.hull ? ', hull −' + L.hull : '') + ' → ' + L.after + ' cr.' + (C.folded ? ' <b class="badt">FOLDED: ' + esc(C.folded) + '.</b>' : '') + '</span>' : '') + '</div>';
   if (active()) return (cityOn() ? cityScreen(true) : '') + '<div class="opc">A contract is running: RESUME it below.</div>' + books;
   if (cityOn() && C.offers.every((o: any) => o.kind)) return cityScreen(false) + books; // R23: the city screen replaces the offers list
   const why = { FUEL: 'not enough fuel', BUSY: 'a contract is running' };
   return C.offers.map((o, i) => { const b = offerBlock(i), need = Math.min(o.hunts, Math.ceil(o.hunts * TUNE.CONTRACT_WIN_SHARE));
-    return '<div class="opc"><b>' + TUNE.DANGER_NAMES[o.tier] + ' DANGER · ' + o.hunts + ' hunts</b><span>Pays <b style="color:#fc3">' + o.fee + ' cr</b> on completion (win ' + need + ' of ' + o.hunts + '), plus each hunt’s pay.</span>' +
+    return '<div class="opc"><b>' + TUNE.DANGER_NAMES[o.tier] + ' DANGER · ' + o.hunts + ' hunts</b><span>Pays <b style="color:#fc3">' + o.fee + ' cr</b>' + (TUNE.CONTRACT_BONUS ? ' + ' + TUNE.CONTRACT_BONUS + ' cr bonus' : '') + ' on completion (win ' + need + ' of ' + o.hunts + '), plus each hunt’s pay.</span>' +
       '<span>Field ×' + TUNE.DANGER_FIELD[o.tier] + ' · <span class="' + (b === 'FUEL' ? 'badt' : '') + '">' + fuelCost(o) + ' fuel to get there</span> (you have ' + C.fuel + ')</span>' +
       '<div class="zrow"><button class="cotake' + (b ? ' lockd' : '') + '" data-i="' + i + '">' + (b ? why[b] || 'can’t' : 'TAKE IT') + '</button></div></div>'; }).join('') + books;
 }
@@ -134,7 +134,7 @@ function cityScreen(busy: boolean) {
   for (const { o, i } of here) {
     const b = offerBlock(i), need = Math.min(o.hunts, Math.ceil(o.hunts * TUNE.CONTRACT_WIN_SHARE)), dl = effectsOf(o), gift = intelFrom(o);
     side += '<div class="cyoff"><b>' + (i + 1) + ' · ' + (o.kind === 'FACTION' ? gt('FACTION JOB') : gt('BROKER JOB')) + ': ' + esc(offerTitle(o)) + '</b>' +
-      '<span>' + TUNE.DANGER_NAMES[o.tier] + ' ' + gt('DANGER', 'danger') + ' · ' + o.hunts + ' hunts (win ' + need + ') · pays <b style="color:#fc3">' + o.fee + ' cr</b> on completion' + (o.kind === 'FACTION' && liked(o.emp) ? ' (×' + TUNE.STANDING_LIKED_PAY + ': ' + esc(facName(o.emp)) + ' LIKES you)' : '') + '</span>' +
+      '<span>' + TUNE.DANGER_NAMES[o.tier] + ' ' + gt('DANGER', 'danger') + ' · ' + o.hunts + ' hunts (win ' + need + ') · pays <b style="color:#fc3">' + o.fee + ' cr</b>' + (TUNE.CONTRACT_BONUS ? ' + ' + TUNE.CONTRACT_BONUS + ' cr bonus' : '') + ' on completion' + (o.kind === 'FACTION' && liked(o.emp) ? ' (×' + TUNE.STANDING_LIKED_PAY + ': ' + esc(facName(o.emp)) + ' LIKES you)' : '') + '</span>' +
       '<span><span class="' + (b === 'FUEL' ? 'badt' : '') + '">' + fuelCost(o) + ' ' + gt('FUEL', 'fuel') + ' to get there</span> (you have ' + C.fuel + ')</span>' +
       '<span>Complete it (' + gt('STANDING', 'standing') + '): ' + dl.map(([f, v, d]) => esc(facName(f)) + ' ' + pm(v) + (d ? '' : ' (word gets round)')).join(', ') + (o.kind === 'BROKER' ? ' (deniable: no faction employs you)' : '') + '</span>' +
       (hated(o.tgt) ? '<span class="badt">' + esc(facName(o.tgt)) + ' HATES you: +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of its field awake at the drop, danger a step up.</span>' : '') +
@@ -143,7 +143,7 @@ function cityScreen(busy: boolean) {
   }
   if (busy && G.ct.offer && G.ct.offer.kind) side += '<span>On a ' + esc(offerTitle(G.ct.offer)) + ' job here.</span>';
   return '<div class="city">' + standingBars() + '<div class="cyrow">' + cityMap(busy) + '<div class="cyside">' + side + '</div></div>' +
-    '<small style="opacity:.85">' + esc(relLine()) + '</small><small style="opacity:.75">Faction jobs pay ×' + TUNE.CITY_FACTION_PAY + ' and move two standings; broker jobs pay ×' + TUNE.CITY_BROKER_PAY + ', only the target notices. Allies and rivals hear of it (×' + TUNE.STANDING_SPILL + '). HATED at ' + TUNE.STANDING_HATED + ', LIKED at +' + TUNE.STANDING_LIKED + '; after every contract it all fades ' + TUNE.STANDING_DRIFT + ' toward 0.</small></div>';
+    '<small style="opacity:.85">' + esc(relLine()) + '</small><small style="opacity:.75">Faction jobs pay ×' + TUNE.CITY_FACTION_PAY + ' and move two standings. Broker jobs pay ×' + TUNE.CITY_BROKER_PAY + ', and only the target notices. Allies and rivals hear of it (×' + TUNE.STANDING_SPILL + '). HATED at ' + TUNE.STANDING_HATED + ', LIKED at +' + TUNE.STANDING_LIKED + '. After every contract, every standing moves ' + TUNE.STANDING_DRIFT + ' toward 0.</small></div>';
 }
 // ---- ROSTER ----
 function seatOf(id: string) { return Object.keys(G.co.crew).find(k => G.co.crew[k] === id) || ''; }
@@ -158,7 +158,7 @@ function opCard(o, buttons: string, extra = '') {
 function roster() {
   const C = G.co, seats = Object.keys(C.crew);
   return C.ops.map(o => opCard(o, active() || !canDrop(o) ? '' : '<div class="zrow">' + seats.map(s => '<button class="coseat' + (C.crew[s] === o.id ? ' on' : '') + (suitFit(s) ? '' : ' lockd') + '" data-o="' + (C.crew[s] === o.id ? '' : o.id) + '" data-s="' + s + '">' + s + '</button>').join('') + '</div>')).join('') + // cp2: tap a lit suit again to take them out of it
-    '<div class="opc help"><small>' + C.ops.length + '/' + opCap() + ' on the roster (hire at the MARKET). The letter buttons put an operator in that suit (tap it again: stays aboard); you can change it before every hunt. A suit that goes down drops its operator CRITICAL: end a lancemate’s turn next to it to carry them, then get out. Carried out = benched; left behind = KIA. Each hunt you come back from: +' + TUNE.OP_XP_HUNT + ' XP (+' + TUNE.OP_XP_WIN + ' on a win); level 2 at ' + TUNE.OP_LEVELS[0] + ', 3 at ' + TUNE.OP_LEVELS[1] + '. Veterans cost more wages.</small></div>';
+    '<div class="opc help"><small>' + C.ops.length + '/' + opCap() + ' on the roster (hire at the MARKET). A letter button puts that operator in that ExoS. Tap it again and that ExoS STAYS ABOARD. You can change this before every hunt. When an ExoS goes DOWN, its operator is CRITICAL. End a lancemate’s turn next to it to carry them, then EXTRACT. Carried out: the operator is BENCHED. Left behind: KIA. Each hunt you come back from gives +' + TUNE.OP_XP_HUNT + ' XP (+' + TUNE.OP_XP_WIN + ' on a win). Level 2 at ' + TUNE.OP_LEVELS[0] + ', 3 at ' + TUNE.OP_LEVELS[1] + '. Veterans cost more wages.</small></div>';
 }
 // ---- SUITS (cp2; cp3: parts) ----
 export const costTxt = (q: { parts: number; cr: number }) => [q.parts ? q.parts + ' part' + (q.parts > 1 ? 's' : '') : '', q.cr ? q.cr + ' cr' : ''].filter(Boolean).join(' + ') || 'free';
@@ -173,22 +173,22 @@ function suits() {
       (c.dead ? '' : '<span>' + partsRead(c) + '</span>') +
       '<span>' + (fitRounds(s.fit) ? c.ammo + '/' + fitRounds(s.fit) + ' rds' : 'no gun') + (fitShells(s.fit) ? ' · ' + c.shells + '/' + fitShells(s.fit) + ' shells' : '') + ' · ' + (o ? 'driver ' + esc(o.name) : 'no driver') + '</span>' +
       (btns ? '<div class="zrow">' + btns + '</div>' : '') + '</div>';
-  }).join('') + '<div class="opc help"><small>' + C.suits.length + '/' + suitCap() + ' ExoS (the ship’s bays). Damage, rounds and shells carry from hunt to hunt and contract to contract. A repair (1 hit) takes ' + costTxt(suitCost('repair')) + '; parts come from salvage (every kill) and the MARKET. HANGAR · TOOLS changes a suit’s fit with items from the stores; its damage stays.' + (active() ? ' Refit between hunts on the job screen.' : '') + '</small></div>';
+  }).join('') + '<div class="opc help"><small>' + C.suits.length + '/' + suitCap() + ' ExoS (the ship’s bays). Damage, rounds and shells carry from hunt to hunt and contract to contract. A repair (1 hit) takes ' + costTxt(suitCost('repair')) + '. Parts come from salvage (every kill) and the MARKET. HANGAR · TOOLS changes an ExoS’s fit with items from the stores. Its damage stays.' + (active() ? ' Refit between hunts on the job screen.' : '') + '</small></div>';
 }
 // ---- MARKET (cp3): parts, fuel, items for the stores, now and then an ExoS; recruits; sell spare parts ----
 function market() {
   const C = G.co, why = { CR: 'need cr', HOLD: 'hold full', TANK: 'tank full', BAY: 'no free bay' };
-  const name = (L) => L.k === 'parts' ? 'PARTS' : L.k === 'fuel' ? 'FUEL' : L.k === 'suit' ? 'EXOS (Warden, standard kit)' : esc(byId(ITEMS, L.id).name);
+  const name = (L) => L.k === 'parts' ? 'PARTS' : L.k === 'fuel' ? 'FUEL' : L.k === 'suit' ? 'ExoS (Warden, standard kit)' : esc(byId(ITEMS, L.id).name);
   const note = (L) => L.k === 'parts' ? 'repairs and rebuilds · hold ' + C.parts + '/' + holdCap() : L.k === 'fuel' ? 'to reach contracts · tank ' + C.fuel + '/' + fuelMax() : L.k === 'suit' ? 'needs a free bay (' + C.suits.length + '/' + suitCap() + ')' : esc(byId(ITEMS, L.id).effect) + ' · ' + (C.stores[L.id] || 0) + ' owned, ' + freeItem(L.id) + ' spare';
   const lines = active() ? '<div class="opc">The market is open between contracts.</div>' : C.market.map((L, i) => { const b = buyBlock(i);
     return '<div class="opc"><b>' + name(L) + '</b><span>' + note(L) + '</span><span>' + L.price + ' cr · ' + L.qty + ' left</span><div class="zrow"><button class="cobuy' + (b ? ' lockd' : '') + '" data-i="' + i + '">' + (b === 'NONE' ? 'SOLD OUT' : b ? why[b] : 'BUY') + '</button>' +
       (L.k === 'parts' ? '<button class="cosell' + (C.parts ? '' : ' lockd') + '">SELL 1<br><small>+' + TUNE.PART_SELL + ' cr</small></button>' : '') + '</div></div>'; }).join('');
   const rec = active() ? '' : C.recruits.map((o, i) => { const b = hireBlock(i); return opCard(o, '<div class="zrow"><button class="cohire' + (b ? ' lockd' : '') + '" data-i="' + i + '">' + (b === 'FULL' ? 'ROSTER FULL' : b === 'CR' ? 'need cr' : 'HIRE · ' + TUNE.COST_HIRE + ' cr') + '</button></div>', '<span class="warnt">RECRUIT</span>'); }).join('');
-  return lines + rec + '<div class="opc help"><small>New stock and recruits after every contract. Items you buy go into the stores; the hangar fits only what is spare there.</small></div>';
+  return lines + rec + '<div class="opc help"><small>New stock and recruits after every contract. Items you buy go into the stores. The HANGAR fits only what is spare there.</small></div>';
 }
 // ---- SHIP (cp4): hardpoints, fitted modules, the shop ----
 function ship() {
-  const C = G.co, S = C.ship, M = TUNE.SHIP_MODULES, why = { CR: 'need cr', OWNED: 'owned', SUITS: 'a suit is in it', OPS: 'roster too big' };
+  const C = G.co, S = C.ship, M = TUNE.SHIP_MODULES, why = { CR: 'need cr', OWNED: 'owned', SUITS: 'an ExoS uses this bay', OPS: 'roster too big' };
   const fitted = S.fit.map(id => { const b = active() ? 'BUSY' : unfitBlock(id); return '<button class="counfit' + (b ? ' lockd' : '') + '" data-m="' + id + '">' + M[id].name + '<br><small>' + (b === 'BUSY' ? 'fitted' : b ? why[b] : 'take off') + '</small></button>'; }).join('') +
     Array.from({ length: TUNE.SHIP_HARDPOINTS - S.fit.length }, () => '<button class="lockd">— empty —</button>').join('');
   const stored = S.stored.map(id => '<button class="cofit' + (S.fit.length >= TUNE.SHIP_HARDPOINTS || active() ? ' lockd' : '') + '" data-m="' + id + '">' + M[id].name + '<br><small>fit it</small></button>').join('');

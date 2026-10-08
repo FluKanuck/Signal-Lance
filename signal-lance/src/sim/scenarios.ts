@@ -96,13 +96,13 @@ export const SCENARIOS: Scenario[] = [
   // ---- Round 22 (what happened): one hunt, played by the scripted lance, ending two ways. Held the field shows every
   // moment in full; Bailed ends at the same moment as a BAIL, so the field's side is redacted. Compare the two pages. ----
   { name: 'Held the field', round: 22, ...AAR_HUNT,
-    tryThis: 'Watch only: the lance plays itself and takes the uplink, then the after-action page opens. Read WHAT HAPPENED and WHAT IT COST, tap a moment to see it on the map. Then play Bailed: the same hunt, ending as a bail.' },
+    tryThis: 'Watch only: the lance plays itself and takes the uplink, then the after-action page opens. Read WHAT HAPPENED and WHAT IT COST, tap a TURNING POINT to see it on the map. Then play Bailed: the same hunt, ending as a bail.' },
   { name: 'Bailed', round: 22, ...AAR_HUNT, endAs: 'BAIL',
     tryThis: 'The same hunt as Held the field, but it ends as a BAIL at the same moment. You lost the field, so the enemy’s side of the story is blanked out (???, a rough direction). Compare it with Held the field.' },
   // ---- R21 cp3: the books. No hunt: a test company one contract from folding (in debt, fuel 4), three offers. ----
   {
     name: 'Thin books', round: 21, seed: 2103, books: true,
-    tryThis: 'Your company is in debt: if it is still below 0 when the next contract ends, it folds. Three offers: rich and far (HIGH danger, 4 hunts, all your fuel), safe and poor (LOW, 2 hunts), and one in between. Look at the books, your suits and your people, then TAKE one.',
+    tryThis: 'Your company is in debt: if it is still below 0 when the next contract ends, it folds. Three offers: rich and far (HIGH danger, 4 hunts, all your fuel), safe and poor (LOW, 2 hunts), and one in between. Look at the books, your ExoS and your people, then TAKE one.',
     uplink: [0, 0], lance: [], field: [],
     question: { q: 'What decided your pick?', a: ['The fee', 'The fuel', 'The danger', 'My hurt suit or people', 'Not sure'] },
   },
@@ -110,7 +110,7 @@ export const SCENARIOS: Scenario[] = [
   // the east, between A and the uplink / extraction. End a turn next to B to carry Jok, then get out (or leave Jok). ----
   {
     name: 'Carry them out', round: 21, seed: 2101, mission: 'UPLINK', packed: D1701,
-    tryThis: 'B is down and Jok, its operator, is CRITICAL. End A’s turn next to B (it’s 2 tiles behind you) to carry Jok, then extract on the east edge, or take the uplink. Leave Jok behind and Jok is KIA. A patrol is walking up the street toward you.',
+    tryThis: 'B is down and Jok, its operator, is CRITICAL. End A’s turn next to B (it’s 2 tiles behind you) to carry Jok, then EXTRACT on the east edge, or take the uplink. Leave Jok behind and Jok is KIA. A patrol is walking up the street toward you.',
     uplink: [41, 13],
     lance: [{ tile: [22, 13], face: [41, 13], fit: 'line', op: ['Mara Voss', 'AIM', 2] }, { tile: [20, 13], face: [41, 13], fit: 'scout', op: ['Jok Okafor', 'QUIET', 1], downed: true }],
     field: [{ type: 'PATROL', variant: 'line', tile: [33, 13], face: [22, 13], state: 'PATROL' }],
@@ -127,7 +127,7 @@ export const SCENARIOS: Scenario[] = [
   // field: two silent turrets (a sentry and a hush: no radio, cold) and two patrols (a heavy and a line: radio, warm). ----
   {
     name: 'Where first', round: 20, seed: 2025, mission: 'UPLINK', job: { seed: 2025, comp: 'Ambush', listen: -1 }, tune: { SCAN_MODE: 'active' },
-    tryThis: 'Scan before you land. Pick a sensor, drag the aim ring, START, STOP when you have enough. RADAR finds everything (even silent units) but not what it is; THERMAL shows what is warm; EM LISTEN names what talks. Two units here never talk. Then pick a drop zone and take the uplink.',
+    tryThis: 'Scan before you land. Pick a sensor, drag the aim ring, tap START CLOCK, and PAUSE when you have enough. RADAR finds everything (even silent units) but not what it is. THERMAL shows what is warm. EM LISTEN names what talks. Two units here never talk. Then pick a DROP ZONE and take the uplink.',
     uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
     question: { q: 'Which sensor told you the most for this job?', a: ['RADAR', 'THERMAL', 'EM LISTEN', 'They worked best together', 'Not sure'] },
   },
@@ -135,7 +135,7 @@ export const SCENARIOS: Scenario[] = [
   // fire-control emplacement, two patrols), through the scan screen with the dial forced. Same seed both times. ----
   {
     name: 'Long listen', round: 19, seed: 1909, mission: 'UPLINK', job: { seed: 1909, comp: 'Mixed', listen: 3 }, tune: { SCAN_PAINT_CHANCE: 1, SCAN_MODE: 'dial' }, // R20: the R19 dial
-    tryThis: 'The ship listens LONG: the roster, the zones, three drop zones and blips for everything that emits. But it listened too long: the ship is painted, so patrols wait near wherever you land, and part of the field is awake. Read the map, pick where to land, then take the uplink. Then try Quiet drop: the same job with no scan.',
+    tryThis: 'The ship listens LONG: the roster, the zones, three drop zones and blips for everything that emits. But it listened too long: the ship is painted, so patrols wait near wherever you land, and part of the field is awake. Read the map, pick a DROP ZONE, then take the uplink. Then try Quiet drop: the same job with no scan.',
     uplink: [0, 0], lance: [{ tile: [0, 0], fit: 'line' }, { tile: [0, 0], fit: 'scout' }], field: [],
     question: { q: 'Did what you heard change where you landed?', a: ['Yes, I picked another drop zone', 'Yes, it changed my route', 'No, I’d have done the same', 'Not sure'] },
   },
@@ -147,7 +147,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'Painted on the move', round: 19, seed: 1901, mission: 'UPLINK', packed: D1701,
-    tryThis: 'A carries an RWR. A search emplacement sits out of sight behind the blocks to the south-west; its radar pulses every 2nd round. Wait for a warning (a spoke on the rings round A), then walk east along the street and watch the spoke freeze and the wedge swing round to where it must be. Tap the spoke or wedge for its tick and ID. Then go and find it.',
+    tryThis: 'A carries an RWR. A search emplacement sits out of sight behind the blocks to the south-west. Its RADAR pulses every 2nd round. Wait for a warning (a spoke on the rings round A), then walk east along the street and watch the spoke freeze and the wedge swing round to where it must be. Tap the spoke or wedge for its tick and ID. Then go and find it.',
     uplink: [41, 13],
     lance: [{ tile: [20, 13], face: [41, 13], fit: 'RWR' }, { tile: [12, 12], face: [41, 13], lost: true }],
     field: [{ type: 'EMPLACEMENT', variant: 'search', tile: [11, 16], face: [6, 7] }], // its sweep turns 100° before the first pulse (round 2): that one covers A
@@ -156,7 +156,7 @@ export const SCENARIOS: Scenario[] = [
   // ---- Round 18 (fit for the job). Pack off. Same packed district as R17. ----
   {
     name: 'Heavy load', round: 18, seed: 1801, mission: 'UPLINK', packed: D1701,
-    tryThis: 'A is a Bulwark plated on every location: 2 over its rated load, so every move is 2 tiles louder. A turret sits up the north alley, facing away: it can only hear you. Cross the alley mouth to the uplink. Try NORM, then RETRY and CREEP.',
+    tryThis: 'A is a Bulwark plated on every location: 2 over its rated load, so every move is 2 tiles louder. A turret sits up the north alley, facing away: it can only hear you. Cross the alley mouth to the uplink. Try NORMAL, then RETRY and CREEP.',
     uplink: [41, 13],
     lance: [{ tile: [14, 13], face: [41, 13], fit: 'HEAVY' }, { tile: [12, 12], face: [41, 13], lost: true }],
     field: [{ type: 'TURRET', variant: 'sentry', tile: [24, 8], face: [24, 0] }],
@@ -172,7 +172,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'Warm core', round: 18, seed: 1803, mission: 'UPLINK', packed: D1701,
-    tryThis: 'A is a Warden on a Hot core: plenty of power, but it runs warm. A turret with a thermal sight watches the street from the east, past eye range. It can see your heat before it can see you. Walk to the uplink. Then RETRY: swap nothing, but creep along the wall, or wait and watch its contact.',
+    tryThis: 'A is a Warden on a Hot core: plenty of power, but it runs warm. A turret with an IR sight watches the street from the east, past eye range. It can see your heat before it can see you. Walk to the uplink. Then RETRY: swap nothing, but creep along the wall, or wait and watch its contact.',
     uplink: [41, 13],
     lance: [{ tile: [14, 13], face: [41, 13], fit: 'WARM' }, { tile: [12, 12], face: [41, 13], lost: true }],
     field: [{ type: 'TURRET', variant: 'sentry', tile: [30, 13], face: [14, 13] }],
@@ -218,7 +218,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'Two districts: strip', round: 16, seed: 1611, mission: 'ESCORT', ally: 'J1',
-    tryThis: 'A long 6×2 district. The transport waits at the west fork. NORTH runs the top street past a kiosk that blocks the view; SOUTH runs the bottom street. Read the map, then tap a route. Then try Two districts: square.',
+    tryThis: 'A long 6×2 district. The transport waits at the west fork. NORTH runs the top street past a kiosk that blocks the view. SOUTH runs the bottom street. Read the map, then tap a ROUTE. Then try Two districts: square.',
     map: district(6, 2, ['towers', 'alleys', 'plaza', 'warren', 'alleys', 'depot', 'lot', 'towers', 'yard', 'avenue', 'warren', 'towers'], [[2, 1]], [1, 1]),
     uplink: [24, 12],
     lance: [{ tile: [23, 11], load: { mortar: 1 } }, { tile: [22, 12] }],
@@ -227,7 +227,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'Two districts: square', round: 16, seed: 1612, mission: 'ESCORT', ally: 'J1',
-    tryThis: 'The same fork on a square 3×3 district: NORTH runs the top street past the kiosk, SOUTH runs the seam street through the middle of the map. Read the map, then tap a route.',
+    tryThis: 'The same fork on a square 3×3 district: NORTH runs the top street past the kiosk, SOUTH runs the seam street through the middle of the map. Read the map, then tap a ROUTE.',
     map: district(3, 3, ['towers', 'plaza', 'alleys', 'warren', 'yard', 'depot', 'alleys', 'towers', 'lot'], [[1, 1]], [1, 1]),
     uplink: [12, 12],
     lance: [{ tile: [11, 11], load: { mortar: 1 } }, { tile: [10, 12] }],
@@ -236,7 +236,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'Crunch', round: 16, seed: 1621, mission: 'UPLINK',
-    tryThis: 'One suit. Scrap lies across the street between you and the uplink. A sentry in the lot to the north faces away, but it is in earshot of the scrap. Crunch through fast, creep through, or go round to the south.',
+    tryThis: 'One ExoS. Scrap lies across the street between you and the uplink. A sentry in the lot to the north faces away, but it is in earshot of the scrap. Crunch through fast, creep through, or go round to the south.',
     map: district(3, 2, ['alleys', 'lot', 'depot', 'plaza', 'towers', 'warren'], [[1, 1]], [1], [{ x: 19, y: 11, w: 3, h: 2, ch: ',' }]),
     uplink: [27, 11],
     lance: [{ tile: [10, 12], face: [27, 11], load: { mortar: 1 } }, { tile: [9, 12], lost: true }],
@@ -246,7 +246,7 @@ export const SCENARIOS: Scenario[] = [
   // ---- Round 15 step 3 (Escort). Pack off. ----
   {
     name: 'Fork', round: 15, seed: 1521, mission: 'ESCORT', ally: 'J1',
-    tryThis: 'The transport waits at the west fork. One route is clean; on the other, a gun turret sits behind the blocks, and its steady radio carries to the fork. Listen first, then tap a route.',
+    tryThis: 'The transport waits at the west fork. One route is clean. On the other, a gun turret sits behind the blocks, and its steady radio carries to the fork. Listen first, then tap a ROUTE.',
     uplink: [8, 11],
     lance: [{ tile: [7, 12], load: { mortar: 1 } }, { tile: [9, 12] }],
     field: [{ type: 'TURRET', variant: 'gun', tile: [15, 7], face: [8, 7] }],
@@ -274,7 +274,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'Hot potato', round: 15, seed: 1512, mission: 'RETRIEVE',
-    tryThis: 'You start on the cargo at the centre crossing, inside a heavy guard: a gun turret, a heavy patrol and an emplacement. Grab it and run. When the carrier gets hurt, HAND OFF to the other mech.',
+    tryThis: 'You start on the cargo at the centre crossing, inside a heavy guard: a gun turret, a heavy patrol and an emplacement. Grab it and run. When the carrier gets hurt, HAND OFF to the other ExoS.',
     uplink: [45, 14],
     lance: [{ tile: [44, 14], load: { mortar: 1 } }, { tile: [45, 15] }],
     field: [
@@ -287,7 +287,7 @@ export const SCENARIOS: Scenario[] = [
   // ---- Round 15 step 1 (Bounty). Pack off. ----
   {
     name: 'Price list', round: 15, seed: 1501, mission: 'BOUNTY',
-    tryThis: 'Bounty, quota 50 here. North: a heavy patrol (80 cr). South: two scouts (25 each). Either route makes the quota. Listen, pick one, then extract.',
+    tryThis: 'Bounty, quota 50 here. North: a heavy patrol (80 cr). South: two scouts (25 each). Either route makes the quota. Listen, pick one, then EXTRACT.',
     uplink: [37, 11], // the field's leash point (no uplink in a Bounty job)
     lance: [{ tile: [36, 16], load: { mortar: 1 } }, { tile: [35, 16] }],
     field: [
@@ -353,7 +353,7 @@ export const SCENARIOS: Scenario[] = [
   },
   {
     name: 'Wounded', round: 13, seed: 1302,
-    tryThis: 'A has lost a leg (CREEP only). Three patrols are around you. Get both mechs out alive, or uplink.',
+    tryThis: 'A has lost a leg (CREEP only). Three patrols are around you. Get both ExoS out alive, or uplink.',
     uplink: [27, 13],
     lance: [{ tile: [12, 7], legsLost: 1 }, { tile: [11, 7] }],
     field: [
@@ -362,7 +362,7 @@ export const SCENARIOS: Scenario[] = [
       { type: 'PATROL', tile: [16, 0], state: 'PATROL' },
     ],
     tune: { PACK_ENABLED: true },
-    question: { q: 'Did the hurt mech feel hunted?', a: ['Hunted, fair (heard them coming)', 'Dogpiled', 'Not really'] },
+    question: { q: 'Did the hurt ExoS feel hunted?', a: ['Hunted, fair (heard them coming)', 'Dogpiled', 'Not really'] },
   },
 ];
 

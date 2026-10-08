@@ -119,15 +119,16 @@ function measureSafe() {
   const lc = R('lcol'), rc = R('rcol'), br = R('brow'), hu = R('hud'), it = R('init');
   const l = lc && lc.width ? lc.right + pad : pad, r = rc && rc.width ? rc.left - pad : vw - pad;
   const t = Math.max(hu && hu.height && !V.hudOpen ? hu.bottom : 0, it && it.height ? it.bottom : 0) + pad; // the opened HUD panel is a passing look: not counted
-  const b = br && br.height ? br.top - pad : vh - pad;
+  const rb = R('routeBar'), bot = Math.min(br && br.height ? br.top : vh, rb && rb.height ? rb.top : vh); // R24 fix list 12: the Escort's ROUTE bar covers the map too
+  const b = bot - pad;
   V.safe = r - l > 80 && b - t > 60 ? { l, t, r, b } : null; // too small to mean anything: centre as before
 }
 // R15: the mission line. Uplink: progress pips and range. Bounty: earned / quota, the last kill's pop, and the call at quota.
 function goalLine(p) {
   if (isType('ESCORT') && G.ally) { // R15 s3
     const a = G.ally, N = anchors().waypoints, L = anchors().legs;
-    const where = allyHolding() ? '<b style="color:#7e9">WAITING at ' + N[a.node].name + ': tap a ' + g('ROUTE') + ' on the map</b>' : a.leg >= 0 ? 'heading for ' + N[L[a.leg].to].name : 'moving';
-    const lev = anchors().junctions.filter(j => !a.passed.includes(j)).map(j => N[j].name.replace('fork at ', '') + ' ' + (a.levers[j] !== undefined ? L[a.levers[j]].name + ' ✓' : 'not set')).join(', ');
+    const where = allyHolding() ? '<b style="color:#7e9">WAITING at ' + N[a.node].name + ': pick a ' + g('ROUTE') + ' (the buttons above the bottom bar, or on the map)</b>' : a.leg >= 0 ? 'heading for ' + N[L[a.leg].to].name : 'moving';
+    const lev = anchors().junctions.filter(j => !a.passed.includes(j) && L.some(l => l.from === j)).map(j => N[j].name.replace('fork at ', '') + ' ' + (a.levers[j] !== undefined ? L[a.levers[j]].name + ' ✓' : 'not set')).join(', ');
     const ord = (lev ? '  ' + g('ROUTE', 'ROUTES') + ': ' + lev : '') + (a.order ? '  <b style="color:#fc3">' + (a.order === 'HOLD' ? 'HOLDS next round' : 'SPRINTS next move') + '</b>' : '');
     return '<br>' + g('TRANSPORT') + ' <b style="color:#7e9">' + Math.max(0, a.hits) + '/' + a.maxHits + ' hits</b>  ' + where + ord + '  <span style="color:#aab">(the hunt ends when it and your ExoS are out: EXTRACT at the right edge)</span>';
   }

@@ -105,8 +105,8 @@ describe('A9: mods', () => {
   });
   it('the hangar allows one of each module row (batteries excepted)', () => {
     const b = DEFAULT_FIT;
-    expect(hangarWhy(b, 'autocannon')).toBe('one per suit'); expect(hangarWhy(b, 'battery')).toBe(''); expect(hangarWhy(b, 'lamp')).toBe('');
-    expect(hangarWhy(b, 'hotcore')).toBe('one reactor per suit'); expect(hangarWhy(b, 'hotcore', 'coldburn')).toBe(''); // swapping the reactor is fine
+    expect(hangarWhy(b, 'autocannon')).toBe('one per ExoS'); expect(hangarWhy(b, 'battery')).toBe(''); expect(hangarWhy(b, 'lamp')).toBe('');
+    expect(hangarWhy(b, 'hotcore')).toBe('one reactor per ExoS'); expect(hangarWhy(b, 'hotcore', 'coldburn')).toBe(''); // swapping the reactor is fine
   });
 });
 
