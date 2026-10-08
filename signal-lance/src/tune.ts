@@ -160,6 +160,7 @@ export const TUNE = {
   // --- Round 11 step 2: payout and refit between hunts (credits reset each contract) ---
   PAY_WIN: 100,          // credits for a hunt won (UPLINK or CLEAR)
   PAY_KILL: 20,          // credits per field unit destroyed (a BAIL pays nothing at all)
+  PAY_MULT: 1.25,        // R22 headless 3 (Jamie: go): 1 → 1.25. every hunt's pay (win, kills, bounties, the escort bonus) × this
   COST_REPAIR: 40,       // credits per armour hit repaired (R11 debrief: 15 → 40, spending "too little to matter")
   COST_ROUNDS: 25,       // credits per +10 gun rounds (R11 debrief: 10 → 25)
   COST_SHELL: 30,        // credits per +1 mortar shell (R11 debrief: 15 → 30)
@@ -520,6 +521,7 @@ export const TUNE = {
   FUEL_PER_JUMP: [1, 4],       // R21 cp3: fuel to reach an offered contract (inclusive range)
   DANGER_NAMES: ['LOW', 'MEDIUM', 'HIGH'], // R21 cp3: an offer's danger, in words
   DANGER_FIELD: [0.75, 1, 1.35], // R21 cp3: × the field's unit counts per danger (rounded, at least 1 of each type it fields)
+  CONTRACT_BONUS: 100,         // R22 headless 3 (Jamie: go): 0 → 100. a flat bonus on CONTRACT COMPLETE, on top of the fee
   CONTRACT_FEE: [60, 100, 160], // R21 cp3: fee per hunt of the contract, paid on CONTRACT COMPLETE, per danger
   CONTRACT_WIN_SHARE: 0.6,     // R21 cp3: hunt wins needed = ceil(hunts × this) (2 of 2, 2 of 3, 3 of 4)
   WAGE_OP: 30,                 // R21 cp3: credits per operator on the roster (benched too), paid when a contract ends

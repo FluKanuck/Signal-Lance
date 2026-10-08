@@ -373,8 +373,8 @@ export function afterHunt() {
 export function endContract(status: string) {
   const C = G.co; if (!C) return;
   C.rec.contracts++; if (status === 'COMPLETE') C.rec.complete++; else C.rec.failed++;
-  const fee = status === 'COMPLETE' && G.ct && G.ct.fee ? G.ct.fee : 0;
-  if (fee) { C.credits += fee; C.news.push('Contract complete: the fee, ' + fee + ' cr.'); }
+  const fee = status === 'COMPLETE' && G.ct && G.ct.fee ? G.ct.fee + TUNE.CONTRACT_BONUS : 0; // R22: + the completion bonus
+  if (fee) { C.credits += fee; C.news.push('Contract complete: the fee' + (TUNE.CONTRACT_BONUS ? ' and the completion bonus' : '') + ', ' + fee + ' cr.'); }
   const w = wages(), up = TUNE.UPKEEP_SHIP, hull = C.hullOwed || 0, cost = w + up + hull;
   C.credits -= cost; C.hullOwed = 0;
   C.ledger = { fee, wages: w, upkeep: up, hull, after: C.credits, n: C.n + 1, status };

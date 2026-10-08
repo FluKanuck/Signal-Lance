@@ -82,16 +82,16 @@ describe('BOUNTY', () => {
     onAllOut();
     expect(G.outcome).toBe('WIN BOUNTY');
     const r = G.ct.results[0];
-    expect(r.pay).toBe(TUNE.BOUNTY_QUOTA + 35); expect(r.mission).toBe('BOUNTY'); expect(G.ct.wins).toBe(1);
+    expect(r.pay).toBe(Math.round((TUNE.BOUNTY_QUOTA + 35) * TUNE.PAY_MULT)); // R22: × PAY_MULT expect(r.mission).toBe('BOUNTY'); expect(G.ct.wins).toBe(1);
   });
   it('extract under quota = not a win and not a loss: the contract goes on, bounties kept', () => {
     contractHunt('BOUNTY');
     G.mission.earned = TUNE.BOUNTY_QUOTA - 10;
     onAllOut();
     expect(G.outcome).toBe('BAIL');
-    expect(G.ct.results[0].pay).toBe(TUNE.BOUNTY_QUOTA - 10);
+    expect(G.ct.results[0].pay).toBe(Math.round((TUNE.BOUNTY_QUOTA - 10) * TUNE.PAY_MULT)); // R22: × PAY_MULT
     expect(G.ct.wins).toBe(0); expect(G.ct.status).toBe('ACTIVE');
-    expect(G.ct.credits).toBe(TUNE.BOUNTY_QUOTA - 10);
+    expect(G.ct.credits).toBe(Math.round((TUNE.BOUNTY_QUOTA - 10) * TUNE.PAY_MULT));
   });
   it('clearing the field follows the same quota rule (under quota = BAIL)', () => {
     contractHunt('BOUNTY'); G.mission.earned = 20; onClear(); expect(G.outcome).toBe('BAIL');
@@ -99,7 +99,7 @@ describe('BOUNTY', () => {
   });
   it('uplink pay is unchanged: PAY_WIN + kills × PAY_KILL, and a BAIL pays nothing', () => {
     contractHunt('UPLINK'); G.kills = 2; onClear();
-    expect(G.outcome).toBe('WIN CLEAR'); expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + 2 * TUNE.PAY_KILL);
+    expect(G.outcome).toBe('WIN CLEAR'); expect(G.ct.results[0].pay).toBe(Math.round((TUNE.PAY_WIN + 2 * TUNE.PAY_KILL) * TUNE.PAY_MULT)); // R22: × PAY_MULT
     contractHunt('UPLINK'); G.kills = 2; onAllOut();
     expect(G.outcome).toBe('BAIL'); expect(G.ct.results[0].pay).toBe(0);
   });
@@ -202,7 +202,7 @@ describe('RETRIEVE', () => {
     contractHunt('RETRIEVE');
     const [A, B] = G.lance; onCargo(A); doPickup(A); G.kills = 1;
     G.mission.cargoOut = true; onAllOut(); // R16: the carrier extracted, then the rest of the lance
-    expect(G.outcome).toBe('WIN RETRIEVE'); expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + TUNE.PAY_KILL);
+    expect(G.outcome).toBe('WIN RETRIEVE'); expect(G.ct.results[0].pay).toBe(Math.round((TUNE.PAY_WIN + TUNE.PAY_KILL) * TUNE.PAY_MULT)); // R22: × PAY_MULT
     contractHunt('RETRIEVE');
     onCargo(G.lance[0]); doPickup(G.lance[0]); onAllOut();
     expect(G.outcome).toBe('BAIL');
@@ -317,7 +317,7 @@ describe('ESCORT', () => {
     onAllyOut(); expect(G.mode).toBe('hunt'); // R16: out, but the hunt goes on until the lance extracts
     onAllOut();
     expect(G.outcome).toBe('WIN ESCORT');
-    expect(G.ct.results[0].pay).toBe(TUNE.PAY_WIN + bonus + TUNE.PAY_KILL);
+    expect(G.ct.results[0].pay).toBe(Math.round((TUNE.PAY_WIN + bonus + TUNE.PAY_KILL) * TUNE.PAY_MULT)); // R22: × PAY_MULT
   });
   it('clearing the field does not end an Escort: the scripted lance still walks it out', () => {
     startScenario(scenarioByName('Fork')); playOut(80);

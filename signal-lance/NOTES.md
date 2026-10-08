@@ -1684,6 +1684,16 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            + 50 cr instead of 8 + 100; lost: the wreck stays, full rebuild), START_FUEL 6 → 8. After: contracts played 62 → 84,
            complete 27 → 37, folds 16 → 16 (every ExoS lost 8 → 8, stranded 7 → 6), KIA 92 → 118 (more contracts played).
            Also: test/map.test.ts's district test gets a 20 s timeout (5.4 s on this machine). BUILD r22-s4 | -
+   round22 headless 3 (r22-s4 numbers) | Jamie: "try increased payouts per mission as well as a completion bonus" | NEW PAY_MULT (every
+           hunt's pay: win, kills, bounties, escort bonus) and CONTRACT_BONUS (flat, on COMPLETE). Sweep, 20 companies × 10, highest fee
+           (folds / played (complete) / KIA / end cr): today 16 / 84 (37) / 118 / −65; ×1.25 15 / 118 (52) / 161 / 166; ×1.5 8 / 134 (60)
+           / 195 / 710; bonus 100 13 / 99 (48) / 137 / 106; bonus 200 14 / 109 (52) / 146 / 188; ×1.25 + 100 10 / 123 (58) / 170 / 478;
+           ×1.5 + 150 5 / 139 (61) / 205 / 1100. Safest offer: today 17 / 71 (45) / 70 / −97; ×1.25 + 100 12 / 129 (87) / 111 / 331
+           (9 of 12 folds fuel); ×1.5 + 150 6 / 163 (109) / 134 / 1318. Jamie "go": PAY_MULT 1 → 1.25, CONTRACT_BONUS 0 → 100
+           (the middle: ×1.5 + 150 banks 1100 cr, past "tight but fair"). --contracts 20 --check now passes (the sound FLAG cleared:
+           richer refits change who the field hears first). BUILD r22-s5 | -
+   round22 wrap (r22-s5) | read-and-connect: "Yes, it changed my plan". Biggest missing: "City map and factions (placeholder) and a better
+           runner bot." Round 22 moved to the splash HISTORY. BUILD r22-s5 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

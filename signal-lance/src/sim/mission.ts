@@ -94,7 +94,8 @@ export function onClear() {
 }
 
 // Credits this hunt pays the contract. kind = WIN / BAIL / FAIL / LOSS.
-export function huntPay(kind: string) {
+export function huntPay(kind: string) { return Math.round(basePay(kind) * TUNE.PAY_MULT); } // R22: every mission's pay × PAY_MULT
+function basePay(kind: string) {
   if (isType('BOUNTY')) return G.mission.earned; // bounties replace PAY_WIN + PAY_KILL, and are kept on a BAIL
   if (isType('ESCORT') && kind === 'WIN' && G.winBy === 'ESCORT') return TUNE.PAY_WIN + escortBonus() + G.kills * TUNE.PAY_KILL; // + the bonus for the ally's hits left
   return kind === 'BAIL' || kind === 'FAIL' ? 0 : (kind === 'WIN' ? TUNE.PAY_WIN : 0) + G.kills * TUNE.PAY_KILL; // R11 s2 (Retrieve as uplink)
