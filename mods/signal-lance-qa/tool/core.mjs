@@ -207,6 +207,7 @@ class Session {
       const ap = (x) => x.suits?.find(s => s.active)?.ap; if (ap(before) !== ap(v) && before.active === v.active) bits.push('AP ' + ap(before) + ' → ' + ap(v));
       if ((before.contacts || []).length !== (v.contacts || []).length) bits.push('contacts ' + (before.contacts || []).length + ' → ' + (v.contacts || []).length);
     }
+    if ((before.scanRings || '') !== (v.scanRings || '')) bits.push('scan: ' + (v.scanRings || 'no rings')); // r24: a ring drag shows only on the canvas
     const bt = new Set(before.buttons.map(b => b.text)), nt = v.buttons.filter(b => !bt.has(b.text)).map(b => b.text);
     if (nt.length) bits.push('new/changed controls: ' + nt.slice(0, 8).join(' | '));
     if (before.panelText !== undefined && !bits.length) { // menus and the scan screen: say which lines of the panel changed

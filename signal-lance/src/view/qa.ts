@@ -55,6 +55,7 @@ export function view() {
     viewport: { w: vw, h: vh }, buttons: buttons() };
   const more = Array.from(document.querySelectorAll('.panel, #hsbox')).filter(e => shown(e) && e.scrollHeight > e.clientHeight + 4 && e.scrollTop + e.clientHeight < e.scrollHeight - 4).map(e => e.id);
   if (more.length) v.scrollMore = more; // panels with more below (scroll to see it)
+  if (G.scan && open.includes('scan')) v.scanRings = Object.keys(G.scan.aims || {}).filter(k => G.scan.on[k] && !G.scan.wide[k]).map(k => k + ' ring at tile ' + G.scan.aims[k].x + ',' + G.scan.aims[k].y).join(' · '); // the rings you see (a drag moves them)
   if (hunt) {
     Object.assign(v, { phase: G.phase, turn: G.turn, mission: G.mtype, moveMode: G.pmode, active: G.p ? G.p.id : '',
       hud: txt(document.getElementById('hud'), 600), init: txt(document.getElementById('init'), 200) });

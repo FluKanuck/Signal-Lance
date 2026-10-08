@@ -265,7 +265,7 @@ let down: { x: number; y: number; ax: number; ay: number; s: string; drag: boole
 const toTile = (ev: PointerEvent) => { const r = ($('scv') as HTMLCanvasElement).getBoundingClientRect(), k = r.width / W; return { x: (ev.clientX - r.left) / k, y: (ev.clientY - r.top) / k }; };
 function pDown(ev: PointerEvent) {
   if (!live()) { tapDrop(toTile(ev)); return; }
-  ($('scv') as HTMLCanvasElement).setPointerCapture(ev.pointerId);
+  try { ($('scv') as HTMLCanvasElement).setPointerCapture(ev.pointerId); } catch (_) {} // as input.ts: a pointer the browser doesn't track (QA tool touches) can't be captured
   const t = toTile(ev), S = G.scan, rings = sensorsOn(S).filter(sn => !S.wide[sn]);
   const dist = (sn: string) => Math.hypot(S.aims[sn].x + 0.5 - t.x, S.aims[sn].y + 0.5 - t.y);
   let s = S.on[sel] && !S.wide[sel] ? sel : rings[0] || sel, bd = (rings as string[]).includes(s) ? dist(s) : 1e9;
