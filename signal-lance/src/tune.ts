@@ -589,12 +589,14 @@ export const TUNE = {
   CITY_BROKER_PAY: 0.8,        // R23: a broker job's fee × this (deniable: nobody gains, the target hurts less)
   STANDING_MIN: -100,          // R23: standing floor, per faction
   STANDING_MAX: 100,           // R23: standing ceiling
-  STANDING_HATED: -40,         // R23: at or below this: HATED
-  STANDING_LIKED: 40,          // R23: at or above this: LIKED (between: NEUTRAL)
+  STANDING_HATED: -30,         // R23: at or below this: HATED. Tuning 1 (Jamie: go): -40 → -30
+  STANDING_LIKED: 30,          // R23: at or above this: LIKED (between: NEUTRAL). Tuning 1 (Jamie: go): 40 → 30
   STANDING_EMPLOYER_GAIN: 20,  // R23: a completed faction job: the employer's standing + this
   STANDING_TARGET_LOSS: 25,    // R23: a completed faction job: the target's standing − this
   STANDING_BROKER_LOSS: 10,    // R23: a completed broker job: the target's standing − this (nobody gains)
-  STANDING_DRIFT: 5,           // R23: every contract's end, each faction's standing moves this much back toward 0 (a grudge fades)
+  STANDING_DRIFT: 2,           // R23: every contract's end, each faction's standing moves this much back toward 0 (a grudge fades). Tuning 1 (Jamie: go): 5 → 2
+  CITY_RELATIONS: { RIVALS: { v: -1, w: 0.5 }, NEUTRAL: { v: 0, w: 0.3 }, ALLIES: { v: 1, w: 0.2 } }, // R23 tuning 1 (Jamie): each faction pair rolls one of these per city (w = weight)
+  STANDING_SPILL: 0.5,         // R23 tuning 1 (Jamie: "becoming friendly with one faction means their enemies dislike you"): a standing change on one faction moves each other faction by change × this × their relation (rivals −1, allies +1)
   STANDING_HATED_ALERT: 0.25,  // R23: a job against a faction that hates you: + this share of its field awake at the drop (on top of the scan's)
   STANDING_HATED_FUEL_MULT: 1.5, // R23: fuel bought in a HATED faction's district costs FUEL_PRICE × this
   STANDING_HATED_DANGER: 1,    // R23: a HATED faction's jobs are this many danger steps higher (capped at HIGH)

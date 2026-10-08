@@ -11,7 +11,7 @@ import { partsRead } from '../sim/combat.ts';
 import { frameOf } from '../sim/fit.ts';
 import { fitRounds, fitShells } from '../sim/kit.ts';
 import { ITEMS, byId } from '../sim/items.ts';
-import { cityOn, FACS, facName, band, hops, pathTo, fuelPriceAt, deltasOf, hated, liked, intelFrom, offerTitle } from '../sim/city.ts';
+import { cityOn, FACS, facName, band, hops, pathTo, fuelPriceAt, effectsOf, hated, liked, intelFrom, offerTitle, relLine } from '../sim/city.ts';
 import { $ } from './hud.ts';
 import { useSuits, ownFits, renderHangar } from './hangar.ts';
 
@@ -130,18 +130,18 @@ function cityScreen(busy: boolean) {
     (d.id === Y.at ? '<span class="okt">The ship is here.</span>' : '<span>' + hp + ' link' + (hp === 1 ? '' : 's') + ' from the ship.</span>');
   if (!busy && !here.length) side += '<span style="opacity:.7">No job here. Tap a numbered district.</span>';
   for (const { o, i } of here) {
-    const b = offerBlock(i), need = Math.min(o.hunts, Math.ceil(o.hunts * TUNE.CONTRACT_WIN_SHARE)), dl = deltasOf(o), gift = intelFrom(o);
+    const b = offerBlock(i), need = Math.min(o.hunts, Math.ceil(o.hunts * TUNE.CONTRACT_WIN_SHARE)), dl = effectsOf(o), gift = intelFrom(o);
     side += '<div class="cyoff"><b>' + (i + 1) + ' · ' + (o.kind === 'FACTION' ? 'FACTION JOB' : 'BROKER JOB') + ': ' + esc(offerTitle(o)) + '</b>' +
       '<span>' + TUNE.DANGER_NAMES[o.tier] + ' danger · ' + o.hunts + ' hunts (win ' + need + ') · pays <b style="color:#fc3">' + o.fee + ' cr</b> on completion' + (o.kind === 'FACTION' && liked(o.emp) ? ' (×' + TUNE.STANDING_LIKED_PAY + ': ' + esc(facName(o.emp)) + ' LIKES you)' : '') + '</span>' +
       '<span><span class="' + (b === 'FUEL' ? 'badt' : '') + '">' + fuelCost(o) + ' fuel to get there</span> (you have ' + C.fuel + ')</span>' +
-      '<span>Complete it: ' + dl.map(([f, v]) => esc(facName(f)) + ' ' + pm(v)).join(', ') + (o.kind === 'BROKER' ? ' (deniable: nobody gains)' : '') + '</span>' +
+      '<span>Complete it: ' + dl.map(([f, v, d]) => esc(facName(f)) + ' ' + pm(v) + (d ? '' : ' (word gets round)')).join(', ') + (o.kind === 'BROKER' ? ' (deniable: nobody gains)' : '') + '</span>' +
       (hated(o.tgt) ? '<span class="badt">' + esc(facName(o.tgt)) + ' HATES you: +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of its field awake at the drop, danger a step up.</span>' : '') +
       (gift ? '<span class="okt">' + esc(facName(gift)) + ' LIKES you: free intel, the scan opens with ' + (TUNE.STANDING_LIKED_INTEL === 'EM' ? 'the emitters counted' : 'radar band 1 on the whole map') + '.</span>' : '') +
       '<div class="zrow"><button class="cotake' + (b ? ' lockd' : '') + '" data-i="' + i + '">' + (b ? why[b] || 'can’t' : 'TAKE IT') + '</button></div></div>';
   }
   if (busy && G.ct.offer && G.ct.offer.kind) side += '<span>On a ' + esc(offerTitle(G.ct.offer)) + ' job here.</span>';
   return '<div class="city">' + standingBars() + '<div class="cyrow">' + cityMap(busy) + '<div class="cyside">' + side + '</div></div>' +
-    '<small style="opacity:.75">Faction jobs pay ×' + TUNE.CITY_FACTION_PAY + ' and move two standings; broker jobs pay ×' + TUNE.CITY_BROKER_PAY + ', only the target notices. HATED at ' + TUNE.STANDING_HATED + ', LIKED at +' + TUNE.STANDING_LIKED + '; after every contract it all fades ' + TUNE.STANDING_DRIFT + ' toward 0.</small></div>';
+    '<small style="opacity:.85">' + esc(relLine()) + '</small><small style="opacity:.75">Faction jobs pay ×' + TUNE.CITY_FACTION_PAY + ' and move two standings; broker jobs pay ×' + TUNE.CITY_BROKER_PAY + ', only the target notices. Allies and rivals hear of it (×' + TUNE.STANDING_SPILL + '). HATED at ' + TUNE.STANDING_HATED + ', LIKED at +' + TUNE.STANDING_LIKED + '; after every contract it all fades ' + TUNE.STANDING_DRIFT + ' toward 0.</small></div>';
 }
 // ---- ROSTER ----
 function seatOf(id: string) { return Object.keys(G.co.crew).find(k => G.co.crew[k] === id) || ''; }

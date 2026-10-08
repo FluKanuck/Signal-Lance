@@ -37,7 +37,7 @@ import { TUNE } from '../src/tune.ts';
 import { G, rollEnemy, newHunt, unitById } from '../src/sim/state.ts';
 import { newContract, takeJob, rollJobs, dmgWord, refit } from '../src/sim/contract.ts';
 import { newCompany, hire, hireBlock, companyLine, autoCrew, suitRefit, suitRefitBlock, suitCost, lanceSize, buy, offerBlock, fuelCost, takeOffer, endContract, runningCosts } from '../src/sim/company.ts';
-import { hated, intelFrom, facName } from '../src/sim/city.ts';
+import { hated, intelFrom, facName, relLine } from '../src/sim/city.ts';
 import { personality, pickOffer, nextPatron, seedRoll } from '../src/sim/personality.ts';
 import { playOut as autoPlayOut, AUTO, BOT } from '../src/sim/autoplay.ts';
 import { upDist } from '../src/sim/turns.ts';
@@ -352,7 +352,7 @@ function companyRun(n: number, seed = FROM, pname = PERSONA === 'all' ? '' : PER
   if (!pname) say('  (the R22 bot: it never goes back for a CRITICAL suit and buys no ship modules or items, #42. --personality gives it a style)');
   if (!MANY) aarReport(); // R22 (several companies: one summary at the end)
   return { folded: !!C.folded, why: foldWhy(C.folded) || (stranded ? 'stranded' : ''), played, complete: R.complete, kia: R.kia, cr: C.credits, per, crits, carried, turned, inHated, intel, story,
-    standing: C.city ? { ...C.city.standing } : null, patron };
+    standing: C.city ? { ...C.city.standing } : null, patron, rel: C.city ? relLine(C.city) : '' };
 }
 // R21 cp3: --company N --companies K: K companies of N contracts (seeds FROM..FROM+K-1), the summary per company and in total
 let MANY = false; const PICK = sarg('--pick') || 'high'; // R22: --pick low = the company takes the lowest danger it can reach (R23: the cautious pick)
@@ -400,7 +400,7 @@ function personalities(n: number, k: number) {
   if (facs.length) row('jobs in hated territory', o => pc(sum(o, 'inHated'), sum(o, 'played')) + ' (' + sum(o, 'inHated') + ')');
   if (facs.length) row('jobs with liked intel', o => pc(sum(o, 'intel'), sum(o, 'played')) + ' (' + sum(o, 'intel') + ')');
   row('top fee turned down', o => pc(sum(o, 'turned'), sum(o, 'played')) + ' (' + sum(o, 'turned') + ')');
-  if (facs.length) for (const p of names) { console.log(`  -- ${p} sample (company seed ${FROM}${p === 'loyal' && R[p][0].patron ? ', patron ' + facName(R[p][0].patron) : ''}):`); for (const l of R[p][0].story) console.log('     ' + l); }
+  if (facs.length) for (const p of names) { console.log(`  -- ${p} sample (company seed ${FROM}${p === 'loyal' && R[p][0].patron ? ', patron ' + facName(R[p][0].patron) : ''}; ${R[p][0].rel}):`); for (const l of R[p][0].story) console.log('     ' + l); }
 }
 
 // R18 (A12): what found each lance suit first, on which channel, from how far

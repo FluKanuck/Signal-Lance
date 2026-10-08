@@ -13,7 +13,7 @@ import { fresh, newContract, repairWorst } from './contract.ts';
 import { syncHits } from './combat.ts';
 import { newCity, cityOn, rollCityOffers, fuelPriceAt, jump, settle, standingLine, dangerOf, feeOf, pathFuel } from './city.ts';
 
-export const CO_VERSION = 4; // R21 cp2: suits. cp3: the books; cp4: the ship. R23: the city // bump when the save's shape changes (an old save then offers NEW COMPANY)
+export const CO_VERSION = 5; // R21 cp2: suits. cp3: the books; cp4: the ship. R23: the city // bump when the save's shape changes (an old save then offers NEW COMPANY)
 export type Op = {
   id: string; name: string; skill: string; xp: number; lvl: number;
   status: 'OK' | 'BENCH'; bench: number; // BENCH: contracts left to sit out
@@ -61,7 +61,7 @@ export function newCompany(seed: number, fits: any[] = []) {
 }
 // A loaded save is used only if its shape matches this build (no migrations: a mismatch offers NEW COMPANY).
 export function validCompany(co: any) {
-  return !!co && co.v === CO_VERSION && Array.isArray(co.ops) && Array.isArray(co.recruits) && Array.isArray(co.memorial) && Array.isArray(co.suits) && !!co.ship && Array.isArray(co.offers) && !!co.stores && !!co.crew && !!co.rec && typeof co.rs === 'number' && (!TUNE.CITY_ENABLED || (!!co.city && Array.isArray(co.city.districts)));
+  return !!co && co.v === CO_VERSION && Array.isArray(co.ops) && Array.isArray(co.recruits) && Array.isArray(co.memorial) && Array.isArray(co.suits) && !!co.ship && Array.isArray(co.offers) && !!co.stores && !!co.crew && !!co.rec && typeof co.rs === 'number' && (!TUNE.CITY_ENABLED || (!!co.city && Array.isArray(co.city.districts) && !!co.city.rel));
 }
 export function rollRecruits() { const C = G.co; C.recruits = []; for (let i = 0; i < TUNE.RECRUITS_OFFERED; i++) C.recruits.push(makeOp()); }
 

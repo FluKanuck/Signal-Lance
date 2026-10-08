@@ -13,7 +13,7 @@ import { G } from './state.ts';
 
 export type Fac = string; // a key of TUNE.CITY_FACTIONS
 export type District = { id: number; name: string; fac: Fac; x: number; y: number; links: number[] };
-export type City = { districts: District[]; at: number; standing: Record<Fac, number> };
+export type City = { districts: District[]; at: number; standing: Record<Fac, number>; rel: Record<string, string> }; // rel: 'A|B' (sorted) → RIVALS / NEUTRAL / ALLIES
 
 const NAMES = ['Dockside', 'Spires', 'Ash Market', 'Neon Mile', 'Old Rail', 'Canal Ward', 'The Stacks', 'Glasshouse', 'Kiln Street', 'Low Bridge', 'Tallow End', 'Sump Gate'];
 export const FACS = (): Fac[] => Object.keys(TUNE.CITY_FACTIONS);
@@ -56,8 +56,16 @@ export function newCity(seed: number): City {
   for (let i = order.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [order[i], order[j]] = [order[j], order[i]]; }
   const counts = order.map((_, i) => Math.floor(N / F.length) + (i < N % F.length ? 1 : 0));
   let k = 0; order.forEach((f, i) => { for (let c = 0; c < counts[i]; c++) D[k++].fac = f; });
-  return { districts: D, at: Math.floor(r() * N), standing: Object.fromEntries(F.map(f => [f, 0])) };
+  const at = Math.floor(r() * N);
+  // R23 tuning 1 (Jamie): how the factions stand with each other, one roll per pair (after the map, so the map is unchanged)
+  const R = TUNE.CITY_RELATIONS, kinds = Object.keys(R), tot = kinds.reduce((a, k) => a + R[k].w, 0), rel: Record<string, string> = {};
+  for (let i = 0; i < F.length; i++) for (let j = i + 1; j < F.length; j++) { let x = r() * tot, k = kinds[kinds.length - 1]; for (const c of kinds) { x -= R[c].w; if (x < 0) { k = c; break; } } rel[relKey(F[i], F[j])] = k; }
+  return { districts: D, at, standing: Object.fromEntries(F.map(f => [f, 0])), rel };
 }
+// R23 tuning 1: faction relations. relOf = RIVALS / NEUTRAL / ALLIES; relVal = −1 / 0 / +1
+export const relKey = (a: Fac, b: Fac) => [a, b].sort().join('|');
+export function relOf(a: Fac, b: Fac, C: City = G.co?.city) { return a === b || !C || !C.rel ? 'NEUTRAL' : C.rel[relKey(a, b)] || 'NEUTRAL'; }
+export const relVal = (a: Fac, b: Fac, C?: City) => TUNE.CITY_RELATIONS[relOf(a, b, C)]?.v ?? 0;
 // Links on the shortest path a → b (BFS; -1 = unreachable)
 export function hops(C: City, a: number, b: number) {
   if (a === b) return 0;
@@ -87,19 +95,39 @@ export function deltasOf(o): [Fac, number][] {
   if (!o || !o.kind) return [];
   return o.kind === 'FACTION' ? [[o.emp, TUNE.STANDING_EMPLOYER_GAIN], [o.tgt, -TUNE.STANDING_TARGET_LOSS]] : [[o.tgt, -TUNE.STANDING_BROKER_LOSS]];
 }
+// R23 tuning 1: a job's whole effect: its deltas, plus each delta's spill onto the other factions (× STANDING_SPILL × their
+// relation: hit a faction and its allies dislike you, its rivals like you; work for one and its rivals dislike you).
+// [faction, total change, direct share] for every faction it moves (rounded).
+export function effectsOf(o, C?: City): [Fac, number, number][] {
+  const D = deltasOf(o); if (!D.length) return [];
+  const tot: Record<string, number> = {}, dir: Record<string, number> = {};
+  for (const [f, d] of D) { tot[f] = (tot[f] || 0) + d; dir[f] = (dir[f] || 0) + d; for (const g of FACS()) if (g !== f) tot[g] = (tot[g] || 0) + d * TUNE.STANDING_SPILL * relVal(f, g, C); }
+  return FACS().filter(f => Math.round(tot[f] || 0) !== 0).map(f => [f, Math.round(tot[f]), dir[f] || 0]);
+}
 // The contract is over: drift, then (on COMPLETE) its deltas. Returns plain lines for the [CITY] log and WHAT IT COST.
 export function settle(o, status: string): string[] {
   const C = G.co.city, before = { ...C.standing }, out: string[] = [];
   drift(C);
-  if (status === 'COMPLETE') for (const [f, d] of deltasOf(o)) C.standing[f] = clampS(C.standing[f] + d);
+  const E = status === 'COMPLETE' ? effectsOf(o, C) : [];
+  for (const [f, d] of E) C.standing[f] = clampS(C.standing[f] + d);
   for (const f of Object.keys(C.standing)) {
     const a = before[f], b = C.standing[f]; if (a === b) continue;
-    const mv = deltasOf(o).find(x => x[0] === f && status === 'COMPLETE');
-    out.push(facName(f) + ' ' + (b > a ? '+' : '') + (b - a) + ' → ' + b + ' (' + band(b) + ')' + (mv ? (mv[1] > 0 ? ': you worked for them' : o.kind === 'BROKER' ? ': you hit them (broker job)' : ': you hit them') : ': it fades') + (band(a) !== band(b) ? ' · now ' + band(b) : ''));
+    const mv = E.find(x => x[0] === f);
+    const why = !mv ? ': it fades' : mv[2] > 0 ? ': you worked for them' : mv[2] < 0 ? (o.kind === 'BROKER' ? ': you hit them (broker job)' : ': you hit them') : ': ' + spillWhy(f, o);
+    out.push(facName(f) + ' ' + (b > a ? '+' : '') + (b - a) + ' → ' + b + ' (' + band(b) + ')' + why + (band(a) !== band(b) ? ' · now ' + band(b) : ''));
   }
   return out;
 }
 
+// Why faction f moved on a job it wasn't in: "Foundry's rivals: you worked for them" style
+function spillWhy(f: Fac, o) {
+  const L: string[] = [];
+  if (o.kind === 'FACTION' && relVal(f, o.emp)) L.push((relVal(f, o.emp) < 0 ? 'you worked for their rival ' : 'you worked for their ally ') + facName(o.emp));
+  if (relVal(f, o.tgt)) L.push((relVal(f, o.tgt) < 0 ? 'you hit their rival ' : 'you hit their ally ') + facName(o.tgt));
+  return L.join(', ') || 'word got round';
+}
+// "Corporate and Foundry: RIVALS · ..." for the city screen and the runner
+export function relLine(C: City = G.co.city) { const F = FACS(), L: string[] = []; for (let i = 0; i < F.length; i++) for (let j = i + 1; j < F.length; j++) L.push(facName(F[i]) + ' & ' + facName(F[j]) + ': ' + relOf(F[i], F[j], C)); return L.join(' · '); }
 // ============================ WHAT STANDING DOES ======================
 // Danger step of a job against faction f: its base, + STANDING_HATED_DANGER when it hates you (capped at HIGH)
 export function dangerOf(f: Fac) { const N = TUNE.DANGER_NAMES.length; return Math.min(N - 1, (TUNE.CITY_FACTIONS[f]?.danger ?? 1) + (hated(f) ? TUNE.STANDING_HATED_DANGER : 0)); }

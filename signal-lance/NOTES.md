@@ -1156,6 +1156,9 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Campaign: picks per sim/personality.ts. Loyal's patron = the employer of its first faction job. The fuel reserve is
      bought after the jump's fuel only while the credits stay above the next contract's running costs. Every style
      repairs and buys parts between contracts (the R22 runner already did); none buys modules or items (#42 stays parked).
+   - Relations (tuning 1): rolled on the city's own RNG after the map (the map itself is unchanged). Spill applies to the
+     whole completed job (employer gain and target loss each spill), summed per faction, then rounded. The employer is still
+     picked at random from the target's two rivals-or-not (relations don't steer who posts jobs yet).
    - The /sl-balance mod reads per-contract --json lines; companies and personalities aren't wired into it (not small).
 ```
 
@@ -1745,6 +1748,17 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            hated ground 7 / 8 / 8 / 5%; liked intel 1 / 0 / 12 / 0%; top fee turned down 93 / 9 / 38 / 0%. The carry weight works
            (Carry them out: 9/10 carried vs 0/10) but company CRITICALs are mostly wipes: carried 43 of 143 (cautious) vs 33 of
            172 (mercenary); the R22 bot 31 of 174. No --personality: unchanged. BUILD r23-s2 | -
+   round23 headless 1 (r23-s2 numbers) | standing barely bites: hated by anyone at the end 2-6 of 20, 5-8% of jobs on hated
+           ground, liked intel 0-12%; a −25 hit fades in five contracts | proposed: STANDING_DRIFT 5 → 2, STANDING_HATED −40 → −30,
+           STANDING_LIKED 40 → 30. Jamie: "Ok, as part of the tweaks try having factions have randomised seed standings with other
+           factions. Becoming friendly with one faction means their enemies dislike you as well." | applied all three + NEW
+           CITY_RELATIONS (per faction pair per city: RIVALS −1 w 0.5 / NEUTRAL 0 w 0.3 / ALLIES +1 w 0.2) and STANDING_SPILL 0.5
+           (every standing change moves each other faction by change × 0.5 × relation). CO_VERSION 4 → 5. --personality all
+           (cautious / aggressive / loyal / mercenary), before → after: folded 11→10 / 13→12 / 11→14 / 16→15; played (complete)
+           123 (69)→110 (56) / 109 (50)→102 (43) / 138 (76)→126 (50) / 100 (39)→99 (37); avg end cr 255→167 / 517→536 / 650→195 /
+           321→309; hated by someone at the end 4→8 / 2→7 / 6→12 / 2→6 of 20; liked 2→7 / 0→7 / 3→10 / 0→4; jobs on hated ground
+           7→18% / 8→30% / 8→29% / 5→15%; liked intel 1→30% / 0→39% / 12→48% / 0→20%; top fee turned down 93 / 13 / 29 / 0%.
+           Loyal falls hardest: its patron's rivals hate it, and the jobs that don't hit the patron sit on hated ground. BUILD r23-s3 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

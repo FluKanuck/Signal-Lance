@@ -5,11 +5,12 @@ import { TUNE } from '../src/tune.ts';
 import { G } from '../src/sim/state.ts';
 import { newCompany, validCompany, takeOffer, endContract, fuelCost, rollMarket, cityTestCompany } from '../src/sim/company.ts';
 import { takeJob } from '../src/sim/contract.ts';
-import { newCity, hops, pathTo, pathFuel, band, settle, drift, dangerOf, fuelPriceAt, feeOf, cityAlertAdd, intelFrom, FACS, cityOffer } from '../src/sim/city.ts';
+import { newCity, hops, pathTo, pathFuel, band, settle, drift, dangerOf, fuelPriceAt, feeOf, cityAlertAdd, intelFrom, FACS, cityOffer, effectsOf, relOf, relKey } from '../src/sim/city.ts';
 import { leaveScenario } from '../src/sim/scenarios.ts';
 
 afterEach(() => { G.co = null; G.ct = null; G.crew = null; leaveScenario(); });
 const set = (f: string, v: number) => { G.co.city.standing[f] = v; };
+const calm = () => { for (const k of Object.keys(G.co.city.rel)) G.co.city.rel[k] = 'NEUTRAL'; }; // no spill
 
 describe('the city map (R23 A)', () => {
   it('seeded: the same seed makes the same city', () => {
@@ -61,10 +62,10 @@ describe('offers in districts (R23 A)', () => {
 describe('standing (R23 A)', () => {
   const fac = { kind: 'FACTION', emp: 'CORP', tgt: 'FOUNDRY' }, brk = { kind: 'BROKER', emp: '', tgt: 'SYND' };
   it('a completed faction job: employer + GAIN, target − LOSS; a broker job: target − BROKER_LOSS, nobody gains', () => {
-    newCompany(1); const S = G.co.city.standing;
+    newCompany(1); calm(); const S = G.co.city.standing;
     settle(fac, 'COMPLETE');
     expect(S.CORP).toBe(TUNE.STANDING_EMPLOYER_GAIN); expect(S.FOUNDRY).toBe(-TUNE.STANDING_TARGET_LOSS); expect(S.SYND).toBe(0);
-    newCompany(1); settle(brk, 'COMPLETE');
+    newCompany(1); calm(); settle(brk, 'COMPLETE');
     expect(G.co.city.standing).toEqual({ CORP: 0, FOUNDRY: 0, SYND: -TUNE.STANDING_BROKER_LOSS });
   });
   it('a failed job moves no standing (only the drift)', () => {
@@ -72,19 +73,40 @@ describe('standing (R23 A)', () => {
     expect(G.co.city.standing).toEqual({ CORP: 30 - TUNE.STANDING_DRIFT, FOUNDRY: 0, SYND: 0 });
   });
   it('drift moves every standing toward 0, never past it', () => {
-    const C = { standing: { CORP: 12, FOUNDRY: -3, SYND: 0 } } as any;
+    const C = { standing: { CORP: 12, FOUNDRY: -1, SYND: 0 } } as any;
     drift(C); expect(C.standing).toEqual({ CORP: 12 - TUNE.STANDING_DRIFT, FOUNDRY: 0, SYND: 0 });
   });
   it('clamped to STANDING_MIN..MAX', () => {
-    newCompany(1); set('FOUNDRY', TUNE.STANDING_MIN + 1); set('CORP', TUNE.STANDING_MAX); settle(fac, 'COMPLETE');
+    newCompany(1); calm(); set('FOUNDRY', TUNE.STANDING_MIN + 1); set('CORP', TUNE.STANDING_MAX); settle(fac, 'COMPLETE');
     expect(G.co.city.standing.FOUNDRY).toBe(TUNE.STANDING_MIN); expect(G.co.city.standing.CORP).toBe(TUNE.STANDING_MAX);
+  });
+  it('relations: one per faction pair, seeded, from CITY_RELATIONS; every kind turns up', () => {
+    const seen = new Set<string>();
+    for (let seed = 1; seed <= 200; seed++) { const C = newCity(seed); expect(Object.keys(C.rel).length).toBe(3); for (const v of Object.values(C.rel)) { expect(Object.keys(TUNE.CITY_RELATIONS)).toContain(v); seen.add(v); } }
+    expect(seen.size).toBe(3);
+    expect(JSON.stringify(newCity(5).rel)).toBe(JSON.stringify(newCity(5).rel));
+    expect(relOf('CORP', 'FOUNDRY', newCity(5))).toBe(relOf('FOUNDRY', 'CORP', newCity(5)));
+  });
+  it('spill: working for a faction angers its rivals and pleases its allies; hitting one pleases its rivals', () => {
+    newCompany(1); const R = G.co.city.rel;
+    R[relKey('CORP', 'SYND')] = 'RIVALS'; R[relKey('CORP', 'FOUNDRY')] = 'NEUTRAL'; R[relKey('FOUNDRY', 'SYND')] = 'ALLIES';
+    const sp = TUNE.STANDING_SPILL, E = Object.fromEntries(effectsOf(fac).map(([f, v]) => [f, v]));
+    // CORP +GAIN; FOUNDRY −LOSS; SYND: rival of the employer (−GAIN × sp) and ally of the target (−LOSS × sp)
+    expect(E.CORP).toBe(TUNE.STANDING_EMPLOYER_GAIN); expect(E.FOUNDRY).toBe(-TUNE.STANDING_TARGET_LOSS);
+    expect(E.SYND).toBe(Math.round(-TUNE.STANDING_EMPLOYER_GAIN * sp - TUNE.STANDING_TARGET_LOSS * sp));
+    const lines = settle(fac, 'COMPLETE'); expect(G.co.city.standing.SYND).toBe(E.SYND);
+    expect(lines.some((l: string) => /their rival Corporate/.test(l))).toBe(true);
+    // a broker job on the Syndicate: its rival Corporate is pleased, its ally Foundry is not
+    newCompany(1); Object.assign(G.co.city.rel, R);
+    const B = Object.fromEntries(effectsOf(brk).map(([f, v]) => [f, v]));
+    expect(B.CORP).toBe(Math.round(TUNE.STANDING_BROKER_LOSS * sp)); expect(B.FOUNDRY).toBe(-Math.round(TUNE.STANDING_BROKER_LOSS * sp));
   });
   it('the bands switch at their thresholds', () => {
     expect(band(TUNE.STANDING_HATED)).toBe('HATED'); expect(band(TUNE.STANDING_HATED + 1)).toBe('NEUTRAL');
     expect(band(TUNE.STANDING_LIKED)).toBe('LIKED'); expect(band(TUNE.STANDING_LIKED - 1)).toBe('NEUTRAL');
   });
   it('endContract settles the running offer and logs the change', () => {
-    newCompany(3); G.co.fuel = 10; const o = G.co.offers[0]; takeOffer(0); G.co.news = [];
+    newCompany(3); calm(); G.co.fuel = 10; const o = G.co.offers[0]; takeOffer(0); G.co.news = [];
     endContract('COMPLETE');
     expect(G.co.city.last.length).toBeGreaterThan(0);
     expect(G.co.city.standing[o.tgt]).toBe(-(o.kind === 'FACTION' ? TUNE.STANDING_TARGET_LOSS : TUNE.STANDING_BROKER_LOSS));
