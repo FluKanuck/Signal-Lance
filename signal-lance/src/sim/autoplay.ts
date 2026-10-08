@@ -12,6 +12,7 @@ import { legChoices, legPath } from './escort.ts';
 import { step, endPlayerTurn, playerTarget, shootBlock, uplinkBlock, upDist, extractBlock, cmdExtract,
          cmdSelect, cmdFire, cmdUplink, cmdObjective, cmdLeg, cmdMoveMode, cmdTarget, cmdMove, mortarBlock, cmdMortar, cmdRadar, canPay, sensorsUp, fireRange } from './turns.ts';
 import { radarOf } from './kit.ts';
+import { setActive } from './state.ts';
 
 export const AUTO_DT = 0.05;
 // R19: the scripted lance never lobs at or chases a contact the ship's blip alone gave it (it reads them for Escort legs only)
@@ -98,6 +99,7 @@ export function playerTurn() {
 // Play the already-started hunt to its end, or until maxTurns rounds (then G.mode is still 'hunt' = a stall).
 // onTurn runs after each player activation (the runner's -v line).
 export function playOut(maxTurns: number, onTurn?: (turn: number, who: string) => void) {
+  if (G.live) { livePlayOut(maxTurns, onTurn); return; } // R25: the toy page's live time (runner --live)
   let guard = 0;
   while (G.mode === 'hunt' && G.turn <= maxTurns && guard++ < 2e6) {
     if (G.phase === 'PLAYER') {
@@ -107,5 +109,29 @@ export function playOut(maxTurns: number, onTurn?: (turn: number, who: string) =
       if (!extracted) endPlayerTurn();
       if (onTurn) onTurn(t, who);
     } else step(AUTO_DT); // the bot's turn runs on its own pacing timer
+  }
+}
+
+// R25 cp B (runner --live): the scripted lance in live time. The clock runs; at every auto-pause, and every
+// LIVE_BOT_EVERY seconds for an ExoS with no order, each ExoS gets the same decisions as on its turn. Then PLAY again.
+const LIVE_BOT_EVERY = 0.5;
+function livePlayOut(maxTurns: number, onTurn?: (turn: number, who: string) => void) {
+  let guard = 0, next = 0, lastTurn = G.turn;
+  G.paused = false;
+  while (G.mode === 'hunt' && G.turn <= maxTurns && guard++ < 2e6) {
+    const all = G.paused, due = G.time >= next;
+    if (all || due) {
+      if (due) next = G.time + LIVE_BOT_EVERY;
+      for (const m of G.lance) {
+        if (G.mode !== 'hunt') break;
+        if (m.dead || m.out || (!all && m.lact)) continue;
+        setActive(m); G.planT = null; G.planD = null;
+        playerTurn();
+      }
+      G.paused = false; G.apCue = null;
+    }
+    if (G.mode !== 'hunt') break;
+    step(AUTO_DT);
+    if (onTurn && G.turn !== lastTurn) { onTurn(lastTurn, G.p ? G.p.id : ''); lastTurn = G.turn; }
   }
 }

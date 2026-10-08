@@ -12,7 +12,8 @@
 // - A SOUND lasts LIVE_ROUND_SEC after the step or shot that made it (it was "until the unit's next turn").
 // - G.turn still counts rounds (one every LIVE_ROUND_SEC): RWR, GHOST, LAST SEEN and the after-action list use it.
 import { TUNE } from '../tune.ts';
-import { G, hooks, livingMechs, isMech, setActive, finishHunt } from './state.ts';
+import { T } from './world.ts';
+import { G, hooks, livingMechs, isMech, isFriend, setActive, finishHunt, unitById } from './state.ts';
 import { rand } from './rng.ts';
 import { updateSensors, cx, cy } from './sensors.ts';
 import { enemyDecide, bestContact } from './bot.ts';
@@ -38,9 +39,12 @@ export function liveBegin() {
   for (const m of allUnits()) {
     m.lact = null; m.aim = null; m.cool = 0; m.mcool = 0; m.sndT = 0; m.stillT = 0;
     if (isMech(m)) { m.ap = PLAYER_AP; m.freeTurns = 99; }
-    else if (m !== G.ally) { m.rt = rand() * TUNE.LIVE_ENEMY_STAGGER; m.ap = 0; m.done = true; }
+    else if (m !== G.ally) { m.rt = rand() * TUNE.LIVE_ENEMY_STAGGER; m.ap = TUNE.AP_PER_TURN; m.apF = 0; m.done = true; }
   }
   if (G.ally) G.ally.rt = 0;
+  // auto-pause: what the lance already knows at the drop never pauses the game
+  G.apTrack = {}; G.apCue = null; G.apShots = G.shotLog.length; G.apObj = objSnap();
+  for (const c of G.pc) if (c.on) G.apTrack[c.id] = { fixedOnce: isFixed(c), goneAt: null };
   setActive(livingMechs()[0] || G.p);
   hooks.sync();
 }
@@ -64,7 +68,55 @@ export function liveStep(dt: number) {
   for (const e of G.units) if (!e.dead) enemyThink(e, dt);
   if (G.ally && !G.ally.dead && !G.ally.out) allyThink(dt);
   autoRefire();
+  for (const m of G.lance) if (m.en > m.enMax) m.en = m.enMax; // a stopped move's refund never overfills the pool (it refilled while walking)
   if (G.p && (G.p.dead || G.p.out)) { const n = livingMechs().find(m => !m.out); if (n) liveSelect(n); }
+  watchForPause();
+}
+
+// ---- R25 cp B: auto-pause. The game stops by itself when something needs a decision; each trigger has its own TUNE
+// switch (and a button on the toy's start screen). The cue says why. ----
+const apWhy: string[] = []; // the reasons found this tick (several at once = one pause)
+function wantPause(why: string) { if (!apWhy.includes(why)) apWhy.push(why); }
+// a fix good enough to shoot at: not sound or alarm only, held now, inside FIRE's lock size
+export function isFixed(c) { return c.on && !c.snd && !c.shr && c.lost <= c.gap && c.unc <= TUNE.PLAYER_FIRE_UNC * T; }
+function objSnap() { return { prog: G.up.prog, carrier: G.mission ? G.mission.carrier || '' : '', ally: G.ally ? G.ally.hits : 0 }; }
+// The track rule (Jamie): a contact pauses the game once, when it first appears. A loose track that jumps about or
+// corrects itself never pauses it again. It pauses again only when it firms up into a fixed track (the first time), or
+// when it was off the picture (or lost) for AUTOPAUSE_RELOST seconds and comes back.
+function trackRule() {
+  const on = new Set<string>();
+  for (const c of G.pc) {
+    if (!c.on) continue;
+    const u = unitById(c.id); if (!u || u.dead || isFriend(u)) continue;
+    on.add(c.id);
+    let S = G.apTrack[c.id];
+    if (!S) { G.apTrack[c.id] = { fixedOnce: isFixed(c), goneAt: null }; wantPause('CONTACT'); continue; }
+    if (c.lost > c.gap) { if (S.goneAt === null) S.goneAt = G.time; continue; } // lost (orange): the clock on its absence runs
+    if (S.goneAt !== null) { if (G.time - S.goneAt >= TUNE.AUTOPAUSE_RELOST) { wantPause('BACK'); S.fixedOnce = isFixed(c); } S.goneAt = null; }
+    if (!S.fixedOnce && isFixed(c)) { S.fixedOnce = true; wantPause('FIXED'); }
+  }
+  for (const id of Object.keys(G.apTrack)) if (!on.has(id) && G.apTrack[id].goneAt === null) G.apTrack[id].goneAt = G.time;
+}
+export function watchForPause() { // exported for the tests
+  if (G.mode !== 'hunt') { apWhy.length = 0; return; }
+  if (TUNE.AUTOPAUSE_CONTACT) trackRule(); else apWhy.splice(0, apWhy.length, ...apWhy.filter(w => w !== 'CONTACT' && w !== 'FIXED' && w !== 'BACK'));
+  for (let i = G.apShots; i < G.shotLog.length; i++) { // TAKING FIRE: when the shooting at an ExoS starts (then quiet for AUTOPAUSE_FIRE_GAP)
+    const r = G.shotLog[i], m = r && !r.mech ? G.lance.find(x => x.id === r.target) : null;
+    if (!m) continue;
+    if (TUNE.AUTOPAUSE_FIRE && G.time - (m.firePauseAt ?? -1e9) >= TUNE.AUTOPAUSE_FIRE_GAP) wantPause('FIRE');
+    m.firePauseAt = G.time;
+  }
+  G.apShots = G.shotLog.length;
+  const o = objSnap(), w = G.apObj;
+  if (TUNE.AUTOPAUSE_OBJECTIVE && w && (o.prog !== w.prog || o.carrier !== w.carrier || o.ally < w.ally)) wantPause('OBJECTIVE');
+  G.apObj = o;
+  if (!TUNE.AUTOPAUSE_IDLE) for (let i = apWhy.length - 1; i >= 0; i--) if (apWhy[i].startsWith('IDLE')) apWhy.splice(i, 1);
+  if (!apWhy.length) return;
+  G.paused = true; G.apCue = { why: apWhy.slice(), t: G.time };
+  G.liveLog.push({ t: G.time, k: 'AUTOPAUSE', why: apWhy.join('+') });
+  G.apN = (G.apN || 0) + 1;
+  apWhy.length = 0;
+  hooks.sync();
 }
 
 // one ROUND of the clock: what used to happen once a turn
@@ -87,6 +139,7 @@ function tickUnit(m, dt: number) {
     if (!has(m, 'MASK') || m.en < TUNE.ECM_EN * k) m.mask = false;
     else { m.en -= TUNE.ECM_EN * k; addEmit(m, TUNE.SIGNAL_ECM * k); }
   }
+  if (m.moving) m.sndT = 0; // a walking unit keeps making its sound
   if (m.sound > 0 && (m.sndT += dt) >= TUNE.LIVE_ROUND_SEC) { clearSound(m); m.sndT = 0; }
   if (m.sound > 0 && m.sound !== m.sndWas) m.sndT = 0; // a new, louder sound starts its own round
   m.sndWas = m.sound;
@@ -135,6 +188,7 @@ function stepLact(m, dt: number) {
   m.lact = null; m.moving = false; m.path = null; m.holdFace = false;
   if (a.k === 'PULSE') m.radarOn = false;
   if (a.done) a.done();
+  if (isMech(m) && !m.dead && !m.out && !m.lact && !a.intr) wantPause('IDLE ' + m.id); // its order is done (an interrupted move pauses as a new contact)
   if (m === G.p) { replan(); hooks.sync(); }
   if (!isMech(m) && m !== G.ally) decideNow(m);
   if (isMech(m)) G.liveLog.push({ t: G.time, id: m.id, k: a.k, intr: !!a.intr });
@@ -173,16 +227,21 @@ function autoRefire() {
 }
 
 // ---- the field: each enemy gets a turn's AP every round and runs its usual brain, one action at a time ----
+// R25 cp B: continuous. AP flows in every second (AP_PER_TURN ÷ LIVE_ROUND_SEC, whole points), and the unit decides every
+// LIVE_ENEMY_THINK seconds (and as soon as an action ends). Its brain's turn counters (patience, pulse rhythm) advance by
+// the share of a turn that passed, so its timing in seconds stays what it was in turns.
 function enemyThink(e, dt: number) {
-  if ((e.rt -= dt) <= 0) {
-    e.rt += TUNE.LIVE_ROUND_SEC;
-    e.ap = Math.min(TUNE.AP_BANK_MAX, e.ap + TUNE.AP_PER_TURN);
-    e.moved = e.pulsed = e.turned = e.packCounted = false;
-    e.holdTurns = e.holding ? e.holdTurns + 1 : 0; e.holding = false;
-    if (e.pulseCD > 0) e.pulseCD--;
-    e.done = false;
-    decideNow(e);
-  }
+  e.apF += TUNE.AP_PER_TURN * dt / TUNE.LIVE_ROUND_SEC;
+  if (e.apF >= 1) { const n = Math.floor(e.apF); e.apF -= n; e.ap = Math.min(TUNE.AP_BANK_MAX, e.ap + n); }
+  if ((e.rt -= dt) > 0) return;
+  e.rt += TUNE.LIVE_ENEMY_THINK;
+  if (busy(e)) return;
+  const f = TUNE.LIVE_ENEMY_THINK;
+  e.moved = e.pulsed = e.turned = e.packCounted = false;
+  e.holdTurns = e.holding ? e.holdTurns + f / TUNE.SEC_PER_TURN : 0; e.holding = false; // patience is in SEC_PER_TURN turns
+  if (e.pulseCD > 0) e.pulseCD -= f / TUNE.LIVE_ROUND_SEC; // the pulse rhythm is in the unit's own turns
+  e.done = false;
+  decideNow(e);
 }
 function decideNow(e) {
   if (e.done || e.dead || busy(e) || G.mode !== 'hunt') return;
@@ -222,7 +281,7 @@ export function liveSelect(m) {
   if (!m || m.dead || m.out || !G.lance.includes(m)) return;
   setActive(m); G.planT = null; G.planD = null; replan(); hooks.activate(); hooks.sync();
 }
-export function togglePause() { if (G.mode === 'hunt') { G.paused = !G.paused; hooks.sync(); } }
+export function togglePause() { if (G.mode === 'hunt') { G.paused = !G.paused; if (!G.paused) G.apCue = null; hooks.sync(); } }
 export function liveUplink() {
   const m = G.p;
   liveChannel(m, 'UPLINK', TUNE.LIVE_ACT_TIME.UPLINK, () => {
@@ -258,3 +317,7 @@ export function liveProgress(m) {
 }
 // seconds for a move plan (the MOVE button)
 export function planSecs(pl) { return pl && pl.path ? pl.len / (MODE_SPEED[pl.mode] * (pl.lame || 1)) : 0; }
+// R25 cp B: the auto-pause cue as plain words: "PAUSED: NEW CONTACT + A IDLE"
+export const AP_WORD: Record<string, string> = { CONTACT: 'NEW CONTACT', FIXED: 'FIXED TRACK', BACK: 'CONTACT BACK', FIRE: 'TAKING FIRE', OBJECTIVE: 'OBJECTIVE' };
+export function apWord(w: string) { return w.startsWith('IDLE') ? w.slice(5) + ' IDLE' : AP_WORD[w] || w; }
+export function apCueText() { return G.apCue && G.apCue.why.length ? 'PAUSED: ' + G.apCue.why.map(apWord).join(' + ') : 'PAUSED'; }

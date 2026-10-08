@@ -626,7 +626,7 @@ export function render() {
       ctx.beginPath(); ctx.arc(m.x, m.y, 22 + (TUNE.INTERRUPT_CUE_TIME - G.intr.t) * 8, 0, 6.2832); ctx.stroke();
       ctx.fillStyle = '#ff8a5c'; ctx.font = 'bold ' + (14 / z) + 'px monospace'; ctx.textAlign = 'center';
       ctx.fillText('CONTACT — move stopped', m.x, m.y - 26 / z - 10);
-      ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText(G.intr.ap + 'AP kept · ' + G.intr.why, m.x, m.y - 12 / z - 10); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
+      ctx.font = 'bold ' + (11 / z) + 'px monospace'; ctx.fillText((G.live ? '' : G.intr.ap + 'AP kept · ') + G.intr.why, m.x, m.y - 12 / z - 10); ctx.textAlign = 'left'; ctx.globalAlpha = 1;
     }
   }
   // your mechs (R7 s2): active one highlighted when it's acting; destroyed = grey X; A / B labels

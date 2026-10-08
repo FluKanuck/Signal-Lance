@@ -560,6 +560,7 @@ export function upDist(m) { return Math.hypot(G.up.x - m.x, G.up.y - m.y) / T; }
 // '' = can uplink; otherwise the one-word reason shown on the button
 export function uplinkBlock() {
   if (!isType('UPLINK')) return 'NONE'; // R15: only an uplink job has one
+  if (G.live && G.p.lact && G.p.lact.k === 'UPLINK') return 'DONE'; // R25: already uplinking
   if (upDist(G.p) > TUNE.UPLINK_RADIUS + 0.5) return 'RANGE';
   if (G.up.used) return 'DONE';
   if (G.p.ap < TUNE.AP_UPLINK) return 'AP';
@@ -598,7 +599,7 @@ export function waypointNear(d: number) { return G.planD ? G.planD.wps.find(w =>
 export function cmdClearWaypoint(d: number) { if (G.planD) { G.planD.wps = G.planD.wps.filter(w => Math.abs(w.d - d) >= WP_SAME); replan(); } }
 export function cmdClearDraw() { G.planD = null; replan(); }
 export function cmdMove() { if (G.live) replan(); if (G.plan && G.plan.path) doMove(G.p, G.plan); } // R25: live = plan again from where the ExoS stands now
-export function cmdUplink() { if (uplinkBlock() === '') doUplink(); }
+export function cmdUplink() { if (uplinkBlock() === '') { if (G.live) liveUplink(); else doUplink(); } } // R25: live = a timed order
 // R15 s3: pick the route leg at the junction the transport holds at (no AP: it's an order, on your turn)
 export function cmdLeg(i: number) { if (playerFree()) { pickLeg(i); hooks.sync(); } } // R16: at the fork it waits at = go; at a fork ahead = set / clear the lever
 // R16 (Jamie): order the Escort transport to HOLD (skip its next move) or HURRY (sprint its next move). No AP; limited uses.
@@ -610,7 +611,7 @@ export function objectiveBlock() {
 }
 export function cmdObjective() {
   if (!playerFree() || objectiveBlock() !== '') return;
-  if (G.live) { if (isType('RETRIEVE')) livePickup(); else liveUplink(); return; } // R25: a timed order
+  if (G.live) { if (G.p.lact && ['UPLINK', 'PICKUP', 'HANDOFF'].includes(G.p.lact.k)) return; if (isType('RETRIEVE')) livePickup(); else liveUplink(); return; } // R25: a timed order (not twice)
   if (isType('RETRIEVE')) { if (isCarrier(G.p)) doHandoff(G.p); else doPickup(G.p); hooks.sync(); return; }
   doUplink();
 }

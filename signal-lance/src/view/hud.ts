@@ -20,7 +20,13 @@ import { moveModeBlock } from '../sim/reasons.ts';
 import { lowHits, hitsLeft } from '../sim/warn.ts';
 import { whyShort } from './glossary.ts';
 import { cmdMoveMode } from '../sim/turns.ts';
-import { liveDoing, planSecs } from '../sim/live.ts';
+import { liveDoing, planSecs, apWord } from '../sim/live.ts';
+// R25 cp B: "PAUSED: NEW CONTACT + A IDLE" (each reason long-pressable), or plain PAUSED
+function pausedTag() {
+  const why = G.apCue ? G.apCue.why : [];
+  const words = why.map((w: string) => g(w.startsWith('IDLE') ? 'AP.IDLE' : 'AP.' + w, apWord(w)));
+  return '<b style="color:#ff6">' + (words.length ? g('AUTO-PAUSE', 'PAUSED:') + ' ' + words.join(' + ') : g('PAUSE', 'PAUSED')) + '</b>';
+}
 // R25 live toy: an action's cost in seconds instead of AP
 const cost = (ap: number, secs: number) => G.live ? secs + 's' : ap + 'AP';
 const perTurn = (n: number) => G.live ? Math.round(n / TUNE.LIVE_ROUND_SEC * 10) / 10 + '/s' : n + '/turn';
@@ -72,7 +78,7 @@ export function updateHud(dt) {
   $('init').innerHTML = initStrip();
   const p = G.p, mine = G.phase === 'PLAYER';
   const others = G.lance.filter(m => m !== p);
-  const turn = (G.live ? g('TIME') + ' ' + fmtTime(G.time) + (G.paused ? '  <b style="color:#ff6">' + g('PAUSE', 'PAUSED') + '</b>' : '') : g('ROUND') + ' ' + G.turn) + '  ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + (p.op ? ' · ' + p.op.name + ' (' + TUNE.OP_SKILL_NAMES[p.op.skill] + ' ' + p.op.lvl + (p.op.lvl >= 2 ? '★' : '') + ')' : '') + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>' + g('TAP WHERE TO FACE') + '</b>' : '') + (V.lookArm !== null ? '  <b style="color:#ff6">TAP WHERE IT SHOULD LOOK</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine && TUNE.AP_TURN > 0 ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') + // r17-s4: turning costs nothing (AP_TURN 0): no cost shown
+  const turn = (G.live ? g('TIME') + ' ' + fmtTime(G.time) + (G.paused ? '  ' + pausedTag() : '') : g('ROUND') + ' ' + G.turn) + '  ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + (p.op ? ' · ' + p.op.name + ' (' + TUNE.OP_SKILL_NAMES[p.op.skill] + ' ' + p.op.lvl + (p.op.lvl >= 2 ? '★' : '') + ')' : '') + '</b>' : '<b>ENEMY…</b>') + (V.faceArm ? '  <b>' + g('TAP WHERE TO FACE') + '</b>' : '') + (V.lookArm !== null ? '  <b style="color:#ff6">TAP WHERE IT SHOULD LOOK</b>' : '') + (V.mortarArm ? '  <b>MORTAR: TAP A CONTACT (AIMED) OR THE MAP (BLIND)</b>' : '') + (mine && TUNE.AP_TURN > 0 ? '  turn: ' + (p.freeTurns > 0 ? 'free' : TUNE.AP_TURN + 'AP') : '') + // r17-s4: turning costs nothing (AP_TURN 0): no cost shown
     (mine && !G.live ? '  ' + g('shots') + ' ' + p.turnShots + '/' + TUNE.SHOTS_PER_TURN : '') + (G.live ? '  <b style="color:#8fe3ff">' + liveDoing(p) + '</b>' : '') +
     (mine && G.plan && G.plan.drawn ? '  <b style="color:#8fe3ff">DRAWN PATH · ' + g('looks') + ' ' + G.plan.wps.length + '/' + TUNE.FACE_WAYPOINTS_MAX + (V.wpWhy ? ' (' + V.wpWhy + ')' : '') + '</b>' : '') + // R17
     (G.intr && G.intr.id === p.id ? '  <b style="color:#ff8a5c">' + g('MOVE STOPPED', 'MOVE STOPPED: CONTACT' + (G.live ? '' : ' (' + G.intr.ap + ' AP kept)')) + '</b>' : '');
@@ -112,7 +118,7 @@ export function updateHud(dt) {
 function compactLine(p, mine: boolean) {
   const low = G.lance.filter(m => lowHits(m)).map(m => m.id + ' ' + hitsLeft(m)).join(' ');
   const prompt = V.faceArm ? 'TAP WHERE TO FACE' : V.lookArm !== null ? 'TAP WHERE IT SHOULD LOOK' : V.mortarArm ? 'MORTAR: TAP A CONTACT OR THE MAP' : G.intr && G.intr.id === p.id ? 'MOVE STOPPED' : '';
-  return '<span class="hl">' + (G.live ? g('TIME') + ' ' + fmtTime(G.time) + (G.paused ? ' <b style="color:#ff6">' + g('PAUSE', 'PAUSED') + '</b>' : '') : g('ROUND', 'R') + G.turn) + ' · ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + '</b> · ' + (G.live ? liveDoing(p) : g('AP') + ' ' + p.ap + '/' + TUNE.AP_BANK_MAX) + ' · ' + g('EN') + ' ' + Math.round(p.en) : '<b>ENEMY…</b>') +
+  return '<span class="hl">' + (G.live ? g('TIME') + ' ' + fmtTime(G.time) + (G.paused ? ' ' + pausedTag() : '') : g('ROUND', 'R') + G.turn) + ' · ' + (mine ? '<b>' + g('ExoS') + ' ' + p.id + '</b> · ' + (G.live ? liveDoing(p) : g('AP') + ' ' + p.ap + '/' + TUNE.AP_BANK_MAX) + ' · ' + g('EN') + ' ' + Math.round(p.en) : '<b>ENEMY…</b>') +
     ' · ' + compactGoal(p) + (low ? ' · <b style="color:#ff8a80">' + g('HITS LEFT', '! ' + low) + '</b>' : '') +
     (prompt ? ' · <b style="color:#ff6">' + (prompt === 'MOVE STOPPED' ? g('MOVE STOPPED') : prompt === 'TAP WHERE TO FACE' ? g('TAP WHERE TO FACE') : prompt) + '</b>' : '') + ' <span class="more">▾</span></span>';
 }

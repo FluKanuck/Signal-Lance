@@ -640,12 +640,19 @@ export const TUNE = {
   LIVE_ROUND_SEC: 4,           // seconds of live clock that count as one ROUND: per-turn values become per-second (÷ this), enemies get a turn's AP, RWR / GHOST / LAST SEEN age. 4 s ≈ one turn's 8-tile walk at NORMAL
   LIVE_ACT_TIME: { UPLINK: 4, PICKUP: 2, HANDOFF: 1, ECM: 1, PULSE: 2, MORTAR: 2 }, // seconds the ExoS does nothing else (from AP × LIVE_ROUND_SEC ÷ AP_PER_TURN; UPLINK = one round each)
   LIVE_AIM_TIME: 0.8,          // seconds of aim before a shot leaves the gun (both sides). Aiming doesn't stop a move
-  LIVE_FIRE_COOLDOWN: 2,       // seconds after a shot before the gun can aim again (both sides; was SHOTS_PER_TURN 2 per turn)
+  LIVE_FIRE_COOLDOWN: 1.2,     // seconds after a shot before the gun can aim again (both sides). Aim + cooldown = 2 s = LIVE_ROUND_SEC ÷ SHOTS_PER_TURN, the turns rate
   LIVE_MORTAR_COOLDOWN: 4,     // seconds after a mortar shell before the next (was MORTAR_PER_ACTIVATION 1 per turn)
   LIVE_AUTO_REFIRE: true,      // a target you fired at stays held: the gun aims again by itself when its cooldown ends, while the shot is allowed
   LIVE_MOVED_WINDOW: 2,        // seconds of standing still before "moved" (to-hit) clears
   LIVE_ENEMY_STAGGER: 1,       // 0..this seconds of random offset per enemy, so the field doesn't all act on the same tick
   LIVE_START_PAUSED: true,     // a live hunt opens paused: plan first, then tap PLAY
+  LIVE_ENEMY_THINK: 1,         // R25 cp B: seconds between a field unit's decisions (it gets AP_PER_TURN ÷ LIVE_ROUND_SEC AP a second, so its moves come in short hops)
+  AUTOPAUSE_CONTACT: true,     // R25 cp B: the game pauses on a new contact (the track rule: once when it appears, again only when it firms up into a fixed track or comes back after AUTOPAUSE_RELOST)
+  AUTOPAUSE_FIRE: true,        // R25 cp B: ...when an enemy shoots at one of your ExoS, hit or not
+  AUTOPAUSE_IDLE: true,        // R25 cp B: ...when an ExoS finishes its order (end of its route, its UPLINK, its RADAR...)
+  AUTOPAUSE_OBJECTIVE: true,   // R25 cp B: ...when the objective changes: an UPLINK step, the cargo picked up or passed on, the transport hit
+  AUTOPAUSE_FIRE_GAP: 8,       // R25 cp B: after a TAKING FIRE pause, more shots at the same ExoS don't pause again for this many seconds (it pauses when the shooting starts, not on every shot)
+  AUTOPAUSE_RELOST: 6,         // R25 cp B: seconds a contact must be off your picture (or lost) before its return pauses the game again
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---
   // PATIENCE_MIN/MAX: s it holds within HOLD_DIST with no shot before pushing in (re-rolled each stand-off)
   // CONFIDENT: tiles; contact uncertainty at which it pulses/commits to a charge (bigger = charges earlier/vaguer)

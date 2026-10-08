@@ -10,6 +10,7 @@
 //   --pack                             R13 s2: the pack on (alarm, converge, press the wound)
 //   --both                             R13 s2: with --contracts, run normal then --loud and compare (flags if loud isn't riskier)
 //   --check                            exit 1 if any FLAG or WARNING was printed (run before shipping)
+//   --live                             R25: live time (the toy page's TIME_MODE 'live'): one clock, auto-pause, the lance re-decides at each pause
 //   --quiet                            R14: the scripted mechs CREEP every move
 //   --scenario earshot [--runs 10]     R14: play a test-bed scenario with the scripted player (seed, seed+1, ...)
 //   --mission bounty                   R15: force every hunt's mission type (games and contracts); contracts report a split by type
@@ -73,6 +74,7 @@ const sarg = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i 
 const MISSION = sarg('--mission').toUpperCase(); // R15
 if (MISSION && !TUNE.MISSION_TYPES.includes(MISSION) && MISSION !== 'UPLINK') throw new Error('--mission: unknown type ' + MISSION);
 const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0), SCEN = sarg('--scenario'), RUNS = arg('--runs', 10);
+if (argv.includes('--live')) TUNE.TIME_MODE = 'live'; // R25: the live toy's rules
 AUTO.loud = argv.includes('--loud'); AUTO.quiet = argv.includes('--quiet'); // R14: --quiet = CREEP every move
 if (argv.includes('--pack')) TUNE.PACK_ENABLED = true; // R13 s2: the pack on (as the splash toggle does)
 const BOTH = argv.includes('--both');

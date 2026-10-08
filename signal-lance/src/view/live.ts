@@ -1,7 +1,8 @@
 // R25 "Live toy": view parts only the toy page uses. The space bar is PLAY / PAUSE, and a tap on a letter in the ORDER
 // strip gives that ExoS the orders.
 import { G } from '../sim/state.ts';
-import { togglePause, liveSelect } from '../sim/live.ts';
+import { TUNE } from '../tune.ts';
+import { togglePause, liveSelect, apCueText } from '../sim/live.ts';
 import { $, syncButtons } from './hud.ts';
 
 window.addEventListener('keydown', e => {
@@ -12,3 +13,24 @@ $('init').addEventListener('pointerup', (e: any) => {
   const el = e.target.closest && e.target.closest('[data-m]'); if (!el) return;
   const m = G.lance.find(x => x.id === el.dataset.m); if (m) { liveSelect(m); syncButtons(); }
 });
+
+// R25 cp B: the auto-pause switches (start screen), kept on this device
+const SW: [string, string][] = [['AUTOPAUSE_CONTACT', 'CONTACT'], ['AUTOPAUSE_FIRE', 'FIRE'], ['AUTOPAUSE_IDLE', 'IDLE'], ['AUTOPAUSE_OBJECTIVE', 'OBJECTIVE']];
+function swLoad() { try { const v = JSON.parse(localStorage.getItem('signalLance.autopause') || 'null'); if (v) for (const [k] of SW) if (typeof v[k] === 'boolean') (TUNE as any)[k] = v[k]; } catch (_) {} }
+function swSave() { try { localStorage.setItem('signalLance.autopause', JSON.stringify(Object.fromEntries(SW.map(([k]) => [k, (TUNE as any)[k]])))); } catch (_) {} }
+function swShow() {
+  const row = document.getElementById('apRow'); if (!row) return;
+  row.innerHTML = SW.map(([k, n]) => '<button data-k="' + k + '" class="' + ((TUNE as any)[k] ? 'on' : '') + '">PAUSE ON ' + n + ': ' + ((TUNE as any)[k] ? 'ON' : 'OFF') + '</button>').join('');
+}
+swLoad(); swShow();
+document.getElementById('apRow')?.addEventListener('click', (e: any) => {
+  const b = e.target.closest && e.target.closest('button[data-k]'); if (!b) return;
+  (TUNE as any)[b.dataset.k] = !(TUNE as any)[b.dataset.k]; swSave(); swShow();
+});
+// the banner over the map: why the game paused (it goes when you press PLAY)
+setInterval(() => {
+  const el = document.getElementById('apBanner'); if (!el) return;
+  const show = G.mode === 'hunt' && G.paused && !!G.apCue;
+  el.hidden = !show;
+  if (show) el.textContent = apCueText() + ' · tap PLAY';
+}, 150);

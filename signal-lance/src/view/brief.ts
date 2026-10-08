@@ -230,6 +230,10 @@ const LIVE_TEST = {
   question: 'Does live time with auto-pause make the hunt flow, and still feel like a plan?',
   newThings: [
     'This is a separate test page. Your company here is not your company in the main game.',
+    'NEW (r25 live B): the game pauses by itself, and the yellow line says why. It pauses on a NEW CONTACT, when a loose track becomes a FIXED TRACK, when an ExoS starts TAKING FIRE, when an ExoS is IDLE, and when the OBJECTIVE changes.',
+    'A loose track that jumps about never pauses the game again. A contact pauses it again only when it becomes a FIXED TRACK, or comes back after ' + TUNE.AUTOPAUSE_RELOST + ' s or more off your picture.',
+    'Switch each reason on or off on the start screen: PAUSE ON CONTACT, FIRE, IDLE and OBJECTIVE.',
+    'Enemies now act all the time, in short steps, and aim before they shoot, as you do.',
     'NEW (r25 live A): one clock runs the hunt. Every ExoS and every enemy acts at the same time. There are no turns and no AP.',
     'The hunt opens paused. Tap PLAY (bottom right) or the space bar to start the clock. Tap PAUSE to stop it at any time.',
     'Every order works while paused: draw a route, set looks, FIRE, RADAR, UPLINK. Then tap PLAY and watch it happen.',
@@ -238,7 +242,6 @@ const LIVE_TEST = {
     'FIRE aims for ' + TUNE.LIVE_AIM_TIME + ' s, then shoots. The gun then cools for ' + TUNE.LIVE_FIRE_COOLDOWN + ' s. It keeps the target and fires again by itself while it can shoot. An ExoS can aim and walk at the same time.',
     'EN comes back every second. EMIT falls every second. A SOUND lasts ' + TUNE.LIVE_ROUND_SEC + ' s.',
     'Tap a letter at the top right, or tap an ExoS on the map, to give that ExoS orders.',
-    'Coming next in this toy: the game pauses by itself when something happens. Then free movement off the tile grid, and a smoother route tool.',
   ],
   round: 25,
   howTo: 'Play a few hunts here, then the same seed in the main game (PLAY SEED). Tap the answers after each hunt. When you finish, tap SEND LOG and send it to Jamie.',
@@ -250,6 +253,7 @@ const LIVE_QUESTIONS = [
 ];
 const LIVE_HUNT_HOW = [
   'The hunt opens paused. PLAY starts the clock. PAUSE stops it. The space bar does both.',
+  'The game also pauses by itself when something needs a decision. The yellow line says why. Then tap PLAY.',
   'Everyone acts at the same time. Tap a letter at the top right, or an ExoS on the map, to pick it.',
   'To move, tap the map or drag from your ExoS. Pick CREEP, NORMAL or SPRINT. Then tap MOVE.',
   'Actions take time. A ring fills on the ExoS while it works. A new order replaces the old one.',

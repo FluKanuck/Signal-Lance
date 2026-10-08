@@ -201,6 +201,15 @@ const LIVE_TERMS: Entry[] = [
   { id: 'AIM', name: 'AIM', screen: 'hunt', line: 'The gun aims for ' + TUNE.LIVE_AIM_TIME + ' s before each shot. The ExoS can walk while it aims.' },
   { id: 'GUN COOLING', name: 'GUN COOLING', screen: 'hunt', line: 'After a shot the gun cools for ' + TUNE.LIVE_FIRE_COOLDOWN + ' s. Then it aims again by itself at the same target, if it can shoot.' },
   { id: 'LIVE TOY', name: 'LIVE TOY', screen: 'hunt', line: 'A test page for live time. It has its own company and its own save. The main game does not change.' },
+  { id: 'AUTO-PAUSE', name: 'AUTO-PAUSE', screen: 'hunt', line: 'The game pauses by itself when something needs a decision. The yellow line says why. Switch each reason on or off on the start screen.' },
+  { id: 'AP.CONTACT', name: 'PAUSED: NEW CONTACT', screen: 'hunt', line: 'A new contact came onto your picture. A loose track that jumps about never pauses the game again.' },
+  { id: 'AP.FIXED', name: 'PAUSED: FIXED TRACK', screen: 'hunt', line: 'A loose track became a FIXED TRACK. You can now FIRE at it. This pauses once for each contact.' },
+  { id: 'AP.BACK', name: 'PAUSED: CONTACT BACK', screen: 'hunt', line: 'A contact came back after ' + TUNE.AUTOPAUSE_RELOST + ' s or more off your picture.' },
+  { id: 'AP.FIRE', name: 'PAUSED: TAKING FIRE', screen: 'hunt', line: 'An enemy shot at one of your ExoS. More shots at it in the next ' + TUNE.AUTOPAUSE_FIRE_GAP + ' s do not pause the game again.' },
+  { id: 'AP.IDLE', name: 'PAUSED: IDLE', screen: 'hunt', line: 'An ExoS finished its order. A IDLE means ExoS A waits for a new one.' },
+  { id: 'AP.OBJECTIVE', name: 'PAUSED: OBJECTIVE', screen: 'hunt', line: 'The objective changed: an UPLINK step, the cargo picked up or passed on, or a hit on the transport.' },
+  { id: 'FIXED TRACK', name: 'FIXED TRACK', screen: 'contact', line: 'A contact you can FIRE at: held now, not sound only, and ±' + TUNE.PLAYER_FIRE_UNC + ' tiles or better.' },
+  { id: 'LOOSE TRACK', name: 'LOOSE TRACK', screen: 'contact', line: 'A contact you can’t FIRE at yet: fuzzy, sound only, or lost for a moment. It can jump about as fixes come in.' },
 ];
 if (TUNE.TIME_MODE === 'live') {
   for (const e of TERMS) if (LIVE_LINES[e.id]) e.line = LIVE_LINES[e.id];

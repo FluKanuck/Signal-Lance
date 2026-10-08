@@ -102,3 +102,87 @@ describe('turns stay as they were', () => {
     expect(r.outcome).toBeTruthy();
   });
 });
+
+// ---- R25 checkpoint B: it pauses for you ----
+import { watchForPause, isFixed } from '../src/sim/live.ts';
+import { playOut } from '../src/sim/autoplay.ts';
+describe('auto-pause: the track rule (Jamie)', () => {
+  const setup = () => {
+    startHunt(3); G.paused = false; G.apCue = null;
+    for (const c of G.pc) c.on = false; G.apTrack = {};
+    const u = G.units[0];
+    const c: any = { on: true, id: u.id, tx: u.x, ty: u.y, unc: 6 * T, lost: 0, gap: 1.6, snd: false, shr: false };
+    G.pc.push(c);
+    return c;
+  };
+  const paused = () => { const p = G.paused, why = G.apCue ? G.apCue.why.join('+') : ''; G.paused = false; G.apCue = null; return p ? why : ''; };
+  it('a new contact pauses once, when it appears', () => {
+    const c = setup(); watchForPause();
+    expect(paused()).toBe('CONTACT');
+    watchForPause(); expect(paused()).toBe('');
+  });
+  it('a loose track that jumps about never pauses again', () => {
+    const c = setup(); watchForPause(); paused();
+    for (let i = 0; i < 20; i++) { G.time += 0.2; c.tx += (i % 2 ? 3 : -3) * T; c.unc = (4 + (i % 3)) * T; watchForPause(); expect(paused()).toBe(''); }
+  });
+  it('it pauses again when it firms up into a fixed track (once)', () => {
+    const c = setup(); watchForPause(); paused();
+    c.unc = 0.5 * T; expect(isFixed(c)).toBe(true);
+    watchForPause(); expect(paused()).toBe('FIXED');
+    c.unc = 5 * T; watchForPause(); c.unc = 0.5 * T; watchForPause(); expect(paused()).toBe(''); // loose, then fixed again: no
+  });
+  it('a sound-only fix is never a fixed track', () => {
+    const c = setup(); c.snd = true; c.unc = 0.5 * T; watchForPause(); paused();
+    expect(isFixed(c)).toBe(false);
+  });
+  it('a contact back after AUTOPAUSE_RELOST pauses again; back sooner does not', () => {
+    const c = setup(); watchForPause(); paused();
+    c.on = false; G.time += 1; watchForPause(); c.on = true; c.lost = 0; G.time += 0.5; watchForPause();
+    expect(paused()).toBe('');
+    c.on = false; watchForPause(); G.time += TUNE.AUTOPAUSE_RELOST + 0.1; c.on = true; c.lost = 0; watchForPause();
+    expect(paused()).toBe('BACK');
+  });
+  it('switched off, contacts never pause the game', () => {
+    const k = TUNE.AUTOPAUSE_CONTACT; TUNE.AUTOPAUSE_CONTACT = false;
+    try { setup(); watchForPause(); expect(paused()).toBe(''); } finally { TUNE.AUTOPAUSE_CONTACT = k; }
+  });
+});
+describe('auto-pause: fire, idle, objective', () => {
+  it('TAKING FIRE pauses when the shooting starts, not on every shot', () => {
+    startHunt(3); G.paused = false; G.apCue = null; const k = TUNE.AUTOPAUSE_CONTACT; TUNE.AUTOPAUSE_CONTACT = false; // shots only
+    try {
+      const m = G.lance[0], shot = () => G.shotLog.push({ mech: false, target: m.id });
+      shot(); watchForPause(); expect(G.paused && G.apCue.why.includes('FIRE')).toBe(true); G.paused = false;
+      G.time += 1; shot(); watchForPause(); expect(G.paused).toBe(false);
+      G.time += TUNE.AUTOPAUSE_FIRE_GAP + 1; shot(); watchForPause(); expect(G.paused).toBe(true);
+    } finally { TUNE.AUTOPAUSE_CONTACT = k; }
+  });
+  it('an ExoS that finishes its order pauses the game (IDLE)', () => {
+    startHunt(3); G.paused = false;
+    const m = G.p; cmdTarget(m.x + 2 * T, m.y); cmdMove();
+    run(5);
+    expect(G.liveLog.some(l => l.k === 'AUTOPAUSE' && l.why.includes('IDLE ' + m.id))).toBe(true);
+  });
+  it('an UPLINK step pauses the game (OBJECTIVE)', () => {
+    startHunt(3); G.paused = false; const k = TUNE.AUTOPAUSE_IDLE; TUNE.AUTOPAUSE_IDLE = false;
+    try {
+      const m = G.p; m.x = G.up.x; m.y = G.up.y;
+      for (const u of G.units) { u.x = u.y = -50 * T; u.mobile = false; }
+      cmdObjective(); run(TUNE.LIVE_ACT_TIME.UPLINK + 0.5);
+      expect(G.liveLog.some(l => l.k === 'AUTOPAUSE' && l.why.includes('OBJECTIVE'))).toBe(true);
+    } finally { TUNE.AUTOPAUSE_IDLE = k; }
+  });
+});
+describe('continuous field + the runner', () => {
+  it('a field unit gets AP every second, not once a round', () => {
+    startHunt(3); G.paused = false;
+    const e = G.units.find(u => u.mobile) || G.units[0]; e.ap = 0; e.apF = 0; e.rt = 99; // no decisions: AP only
+    run(TUNE.LIVE_ROUND_SEC / TUNE.AP_PER_TURN * 2 + 0.05);
+    expect(e.ap).toBe(2);
+  });
+  it('the scripted lance plays live hunts to an end', () => {
+    let ended = 0;
+    for (const seed of [1, 2, 3, 4, 5]) { startHunt(seed); playOut(80); if (G.mode !== 'hunt') ended++; }
+    expect(ended).toBeGreaterThanOrEqual(4);
+  });
+});
