@@ -186,3 +186,72 @@ describe('continuous field + the runner', () => {
     expect(ended).toBeGreaterThanOrEqual(4);
   });
 });
+
+// ---- R25 checkpoint C: off the grid ----
+import { findPath, freePoint, clearWide, pathCost, loadMap, HIVE, solid, N } from '../src/sim/world.ts';
+import { canSee } from '../src/sim/sensors.ts';
+import { coverInfo } from '../src/sim/combat.ts';
+import { scenarioByName, startScenario, leaveScenario } from '../src/sim/scenarios.ts';
+describe('off the grid (FREE_POS)', () => {
+  let fp: any;
+  beforeEach(() => { fp = TUNE.FREE_POS; TUNE.FREE_POS = true; });
+  afterEach(() => { TUNE.FREE_POS = fp; leaveScenario(); loadMap(HIVE); });
+  const ctr = (x: number, y: number) => ({ x: (x + 0.5) * T, y: (y + 0.5) * T });
+  const tiny = (rows: string[]) => loadMap({ id: 'test', rows, anchors: HIVE.anchors, info: { grid: 'test' } });
+  it('a route ends at the exact point tapped, not the tile centre', () => {
+    tiny(['..........', '..........', '..........']);
+    const p = findPath(ctr(1, 1).x, ctr(1, 1).y, 7.2 * T, 1.8 * T);
+    expect(p[p.length - 1].x).toBeCloseTo(7.2 * T, 5); expect(p[p.length - 1].y).toBeCloseTo(1.8 * T, 5);
+  });
+  it('a point tapped inside a wall gives the nearest point beside it, not the next tile centre', () => {
+    tiny(['..........', '.....#....', '..........']);
+    const q = freePoint(5.1 * T, 1.5 * T);
+    expect(Math.floor(q.x / T) === 5 && Math.floor(q.y / T) === 1).toBe(false); // out of the wall
+    expect(Math.hypot(q.x - 5.1 * T, q.y - 1.5 * T)).toBeLessThan(0.9 * T); // close to where you tapped
+    expect(Math.abs(q.x - (Math.floor(q.x / T) + 0.5) * T) + Math.abs(q.y - (Math.floor(q.y / T) + 0.5) * T)).toBeGreaterThan(0.05 * T); // not a centre
+  });
+  it('round a corner, the route takes the tightest clear line (shorter than via tile centres) and stays clear', () => {
+    tiny(['..........', '..........', '..........', '....#.....', '....#.....', '....#.....', '..........']);
+    const a = ctr(1, 5), b = ctr(8, 5);
+    TUNE.FREE_POS = false; const old = findPath(a.x, a.y, b.x, b.y); TUNE.FREE_POS = true;
+    const now = findPath(a.x, a.y, b.x, b.y);
+    expect(pathCost(now)).toBeLessThanOrEqual(pathCost(old) + 1e-6);
+    for (let i = 1; i < now.length; i++) expect(clearWide(now[i - 1], now[i])).toBe(true);
+  });
+  it('line of sight is from exact points: a step sideways inside the same tile opens a view round a corner', () => {
+    tiny(['.......', '...#...', '.......']);
+    const o: any = { x: 1.5 * T, y: 1.2 * T, fx: 1, fy: 0 }, m: any = { x: 5.5 * T, y: 1.5 * T };
+    const blocked = canSee({ ...o, y: 1.5 * T }, m, 12);
+    const peek = canSee({ ...o, y: 0.4 * T }, { ...m, y: 0.4 * T }, 12);
+    expect(blocked).toBe(false); expect(peek).toBe(true);
+  });
+  it('cover is measured from the points: the same wall covers one shooter spot and not another', () => {
+    tiny(['.........', '.........', '....#....', '.........', '.........']);
+    const t = { x: 5.5 * T, y: 2.5 * T }; // just east of the wall
+    expect(coverInfo(1.5 * T, 2.5 * T, t.x, t.y).kind).toBe('WALL'); // shooting along the row: through the wall
+    expect(coverInfo(5.5 * T, 0.2 * T, t.x, t.y).kind).toBe(''); // from straight above: open
+  });
+  it('units never overlap: two ExoS on one spot are pushed apart', () => {
+    startHunt(3); G.paused = false;
+    const [a, b] = G.lance; b.x = a.x + 0.05 * T; b.y = a.y;
+    run(0.2);
+    expect(Math.hypot(a.x - b.x, a.y - b.y)).toBeGreaterThan(2 * TUNE.LIVE_UNIT_RADIUS * T - 0.5);
+  });
+  it('two ExoS sent to the same spot both finish their move (no deadlock)', () => {
+    startHunt(3); G.paused = false; const k = TUNE.AUTOPAUSE_IDLE; TUNE.AUTOPAUSE_IDLE = false;
+    try {
+      const [a, b] = G.lance, x = a.x + 4 * T, y = a.y;
+      for (const m of [a, b]) { liveSelect(m); cmdTarget(x, y); cmdMove(); }
+      for (let t = 0; t < 10 && (a.lact || b.lact); t += DT) { step(DT); G.paused = false; }
+      expect(!a.lact && !b.lact).toBe(true);
+    } finally { TUNE.AUTOPAUSE_IDLE = k; }
+  });
+  it('the same seed rolls the same district on both pages', () => {
+    TUNE.FREE_POS = false; TUNE.TIME_MODE = 'turns'; startHunt(7, undefined, 'blocks'); const m0 = Array.from(solid.subarray(0, N)).join('');
+    TUNE.FREE_POS = true; TUNE.TIME_MODE = 'live'; startHunt(7, undefined, 'blocks'); const m1 = Array.from(solid.subarray(0, N)).join('');
+    expect(m1).toBe(m0);
+  });
+  it('test-bed scenarios load and run on the toy page', () => {
+    for (const n of ['Side street', 'Trip wire', 'Read it cold']) { startScenario(scenarioByName(n)); expect(G.live).toBe(true); G.paused = false; run(3); leaveScenario(); }
+  });
+});

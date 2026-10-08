@@ -651,6 +651,9 @@ export const TUNE = {
   AUTOPAUSE_FIRE: true,        // R25 cp B: ...when an enemy shoots at one of your ExoS, hit or not
   AUTOPAUSE_IDLE: true,        // R25 cp B: ...when an ExoS finishes its order (end of its route, its UPLINK, its RADAR...)
   AUTOPAUSE_OBJECTIVE: true,   // R25 cp B: ...when the objective changes: an UPLINK step, the cargo picked up or passed on, the transport hit
+  FREE_POS: false,             // R25 cp C: free positions (the toy page sets it): routes end at the exact point, bend round corners on the tightest clear line, units keep LIVE_UNIT_RADIUS apart, patrol points sit anywhere in a tile
+  LIVE_STUCK_TIME: 1.5,        // R25 cp C: seconds a walking unit may gain less than 0.25 tile before its move ends where it stands (another unit holds the spot)
+  LIVE_UNIT_RADIUS: 0.35,      // R25 cp C: tiles; two units never stand closer than twice this (the walker is nudged aside), and a route's end keeps this far from a wall
   AUTOPAUSE_FIRE_GAP: 8,       // R25 cp B: after a TAKING FIRE pause, more shots at the same ExoS don't pause again for this many seconds (it pauses when the shooting starts, not on every shot)
   AUTOPAUSE_RELOST: 6,         // R25 cp B: seconds a contact must be off your picture (or lost) before its return pauses the game again
   // --- Round 2: enemy temperament, rolled each run (one picked at random) ---

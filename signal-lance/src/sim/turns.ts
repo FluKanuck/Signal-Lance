@@ -401,6 +401,7 @@ export function doMove(m, pl) {
   };
   if (isMech(m) && TUNE.MOVE_INTERRUPT) { // R17: what the suit already had at the start of the move (anything else is new)
     a.known = new Set(G.pc.filter(c => c.on).map(c => c.id));
+    if (G.live) for (const id of Object.keys(G.apTrack || {})) a.known.add(id); // R25: the track rule: a contact the lance already had (now flickering, or lost) never stops a move again
   }
   startAct(a);
 }

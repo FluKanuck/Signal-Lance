@@ -3,6 +3,7 @@
 import { TUNE } from './tune.ts';
 
 TUNE.TIME_MODE = 'live';
+TUNE.FREE_POS = true; // R25 cp C: free positions
 document.body.classList.add('live');
 try {
   const S = Storage.prototype, P = 'live:';

@@ -46,6 +46,7 @@ export function offLeash(e, c) {
 export function pickPatrol(e) {
   const U = G.up, t = randomReachable(Math.floor(U.x / T), Math.floor(U.y / T), e.ft.LEASH);
   e.ptx = (t.x + 0.5) * T; e.pty = (t.y + 0.5) * T;
+  if (TUNE.FREE_POS) { const j = 0.5 - TUNE.LIVE_UNIT_RADIUS; e.ptx += (rand() * 2 - 1) * j * T; e.pty += (rand() * 2 - 1) * j * T; } // R25 cp C: anywhere in the tile
 }
 // The acting unit picks ONE action at a time, paying the same AP / Energy costs and caps as the
 // player. Returns a function that performs it, or null (= its activation is over).

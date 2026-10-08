@@ -12,7 +12,7 @@
 // - A SOUND lasts LIVE_ROUND_SEC after the step or shot that made it (it was "until the unit's next turn").
 // - G.turn still counts rounds (one every LIVE_ROUND_SEC): RWR, GHOST, LAST SEEN and the after-action list use it.
 import { TUNE } from '../tune.ts';
-import { T } from './world.ts';
+import { T, isSolid } from './world.ts';
 import { G, hooks, livingMechs, isMech, isFriend, setActive, finishHunt, unitById } from './state.ts';
 import { rand } from './rng.ts';
 import { updateSensors, cx, cy } from './sensors.ts';
@@ -23,7 +23,7 @@ import { ageRwr } from './rwr.ts';
 import { has, radarOf } from './kit.ts';
 import { noteCarry } from './company.ts';
 import { pathCost } from './world.ts';
-import { allyStep } from './escort.ts';
+import { allyStep, allyHolding } from './escort.ts';
 import { cargoLost, onCargoLost, onAllyLost, onAllyOut, onClear, onAllOut, isType, pickupBlock, doPickup, handoffBlock, doHandoff, isCarrier } from './mission.ts';
 import { moveAlong, moveTick, updateShells, addEmit, inExtract, leaveMap, allOut, doShot, shootBlock, fireRange, turnCost, freeTurn,
   uplinkBlock, doUplink, canPay, pay, playerTarget, replan, MODE_SPEED } from './turns.ts';
@@ -58,6 +58,7 @@ export function liveStep(dt: number) {
   if ((G.roundT -= dt) <= 0) { G.roundT += TUNE.LIVE_ROUND_SEC; newRound(); }
   for (const m of allUnits()) if (!m.dead && !m.out) tickUnit(m, dt);
   for (const m of allUnits()) if (m.lact && m.lact.k === 'MOVE' && !m.dead) { m.movedAt = G.time; moveAlong(m, m.lact.speed, dt, m.lact.arrive); }
+  if (TUNE.FREE_POS) separate();
   updateSensors(dt);
   for (const m of allUnits()) if (m.lact && m.lact.k === 'MOVE' && !m.dead) moveTick(m.lact);
   for (const m of allUnits()) if (m.aim && !m.dead) stepAim(m, dt);
@@ -79,7 +80,7 @@ const apWhy: string[] = []; // the reasons found this tick (several at once = on
 function wantPause(why: string) { if (!apWhy.includes(why)) apWhy.push(why); }
 // a fix good enough to shoot at: not sound or alarm only, held now, inside FIRE's lock size
 export function isFixed(c) { return c.on && !c.snd && !c.shr && c.lost <= c.gap && c.unc <= TUNE.PLAYER_FIRE_UNC * T; }
-function objSnap() { return { prog: G.up.prog, carrier: G.mission ? G.mission.carrier || '' : '', ally: G.ally ? G.ally.hits : 0 }; }
+function objSnap() { return { prog: G.up.prog, carrier: G.mission ? G.mission.carrier || '' : '', ally: G.ally ? G.ally.hits : 0, fork: !!(G.ally && !G.ally.dead && allyHolding()) }; }
 // The track rule (Jamie): a contact pauses the game once, when it first appears. A loose track that jumps about or
 // corrects itself never pauses it again. It pauses again only when it firms up into a fixed track (the first time), or
 // when it was off the picture (or lost) for AUTOPAUSE_RELOST seconds and comes back.
@@ -99,7 +100,8 @@ function trackRule() {
 }
 export function watchForPause() { // exported for the tests
   if (G.mode !== 'hunt') { apWhy.length = 0; return; }
-  if (TUNE.AUTOPAUSE_CONTACT) trackRule(); else apWhy.splice(0, apWhy.length, ...apWhy.filter(w => w !== 'CONTACT' && w !== 'FIXED' && w !== 'BACK'));
+  trackRule(); // always kept (the move stop reads it too); the switch only decides whether it pauses
+  if (!TUNE.AUTOPAUSE_CONTACT) apWhy.splice(0, apWhy.length, ...apWhy.filter(w => w !== 'CONTACT' && w !== 'FIXED' && w !== 'BACK'));
   for (let i = G.apShots; i < G.shotLog.length; i++) { // TAKING FIRE: when the shooting at an ExoS starts (then quiet for AUTOPAUSE_FIRE_GAP)
     const r = G.shotLog[i], m = r && !r.mech ? G.lance.find(x => x.id === r.target) : null;
     if (!m) continue;
@@ -108,7 +110,7 @@ export function watchForPause() { // exported for the tests
   }
   G.apShots = G.shotLog.length;
   const o = objSnap(), w = G.apObj;
-  if (TUNE.AUTOPAUSE_OBJECTIVE && w && (o.prog !== w.prog || o.carrier !== w.carrier || o.ally < w.ally)) wantPause('OBJECTIVE');
+  if (TUNE.AUTOPAUSE_OBJECTIVE && w && (o.prog !== w.prog || o.carrier !== w.carrier || o.ally < w.ally || (o.fork && !w.fork))) wantPause('OBJECTIVE');
   G.apObj = o;
   if (!TUNE.AUTOPAUSE_IDLE) for (let i = apWhy.length - 1; i >= 0; i--) if (apWhy[i].startsWith('IDLE')) apWhy.splice(i, 1);
   if (!apWhy.length) return;
@@ -119,6 +121,21 @@ export function watchForPause() { // exported for the tests
   hooks.sync();
 }
 
+// R25 cp C: units never overlap. Two closer than 2 × LIVE_UNIT_RADIUS are pushed apart (each half the gap; a static unit
+// or the transport holds its ground and the other takes the whole push), never into a wall.
+function separate() {
+  const r2 = 2 * TUNE.LIVE_UNIT_RADIUS * T, U = allUnits().filter(u => !u.dead && !u.out);
+  const fixed = u => (!isMech(u) && u !== G.ally && !u.mobile) || u === G.ally;
+  for (let i = 0; i < U.length; i++) for (let j = i + 1; j < U.length; j++) {
+    const a = U[i], b = U[j]; let dx = b.x - a.x, dy = b.y - a.y, d = Math.hypot(dx, dy);
+    if (d >= r2) continue;
+    if (d < 1e-6) { dx = 1; dy = 0; d = 1e-6; } // the same spot: push along x
+    const gap = r2 - d, nx = dx / Math.max(d, 1e-6), ny = dy / Math.max(d, 1e-6);
+    const fa = fixed(a) ? 0 : fixed(b) ? 1 : 0.5, fb = fixed(b) ? 0 : fixed(a) ? 1 : 0.5;
+    nudge(a, -nx * gap * fa, -ny * gap * fa); nudge(b, nx * gap * fb, ny * gap * fb);
+  }
+}
+function nudge(u, dx: number, dy: number) { const x = u.x + dx, y = u.y + dy; if (!isSolid(Math.floor(x / T), Math.floor(y / T))) { u.x = x; u.y = y; } }
 // one ROUND of the clock: what used to happen once a turn
 function newRound() {
   G.turn++;
@@ -183,6 +200,10 @@ function stepLact(m, dt: number) {
   const a = m.lact;
   a.t -= dt; a.age += dt;
   if (a.k === 'PULSE' && a.age >= a.radarT) m.radarOn = false;
+  if (a.k === 'MOVE' && m.path) { // R25 cp C: blocked by another unit (the spacing push holds it back): end the move here
+    if (a.sx === undefined || Math.hypot(m.x - a.sx, m.y - a.sy) > 0.25 * T) { a.sx = m.x; a.sy = m.y; a.st = a.age; }
+    else if (a.age - a.st > TUNE.LIVE_STUCK_TIME) { m.path = null; a.stuck = true; }
+  }
   const done = a.k === 'MOVE' ? !m.path || a.age > 120 : a.t <= 0;
   if (!done) return;
   m.lact = null; m.moving = false; m.path = null; m.holdFace = false;

@@ -74,7 +74,7 @@ const sarg = (k: string) => { const i = argv.indexOf(k); return i >= 0 ? argv[i 
 const MISSION = sarg('--mission').toUpperCase(); // R15
 if (MISSION && !TUNE.MISSION_TYPES.includes(MISSION) && MISSION !== 'UPLINK') throw new Error('--mission: unknown type ' + MISSION);
 const COMP = sarg('--comp'), CONTRACTS = arg('--contracts', 0), SCEN = sarg('--scenario'), RUNS = arg('--runs', 10);
-if (argv.includes('--live')) TUNE.TIME_MODE = 'live'; // R25: the live toy's rules
+if (argv.includes('--live')) { TUNE.TIME_MODE = 'live'; TUNE.FREE_POS = true; } // R25: the live toy's rules (live time, free positions)
 AUTO.loud = argv.includes('--loud'); AUTO.quiet = argv.includes('--quiet'); // R14: --quiet = CREEP every move
 if (argv.includes('--pack')) TUNE.PACK_ENABLED = true; // R13 s2: the pack on (as the splash toggle does)
 const BOTH = argv.includes('--both');

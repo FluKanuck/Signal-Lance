@@ -226,7 +226,47 @@ export function findPath(wx0, wy0, wx1, wy1, raw = false) {
   if (raw) return pts;
   pts[0] = { x: wx0, y: wy0 };
   if (t === ty * W + tx && !isSolid(Math.floor(wx1 / T), Math.floor(wy1 / T))) pts[pts.length - 1] = { x: wx1, y: wy1 };
-  return smooth(pts);
+  else if (TUNE.FREE_POS && !penalty) { // R25 cp C: the nearest point to the one tapped, not the nearest tile's centre
+    const q = freePoint(wx1, wy1), l = pts[pts.length - 1];
+    if (q && Math.floor(q.x / T) === tx && Math.floor(q.y / T) === ty) pts[pts.length - 1] = q;
+    else if (q && tilesCrossed(l.x, l.y, q.x, q.y, 1) === 0) pts.push(q);
+  }
+  const sm = smooth(pts);
+  return TUNE.FREE_POS && !penalty ? tighten(sm) : sm; // never while a map is being built (same seed, same district on both pages)
+}
+// R25 cp C (free positions): the nearest point a unit can stand at to (wx, wy): itself on open ground, else inside the
+// nearest free tile, LIVE_UNIT_RADIUS clear of its edges. null = nothing free nearby.
+export function freePoint(wx: number, wy: number) {
+  const tx = Math.floor(wx / T), ty = Math.floor(wy / T);
+  if (!isSolid(tx, ty)) return { x: wx, y: wy };
+  const m = TUNE.LIVE_UNIT_RADIUS * T, cl = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v));
+  let best = null, bd = Infinity;
+  for (let oy = -3; oy <= 3; oy++) for (let ox = -3; ox <= 3; ox++) { // the closest point of every free tile nearby
+    const fx = tx + ox, fy = ty + oy; if (isSolid(fx, fy)) continue;
+    const q = { x: cl(wx, fx * T + m, (fx + 1) * T - m), y: cl(wy, fy * T + m, (fy + 1) * T - m) }, d = Math.hypot(q.x - wx, q.y - wy);
+    if (d < bd) { bd = d; best = q; }
+  }
+  return best;
+}
+// R25 cp C: string-pull a smoothed route. Each bend slides toward the straight line between its neighbours as far as both
+// legs stay clear (SMOOTH_PAD) and cost no more (clutter), so a route rounds a corner on the tightest clear line instead
+// of through the next tile's centre. Three passes.
+export function tighten(P) {
+  if (P.length < 3) return P;
+  const out = P.map(p => ({ x: p.x, y: p.y })), cost = (a, v, b) => segCost(a, v) + segCost(v, b);
+  for (let pass = 0; pass < 3; pass++) for (let i = 1; i < out.length - 1; i++) {
+    const a = out[i - 1], b = out[i + 1], v = out[i], abx = b.x - a.x, aby = b.y - a.y, L2 = abx * abx + aby * aby;
+    if (!L2) continue;
+    const f = Math.max(0, Math.min(1, ((v.x - a.x) * abx + (v.y - a.y) * aby) / L2)), px = a.x + abx * f, py = a.y + aby * f;
+    const c0 = cost(a, v, b);
+    let lo = 0, hi = 1;
+    for (let k = 0; k < 10; k++) {
+      const mid = (lo + hi) / 2, q = { x: v.x + (px - v.x) * mid, y: v.y + (py - v.y) * mid };
+      if (clearWide(a, q) && clearWide(q, b) && cost(a, q, b) <= c0 + 0.05) lo = mid; else hi = mid;
+    }
+    out[i] = { x: v.x + (px - v.x) * lo, y: v.y + (py - v.y) * lo };
+  }
+  return out;
 }
 export function clearWide(a, b) {
   const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1;

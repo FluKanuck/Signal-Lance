@@ -230,6 +230,10 @@ const LIVE_TEST = {
   question: 'Does live time with auto-pause make the hunt flow, and still feel like a plan?',
   newThings: [
     'This is a separate test page. Your company here is not your company in the main game.',
+    'NEW (r25 live C): off the grid. Your ExoS and the enemies stand anywhere, not on tile centres. Eyes, cover, sensors and range all work from exact points. A step sideways can open a view round a corner.',
+    'A route ends exactly where you tap. Tap inside a building and it ends at the nearest open point. Routes round corners on the tightest clear line.',
+    'Units never stand on top of each other. Two ExoS sent to one spot stop side by side.',
+    'A contact the lance already had never stops a move again, even if it flickers. Only a new one does.',
     'NEW (r25 live B): the game pauses by itself, and the yellow line says why. It pauses on a NEW CONTACT, when a loose track becomes a FIXED TRACK, when an ExoS starts TAKING FIRE, when an ExoS is IDLE, and when the OBJECTIVE changes.',
     'A loose track that jumps about never pauses the game again. A contact pauses it again only when it becomes a FIXED TRACK, or comes back after ' + TUNE.AUTOPAUSE_RELOST + ' s or more off your picture.',
     'Switch each reason on or off on the start screen: PAUSE ON CONTACT, FIRE, IDLE and OBJECTIVE.',
