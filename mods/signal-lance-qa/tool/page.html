@@ -1,0 +1,188 @@
+<title>__TITLE__</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a field debrief. Summary strip, filter rail, then the cluster list (most severe × widest reach first); details open in place. */
+:root {
+  --bg: #eef0f2; --panel: #f9fafb; --line: #d3d8de; --fg: #1b2028; --dim: #5c6672; --accent: #b27705; --accent-ink: #fff8e6;
+  --sev-blocker: #c0392b; --sev-major: #d0661a; --sev-minor: #4c6f91; --sev-polish: #8a929c;
+  --ok: #2f7d4f; --chip: #e2e6ea;
+  --f-display: "Chakra Petch", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #12161b; --panel: #1a2027; --line: #2c343e; --fg: #e3e7ec; --dim: #94a0ad; --accent: #f0b429; --accent-ink: #231a02;
+  --sev-blocker: #ef6b5e; --sev-major: #f0924a; --sev-minor: #7fa6cc; --sev-polish: #8b95a1; --ok: #5cc28a; --chip: #232b34; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #12161b; --panel: #1a2027; --line: #2c343e; --fg: #e3e7ec; --dim: #94a0ad; --accent: #f0b429; --accent-ink: #231a02;
+  --sev-blocker: #ef6b5e; --sev-major: #f0924a; --sev-minor: #7fa6cc; --sev-polish: #8b95a1; --ok: #5cc28a; --chip: #232b34; color-scheme: dark }
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font: 15px/1.5 var(--f-body); }
+.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 16px; padding-block: 20px 48px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 18px }
+.wrap > *, .list > *, .body > *, .quote > * { min-width: 0 }
+header { display: grid; gap: 6px }
+.eyebrow { font: 600 12px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--accent) }
+h1 { font: 700 clamp(26px, 4vw, 36px)/1.1 var(--f-display); margin: 0; text-wrap: balance; letter-spacing: .01em }
+.meta { color: var(--dim); font-size: 14px }
+.strip { display: flex; flex-wrap: wrap; gap: 8px 22px; padding: 12px 14px; border: 1px solid var(--line); background: var(--panel); border-radius: 6px; font-variant-numeric: tabular-nums }
+.strip b { font: 600 20px/1 var(--f-display); display: block }
+.strip span { color: var(--dim); font-size: 12px; text-transform: uppercase; letter-spacing: .06em }
+.filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center }
+.filters .grp { display: flex; flex-wrap: wrap; gap: 4px; align-items: center }
+.filters label.lab { font: 500 11px var(--f-mono); color: var(--dim); text-transform: uppercase; letter-spacing: .08em; margin-right: 2px }
+.chipbtn { border: 1px solid var(--line); background: var(--chip); color: var(--fg); border-radius: 999px; padding: 3px 10px; font: 500 13px var(--f-body); cursor: pointer }
+.chipbtn[aria-pressed="true"] { background: var(--accent); color: var(--accent-ink); border-color: var(--accent) }
+.chipbtn:focus-visible, button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px }
+#q { flex: 1 1 200px; min-width: 0; padding: 6px 10px; border: 1px solid var(--line); border-radius: 6px; background: var(--panel); color: var(--fg); font: 14px var(--f-body) }
+.count { color: var(--dim); font-size: 13px }
+.list { display: grid; gap: 8px }
+details.cl { border: 1px solid var(--line); background: var(--panel); border-radius: 6px; border-left: 4px solid var(--sev, var(--line)) }
+details.cl > summary { list-style: none; cursor: pointer; padding: 10px 14px; display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: start }
+details.cl > summary::-webkit-details-marker { display: none }
+.ttl { font: 600 16px/1.35 var(--f-body); min-width: 0 }
+.ttl .cid { font: 500 12px var(--f-mono); color: var(--dim); margin-right: 6px }
+.tags { display: flex; flex-wrap: wrap; gap: 4px; grid-column: 1 / -1 }
+.tag { font: 500 11px/1.6 var(--f-mono); padding: 0 7px; border-radius: 3px; background: var(--chip); color: var(--dim); white-space: nowrap }
+.tag.sev { color: #fff; background: var(--sev) }
+.tag.dev { background: transparent; border: 1px solid var(--accent); color: var(--accent) }
+.tag.orc { background: transparent; border: 1px solid var(--sev-blocker); color: var(--sev-blocker) }
+.reach { font: 600 13px var(--f-mono); color: var(--fg); white-space: nowrap; font-variant-numeric: tabular-nums; text-align: right }
+.reach small { display: block; font-weight: 400; color: var(--dim) }
+.body { padding: 0 14px 14px; display: grid; gap: 10px }
+.body p { margin: 0; max-width: 72ch; overflow-wrap: anywhere }
+.quote div { overflow-wrap: anywhere }
+.kv { display: grid; grid-template-columns: max-content 1fr; gap: 4px 12px; font-size: 14px }
+.kv dt { font: 500 11px/1.9 var(--f-mono); color: var(--dim); text-transform: uppercase; letter-spacing: .06em }
+.kv dd { margin: 0; min-width: 0 }
+.quotes { display: grid; gap: 8px }
+.quote { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; border-top: 1px dashed var(--line); padding-top: 8px }
+.quote .who { font: 500 12px var(--f-mono); color: var(--dim) }
+.quote img { width: 220px; max-width: 100%; border-radius: 4px; border: 1px solid var(--line); cursor: zoom-in; display: block }
+.triage { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: 13px }
+.triage select, .triage input { font: 13px var(--f-body); padding: 4px 6px; border: 1px solid var(--line); border-radius: 4px; background: var(--bg); color: var(--fg) }
+.triage input { flex: 1 1 220px; min-width: 0 }
+.tstate { font: 500 11px var(--f-mono); color: var(--ok) }
+section h2 { font: 600 18px var(--f-display); margin: 10px 0 6px; letter-spacing: .02em }
+.tblwrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 6px; background: var(--panel) }
+table { border-collapse: collapse; width: 100%; font-size: 13px; font-variant-numeric: tabular-nums }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top }
+th { font: 500 11px var(--f-mono); text-transform: uppercase; letter-spacing: .06em; color: var(--dim) }
+td.sum { min-width: 280px; color: var(--dim) }
+dialog { border: none; padding: 0; background: transparent; max-width: 96vw }
+dialog img { max-width: 96vw; max-height: 90vh; display: block; border-radius: 6px }
+dialog::backdrop { background: rgb(0 0 0 / .75) }
+.note { font-size: 13px; color: var(--dim) }
+@media (max-width: 560px) { .quote { grid-template-columns: minmax(0, 1fr) } .quote img { width: 100% } details.cl > summary { grid-template-columns: minmax(0, 1fr) } .reach { text-align: left } }
+@media (prefers-reduced-motion: no-preference) { details.cl[open] .body { animation: in .18s ease-out } @keyframes in { from { opacity: .4; transform: translateY(-3px) } } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Signal Lance · QA panel debrief</div>
+    <h1 id="h1"></h1>
+    <div class="meta" id="meta"></div>
+  </header>
+  <div class="strip" id="strip"></div>
+  <div class="filters" role="group" aria-label="Filters">
+    <div class="grp" id="fSev"><label class="lab">Severity</label></div>
+    <div class="grp" id="fCat"><label class="lab">Kind</label></div>
+    <div class="grp" id="fDev"><label class="lab">Device</label></div>
+    <input id="q" type="search" placeholder="Search titles, quotes, personas" aria-label="Search">
+  </div>
+  <div class="count" id="count"></div>
+  <div class="list" id="list"></div>
+  <section id="modelsSec" hidden><h2>Models</h2><div class="tblwrap"><table id="models"></table></div>
+    <p class="note">Valid = not judged noise and not contradicted by the game's real state. "Only this model" = clusters no other model reported (major or worse in brackets).</p></section>
+  <section><h2>Sessions</h2><div class="tblwrap"><table id="sessions"></table></div></section>
+  <p class="note" id="noise"></p>
+</div>
+<dialog id="zoom"><img id="zimg" alt=""></dialog>
+
+<script>
+const D = /*__DATA__*/null, SHOTS = /*__SHOTS__*/null;
+const $ = (id) => document.getElementById(id);
+const SEV = ['blocker', 'major', 'minor', 'polish'], CAT = { bug: 'Bug', missing: 'Missing', confusing: 'Confusing', ux: 'UI / UX', visual: 'Visual', 'balance-feel': 'Feel' };
+const DEV = { iphone: 'iPhone', ipad: 'iPad', desktop: 'Desktop' };
+const el = (tag, attrs = {}, ...kids) => { const e = document.createElement(tag); for (const [k, v] of Object.entries(attrs)) { if (k === 'class') e.className = v; else if (k === 'style') e.style.cssText = v; else if (k.startsWith('on')) e.addEventListener(k.slice(2), v); else e.setAttribute(k, v); } for (const c of kids.flat()) if (c != null && c !== false) e.append(c.nodeType ? c : String(c)); return e; };
+const store = { get(k, d) { try { const v = localStorage.getItem(k); return v ? JSON.parse(v) : d; } catch { return d; } }, set(k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch {} } };
+
+$('h1').textContent = D.title;
+document.title = D.title;
+$('meta').textContent = `Batch ${D.batch} · ${D.date} · ${D.sessions.length} sessions on ${(D.devices || []).join(', ')}`;
+const nSev = (s) => D.clusters.filter(c => c.severity === s).length;
+const devOnly = D.clusters.filter(c => c.deviceOnly).length, orc = D.clusters.filter(c => c.oracleOnly).length;
+for (const [v, l] of [[D.clusters.length, 'clusters'], [nSev('blocker'), 'blockers'], [nSev('major'), 'major'], [D.counts.findings, 'tester findings'], [D.counts.fallbacks, 'input fallbacks'], [devOnly, 'device-only'], [orc, 'oracle-only bugs']])
+  $('strip').append(el('div', {}, el('b', {}, v), el('span', {}, l)));
+
+// filters (remembered per viewer)
+const F = store.get('slqa.filters.' + D.batch, { sev: [], cat: [], dev: [], q: '' });
+const chip = (grp, key, val, label) => { const b = el('button', { class: 'chipbtn', type: 'button', 'aria-pressed': String(F[key].includes(val)) }, label); b.onclick = () => { F[key] = F[key].includes(val) ? F[key].filter(x => x !== val) : [...F[key], val]; b.setAttribute('aria-pressed', String(F[key].includes(val))); draw(); }; $(grp).append(b); };
+SEV.forEach(s => chip('fSev', 'sev', s, s));
+Object.keys(CAT).filter(k => D.clusters.some(c => c.category === k)).forEach(k => chip('fCat', 'cat', k, CAT[k]));
+Object.keys(DEV).forEach(k => chip('fDev', 'dev', k, DEV[k]));
+chip('fDev', 'dev', 'only', 'device-only');
+$('q').value = F.q; $('q').oninput = () => { F.q = $('q').value; draw(); };
+
+// triage: one doc per cluster in the artifact's db ("triage/<batch>-<id>"); the page works read-only without it
+const TRI = {}; let db = null;
+const STATES = [['', 'untriaged'], ['fix', 'fix next'], ['later', 'later'], ['design', 'design question'], ['wontfix', "won't fix"], ['noise', 'not real']];
+async function hookDb() {
+  try { db = await window.claude?.use?.('db'); } catch { db = null; }
+  if (!db) return;
+  try { db.collection('triage').onSnapshot((snap) => { for (const d of snap.docs || []) TRI[d.id] = d.data(); draw(); }); } catch { db = null; }
+}
+const triageKey = (c) => D.batch + '-' + c.id;
+function triageRow(c) {
+  const t = TRI[triageKey(c)] || {};
+  const sel = el('select', { id: 'tri-' + c.id, 'aria-label': 'Triage ' + c.id }, STATES.map(([v, l]) => { const o = el('option', { value: v }, l); if ((t.state || '') === v) o.selected = true; return o; }));
+  const note = el('input', { id: 'trn-' + c.id, type: 'text', placeholder: db ? 'Note for the round brief' : 'Triage saves when the page is opened on claude.ai', value: t.note || '' });
+  const st = el('span', { class: 'tstate' });
+  const save = async () => { if (!db) { st.textContent = 'not saved: no database in this view'; return; } try { await db.doc('triage/' + triageKey(c)).set({ batch: D.batch, cluster: c.id, title: c.title, state: sel.value, note: note.value, at: new Date().toISOString() }); st.textContent = 'saved'; } catch (e) { st.textContent = 'not saved (' + (e?.code || 'error') + ')'; } };
+  sel.onchange = save; note.onchange = save;
+  if (!db) { sel.disabled = true; note.disabled = true; }
+  return el('div', { class: 'triage' }, el('span', { class: 'lab' }, 'Triage'), sel, note, st);
+}
+
+const match = (c) => (!F.sev.length || F.sev.includes(c.severity)) && (!F.cat.length || F.cat.includes(c.category)) &&
+  (!F.dev.length || F.dev.some(d => d === 'only' ? !!c.deviceOnly : c.devices.includes(d))) &&
+  (!F.q || JSON.stringify([c.title, c.summary, c.personas, c.quotes.map(q => [q.title, q.actual, q.who])]).toLowerCase().includes(F.q.toLowerCase()));
+const open = new Set(store.get('slqa.open.' + D.batch, []));
+function card(c) {
+  const sev = `var(--sev-${c.severity})`;
+  const sum = el('summary', {},
+    el('div', { class: 'ttl' }, el('span', { class: 'cid' }, c.id), c.title),
+    el('div', { class: 'reach' }, c.reach + ' run' + (c.reach > 1 ? 's' : ''), el('small', {}, c.personas.length + ' persona' + (c.personas.length === 1 ? '' : 's'))),
+    el('div', { class: 'tags' }, el('span', { class: 'tag sev', style: '--sev:' + sev }, c.severity), el('span', { class: 'tag' }, CAT[c.category] || c.category),
+      c.devices.map(d => el('span', { class: 'tag' }, DEV[d])), c.deviceOnly ? el('span', { class: 'tag dev' }, 'only on ' + DEV[c.deviceOnly]) : null,
+      c.oracleOnly ? el('span', { class: 'tag orc' }, 'oracle only') : null, c.evidence && c.evidence !== 'n/a' ? el('span', { class: 'tag' }, c.evidence) : null,
+      TRI[triageKey(c)]?.state ? el('span', { class: 'tag dev' }, STATES.find(s => s[0] === TRI[triageKey(c)].state)?.[1]) : null));
+  const dl = el('dl', { class: 'kv' });
+  for (const [k, v] of [['Repro', c.repro], ['Evidence', c.evidence_note], ['Suggestion', c.suggestion], ['Models', c.models.join(', ')]]) if (v) dl.append(el('dt', {}, k), el('dd', {}, v));
+  const quotes = el('div', { class: 'quotes' }, c.quotes.map(q => el('div', { class: 'quote' },
+    el('div', {}, el('div', { class: 'who' }, q.id + ' · ' + q.who + ' · ' + q.sev), el('div', {}, el('b', {}, q.title)), q.actual ? el('div', {}, q.actual) : null),
+    q.img && SHOTS[q.img] ? el('img', { src: SHOTS[q.img], alt: 'Screenshot at ' + q.id, loading: 'lazy', onclick: () => { $('zimg').src = SHOTS[q.img]; $('zoom').showModal(); } }) : null)));
+  const d = el('details', { class: 'cl', style: '--sev:' + sev }, sum, el('div', { class: 'body' }, c.summary ? el('p', {}, c.summary) : null, dl, quotes, triageRow(c)));
+  if (open.has(c.id)) d.open = true;
+  d.addEventListener('toggle', () => { d.open ? open.add(c.id) : open.delete(c.id); store.set('slqa.open.' + D.batch, [...open]); });
+  return d;
+}
+function draw() {
+  store.set('slqa.filters.' + D.batch, F);
+  const shown = D.clusters.filter(match);
+  $('count').textContent = shown.length === D.clusters.length ? `${shown.length} clusters, most severe × widest reach first` : `${shown.length} of ${D.clusters.length} clusters`;
+  $('list').replaceChildren(...shown.map(card));
+}
+$('zoom').onclick = () => $('zoom').close();
+
+if (D.models.length) {
+  $('modelsSec').hidden = false;
+  const cols = [['model', 'Model'], ['sessions', 'Sessions'], ['perSession', 'Notes / session'], ['valid', 'Valid'], ['noise', 'Noise'], ['disagree', 'Oracle disagrees'], ['clusters', 'Clusters hit'], ['unique', 'Only this model'], ['uniqueMajor', '(major+)'], ['actions', 'Avg actions'], ['images', 'Avg images'], ['fallbacks', 'Fallbacks'], ['screens', 'Screens / session'], ['hunts', 'Hunts finished'], ...(D.models[0].blindReal2 !== undefined ? [['blindReal2', 'Blind: real & correct'], ['blindWrong', 'Blind: wrong'], ['avgInsight', 'Blind: avg insight']] : [])];
+  $('models').append(el('tr', {}, cols.map(([, l]) => el('th', {}, l))), ...D.models.map(m => el('tr', {}, cols.map(([k]) => el('td', {}, m[k])))));
+}
+$('sessions').append(el('tr', {}, ['Session', 'Persona', 'Model', 'Device', 'Length', 'Seed', 'Actions', 'Notes', 'Summary'].map(h => el('th', {}, h))),
+  ...D.sessions.map(s => el('tr', {}, el('td', {}, s.id), el('td', {}, s.persona), el('td', {}, s.model), el('td', {}, DEV[s.device] || s.device), el('td', {}, s.length + (s.hand ? ' h' + s.hand : '')), el('td', {}, s.seed), el('td', {}, s.actions), el('td', {}, s.notes), el('td', { class: 'sum' }, s.summary))));
+if (D.noise.length) $('noise').textContent = 'Set aside as noise or tool limits: ' + D.noise.map(n => n.title + ' (' + n.n + ')').join(' · ');
+draw();
+hookDb();
+</script>

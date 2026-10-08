@@ -30,6 +30,8 @@ export type MomentLine = { turn: number; kind: string; sub: string; held: boolea
 
 // ============================ RECORDING ===============================
 const keys = new Set<string>(); // first-time keys this hunt (one first detection per pair, one alarm per unit and suit)
+export function aarKeys() { return [...keys]; } // SAVE & QUIT
+export function setAarKeys(k: string[]) { keys.clear(); for (const x of k || []) keys.add(x); }
 export function aarReset() { G.aar = []; keys.clear(); G.hitBy = null; G.salvage = undefined; }
 // Called once the lance stands on the map (newHunt, after the contract's carry-over): hits at the start, for WHAT IT COST
 export function aarSnap() { for (const m of G.lance) { m.hits0 = m.dead ? 0 : m.hits; m.lvl0 = m.op ? m.op.lvl : 0; } }

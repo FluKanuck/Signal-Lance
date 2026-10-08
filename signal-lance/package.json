@@ -4,7 +4,9 @@
   "description": "Signal Lance: phone-first mech sensor/ECM prototype",
   "scripts": {
     "dev": "vite",
+    "dev:qa": "vite --mode qa",
     "build": "vite build && node scripts/pages.mjs",
+    "build:qa": "vite build --mode qa",
     "check": "tsc --noEmit -p .",
     "sim": "node --experimental-strip-types --no-warnings scripts/sim.ts",
     "test": "vitest run",

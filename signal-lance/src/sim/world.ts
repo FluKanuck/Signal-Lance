@@ -85,6 +85,12 @@ export function anchors() { return MAP.anchors; }
 // R16 (map building only): extra A* cost per tile, so a second Escort leg is pushed off the first one. null = none.
 export let penalty: Float32Array | null = null;
 export function setPenalty(p: Float32Array | null) { penalty = p; }
+// SAVE & QUIT: the loaded map exactly as it stands (grids included: a hunt can change them), and putting it back
+export function mapState() { return { def: MAP, W, H, solid: Array.from(solid.subarray(0, N)), clutter: Array.from(clutter.subarray(0, N)), reach: Array.from(reach.subarray(0, N)), spawnX, spawnY }; }
+export function setMapState(m: any) {
+  loadMap(m.def); // sizes, path buffers, caches (mapGen bumps)
+  solid.set(m.solid); clutter.set(m.clutter); reach.set(m.reach); spawnX = m.spawnX; spawnY = m.spawnY;
+}
 export function loadMap(def: MapDef) {
   MAP = def; mapGen++;
   W = def.rows[0].length; H = def.rows.length; N = W * H;
