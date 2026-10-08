@@ -379,6 +379,11 @@ export function render() {
   // R17: a drawn path: cyan up to where this turn's AP runs out, then red dashed past it (r17-s2, Jamie: no stop circle).
   // A hollow handle at the end (drag it to carry on). Each facing waypoint: a diamond, a tick along its facing, and a faint
   // eyes cone (where it will look as it walks). The point LOOK is aiming pulses.
+  if (V.stroke && V.stroke.length) { // R25 cp D: the raw stroke under the finger (the planned route follows a moment later)
+    ctx.strokeStyle = 'rgba(255,255,255,0.55)'; ctx.lineWidth = 2 / z; ctx.beginPath(); ctx.moveTo(p.x, p.y);
+    for (const q of V.stroke) ctx.lineTo(q.x, q.y);
+    ctx.stroke();
+  }
   if (G.plan && G.plan.drawn && !G.act && G.phase === 'PLAYER') {
     const pl = G.plan, F = pl.full, P = pl.path;
     if (pl.cut || !P) {
@@ -395,7 +400,8 @@ export function render() {
       const sr = pl.snd * (zoneAtTile(Math.floor(q.x / T), Math.floor(q.y / T))?.type === 'QUIET' ? TUNE.ZONE_TYPES.QUIET.SIG_MULT : 1);
       soundRing(q.x, q.y, sr * T, z, 0.22);
       ctx.fillStyle = pl.cut ? '#ff8a5c' : '#8fe3ff'; ctx.font = 'bold ' + (12 / z) + 'px monospace';
-      ctx.fillText(pl.ap + 'AP ' + pl.en + 'EN snd ' + Math.round(sr * 10) / 10 + (pl.wps.length ? ' · ' + pl.wps.length + ' look' + (pl.wps.length > 1 ? 's' : '') : ''), q.x + 10, q.y - 10);
+      ctx.fillText((G.live ? planSecs(pl).toFixed(1) + 's ' : pl.ap + 'AP ') + pl.en + 'EN snd ' + Math.round(sr * 10) / 10 + (pl.wps.length ? ' · ' + pl.wps.length + ' look' + (pl.wps.length > 1 ? 's' : '') : ''), q.x + 10, q.y - 10);
+      if (G.live && pl.cut) enOut(q, z); // R25 cp D: where the EN runs out
     } else { ctx.fillStyle = '#ff8a5c'; ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText('NO MOVE · ' + pl.why, F[0].x + 14, F[0].y - 14); }
     const e = F[F.length - 1]; // the end handle
     ctx.strokeStyle = 'rgba(143,227,255,0.85)'; ctx.lineWidth = 2.5 / z; ctx.beginPath(); ctx.arc(e.x, e.y, 13 / z, 0, 6.2832); ctx.stroke();
@@ -438,7 +444,8 @@ export function render() {
       const sr = pl.snd * (zoneAtTile(Math.floor(q.x / T), Math.floor(q.y / T))?.type === 'QUIET' ? TUNE.ZONE_TYPES.QUIET.SIG_MULT : 1);
       soundRing(q.x, q.y, sr * T, z, 0.22);
       ctx.fillStyle = '#fff'; ctx.font = 'bold ' + (13 / z) + 'px monospace';
-      ctx.fillText(pl.ap + 'AP ' + pl.en + 'EN snd ' + Math.round(sr * 10) / 10 + (pl.cut ? ' cut' : ''), q.x + 10, q.y - 10);
+      ctx.fillText((G.live ? planSecs(pl).toFixed(1) + 's ' : pl.ap + 'AP ') + pl.en + 'EN snd ' + Math.round(sr * 10) / 10 + (pl.cut ? ' cut' : ''), q.x + 10, q.y - 10);
+      if (G.live && pl.cut) enOut(q, z); // R25 cp D: where the EN runs out
     }
   }
   // path
@@ -696,4 +703,11 @@ export function render() {
       ctx.fillText(Math.round(upDist(G.p)) + 't', ax + (ax > vw / 2 ? -14 : 14), ay + 4); ctx.textAlign = 'left';
     }
   }
+}
+
+// R25 cp D: the stop mark where a planned route runs out of EN (toy page): a red X and EN OUT
+function enOut(q, z: number) {
+  ctx.strokeStyle = ctx.fillStyle = '#ff5c4d'; ctx.lineWidth = 3 / z; const r = 9 / z;
+  ctx.beginPath(); ctx.moveTo(q.x - r, q.y - r); ctx.lineTo(q.x + r, q.y + r); ctx.moveTo(q.x + r, q.y - r); ctx.lineTo(q.x - r, q.y + r); ctx.stroke();
+  ctx.font = 'bold ' + (12 / z) + 'px monospace'; ctx.fillText('EN OUT', q.x + 10, q.y + 16 / z);
 }

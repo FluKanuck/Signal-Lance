@@ -652,6 +652,11 @@ export const TUNE = {
   AUTOPAUSE_IDLE: true,        // R25 cp B: ...when an ExoS finishes its order (end of its route, its UPLINK, its RADAR...)
   AUTOPAUSE_OBJECTIVE: true,   // R25 cp B: ...when the objective changes: an UPLINK step, the cargo picked up or passed on, the transport hit
   FREE_POS: false,             // R25 cp C: free positions (the toy page sets it): routes end at the exact point, bend round corners on the tightest clear line, units keep LIVE_UNIT_RADIUS apart, patrol points sit anywhere in a tile
+  PATH_SMOOTH: 2,              // R25 cp D: free positions: rounds of corner-cutting (Chaikin) on a drawn stroke, so a hand-drawn line curves instead of zigzagging (0 = as drawn)
+  PATH_SIMPLIFY: 0.06,         // R25 cp D: free positions: tiles; a drawn line keeps its curves, only wobbles smaller than this go (DRAW_SIMPLIFY is the turns value)
+  PATH_SAMPLE: 0.15,           // R25 cp D: free positions: tiles between the stroke points the view keeps (DRAW_SAMPLE is the turns value)
+  PATH_REPLAN_MS: 60,          // R25 cp D: free positions: while drawing, the route is planned again at most this often; the raw stroke draws under the finger every frame
+  PATH_GRAB_PX: 40,            // R25 cp D: free positions: screen radius round your ExoS that starts a drawn route (DRAW_GRAB_PX is the turns value)
   LIVE_STUCK_TIME: 1.5,        // R25 cp C: seconds a walking unit may gain less than 0.25 tile before its move ends where it stands (another unit holds the spot)
   LIVE_UNIT_RADIUS: 0.35,      // R25 cp C: tiles; two units never stand closer than twice this (the walker is nudged aside), and a route's end keeps this far from a wall
   AUTOPAUSE_FIRE_GAP: 8,       // R25 cp B: after a TAKING FIRE pause, more shots at the same ExoS don't pause again for this many seconds (it pauses when the shooting starts, not on every shot)

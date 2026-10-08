@@ -39,6 +39,7 @@ export type Scenario = {
   city?: 'Hated' | 'Liked';              // R23: a city scenario (books style, no hunt): a test company's city screen, then the first job's scan
   contacts?: { field: number; unc: number; src: string; who?: string }[]; // R24: contacts on the lance's picture at the start (a field unit's index, the fix size in tiles, the sense)
   lastSeen?: { field: number; tile: Tile }[]; // R24: LAST SEEN marks at the start (the view seeds its marks from these)
+  live?: boolean;                        // R25: a live-toy scenario (listed on the toy page only)
   books?: boolean;                       // R21 cp3: a company-screen scenario (no hunt): the view opens a test company's contract offers // R20: scan = live-scan commands already run when it opens (encodeCmds) // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen (R20: listen -1 = the live scan, yours to run)
 };
 
@@ -64,6 +65,33 @@ const AAR_HUNT = {
   question: { q: 'Did the list tell you why it went that way?', a: ['Yes, I can see why', 'Partly', 'No, it missed what mattered', 'Too much to read'] },
 };
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 25 (live toy): live time, auto-pause, free movement. Toy page only. Pack off. ----
+  {
+    name: 'Hold your fire', round: 25, live: true, seed: 2501, mission: 'UPLINK', packed: D1701,
+    tryThis: 'Two loose tracks are on your picture and jump about. Draw a route east along the street, with a look up the north alley as you pass it. Tap PLAY. The game should stop for the alley turret, but not for the jumping tracks.',
+    uplink: [41, 13],
+    lance: [{ tile: [13, 13], face: [41, 13], fit: 'line' }],
+    field: [{ type: 'PATROL', variant: 'line', tile: [36, 13], face: [13, 13], state: 'PATROL' }, { type: 'TURRET', variant: 'hush', tile: [42, 14] }, { type: 'TURRET', variant: 'sentry', tile: [24, 8], face: [24, 13] }],
+    contacts: [{ field: 0, unc: 4, src: 'PASSIVE' }, { field: 1, unc: 4.5, src: 'PASSIVE' }],
+    question: { q: 'Did the game stop when it mattered, and not more?', a: ['Yes', 'It stopped too often', 'It missed something', 'Something else'] },
+  },
+  {
+    name: 'Long street', round: 25, live: true, seed: 2502, mission: 'UPLINK', packed: D1701,
+    tryThis: 'An empty street with one turret at the far end, by the uplink. Draw a route to the uplink, tap PLAY and watch. Then UPLINK.',
+    uplink: [41, 13],
+    lance: [{ tile: [13, 13], face: [41, 13], fit: 'line' }, { tile: [12, 12], face: [41, 13], fit: 'scout' }],
+    field: [{ type: 'TURRET', variant: 'hush', tile: [42, 14] }],
+    question: { q: 'Did the walk drag?', a: ['No', 'A little', 'Yes', 'Something else'] },
+  },
+  {
+    name: 'Round the corner', round: 25, live: true, seed: 2503, mission: 'UPLINK', packed: D1701,
+    tryThis: 'Your RADAR has a turret round the corner, east along the street. Draw a curved route out of the alley so your ExoS ends with a clear shot, set a look at the corner, then PLAY.',
+    uplink: [41, 13],
+    lance: [{ tile: [18, 17], face: [18, 13], fit: 'line' }, { tile: [18, 18], face: [18, 13], fit: 'line' }],
+    field: [{ type: 'TURRET', variant: 'gun', tile: [29, 13], face: [18, 13] }],
+    contacts: [{ field: 0, unc: 1, src: 'RADAR' }],
+    question: { q: 'Could you draw the line you wanted?', a: ['Yes', 'Mostly', 'No, it fought me', 'Something else'] },
+  },
   // ---- Round 24 (say what it means): read the hunt cold. Every warning and greyed reason on one turn. Pack off. ----
   {
     name: 'Read it cold', round: 24, seed: 2401, mission: 'UPLINK', packed: D1701,
@@ -367,7 +395,7 @@ export const SCENARIOS: Scenario[] = [
 ];
 
 // Current round first, then older rounds (newest first). Stable inside a round.
-export function scenarioList() { return SCENARIOS.slice().sort((a, b) => b.round - a.round); }
+export function scenarioList() { return SCENARIOS.filter(s => !s.live || TUNE.TIME_MODE === 'live').sort((a, b) => b.round - a.round); } // R25: live scenarios on the toy page only
 export function scenarioByName(name: string) { return SCENARIOS.find(s => s.name.toLowerCase() === name.toLowerCase()) || null; }
 
 // TUNE overrides: applied before the hunt, restored when the scenario is left (or the next one starts).

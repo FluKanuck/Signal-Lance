@@ -1,5 +1,5 @@
 import { TUNE } from '../tune.ts';
-import { W, T, isSolid, isClutter, canReach, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter, clearWide, segCost } from './world.ts';
+import { W, T, isSolid, isClutter, canReach, findPath, tilesCrossed, pathCost, clipPathCost, pathHitsClutter, clearWide, segCost, freePoint } from './world.ts';
 import { onSuitDown, noteCarry } from './company.ts';
 import { G, hooks, finishHunt, unitById, livingMechs, activeMechs, isMech, isFriend, friends, setActive } from './state.ts';
 import { allyStep, pickLeg, giveOrder } from './escort.ts';
@@ -295,6 +295,7 @@ export function planMove(m, x, y, mode, apMax?, enMax?) {
 // MOVE_TILES_PER_AP, MOVE_ENERGY_PER_TILE, CLUTTER_TILE_COST, CLUTTER_SOUND). Clutter you draw through is taken on purpose.
 const plain = (a, b) => Math.hypot(b.x - a.x, b.y - a.y) / T;
 export function drawnPoints(m, pts: { x: number; y: number }[]) {
+  if (TUNE.FREE_POS) return drawnFree(m, pts); // R25 cp D: the toy page keeps the line as drawn
   const out = [{ x: m.x, y: m.y }];
   for (const q of pts) {
     if (!canReach(Math.floor(q.x / T), Math.floor(q.y / T))) continue;
@@ -307,11 +308,41 @@ export function drawnPoints(m, pts: { x: number; y: number }[]) {
   }
   return simplify(out);
 }
+// R25 cp D (free positions): the line as drawn. The stroke is smoothed (PATH_SMOOTH rounds of Chaikin corner-cutting, the
+// ends kept), points inside a wall are dropped (the last one moves to the nearest open point), a stretch that would cut
+// through or graze a wall bends round it on the tightest clear line (findPath, tightened), then only wobbles smaller than
+// PATH_SIMPLIFY go. Never snapped to tiles.
+function drawnFree(m, pts: { x: number; y: number }[]) {
+  let P = [{ x: m.x, y: m.y }, ...pts];
+  for (let k = 0; k < TUNE.PATH_SMOOTH && P.length > 2; k++) {
+    const Q = [P[0]];
+    for (let i = 0; i < P.length - 1; i++) {
+      const a = P[i], b = P[i + 1];
+      if (i > 0) Q.push({ x: a.x * 0.75 + b.x * 0.25, y: a.y * 0.75 + b.y * 0.25 });
+      if (i < P.length - 2) Q.push({ x: a.x * 0.25 + b.x * 0.75, y: a.y * 0.25 + b.y * 0.75 });
+    }
+    Q.push(P[P.length - 1]); P = Q;
+  }
+  const last = P[P.length - 1], end = freePoint(last.x, last.y);
+  const out = [{ x: m.x, y: m.y }];
+  for (let i = 1; i < P.length; i++) {
+    let q = P[i];
+    if (i === P.length - 1 && end) q = end;
+    else if (!canReach(Math.floor(q.x / T), Math.floor(q.y / T))) continue;
+    const l = out[out.length - 1];
+    if (plain(l, q) < 0.05) continue;
+    if (clearWide(l, q)) { out.push({ x: q.x, y: q.y }); continue; }
+    const seg = findPath(l.x, l.y, q.x, q.y);
+    if (!seg) continue;
+    for (let k = 1; k < seg.length; k++) out.push(seg[k]);
+  }
+  return simplify(out, TUNE.PATH_SIMPLIFY);
+}
 // Drop a point when the straight line past it stays within DRAW_SIMPLIFY tiles of every point it skips, is clear of
 // walls, and crosses no less clutter (so straightening never cuts round scrap you drew through).
-function simplify(P) {
+function simplify(P, eps0?: number) {
   if (P.length < 3) return P;
-  const eps = TUNE.DRAW_SIMPLIFY, extra = (a, b) => segCost(a, b) - plain(a, b), out = [P[0]];
+  const eps = eps0 ?? TUNE.DRAW_SIMPLIFY, extra = (a, b) => segCost(a, b) - plain(a, b), out = [P[0]];
   let i = 0;
   while (i < P.length - 1) {
     let j = i + 1, ex = extra(P[i], P[i + 1]);

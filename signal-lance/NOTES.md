@@ -1245,6 +1245,33 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    - Carrying a CRITICAL operator: a lancemate within OP_CARRY_RANGE at a round tick picks them up.
    - A live hunt can't SAVE & QUIT (its action slots hold timers): huntSaveBlock says LIVE TOY.
    - The transport walks one step-plan per round, as in turns. Initiative isn't used.
+   - cp B: the field gets AP_PER_TURN ÷ LIVE_ROUND_SEC AP a second (whole points) and decides every LIVE_ENEMY_THINK s or when
+     an action ends; one move per decision, so patrols walk in short hops. Patience and the pulse rhythm advance by the share
+     of a turn that passed (patience in SEC_PER_TURN turns, as the brain already converts it; pulses in LIVE_ROUND_SEC turns).
+   - cp B: "fixed track" = FIRE could lock it: held now, not sound / alarm only, unc ≤ PLAYER_FIRE_UNC. The track rule keeps one
+     record per unit: it pauses on first sight, on the first firm-up, and on a return after AUTOPAUSE_RELOST s off the picture
+     or lost (that return re-arms the firm-up). Contacts on the picture at the drop are known (no pause).
+   - cp B: TAKING FIRE pauses when the shooting at an ExoS starts, then not again for that ExoS for AUTOPAUSE_FIRE_GAP s (every
+     shot pausing made a fight unplayable: runner probe, a pause every 2.5 s). IDLE = an ExoS's order ended by itself (an
+     interrupted move pauses as the contact instead). OBJECTIVE = an UPLINK step, the carrier changing, a transport hit, or
+     (added) the transport starting to wait at a fork.
+   - cp B: aim + cooldown = 2 s = LIVE_ROUND_SEC ÷ SHOTS_PER_TURN (LIVE_FIRE_COOLDOWN 2 → 1.2: at 2 the field shot 30% less
+     often than in turns and the scripted lance won 17/20 contracts).
+   - cp B: runner --live: the scripted lance (the turns bot) decides for every ExoS at each auto-pause, and for an ExoS with no
+     order every 0.5 s of clock, then PLAY.
+   - cp C: LoS, cover, sensors, range and sound already worked from exact points (the sim was real time from R1); only routes,
+     route ends, patrol points and spacing were tile-bound. FREE_POS changes those only; map building never uses it, so one
+     seed rolls one district on both pages.
+   - cp C: a move that gains less than 0.25 tile in LIVE_STUCK_TIME s ends where it stands (two ExoS sent to one spot pushed
+     each other forever: the runner's only stall). It pauses as IDLE.
+   - cp C: the move stop follows the track rule on the toy (a contact the track rule already holds never stops a move); a
+     flickering known contact stopped every new move at once.
+   - cp D: a drawn stroke: PATH_SMOOTH rounds of Chaikin (ends kept), points inside walls dropped (the last moves to the
+     nearest open point), wall-crossing stretches joined by findPath (tightened), then simplify at PATH_SIMPLIFY. The view
+     draws the raw stroke at once and plans again at most every PATH_REPLAN_MS. Look markers already sat at any distance
+     along the line (d is continuous), so they needed no change.
+   - Test bed: R25 scenarios carry live: true and list on the toy page only. "Hold your fire" needs a look up the alley to
+     find the sentry (eyes face along the street), so its tryThis says so.
 ```
 
 ## TWEAK LOG
@@ -1884,6 +1911,14 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            LIVE_FIRE_COOLDOWN 2, LIVE_MORTAR_COOLDOWN 4, LIVE_AUTO_REFIRE true, LIVE_MOVED_WINDOW 2, LIVE_ENEMY_STAGGER 1,
            LIVE_START_PAUSED true. Main game: turns runner output byte-identical to r24-s4 (--contracts 20 --check); BUILD
            stays r24-s4. Toy BUILD r25-live-a | -
+   round25 cp B (r25-live-b) | brief: auto-pause + the track rule, continuous field, runner --live | NEW LIVE_ENEMY_THINK 1,
+           AUTOPAUSE_CONTACT / FIRE / IDLE / OBJECTIVE true, AUTOPAUSE_RELOST 6, AUTOPAUSE_FIRE_GAP 8 (probe: TAKING FIRE pauses
+           105 → 27 in 20 hunts). LIVE_FIRE_COOLDOWN 2 → 1.2 (the turns fire rate; runner --live contracts 17/20 → 12/20,
+           turns 5/20). Turns runner byte-identical | -
+   round25 cp C (r25-live-c) | brief: off the grid | NEW FREE_POS (toy: true), LIVE_UNIT_RADIUS 0.35, LIVE_STUCK_TIME 1.5.
+           Runner --live (seeds 1-60): 10/20, 11/20, 8/20 contracts, no stalls (was 1 stall before the stuck rule) | -
+   round25 cp D (r25-live-d) | brief: the route tool | NEW PATH_SMOOTH 2, PATH_SIMPLIFY 0.06, PATH_SAMPLE 0.15, PATH_REPLAN_MS 60,
+           PATH_GRAB_PX 40. Scenarios Hold your fire, Long street, Round the corner. Turns runner byte-identical | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

@@ -230,11 +230,16 @@ const LIVE_TEST = {
   question: 'Does live time with auto-pause make the hunt flow, and still feel like a plan?',
   newThings: [
     'This is a separate test page. Your company here is not your company in the main game.',
+    'NEW (r25 live D): the route tool. A drawn line stays as you draw it, smoothed, never snapped to tiles. The ExoS walks that line.',
+    'The line follows your finger at once. The planned route (cyan) catches up a moment later. If it crosses a building, it bends round the corner, and you see the bend before you tap MOVE.',
+    'Start a drag anywhere on your ExoS. A red X and EN OUT show where a route runs out of EN.',
+    'TEST BED: “Hold your fire” checks that jumping tracks don’t pause the game. “Long street” asks if the walk drags. In “Round the corner”, draw the line you want.',
     'NEW (r25 live C): off the grid. Your ExoS and the enemies stand anywhere, not on tile centres. Eyes, cover, sensors and range all work from exact points. A step sideways can open a view round a corner.',
     'A route ends exactly where you tap. Tap inside a building and it ends at the nearest open point. Routes round corners on the tightest clear line.',
     'Units never stand on top of each other. Two ExoS sent to one spot stop side by side.',
     'A contact the lance already had never stops a move again, even if it flickers. Only a new one does.',
-    'NEW (r25 live B): the game pauses by itself, and the yellow line says why. It pauses on a NEW CONTACT, when a loose track becomes a FIXED TRACK, when an ExoS starts TAKING FIRE, when an ExoS is IDLE, and when the OBJECTIVE changes.',
+    'NEW (r25 live B): the game pauses by itself, and the yellow line says why. It pauses on a NEW CONTACT and when a loose track becomes a FIXED TRACK.',
+    'It also pauses when an ExoS starts TAKING FIRE, when an ExoS is IDLE, and when the OBJECTIVE changes.',
     'A loose track that jumps about never pauses the game again. A contact pauses it again only when it becomes a FIXED TRACK, or comes back after ' + TUNE.AUTOPAUSE_RELOST + ' s or more off your picture.',
     'Switch each reason on or off on the start screen: PAUSE ON CONTACT, FIRE, IDLE and OBJECTIVE.',
     'Enemies now act all the time, in short steps, and aim before they shoot, as you do.',
@@ -254,12 +259,13 @@ const LIVE_QUESTIONS = [
   { k: 'walk', q: 'Did the walks drag?', a: ['No', 'A little', 'Yes', 'Something else'] },
   { k: 'rush', q: 'Did you feel rushed, or need fast taps?', a: ['Never', 'Once or twice', 'Often', 'Something else'] },
   { k: 'plan', q: 'Did it feel like watching your plan play out?', a: ['Yes', 'Partly', 'No', 'Something else'] },
+  { k: 'angle', q: 'Did moving off the grid change how you used cover and angles?', a: ['Yes', 'A little', 'No', 'Something else'] },
 ];
 const LIVE_HUNT_HOW = [
   'The hunt opens paused. PLAY starts the clock. PAUSE stops it. The space bar does both.',
   'The game also pauses by itself when something needs a decision. The yellow line says why. Then tap PLAY.',
   'Everyone acts at the same time. Tap a letter at the top right, or an ExoS on the map, to pick it.',
-  'To move, tap the map or drag from your ExoS. Pick CREEP, NORMAL or SPRINT. Then tap MOVE.',
+  'To move, tap the map or drag from your ExoS. The line stays as you draw it. Pick CREEP, NORMAL or SPRINT. Then tap MOVE.',
   'Actions take time. A ring fills on the ExoS while it works. A new order replaces the old one.',
   'Tap a contact to select it. FIRE aims, shoots, then the gun cools down. It keeps firing at that target while it can.',
 ];

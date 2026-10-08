@@ -188,7 +188,7 @@ describe('continuous field + the runner', () => {
 });
 
 // ---- R25 checkpoint C: off the grid ----
-import { findPath, freePoint, clearWide, pathCost, loadMap, HIVE, solid, N } from '../src/sim/world.ts';
+import { findPath, freePoint, clearWide, pathCost, loadMap, HIVE, solid, N, tilesCrossed } from '../src/sim/world.ts';
 import { canSee } from '../src/sim/sensors.ts';
 import { coverInfo } from '../src/sim/combat.ts';
 import { scenarioByName, startScenario, leaveScenario } from '../src/sim/scenarios.ts';
@@ -253,5 +253,96 @@ describe('off the grid (FREE_POS)', () => {
   });
   it('test-bed scenarios load and run on the toy page', () => {
     for (const n of ['Side street', 'Trip wire', 'Read it cold']) { startScenario(scenarioByName(n)); expect(G.live).toBe(true); G.paused = false; run(3); leaveScenario(); }
+  });
+});
+
+// ---- R25 checkpoint D: the path tool ----
+import { planDrawn, drawnPoints } from '../src/sim/turns.ts';
+describe('the path tool (FREE_POS)', () => {
+  let fp: any;
+  beforeEach(() => { fp = TUNE.FREE_POS; TUNE.FREE_POS = true; });
+  afterEach(() => { TUNE.FREE_POS = fp; loadMap(HIVE); });
+  const tiny = (rows: string[]) => loadMap({ id: 'test', rows, anchors: HIVE.anchors, info: { grid: 'test' } });
+  const open = (w: number, h: number) => tiny(Array.from({ length: h }, () => '.'.repeat(w)));
+  const unit = (x: number, y: number) => ({ x: x * T, y: y * T, ap: PLAYER_AP, en: 100, enMax: 100, freeTurns: 99, parts: {}, partsLost: [] } as any);
+  const arc = (cx: number, cy: number, r: number, n = 30) => Array.from({ length: n }, (_, i) => { const a = Math.PI * (i + 1) / n; return { x: (cx - Math.cos(a) * r) * T, y: (cy - Math.sin(a) * r) * T }; });
+  it('a curved stroke stays a curve: many points, off the tile centres, about as long as drawn', () => {
+    open(20, 12);
+    const m = unit(4, 9), P = drawnPoints(m, arc(9, 9, 5));
+    expect(P.length).toBeGreaterThan(8);
+    const centred = P.filter(q => Math.abs(q.x / T % 1 - 0.5) < 1e-6 && Math.abs(q.y / T % 1 - 0.5) < 1e-6).length;
+    expect(centred).toBeLessThan(2);
+    const L = pathCost(P);
+    expect(L).toBeGreaterThan(Math.PI * 5 * 0.9); expect(L).toBeLessThan(Math.PI * 5 * 1.05);
+  });
+  it('the ends stay where they were drawn', () => {
+    open(20, 12);
+    const m = unit(4, 9), S = arc(9, 9, 5), P = drawnPoints(m, S);
+    expect(P[0].x).toBeCloseTo(m.x, 5);
+    expect(Math.hypot(P[P.length - 1].x - S[S.length - 1].x, P[P.length - 1].y - S[S.length - 1].y)).toBeLessThan(0.01 * T);
+  });
+  it('a stroke through a wall bends round it, and no stretch goes through a wall', () => {
+    tiny(['..........', '..........', '....##....', '....##....', '..........', '..........']);
+    const m = unit(1.5, 2.5), S = Array.from({ length: 16 }, (_, i) => ({ x: (1.5 + i * 0.5) * T, y: 2.7 * T }));
+    const P = drawnPoints(m, S);
+    for (let i = 1; i < P.length; i++) expect(tilesCrossed(P[i - 1].x, P[i - 1].y, P[i].x, P[i].y, 1)).toBe(0); // never through a wall
+    expect(P[P.length - 1].x).toBeGreaterThan(8 * T);
+  });
+  it('a stroke that ends inside a wall ends at the nearest open point', () => {
+    tiny(['..........', '..........', '......#...', '..........']);
+    const m = unit(1.5, 2.5), P = drawnPoints(m, [{ x: 4 * T, y: 2.5 * T }, { x: 6.4 * T, y: 2.5 * T }]);
+    const e = P[P.length - 1];
+    expect(solid[Math.floor(e.y / T) * 10 + Math.floor(e.x / T)]).toBe(0);
+    expect(Math.hypot(e.x - 6.4 * T, e.y - 2.5 * T)).toBeLessThan(0.8 * T);
+  });
+  it('a route too long for the EN is cut where the EN runs out (the EN OUT mark)', () => {
+    open(30, 6);
+    const m = unit(1.5, 3); m.en = 20;
+    const pl = planDrawn(m, Array.from({ length: 20 }, (_, i) => ({ x: (2 + i) * T, y: 3 * T })), 'SPRINT');
+    expect(pl.cut).toBe(true); expect(pl.why).toBe('EN');
+    expect(pathCost(pl.path)).toBeCloseTo(20 / TUNE.MOVE_ENERGY_PER_TILE.SPRINT, 0);
+  });
+});
+
+// ---- R25 test bed: the live-toy scenarios ----
+import { SCENARIOS, scenarioList } from '../src/sim/scenarios.ts';
+describe('R25 scenarios (toy page)', () => {
+  afterEach(() => leaveScenario());
+  it('are listed on the toy page only', () => {
+    const names = ['Hold your fire', 'Long street', 'Round the corner'];
+    expect(scenarioList().map(s => s.name)).toEqual(expect.arrayContaining(names));
+    TUNE.TIME_MODE = 'turns'; expect(scenarioList().some(s => names.includes(s.name))).toBe(false);
+  });
+  it('Hold your fire: the two jumping tracks never pause the game', () => {
+    const k = TUNE.AUTOPAUSE_IDLE; TUNE.AUTOPAUSE_IDLE = false; TUNE.FREE_POS = true;
+    try {
+      startScenario(scenarioByName('Hold your fire'));
+      const [loose1, loose2] = G.units;
+      expect(G.apTrack[loose1.id] && G.apTrack[loose2.id]).toBeTruthy(); // on the picture at the drop: already known
+      G.paused = false; cmdTarget(30 * T, 13.5 * T); cmdMove();
+      const before = new Set(Object.keys(G.apTrack));
+      let contactPauses = 0;
+      for (let t = 0; t < 25 && G.mode === 'hunt'; t += DT) {
+        step(DT);
+        if (G.paused) { if (G.apCue.why.includes('CONTACT')) contactPauses++; G.paused = false; }
+      }
+      const fresh = Object.keys(G.apTrack).filter(id => !before.has(id)).length; // contacts new to the picture
+      expect(contactPauses).toBeLessThanOrEqual(fresh); // only new contacts pause; the jumping ones never do
+    } finally { TUNE.AUTOPAUSE_IDLE = k; TUNE.FREE_POS = false; }
+  });
+  it('Long street: a drawn route to the uplink walks it in well under a minute', () => {
+    TUNE.FREE_POS = true;
+    try {
+      startScenario(scenarioByName('Long street')); G.paused = false;
+      cmdTarget(G.up.x - T, G.up.y); cmdMove();
+      let t = 0; for (; t < 60 && G.p.lact; t += DT) { step(DT); G.paused = false; }
+      expect(t).toBeLessThan(30);
+    } finally { TUNE.FREE_POS = false; }
+  });
+  it('Round the corner: the radar contact is on the picture and the corner blocks the shot from the alley', () => {
+    startScenario(scenarioByName('Round the corner'));
+    const c = G.pc.find(k => k.on && k.id === G.units[0].id);
+    expect(c).toBeTruthy();
+    expect(shootBlock(G.p, c, TUNE.PLAYER_FIRE_UNC, fireRange(G.p))).not.toBe('');
   });
 });

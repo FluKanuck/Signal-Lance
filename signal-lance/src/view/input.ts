@@ -71,7 +71,7 @@ function pressKind(wx: number, wy: number) {
   if (V.lookArm !== null && drawnPlan()) return 'aim';
   const z = camZ(), pl = drawnPlan();
   if (pl) { const e = pl.full[pl.full.length - 1]; if (Math.hypot(wx - e.x, wy - e.y) <= TUNE.DRAW_END_GRAB_PX / z) { ptr.d = pl.length; return 'extend'; } }
-  if (Math.hypot(wx - G.p.x, wy - G.p.y) <= TUNE.DRAW_GRAB_PX / z) return 'new';
+  if (Math.hypot(wx - G.p.x, wy - G.p.y) <= (TUNE.FREE_POS ? TUNE.PATH_GRAB_PX : TUNE.DRAW_GRAB_PX) / z) return 'new'; // R25 cp D: a bigger grab on the toy
   if (pl) { const n = nearestAlong(pl.full, wx, wy); if (n.off * T <= TUNE.WAYPOINT_GRAB_PX / z) { ptr.d = n.d; return 'path'; } }
   return '';
 }
@@ -88,8 +88,18 @@ function prefixTo(P, d: number) {
 }
 function strokeTo(wx: number, wy: number) {
   const all = ptr.base.concat(ptr.pts), l = all.length ? all[all.length - 1] : G.p;
-  if (Math.hypot(wx - l.x, wy - l.y) < TUNE.DRAW_SAMPLE * T) return false;
+  if (Math.hypot(wx - l.x, wy - l.y) < (TUNE.FREE_POS ? TUNE.PATH_SAMPLE : TUNE.DRAW_SAMPLE) * T) return false;
   ptr.pts.push({ x: wx, y: wy }); return true;
+}
+// R25 cp D: on the toy page the raw stroke draws under the finger every frame (V.stroke) and the route is planned again at
+// most every PATH_REPLAN_MS, so the line never lags the finger
+let replanAt = 0;
+function drawStroke(final = false) {
+  if (!TUNE.FREE_POS) { cmdDraw(ptr.base.concat(ptr.pts), ptr.keepTo); return true; }
+  V.stroke = final ? null : ptr.base.concat(ptr.pts);
+  const now = performance.now();
+  if (!final && now - replanAt < TUNE.PATH_REPLAN_MS) return false;
+  replanAt = now; cmdDraw(ptr.base.concat(ptr.pts), ptr.keepTo); return true;
 }
 // LOOK / ✕ menu beside a point on the path
 export function showWpMenu(d: number) {
@@ -139,7 +149,7 @@ cv.addEventListener('pointermove', e => {
   }
   if (ptr.mode === 'draw') { // R17: the path follows the finger; the cost shows beside it
     const [wx, wy] = toWorld(e.clientX, e.clientY);
-    if (strokeTo(wx, wy)) { cmdDraw(ptr.base.concat(ptr.pts), ptr.keepTo); syncButtons(); }
+    if (strokeTo(wx, wy) && drawStroke()) syncButtons();
     V.drawPt = { sx: e.clientX, sy: e.clientY }; ptr.lx = e.clientX; ptr.ly = e.clientY; return;
   }
   if (ptr.mode === 'aim') { const [wx, wy] = toWorld(e.clientX, e.clientY); aimAt(wx, wy); ptr.lx = e.clientX; ptr.ly = e.clientY; return; } // R17: LOOK, dragging
@@ -154,7 +164,7 @@ export function ptrEnd(e) {
   if (e.pointerId !== ptr.id) return;
   ptr.id = -1; clearTimeout(ptr.holdT);
   if (ptr.mode === 'draw') { // R17: the last bit of the stroke, right to where the finger lifted
-    const [wx, wy] = toWorld(e.clientX, e.clientY); ptr.pts.push({ x: wx, y: wy }); cmdDraw(ptr.base.concat(ptr.pts), ptr.keepTo);
+    const [wx, wy] = toWorld(e.clientX, e.clientY); ptr.pts.push({ x: wx, y: wy }); drawStroke(true);
   }
   if (ptr.mode) { if (ptr.mode === 'aim') V.lookArm = null; ptr.mode = ''; V.drawPt = null; syncButtons(); return; } // R17: a drawn path / an aim, not a tap
   const tap = !ptr.pan && !ptr.held && e.type === 'pointerup';

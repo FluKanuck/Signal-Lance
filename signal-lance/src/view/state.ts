@@ -7,6 +7,7 @@ export const V = {
   dbg: false,
   faceArm: false, ghostArm: false, mortarArm: false, mortarWhy: '',          // armed tap modes (tap own mech → face; GHOST → place)
   hitFlash: 0,                              // red screen border after taking a hit
+  stroke: null as null | { x: number; y: number }[], // R25 cp D: the raw finger stroke while drawing (toy page), drawn under the finger at once
   drawPt: null as null | { sx: number; sy: number }, // R17: the finger while drawing a path (the AP cost shows next to it)
   wpWhy: '',                                // R17: why the last waypoint wasn't set (MAX)
   wpMenu: null as null | number,            // r17-s2: the LOOK / ✕ menu is open for the path point this far along (tiles)

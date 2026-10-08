@@ -208,6 +208,7 @@ const LIVE_TERMS: Entry[] = [
   { id: 'AP.FIRE', name: 'PAUSED: TAKING FIRE', screen: 'hunt', line: 'An enemy shot at one of your ExoS. More shots at it in the next ' + TUNE.AUTOPAUSE_FIRE_GAP + ' s do not pause the game again.' },
   { id: 'AP.IDLE', name: 'PAUSED: IDLE', screen: 'hunt', line: 'An ExoS finished its order. A IDLE means ExoS A waits for a new one.' },
   { id: 'AP.OBJECTIVE', name: 'PAUSED: OBJECTIVE', screen: 'hunt', line: 'The objective changed: an UPLINK step, the cargo picked up or passed on, a hit on the transport, or the transport waits at a FORK.' },
+  { id: 'EN OUT', name: 'EN OUT', screen: 'map', line: 'The red X on a planned route: the ExoS runs out of EN here and stops. Pick a slower move, or wait for EN.' },
   { id: 'FIXED TRACK', name: 'FIXED TRACK', screen: 'contact', line: 'A contact you can FIRE at: held now, not sound only, and ±' + TUNE.PLAYER_FIRE_UNC + ' tiles or better.' },
   { id: 'LOOSE TRACK', name: 'LOOSE TRACK', screen: 'contact', line: 'A contact you can’t FIRE at yet: fuzzy, sound only, or lost for a moment. It can jump about as fixes come in.' },
 ];
