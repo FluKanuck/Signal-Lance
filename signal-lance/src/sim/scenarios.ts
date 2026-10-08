@@ -35,6 +35,7 @@ export type Scenario = {
   job?: { seed: number; comp: string; listen: number; scan?: string };
   auto?: boolean;                        // R22: the scripted lance plays it straight through (the after-action page is what's tested)
   endAs?: string;                        // R22: the hunt ends this way at the moment it would have ended (same seed, same events)
+  city?: 'Hated' | 'Liked';              // R23: a city scenario (books style, no hunt): a test company's city screen, then the first job's scan
   books?: boolean;                       // R21 cp3: a company-screen scenario (no hunt): the view opens a test company's contract offers // R20: scan = live-scan commands already run when it opens (encodeCmds) // R19: a real rolled job (packed district, its own field) played through the pre-drop scan, the dial forced to listen (R20: listen -1 = the live scan, yours to run)
 };
 
@@ -60,6 +61,15 @@ const AAR_HUNT = {
   question: { q: 'Did the list tell you why it went that way?', a: ['Yes, I can see why', 'Partly', 'No, it missed what mattered', 'Too much to read'] },
 };
 export const SCENARIOS: Scenario[] = [
+  // ---- Round 23 (who you'll anger): the city. No hunt: a test company looks at one job against the Foundry, in a Foundry
+  // district. Hated: the Foundry hates you. Liked: the same job, posted by the Corporate side, who like you. TAKE IT opens the
+  // first hunt's scan (nothing is played). ----
+  { name: 'Hated', round: 23, seed: 2301, books: true, city: 'Hated', uplink: [0, 0], lance: [], field: [],
+    tryThis: 'The Foundry hates you. Job 1 is in one of their districts. Look at its danger, the fuel price where the ship sits, and what completing it would do. TAKE IT to see its scan: the risk meter says how much more of the field is awake.',
+    question: { q: 'Could you see what your standing cost or earned you?', a: ['Yes, clearly', 'Some of it', 'No, I missed it', 'Too much to read'] } },
+  { name: 'Liked', round: 23, seed: 2301, books: true, city: 'Liked', uplink: [0, 0], lance: [], field: [],
+    tryThis: 'The Corporate side likes you, and posts job 1 against the Foundry. Look at its pay, the fuel price where the ship sits, then TAKE IT: the scan opens with their intel already on the map.',
+    question: { q: 'Could you see what your standing cost or earned you?', a: ['Yes, clearly', 'Some of it', 'No, I missed it', 'Too much to read'] } },
   // ---- Round 22 (what happened): one hunt, played by the scripted lance, ending two ways. Held the field shows every
   // moment in full; Bailed ends at the same moment as a BAIL, so the field's side is redacted. Compare the two pages. ----
   { name: 'Held the field', round: 22, ...AAR_HUNT,

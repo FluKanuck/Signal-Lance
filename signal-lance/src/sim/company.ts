@@ -11,8 +11,9 @@ import { DEFAULT_FIT, toFit, fitRounds, fitShells, kitOf, launchBlock } from './
 import { ITEMS, byId } from './items.ts';
 import { fresh, newContract, repairWorst } from './contract.ts';
 import { syncHits } from './combat.ts';
+import { newCity, cityOn, rollCityOffers, fuelPriceAt, jump, settle, standingLine, dangerOf, feeOf, pathFuel } from './city.ts';
 
-export const CO_VERSION = 3; // R21 cp2: suits. cp3: the books; cp4: the ship // bump when the save's shape changes (an old save then offers NEW COMPANY)
+export const CO_VERSION = 4; // R21 cp2: suits. cp3: the books; cp4: the ship. R23: the city // bump when the save's shape changes (an old save then offers NEW COMPANY)
 export type Op = {
   id: string; name: string; skill: string; xp: number; lvl: number;
   status: 'OK' | 'BENCH'; bench: number; // BENCH: contracts left to sit out
@@ -51,7 +52,7 @@ export function newCompany(seed: number, fits: any[] = []) {
     credits: TUNE.START_CREDITS, fuel: TUNE.START_FUEL, parts: TUNE.START_PARTS, debt: false, folded: '', hullOwed: 0, ledger: null, // cp3
     stores: {} as Record<string, number>, offers: [] as any[], market: [] as any[], ship: { fit: [...TUNE.SHIP_START_MODS], stored: [] as string[] }, // cp3 / cp4
     suits, ops: [] as Op[], recruits: [] as Op[], memorial: [] as any[], crew: Object.fromEntries(suits.map(s => [s.id, ''])), news: [] as string[],
-    rec: { contracts: 0, complete: 0, failed: 0, hunts: 0, wins: 0, kia: 0 } };
+    rec: { contracts: 0, complete: 0, failed: 0, hunts: 0, wins: 0, kia: 0 }, city: TUNE.CITY_ENABLED ? newCity(seed) : null }; // R23: the city map and standing
   for (let i = 0; i < TUNE.START_OPS; i++) G.co.ops.push(makeOp());
   for (const s of suits) for (const k of kitOf(s.fit)) G.co.stores[k.item.id] = (G.co.stores[k.item.id] || 0) + 1; // cp3: the kit on the suits is owned
   autoCrew();
@@ -60,7 +61,7 @@ export function newCompany(seed: number, fits: any[] = []) {
 }
 // A loaded save is used only if its shape matches this build (no migrations: a mismatch offers NEW COMPANY).
 export function validCompany(co: any) {
-  return !!co && co.v === CO_VERSION && Array.isArray(co.ops) && Array.isArray(co.recruits) && Array.isArray(co.memorial) && Array.isArray(co.suits) && !!co.ship && Array.isArray(co.offers) && !!co.stores && !!co.crew && !!co.rec && typeof co.rs === 'number';
+  return !!co && co.v === CO_VERSION && Array.isArray(co.ops) && Array.isArray(co.recruits) && Array.isArray(co.memorial) && Array.isArray(co.suits) && !!co.ship && Array.isArray(co.offers) && !!co.stores && !!co.crew && !!co.rec && typeof co.rs === 'number' && (!TUNE.CITY_ENABLED || (!!co.city && Array.isArray(co.city.districts)));
 }
 export function rollRecruits() { const C = G.co; C.recruits = []; for (let i = 0; i < TUNE.RECRUITS_OFFERED; i++) C.recruits.push(makeOp()); }
 
@@ -168,6 +169,7 @@ export const runningCosts = () => wages() + TUNE.UPKEEP_SHIP + (G.co.hullOwed ||
 // Contracts on offer: length, danger, fuel to get there, fee on completion. Seeded on the company's RNG.
 export function rollOffers() {
   const C = G.co, [h0, h1] = TUNE.CONTRACT_HUNTS_RANGE, [f0, f1] = TUNE.FUEL_PER_JUMP;
+  if (cityOn()) { C.offers = rollCityOffers(corand); return; } // R23: offers live in districts (city.ts)
   C.offers = [];
   for (let i = 0; i < TUNE.CONTRACTS_OFFERED; i++) {
     const hunts = h0 + Math.floor(corand() * (h1 - h0 + 1)), tier = Math.floor(corand() * TUNE.DANGER_NAMES.length), fuel = f0 + Math.floor(corand() * (f1 - f0 + 1));
@@ -184,6 +186,7 @@ export function offerBlock(i: number) { const o = G.co.offers[i]; if (!o) return
 export function takeOffer(i: number, hunts?: number) {
   if (offerBlock(i)) return false;
   const C = G.co, o = C.offers[i]; C.fuel -= fuelCost(o);
+  if (cityOn() && o.kind) for (const l of jump(o)) C.news.push('[CITY] ' + l); // R23: the ship jumps to the contract's district
   const n = hunts || o.hunts;
   startCompanyContract(o.seed, n);
   Object.assign(G.ct, { tier: o.tier, fee: o.fee, fieldMult: TUNE.DANGER_FIELD[o.tier], need: Math.min(n, Math.ceil(n * TUNE.CONTRACT_WIN_SHARE)), offer: { ...o }, armourUsed: false });
@@ -192,7 +195,7 @@ export function takeOffer(i: number, hunts?: number) {
 }
 // The market: parts, fuel, hangar items, now and then an ExoS. Rolled between contracts (seeded).
 export function rollMarket() {
-  const C = G.co, L: any[] = [{ k: 'parts', qty: TUNE.MARKET_PARTS_QTY, price: TUNE.PART_PRICE }, { k: 'fuel', qty: TUNE.MARKET_FUEL_QTY, price: TUNE.FUEL_PRICE }];
+  const C = G.co, L: any[] = [{ k: 'parts', qty: TUNE.MARKET_PARTS_QTY, price: TUNE.PART_PRICE }, { k: 'fuel', qty: TUNE.MARKET_FUEL_QTY, price: cityOn() ? fuelPriceAt(C.city.at) : TUNE.FUEL_PRICE }]; // R23: the district's holder sets the fuel price
   if (corand() < TUNE.MARKET_SUIT_CHANCE) L.push({ k: 'suit', qty: 1, price: TUNE.COST_SUIT });
   const pool = TUNE.HANGAR_ITEMS.filter(id => byId(ITEMS, id)?.price).slice();
   while (L.length < TUNE.MARKET_STOCK && pool.length) { const id = pool.splice(Math.floor(corand() * pool.length), 1)[0]; L.push({ k: 'item', id, qty: 1 + Math.floor(corand() * 2), price: byId(ITEMS, id).price }); }
@@ -210,10 +213,17 @@ export function buy(i: number) {
   if (buyBlock(i)) return false;
   const C = G.co, L = C.market[i]; spend(L.price); L.qty--;
   if (L.k === 'parts') C.parts++;
-  if (L.k === 'fuel') C.fuel++;
+  if (L.k === 'fuel') { C.fuel++; if (cityOn()) cityFuelLine(L.price); }
   if (L.k === 'item') C.stores[L.id] = (C.stores[L.id] || 0) + 1;
   if (L.k === 'suit') { const id = 'ABCD'.split('').find(x => !C.suits.some(s => s.id === x)), fit = structuredClone(DEFAULT_FIT); C.suits.push({ id, fit, carry: fresh(fit) }); for (const k of kitOf(fit)) C.stores[k.item.id] = (C.stores[k.item.id] || 0) + 1; C.crew[id] = ''; C.news.push('Bought ExoS ' + id + ' (standard kit).'); }
   return true;
+}
+// R23: "[CITY] Fuel +2 at 45 cr in Dockside (Foundry, HATED)" (repeat buys at one price merge into one line)
+function cityFuelLine(price: number) {
+  const C = G.co, d = C.city.districts[C.city.at], tail = ' cr in ' + d.name + ' (' + TUNE.CITY_FACTIONS[d.fac].name + ', ' + (C.city.standing[d.fac] <= TUNE.STANDING_HATED ? 'HATED' : C.city.standing[d.fac] >= TUNE.STANDING_LIKED ? 'LIKED' : 'NEUTRAL') + ')';
+  const last = C.news.length - 1, m = last >= 0 ? /^\[CITY\] Fuel \+(\d+) at (\d+) cr in /.exec(C.news[last]) : null;
+  if (m && +m[2] === price && C.news[last].endsWith(tail)) C.news[last] = '[CITY] Fuel +' + (+m[1] + 1) + ' at ' + price + tail;
+  else C.news.push('[CITY] Fuel +1 at ' + price + tail);
 }
 export function sellPart() { const C = G.co; if (C.parts <= 0) return false; C.parts--; earn(TUNE.PART_SELL); return true; }
 // Hangar items the company owns (stores) less those fitted on its suits: what's free to fit
@@ -384,6 +394,7 @@ export function endContract(status: string) {
   else if (C.credits < 0) { C.debt = true; C.news.push('IN DEBT (' + C.credits + ' cr). Get back above 0 by the end of the next contract, or the company folds.'); }
   else { if (C.debt) C.news.push('Out of debt.'); C.debt = false; }
   for (const o of C.ops) if (o.status === 'BENCH' && o.hurtIn !== C.n && --o.bench <= 0) { o.status = 'OK'; o.bench = 0; C.news.push(o.name + ' is back from the bench.'); }
+  if (cityOn()) { const off = G.ct && G.ct.offer && G.ct.offer.kind ? G.ct.offer : null; C.city.last = settle(off, status); for (const l of C.city.last) C.news.push('[CITY] ' + l); } // R23: drift, then the job's standing changes
   C.n++;
   rollRecruits(); rollOffers(); rollMarket();
   fillCrew();
@@ -394,7 +405,7 @@ export function companyLine() {
   const C = G.co, suits = C.suits.map(s => s.id + (s.carry.dead ? ' LOST' : s.carry.hits < s.carry.maxHits ? ' ' + s.carry.hits + '/' + s.carry.maxHits : ' ok')).join(' '), vets = C.ops.filter(isVet).length, bench = C.ops.filter(o => o.status === 'BENCH').length;
   return 'code ' + C.code + ' · contract ' + (C.n + 1) + ' · ' + C.ops.length + ' on the roster' + (vets ? ' (' + vets + ' vet' + (vets > 1 ? 's' : '') + ')' : '') + (bench ? ', ' + bench + ' benched' : '') + (C.rec.kia ? ', ' + C.rec.kia + ' KIA' : '') +
     ' · ' + C.ops.map(o => o.name.split(' ')[0] + ' ' + o.skill + o.lvl + (o.status === 'BENCH' ? ' bench' + o.bench : '')).join(', ') + ' · suits ' + suits +
-    ' · ' + C.credits + ' cr' + (C.debt ? ' (DEBT)' : '') + ' · fuel ' + C.fuel + '/' + fuelMax() + ' · parts ' + C.parts + '/' + holdCap() + ' · ship ' + (C.ship.fit.join(' ') || 'bare') + (C.folded ? ' · FOLDED' : '');
+    ' · ' + C.credits + ' cr' + (C.debt ? ' (DEBT)' : '') + ' · fuel ' + C.fuel + '/' + fuelMax() + ' · parts ' + C.parts + '/' + holdCap() + ' · ship ' + (C.ship.fit.join(' ') || 'bare') + (cityOn() ? ' · ' + standingLine() : '') + (C.folded ? ' · FOLDED' : '');
 }
 // Per suit with an operator, how its hunt ended: "B Jok Okafor (QUIET MOVER 1): CRITICAL, carried out by A: lives"
 export function crewLines() {
@@ -416,5 +427,24 @@ export function thinBooksCompany() {
   ];
   C.suits[1].carry.parts.LEGS = Math.max(0, C.suits[1].carry.parts.LEGS - 2); syncHits(C.suits[1].carry);
   C.testbed = 'Thin books';
+  return C;
+}
+
+// ============================ TEST BED: Hated / Liked (R23) ===========
+// One job against the Foundry, in a Foundry district, the ship two links or less away. Hated: the Foundry hates you (and the
+// ship sits in Foundry ground: dear fuel); the job is a Corporate one. Liked: the Corporate side likes you and posts the same
+// job (the pay bonus, their intel on the scan); the ship sits in Corporate ground (cheap fuel). Two plain offers beside it. Not saved.
+export function cityTestCompany(kind: 'Hated' | 'Liked') {
+  newCompany(2301);
+  const C = G.co, Y = C.city, F = Y.districts.filter(d => d.fac === 'FOUNDRY'), home = kind === 'Hated' ? 'FOUNDRY' : 'CORP';
+  if (kind === 'Hated') Y.standing.FOUNDRY = TUNE.STANDING_HATED - 20; else Y.standing.CORP = TUNE.STANDING_LIKED + 20;
+  const pairs = Y.districts.filter(d => d.fac === home).flatMap(h => F.filter(f => f.id !== h.id).map(f => ({ h, f, n: pathFuel(Y, h.id, f.id) }))).sort((a, b) => a.n - b.n);
+  Y.at = pairs[0].h.id;
+  rollOffers();
+  const o: any = { seed: 230101, hunts: 3, d: pairs[0].f.id, kind: 'FACTION', emp: 'CORP', tgt: 'FOUNDRY', tier: dangerOf('FOUNDRY'), fuel: pairs[0].n };
+  o.fee = feeOf(o); C.offers[0] = o;
+  for (const x of C.offers.slice(1)) if (x.d === o.d) { x.d = Y.districts.find(d => d.id !== Y.at && d.id !== o.d && d.fac === x.tgt)?.id ?? x.d; x.fuel = pathFuel(Y, Y.at, x.d); } // keep job 1 alone in its district
+  rollMarket();
+  C.testbed = kind;
   return C;
 }

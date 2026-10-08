@@ -5,6 +5,7 @@
 // cap) and the risk meter; drag a sensor's ring on the map. The view only sends commands (scanCmd) and turns real seconds into
 // ship-minutes; the sim steps (scanStep).
 import { TUNE } from '../tune.ts';
+import { runningOffer, cityAlertAdd, facName } from '../sim/city.ts';
 import { G } from '../sim/state.ts';
 import { W, H, T, solid, clutter, anchors } from '../sim/world.ts';
 import { LISTEN, listen, chooseDrop, offeredDrops, zoneKnow, dropPts, scanDone } from '../sim/scan.ts';
@@ -98,7 +99,14 @@ function riskHtml(S) {
   const now = k ? pc(stepVal(TUNE.SCAN_RISK_ALERT, k)) + ' of the field awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k)) + ' chance the ship is painted' : '') : 'nobody stirs';
   const next = k + 1 > S.peak && stepVal(TUNE.SCAN_RISK_EXTRA, k + 1) ? pc(stepVal(TUNE.SCAN_RISK_EXTRA, k + 1)) + ' chance a unit is called in; ' : '';
   return '<b class="' + (k ? 'badt' : 'okt') + '">RISK ' + S.risk.toFixed(1) + ' · STEP ' + k + '</b> <span class="bar"><span style="width:' + fill + '%;background:' + (k ? '#ff8a80' : '#70c080') + '"></span></span>' +
-    '<span style="opacity:.9">Drop now: ' + now + '. Step ' + (k + 1) + ' at ' + nx + ': ' + next + pc(stepVal(TUNE.SCAN_RISK_ALERT, k + 1)) + ' awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k + 1) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k + 1)) + ' painted' : '') + '. Radar is loud; with every sensor off the meter cools.</span>';
+    '<span style="opacity:.9">Drop now: ' + now + '. Step ' + (k + 1) + ' at ' + nx + ': ' + next + pc(stepVal(TUNE.SCAN_RISK_ALERT, k + 1)) + ' awake' + (stepVal(TUNE.SCAN_RISK_PAINT, k + 1) ? ', ' + pc(stepVal(TUNE.SCAN_RISK_PAINT, k + 1)) + ' painted' : '') + '. Radar is loud; with every sensor off the meter cools.</span>' + cityHtml(S);
+}
+// R23: what standing does here: a HATED target wakes more of its field; a LIKED faction's intel is already on the map
+function cityHtml(S) {
+  const o = runningOffer(); if (!o) return '';
+  const add = cityAlertAdd();
+  return (add ? '<span class="badt">' + esc(facName(o.tgt)) + ' HATES you: +' + Math.round(add * 100) + '% of its field awake at the drop, on top of the risk.</span>' : '') +
+    (S.gift ? '<span class="okt">' + esc(facName(S.gift)) + ' LIKES you: free intel, ' + (TUNE.STANDING_LIKED_INTEL === 'EM' ? 'the emitters counted' : 'radar band 1 on the whole map') + ' (no risk).</span>' : '');
 }
 // R20: what the ship knows, one line per sensor (plain words, the CARD's names)
 function liveLines() {

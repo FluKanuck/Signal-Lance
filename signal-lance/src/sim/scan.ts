@@ -8,6 +8,7 @@
 // drift, the blips become stale contacts and the notes carry into the hunt.
 import { TUNE } from '../tune.ts';
 import { shipAlertMult } from './company.ts';
+import { cityAlertAdd, intelFrom } from './city.ts';
 import { W, H, T, MAP, spawnX, spawnY, mapGen, loadMap, canReach } from './world.ts';
 import { G, freeTile, makeUnit, anyTile } from './state.ts';
 import { observe } from './sensors.ts';
@@ -15,7 +16,7 @@ import { zoneAtTile } from './zones.ts';
 import { matchVariants } from './ids.ts';
 import { rand } from './rng.ts';
 import { has } from './kit.ts';
-import { liveInit, liveLand, dropClear, zoneLayer, liveSummary, emitter, riskStep, stepVal, scanLog } from './livescan.ts';
+import { liveInit, liveGift, liveLand, dropClear, zoneLayer, liveSummary, emitter, riskStep, stepVal, scanLog } from './livescan.ts';
 export { emitter };
 
 export const LISTEN = ['SKIP', 'SHORT', 'MEDIUM', 'LONG'];
@@ -82,7 +83,7 @@ export function scanDone() { const S = G.scan; return !!S && (S.mode === 'active
 export function freshScan(seed: number, mtype: string) {
   if (G.scan && G.scan.seed === seed && G.scan.mtype === mtype) return;
   G.scan = { seed, mtype, lvl: -1, drop: 0, roster: [], blips: [] };
-  if (TUNE.SCAN_MODE === 'active') liveInit(G.scan, dropPts()); // R20: the live scan (livescan.ts)
+  if (TUNE.SCAN_MODE === 'active') { liveInit(G.scan, dropPts()); const f = intelFrom(); if (f) { liveGift(G.scan, TUNE.STANDING_LIKED_INTEL as any); G.scan.gift = f; } } // R20: the live scan (livescan.ts). R23: a LIKED faction's intel
 }
 // The ship listens at level lvl (once per job). Returns false if it already listened.
 export function listen(lvl: number) {
@@ -157,7 +158,7 @@ function landLive() {
       const u = addUnit(pv[Math.floor(rand() * pv.length)]); place(u, t.x, t.y); u.ambush = true; C.ambush.push(u.id);
     }
   }
-  const live = G.units.filter(u => !u.dead), n = Math.max(C.ambush.length, Math.round(stepVal(TUNE.SCAN_RISK_ALERT, k) * shipAlertMult() * live.length)); // R21 cp4: QUIET DROP RIG
+  const live = G.units.filter(u => !u.dead), add = (C as any).hated = cityAlertAdd(), n = Math.max(C.ambush.length, Math.round(Math.min(1, stepVal(TUNE.SCAN_RISK_ALERT, k) + add) * shipAlertMult() * live.length)); // R21 cp4: QUIET DROP RIG. R23: + a HATED faction's share
   const rest = n > C.ambush.length ? shuffle(live.filter(u => !u.ambush)) : []; // no roll when nobody else wakes
   const pick = live.filter(u => u.ambush).concat(S.radarRisk > 0 ? rest.filter(u => has(u, 'RADAR')).concat(rest.filter(u => !has(u, 'RADAR'))) : rest);
   for (const u of pick.slice(0, n)) alert(u);
@@ -182,7 +183,7 @@ function payCosts(lvl: number) {
       const u = addUnit(pv[Math.floor(rand() * pv.length)]); place(u, t.x, t.y); u.ambush = true; C.ambush.push(u.id);
     }
   }
-  const share = TUNE.SCAN_ALERT_SHARE[lvl] || 0, live = G.units.filter(u => !u.dead);
+  const share = Math.min(1, (TUNE.SCAN_ALERT_SHARE[lvl] || 0) + cityAlertAdd()), live = G.units.filter(u => !u.dead); // R23: + a HATED faction's share
   const n = Math.max(C.ambush.length, Math.round(share * live.length));
   const rest = live.filter(u => !u.ambush), pick = live.filter(u => u.ambush).concat(n > C.ambush.length ? shuffle(rest) : rest); // an ambush is always awake; no roll when nobody else wakes
   for (const u of pick.slice(0, n)) alert(u);
@@ -197,6 +198,8 @@ export function scanReport(): string[] {
   L.push('Drop at ' + Math.round(C.t * 4) / 4 + ' min' + (C.over ? ' (the window closed)' : '') + ', risk ' + C.risk.toFixed(1) + ' = step ' + C.step + ': ' +
     (C.alert.length ? C.alert.length + ' of ' + G.units.length + ' awake' : 'nobody awake') + (C.painted ? ', the ship was PAINTED (' + C.ambush.length + ' patrols waiting near the drop)' : ', not painted') +
     (joined ? '; the field grew by ' + joined + ' (' + C.extra.length + ' called in, ' + C.arrived.length + ' arrived)' : '') + '.');
+  if ((C as any).hated) L.push('The target faction HATES you: +' + Math.round((C as any).hated * 100) + '% of the field was awake at the drop.'); // R23
+  if (S.gift) L.push(TUNE.CITY_FACTIONS[S.gift].name + ' (LIKED) shared intel: the scan opened with ' + (TUNE.STANDING_LIKED_INTEL === 'EM' ? 'the emitters counted' : 'radar band 1 on the whole map') + '.'); // R23
   if (C.hull) L.push(C.hull === 'hit' ? 'Painted, the ship took a hull hit: ' + TUNE.SHIP_HIT_COST + ' cr to repair when the contract ends.' : C.hull === 'soaked' ? 'Painted, the ship was hit: the HULL ARMOUR soaked it.' : 'Painted, but the ship wasn’t hit.'); // R21 cp4
   return L;
 }

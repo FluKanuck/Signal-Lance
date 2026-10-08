@@ -1122,6 +1122,31 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
      that hunt is marked recovered on its carry; its REBUILD costs RECOVER_MULT of the parts and credits (rounded up; with a
      REPAIR BAY, of the bay's halved parts). The mark goes when it is rebuilt. A suit destroyed in a hunt that wasn't won
      needs the full rebuild. The fold check counts the cheapest rebuild among the company's wrecks.
+- Round 23 (who you'll anger: the city):
+   - The map: districts on a jittered 4 × 2 grid; links = a nearest-first spanning tree (no node past 3), then any node with
+     one link gets its nearest free neighbour. Factions hold contiguous bands west → east, split as evenly as N allows
+     (2-3 each). Its own RNG from the company seed; the offers roll on the company's RNG.
+   - Placeholder factions with a base danger each: Corporate HIGH, Foundry MEDIUM, Syndicate LOW (TUNE.CITY_FACTIONS).
+   - Offers are never in the ship's own district, so a job costs 1-4 fuel (the old FUEL_PER_JUMP range) at 1 fuel a link.
+     A job sits in the target's district (you hit them on their ground); taking it moves the ship there.
+   - Offer kind: broker on CITY_BROKER_CHANCE, else a faction job with a random employer among the other two factions.
+   - Standing moves only when a contract COMPLETEs (the brief's "completing it"); a failed or quit job moves nothing but the
+     drift. Drift comes first at every contract's end, then the job's deltas (so a fresh change shows in full).
+   - "Danger = base + notoriety": notoriety = HATED (one STANDING_HATED_DANGER step, capped at HIGH). Never all one danger:
+     the last offer moves to a district whose holder gives another danger (always possible with bases 0 / 1 / 2).
+   - Hated alert: STANDING_HATED_ALERT is added to the drop step's alert share (capped at 1, then × QUIET DROP RIG), so it
+     bites even on an unscanned drop. It applies to jobs against the hated faction (it holds the field).
+   - Liked intel (simplest option): STANDING_LIKED_INTEL 'RADAR' = the live scan opens with radar at band 1 on every unit,
+     zone and drop apron, at no risk (pings, zone outlines, the north / south drop zones, a 3-tile ship fix at the drop).
+     It comes from the employer if it likes you, else from any LIKED faction that isn't the target. The pay bonus is the
+     employer's own faction jobs only (broker jobs get none).
+   - Fuel prices: the market's fuel line is priced by the holder of the ship's district when the market rolls (contract end,
+     after the standing moves).
+   - CO_VERSION 3 → 4: an R22 save has no city and offers NEW COMPANY (no migrations, as R21).
+   - WHAT IT COST: the standing lines come after the books lines (not counted in AAR_COST_MAX); "you hit them" points back to
+     an objective or kill moment, else the end.
+   - Hated / Liked test bed: test company seed 2301, the job against the Foundry in a Foundry district nearest to the ship.
+     TAKE IT starts the job on the test company (never saved) and opens hunt 1's scan; DONE asks the question.
 ```
 
 ## TWEAK LOG
@@ -1694,6 +1719,14 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
            richer refits change who the field hears first). BUILD r22-s5 | -
    round22 wrap (r22-s5) | read-and-connect: "Yes, it changed my plan". Biggest missing: "City map and factions (placeholder) and a better
            runner bot." Round 22 moved to the splash HISTORY. BUILD r22-s5 | -
+   round23 cp A (r23-s1) | brief: the city (headless testing) | NEW CITY_ENABLED, CITY_DISTRICTS [6, 8], CITY_FACTIONS (Corporate
+           HIGH / Foundry MEDIUM / Syndicate LOW), CITY_FUEL_PER_LINK 1, CITY_BROKER_CHANCE 0.34, CITY_FACTION_PAY 1.2,
+           CITY_BROKER_PAY 0.8, STANDING −100..100, HATED −40, LIKED +40, EMPLOYER_GAIN 20, TARGET_LOSS 25, BROKER_LOSS 10,
+           DRIFT 5, HATED_ALERT 0.25, HATED_FUEL_MULT 1.5, HATED_DANGER 1, LIKED_PAY 1.25, LIKED_INTEL 'RADAR', LIKED_FUEL_MULT
+           0.75. FUEL_PER_JUMP unused with the city on. Sanity batch --company 10 --companies 20 (highest fee bot): folded 14 |
+           played 102 (complete 42) | KIA 132 | avg end credits 325 (r22-s5: 10 | 123 (58) | 170 | 478). Played LOW 8 / MEDIUM
+           30 / HIGH 64: Corporate's HIGH jobs ×1.2 top the fee list, so the fee bot takes more HIGH. Folds: suits 9, fuel 4,
+           ops 1; 3 stranded with no lance. --contracts 20 --check OK. BUILD r23-s1 | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

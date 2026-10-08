@@ -6,7 +6,9 @@ import { aarLog, hideAar } from './aar.ts';
 import { showScan } from './scan.ts';
 import { LISTEN, scanReport } from '../sim/scan.ts';
 import { V } from './state.ts';
-import { crewLines } from '../sim/company.ts';
+import { crewLines, cityTestCompany, takeOffer } from '../sim/company.ts';
+import { previewJob } from '../sim/contract.ts';
+import { offerTitle } from '../sim/city.ts';
 import { startThinBooks, leaveThinBooks } from './company.ts';
 import { TUNE } from '../tune.ts';
 import { $, fmtTime } from './hud.ts';
@@ -23,7 +25,7 @@ export function showTestBed() {
 }
 function play(s) {
   $('tb').hidden = $('tbres').hidden = true;
-  if (s.books) { G.tb = s; startThinBooks(i => booksPicked(s, i), () => { G.tb = null; showTestBed(); }); return; } // R21 cp3
+  if (s.books) { G.tb = s; startThinBooks(i => booksPicked(s, i), () => { G.tb = null; showTestBed(); }, s.city ? () => cityTestCompany(s.city) : undefined); return; } // R21 cp3. R23: Hated / Liked
   if (s.job) { startScenario(s, false); showScan('TEST BED · ' + s.name + (s.job.listen >= 0 ? ' · listen forced: ' + LISTEN[s.job.listen] : ' · scan it yourself'), () => { launchJobScenario(); camera(); }, 'DROP', s.job.listen); return; } // R19 (R20: listen -1 = the live scan)
   startScenario(s);
   camera();
@@ -40,10 +42,18 @@ function camera() {
 // R21 cp3: Thin books: the offer taken, then the question (nothing is played or saved)
 let booksPick = '';
 function booksPicked(s, i: number) {
-  const o = G.co.offers[i]; booksPick = TUNE.DANGER_NAMES[o.tier] + ' ' + o.hunts + ' hunts ' + o.fee + ' cr ' + o.fuel + ' fuel'; answer = '';
+  const o = G.co.offers[i]; booksPick = (o.kind ? 'job ' + (i + 1) + ' ' + offerTitle(o) + ' ' : '') + TUNE.DANGER_NAMES[o.tier] + ' ' + o.hunts + ' hunts ' + o.fee + ' cr ' + o.fuel + ' fuel'; answer = '';
   $('co').hidden = true;
+  if (s.city) { // R23: the job's first scan (nothing is played), then the question
+    G.co.fuel = Math.max(G.co.fuel, o.fuel); takeOffer(i); G.scan = null; previewJob(0);
+    showScan('TEST BED · ' + s.name + ' · the first hunt’s scan (nothing is played) · DONE asks the question', () => { $('scan').hidden = true; booksAsk(s); }, 'DONE');
+    return;
+  }
+  booksAsk(s);
+}
+function booksAsk(s) {
   $('tbTitle').textContent = 'TEST BED · ' + s.name + ' · took ' + booksPick;
-  $('tbTxt').innerHTML = 'The company had ' + G.co.credits + ' cr (in debt), ' + G.co.fuel + ' fuel. This is where the contract would start.';
+  $('tbTxt').innerHTML = s.city ? 'This is where the hunt would start. The city screen and the scan showed what your standing does.' : 'The company had ' + G.co.credits + ' cr (in debt), ' + G.co.fuel + ' fuel. This is where the contract would start.';
   const Q = s.question;
   $('tbQ').innerHTML = '<div class="qrow"><span>' + esc(Q.q) + '</span>' + Q.a.map(a => '<button class="qa" data-a="' + esc(a) + '">' + esc(a) + '</button>').join('') + '</div>';
   $('tbres').hidden = false; $('tbres').scrollTop = 0;

@@ -575,6 +575,32 @@ export const TUNE = {
     HULL_ARMOUR:  { name: 'HULL ARMOUR', section: 'Between missions', price: 150, does: 'Soaks one hull hit per contract when the ship is painted' },
     BERTHS:       { name: 'OPERATOR BERTHS', section: 'Crew', price: 130, does: 'Room for 2 more operators' },
   },
+  // --- Round 23: the city (sim/city.ts). A seeded node map of faction districts; contracts live in districts; standing per faction ---
+  CITY_ENABLED: true,          // R23: the city map, factions and standing. false = the R22 offers (FUEL_PER_JUMP range, no factions)
+  CITY_DISTRICTS: [6, 8],      // R23: districts per city (inclusive); each links to 2-3 neighbours
+  CITY_FACTIONS: {             // R23: placeholder factions. danger = the base danger step (0 LOW .. 2 HIGH) of jobs against them
+    CORP:    { name: 'Corporate', short: 'CORP', danger: 2, colour: '#6fc3ff' },
+    FOUNDRY: { name: 'Foundry', short: 'FNDY', danger: 1, colour: '#ffb347' },
+    SYND:    { name: 'Syndicate', short: 'SYND', danger: 0, colour: '#d08cff' },
+  },
+  CITY_FUEL_PER_LINK: 1,       // R23: fuel per link jumped on the way to a contract (offers are never in the ship's own district: 1+ links)
+  CITY_BROKER_CHANCE: 0.34,    // R23: chance an offer is a broker job (deniable) instead of a faction job
+  CITY_FACTION_PAY: 1.2,       // R23: a faction job's fee × this (someone wants their rival hit, and pays for it)
+  CITY_BROKER_PAY: 0.8,        // R23: a broker job's fee × this (deniable: nobody gains, the target hurts less)
+  STANDING_MIN: -100,          // R23: standing floor, per faction
+  STANDING_MAX: 100,           // R23: standing ceiling
+  STANDING_HATED: -40,         // R23: at or below this: HATED
+  STANDING_LIKED: 40,          // R23: at or above this: LIKED (between: NEUTRAL)
+  STANDING_EMPLOYER_GAIN: 20,  // R23: a completed faction job: the employer's standing + this
+  STANDING_TARGET_LOSS: 25,    // R23: a completed faction job: the target's standing − this
+  STANDING_BROKER_LOSS: 10,    // R23: a completed broker job: the target's standing − this (nobody gains)
+  STANDING_DRIFT: 5,           // R23: every contract's end, each faction's standing moves this much back toward 0 (a grudge fades)
+  STANDING_HATED_ALERT: 0.25,  // R23: a job against a faction that hates you: + this share of its field awake at the drop (on top of the scan's)
+  STANDING_HATED_FUEL_MULT: 1.5, // R23: fuel bought in a HATED faction's district costs FUEL_PRICE × this
+  STANDING_HATED_DANGER: 1,    // R23: a HATED faction's jobs are this many danger steps higher (capped at HIGH)
+  STANDING_LIKED_PAY: 1.25,    // R23 (#47): a LIKED faction's own jobs pay their fee × this
+  STANDING_LIKED_INTEL: 'RADAR', // R23: a job against a LIKED faction's enemy: the scan opens with this layer at band 1 everywhere ('RADAR' pings, zone outlines and drop zones; 'EM' the emitter count; '' none)
+  STANDING_LIKED_FUEL_MULT: 0.75, // R23: fuel bought in a LIKED faction's district costs FUEL_PRICE × this
   // --- Round 22: the after-action page (sim/aar.ts). The hunt records three kinds of events; the page shows the turning points ---
   AAR_MAX_MOMENTS: 6,          // R22: the most turning points WHAT HAPPENED lists (in turn order)
   AAR_WEIGHT_SEEN: 2,          // R22: a first detection (enemy on a suit or the lance on an enemy) as a turning point

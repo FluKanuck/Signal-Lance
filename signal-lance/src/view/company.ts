@@ -11,6 +11,7 @@ import { partsRead } from '../sim/combat.ts';
 import { frameOf } from '../sim/fit.ts';
 import { fitRounds, fitShells } from '../sim/kit.ts';
 import { ITEMS, byId } from '../sim/items.ts';
+import { cityOn, FACS, facName, band, hops, pathTo, fuelPriceAt, deltasOf, hated, liked, intelFrom, offerTitle } from '../sim/city.ts';
 import { $ } from './hud.ts';
 import { useSuits, ownFits, renderHangar } from './hangar.ts';
 
@@ -83,12 +84,64 @@ function contracts() {
   const books = '<div class="opc help"><b>THE BOOKS</b><span>When a contract ends you pay wages ' + wages() + ' cr (' + esc(C.ops.map(o => o.name.split(' ')[0] + ' ' + wageOf(o)).join(', ')) + '), ship upkeep ' + TUNE.UPKEEP_SHIP + (C.hullOwed ? ', hull repairs ' + C.hullOwed : '') + ': <b>' + runningCosts() + ' cr</b>.' +
     (C.debt ? ' <span class="badt">IN DEBT: be above 0 after the next contract, or the company folds.</span>' : ' Below 0 you take debt once (down to −' + TUNE.DEBT_LIMIT + '); still in debt a contract later, or deeper, and the company folds.') + '</span>' +
     (L ? '<span>Last contract (' + L.n + ', ' + L.status + '): fee ' + L.fee + ', wages −' + L.wages + ', upkeep −' + L.upkeep + (L.hull ? ', hull −' + L.hull : '') + ' → ' + L.after + ' cr.</span>' : '') + '</div>';
-  if (active()) return '<div class="opc">A contract is running: RESUME it below.</div>' + books;
+  if (active()) return (cityOn() ? cityScreen(true) : '') + '<div class="opc">A contract is running: RESUME it below.</div>' + books;
+  if (cityOn() && C.offers.every((o: any) => o.kind)) return cityScreen(false) + books; // R23: the city screen replaces the offers list
   const why = { FUEL: 'not enough fuel', BUSY: 'a contract is running' };
   return C.offers.map((o, i) => { const b = offerBlock(i), need = Math.min(o.hunts, Math.ceil(o.hunts * TUNE.CONTRACT_WIN_SHARE));
     return '<div class="opc"><b>' + TUNE.DANGER_NAMES[o.tier] + ' DANGER · ' + o.hunts + ' hunts</b><span>Pays <b style="color:#fc3">' + o.fee + ' cr</b> on completion (win ' + need + ' of ' + o.hunts + '), plus each hunt’s pay.</span>' +
       '<span>Field ×' + TUNE.DANGER_FIELD[o.tier] + ' · <span class="' + (b === 'FUEL' ? 'badt' : '') + '">' + fuelCost(o) + ' fuel to get there</span> (you have ' + C.fuel + ')</span>' +
       '<div class="zrow"><button class="cotake' + (b ? ' lockd' : '') + '" data-i="' + i + '">' + (b ? why[b] || 'can’t' : 'TAKE IT') + '</button></div></div>'; }).join('') + books;
+}
+// ---- R23: THE CITY: standing bars along the top, the map on the left, the tapped district's offers on the right ----
+let selD = -1;
+const BANDC = { HATED: '#ff8a80', NEUTRAL: '#b0b0b0', LIKED: '#7ee08a' };
+const pm = (n: number) => (n > 0 ? '+' : '') + n;
+function standingBars() {
+  const S = G.co.city.standing, span = TUNE.STANDING_MAX - TUNE.STANDING_MIN, pos = (v: number) => (100 * (v - TUNE.STANDING_MIN) / span).toFixed(1) + '%';
+  return '<div class="cybars">' + FACS().map(f => { const v = S[f], b = band(v), z = pos(0);
+    return '<div class="cybar"><span><b style="color:' + TUNE.CITY_FACTIONS[f].colour + '">' + esc(facName(f)) + '</b> ' + pm(v) + ' <b style="color:' + BANDC[b] + '">' + b + '</b></span>' +
+      '<div class="cytrack"><i style="left:' + pos(TUNE.STANDING_HATED) + '"></i><i style="left:' + pos(TUNE.STANDING_LIKED) + '"></i><u style="left:' + (v < 0 ? pos(v) : z) + ';width:' + (Math.abs(v) * 100 / span).toFixed(1) + '%;background:' + BANDC[b] + '"></u><i class="z" style="left:' + z + '"></i></div></div>'; }).join('') + '</div>';
+}
+function cityMap(busy: boolean) {
+  const C = G.co.city, D = C.districts, X = (d) => 20 + d.x * 360, Y = (d) => 22 + d.y * 156;
+  const offerAt = (id: number) => G.co.offers.map((o, i) => o.d === id ? i + 1 : 0).filter(Boolean);
+  const path = !busy && selD >= 0 ? pathTo(C, C.at, selD) : [];
+  const onPath = (a: number, b: number) => path.some((p, i) => i > 0 && ((path[i - 1] === a && p === b) || (path[i - 1] === b && p === a)));
+  let svg = '<svg class="cymap" viewBox="0 0 400 200" preserveAspectRatio="xMidYMid meet">';
+  for (const a of D) for (const n of a.links) if (n > a.id) { const b = D[n], on = onPath(a.id, b.id);
+    svg += '<line x1="' + X(a) + '" y1="' + Y(a) + '" x2="' + X(b) + '" y2="' + Y(b) + '" stroke="' + (on ? '#fc3' : '#556') + '" stroke-width="' + (on ? 3 : 1.5) + '"' + (on ? ' stroke-dasharray="6 4"' : '') + '/>'; }
+  for (const d of D) {
+    const F = TUNE.CITY_FACTIONS[d.fac], b = band(C.standing[d.fac]), offs = offerAt(d.id), sel = d.id === selD;
+    svg += '<g class="cyd" data-d="' + d.id + '"><circle cx="' + X(d) + '" cy="' + Y(d) + '" r="24" fill="transparent"/>' +
+      '<circle cx="' + X(d) + '" cy="' + Y(d) + '" r="13" fill="' + F.colour + '" fill-opacity="' + (b === 'HATED' ? 0.25 : 0.55) + '" stroke="' + (sel ? '#fff' : b === 'HATED' ? '#ff8a80' : b === 'LIKED' ? '#7ee08a' : F.colour) + '" stroke-width="' + (sel ? 3 : 1.5) + '"' + (b === 'HATED' ? ' stroke-dasharray="3 2"' : '') + '/>' +
+      (offs.length ? '<text x="' + X(d) + '" y="' + (Y(d) + 4.5) + '" text-anchor="middle" font-size="13" font-weight="bold" fill="#fff">' + offs.join(',') + '</text>' : '') +
+      '<text x="' + X(d) + '" y="' + (Y(d) + 26) + '" text-anchor="middle" font-size="10" fill="#ccd">' + esc(d.name) + '</text>' +
+      (d.id === C.at ? '<text x="' + X(d) + '" y="' + (Y(d) - 16) + '" text-anchor="middle" font-size="10" font-weight="bold" fill="#fc3">▼ SHIP</text>' : '') + '</g>';
+  }
+  return svg + '</svg>';
+}
+function cityScreen(busy: boolean) {
+  const C = G.co, Y = C.city, O = C.offers;
+  if (!busy && (selD < 0 || selD >= Y.districts.length)) selD = O.length ? O[0].d : Y.at;
+  const d = Y.districts[busy ? Y.at : selD], here = busy ? [] : O.map((o, i) => ({ o, i })).filter(x => x.o.d === d.id);
+  const why = { FUEL: 'not enough fuel', BUSY: 'a contract is running', LANCE: 'no lance' };
+  const fb = band(Y.standing[d.fac]), fuelHere = fuelPriceAt(d.id), hp = hops(Y, Y.at, d.id);
+  let side = '<b>' + esc(d.name) + '</b><span>Held by <b style="color:' + TUNE.CITY_FACTIONS[d.fac].colour + '">' + esc(facName(d.fac)) + '</b> (' + fb + ') · fuel here ' + fuelHere + ' cr' + (fuelHere !== TUNE.FUEL_PRICE ? ' (normally ' + TUNE.FUEL_PRICE + ')' : '') + '</span>' +
+    (d.id === Y.at ? '<span class="okt">The ship is here.</span>' : '<span>' + hp + ' link' + (hp === 1 ? '' : 's') + ' from the ship.</span>');
+  if (!busy && !here.length) side += '<span style="opacity:.7">No job here. Tap a numbered district.</span>';
+  for (const { o, i } of here) {
+    const b = offerBlock(i), need = Math.min(o.hunts, Math.ceil(o.hunts * TUNE.CONTRACT_WIN_SHARE)), dl = deltasOf(o), gift = intelFrom(o);
+    side += '<div class="cyoff"><b>' + (i + 1) + ' · ' + (o.kind === 'FACTION' ? 'FACTION JOB' : 'BROKER JOB') + ': ' + esc(offerTitle(o)) + '</b>' +
+      '<span>' + TUNE.DANGER_NAMES[o.tier] + ' danger · ' + o.hunts + ' hunts (win ' + need + ') · pays <b style="color:#fc3">' + o.fee + ' cr</b> on completion' + (o.kind === 'FACTION' && liked(o.emp) ? ' (×' + TUNE.STANDING_LIKED_PAY + ': ' + esc(facName(o.emp)) + ' LIKES you)' : '') + '</span>' +
+      '<span><span class="' + (b === 'FUEL' ? 'badt' : '') + '">' + fuelCost(o) + ' fuel to get there</span> (you have ' + C.fuel + ')</span>' +
+      '<span>Complete it: ' + dl.map(([f, v]) => esc(facName(f)) + ' ' + pm(v)).join(', ') + (o.kind === 'BROKER' ? ' (deniable: nobody gains)' : '') + '</span>' +
+      (hated(o.tgt) ? '<span class="badt">' + esc(facName(o.tgt)) + ' HATES you: +' + Math.round(TUNE.STANDING_HATED_ALERT * 100) + '% of its field awake at the drop, danger a step up.</span>' : '') +
+      (gift ? '<span class="okt">' + esc(facName(gift)) + ' LIKES you: free intel, the scan opens with ' + (TUNE.STANDING_LIKED_INTEL === 'EM' ? 'the emitters counted' : 'radar band 1 on the whole map') + '.</span>' : '') +
+      '<div class="zrow"><button class="cotake' + (b ? ' lockd' : '') + '" data-i="' + i + '">' + (b ? why[b] || 'can’t' : 'TAKE IT') + '</button></div></div>';
+  }
+  if (busy && G.ct.offer && G.ct.offer.kind) side += '<span>On a ' + esc(offerTitle(G.ct.offer)) + ' job here.</span>';
+  return '<div class="city">' + standingBars() + '<div class="cyrow">' + cityMap(busy) + '<div class="cyside">' + side + '</div></div>' +
+    '<small style="opacity:.75">Faction jobs pay ×' + TUNE.CITY_FACTION_PAY + ' and move two standings; broker jobs pay ×' + TUNE.CITY_BROKER_PAY + ', only the target notices. HATED at ' + TUNE.STANDING_HATED + ', LIKED at +' + TUNE.STANDING_LIKED + '; after every contract it all fades ' + TUNE.STANDING_DRIFT + ' toward 0.</small></div>';
 }
 // ---- ROSTER ----
 function seatOf(id: string) { return Object.keys(G.co.crew).find(k => G.co.crew[k] === id) || ''; }
@@ -151,6 +204,7 @@ $('coTabs').addEventListener('click', ev => { const b = (ev.target as any).close
 $('coBody').addEventListener('click', ev => {
   const t = ev.target as any, k = (sel: string) => t.closest(sel);
   if (k('.lockd')) return;
+  if (k('.cyd')) { selD = +k('.cyd').dataset.d; renderCompany(); return; } // R23: tap a district
   let did = false;
   if (k('.coseat')) did = seat(k('.coseat').dataset.o, k('.coseat').dataset.s);
   else if (k('.cohire')) did = hire(+k('.cohire').dataset.i);
@@ -167,17 +221,17 @@ $('bCoGo').addEventListener('click', () => { if (G.co && active()) { $('co').hid
 $('bCoTools').addEventListener('click', () => { if (inThinBooks()) { leaveThinBooks(); return; } $('co').hidden = true; bindHangar(); onTools(); });
 $('bCoNew').addEventListener('click', () => { if (!wipeArm) { wipeArm = true; renderCompany(); return; } wipeArm = false; tab = 'CONTRACTS'; startNew(); renderCompany(); });
 // "[COMPANY] code 3F2A · contract 2 · ..." plus this hunt's news, for the log; the news is cleared once shown
-export function companyLogLines(): string[] { if (!G.co) return []; const L = G.co.news.map(n => '[COMPANY] ' + n); L.push('[COMPANY] ' + companyLine()); return L; }
+export function companyLogLines(): string[] { if (!G.co) return []; const L = G.co.news.map(n => n.startsWith('[CITY] ') ? n : '[COMPANY] ' + n); L.push('[COMPANY] ' + companyLine()); return L; } // R23: [CITY] lines keep their tag
 export { coCode };
 
 // ============================ TEST BED: Thin books (cp3) ==============
 // The real company (and any running contract) is set aside, a test company one contract from folding takes its place on the
 // CONTRACTS tab; TAKE IT asks the scenario's question instead of starting the contract. Nothing is saved.
 let stash: any = null, onPicked: (i: number) => void = () => {}, onLeave: () => void = () => {};
-export function startThinBooks(picked: (i: number) => void, leave: () => void) {
+export function startThinBooks(picked: (i: number) => void, leave: () => void, make: () => any = thinBooksCompany) { // R23: make = the Hated / Liked test company
   if (!stash) stash = { co: G.co, ct: G.ct };
   onPicked = picked; onLeave = leave;
-  G.ct = null; thinBooksCompany(); bindHangar();
+  G.ct = null; make(); bindHangar();
   showCompany('CONTRACTS');
 }
 export function inThinBooks() { return !!(G.co && G.co.testbed); }

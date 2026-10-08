@@ -51,6 +51,19 @@ export function liveInit(S, drops: { x: number; y: number }[]) {
     alt: 'MID', risk: 0, radarRisk: 0, peak: 0, log: [] as any[], cur: null, adds: [] as any[], deadline: jobDeadline(S.seed, S.mtype), over: false });
   for (const u of G.units) track(S, u);
 }
+// R23: a LIKED faction's intel: sensor s at band 1 on everything it can sense (units, and for RADAR the zones and drop aprons),
+// as if the ship had already looked, at no risk. A unit gets the fix that band gives (EM band 1: counted, no fix).
+export function liveGift(S, s: Sensor) {
+  const b1 = TUNE.SCAN_BANDS[s][0];
+  for (const u of G.units) {
+    const R = S.u[u.id]; if (!R || !senses(s, u) || u.dead) continue;
+    R.d[s] = Math.max(R.d[s], b1);
+    const unc = fixUnc(S, u, s) * altOf(S).UNC, p = posOf(S, u);
+    if (unc > 0 && (!R.fix || unc < R.fix.unc)) R.fix = { x: p.x, y: p.y, t: 0, unc, by: s };
+  }
+  if (s !== 'EM') S.z.forEach(z => { z[s] = Math.max(z[s], b1); });
+  if (s === 'RADAR') S.dr = S.dr.map((v: number) => Math.max(v, b1));
+}
 function track(S, u) {
   const t = tileOf(u), a = rnd(S) * 6.2832, f = 0.7 * Math.sqrt(rnd(S)); // the fix's fixed offset (direction, share of its fuzz): no flicker
   S.u[u.id] = { d: { RADAR: 0, THERMAL: 0, EM: 0 }, fix: null, off: { x: Math.cos(a) * f, y: Math.sin(a) * f }, pick: rnd(S),

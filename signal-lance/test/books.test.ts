@@ -8,6 +8,7 @@ import { newCompany, suitById, takeOffer, wages, wageOf, offerBlock, fuelCost, b
   shipScan, shipAlertMult, freeItem, stuck, checkFold, endContract, thinBooksCompany, partsPerRepair, rebuildParts, benchFor, hasMod, suitCost, suitRefit, afterHunt, onSuitDown } from '../src/sim/company.ts';
 import { takeJob, previewJob } from '../src/sim/contract.ts';
 import { leaveScenario } from '../src/sim/scenarios.ts';
+import { feeOf } from '../src/sim/city.ts';
 
 afterEach(() => { G.co = null; G.ct = null; G.crew = null; leaveScenario(); });
 
@@ -16,14 +17,14 @@ describe('the books (R21 cp3)', () => {
     newCompany(31);
     expect(G.co.credits).toBe(TUNE.START_CREDITS); expect(G.co.fuel).toBe(TUNE.START_FUEL); expect(G.co.parts).toBe(TUNE.START_PARTS);
     expect(G.co.offers.length).toBe(TUNE.CONTRACTS_OFFERED); expect(G.co.market.length).toBeGreaterThanOrEqual(4);
-    for (const o of G.co.offers) { expect(o.hunts).toBeGreaterThanOrEqual(TUNE.CONTRACT_HUNTS_RANGE[0]); expect(o.hunts).toBeLessThanOrEqual(TUNE.CONTRACT_HUNTS_RANGE[1]); expect(o.fee).toBe(TUNE.CONTRACT_FEE[o.tier] * o.hunts); }
+    for (const o of G.co.offers) { expect(o.hunts).toBeGreaterThanOrEqual(TUNE.CONTRACT_HUNTS_RANGE[0]); expect(o.hunts).toBeLessThanOrEqual(TUNE.CONTRACT_HUNTS_RANGE[1]); expect(o.fee).toBe(feeOf(o)); } // R23: the city's kind multipliers
     expect(freeItem('autocannon')).toBe(0); expect(G.co.stores.autocannon).toBeGreaterThanOrEqual(3);
   });
   it('fix list 1: the offers are never all one danger', () => {
     for (let seed = 1; seed <= 300; seed++) {
       newCompany(seed); const t = G.co.offers.map((o: any) => o.tier);
       expect(new Set(t).size).toBeGreaterThan(1);
-      for (const o of G.co.offers) expect(o.fee).toBe(TUNE.CONTRACT_FEE[o.tier] * o.hunts);
+      for (const o of G.co.offers) expect(o.fee).toBe(feeOf(o));
     }
   });
   it('can’t take a contract without the fuel; taking one burns it and sets length, wins needed and danger', () => {

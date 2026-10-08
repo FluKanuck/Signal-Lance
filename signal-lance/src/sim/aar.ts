@@ -274,6 +274,9 @@ export function costLines(shown: { turn: number; sub: string; a?: string; b?: st
   const L = co && co.ledger;
   if (L && ct && ct.status !== 'ACTIVE' && L.n === co.n) out.push({ text: 'Contract ' + L.status + ': ' + (L.fee ? 'fee +' + L.fee + ', ' : '') + 'wages −' + L.wages + ', upkeep −' + L.upkeep + (L.hull ? ', hull −' + L.hull : '') + ' → ' + L.after + ' cr' + (co.folded ? ' · FOLDED' : co.debt ? ' · IN DEBT' : ''), ref: null });
   else if (co) out.push({ text: 'Company: ' + co.credits + ' cr, ' + co.parts + ' parts, ' + co.fuel + ' fuel', ref: null });
-  return out.slice(0, TUNE.AAR_COST_MAX);
+  // R23: the contract's standing changes (who you angered), after the books: "Foundry −25 → −25 (NEUTRAL): you hit them ← T6"
+  const city = co && co.city && L && ct && ct.status !== 'ACTIVE' && L.n === co.n ? (co.city.last || []) : [];
+  const hitRef = ref(x => x.sub === 'UPLINK' || x.sub === 'PICKUP' || x.sub === 'QUOTA' || x.sub === 'KILL') ?? ref(x => x.sub === 'END');
+  return out.slice(0, TUNE.AAR_COST_MAX).concat(city.map((t: string) => ({ text: t, ref: /you hit them/.test(t) ? hitRef : null })));
 }
 function benchOf(m) { const o = G.co && G.co.ops.find(x => x.id === m.op.id); return o ? o.bench : TUNE.OP_BENCH; }
