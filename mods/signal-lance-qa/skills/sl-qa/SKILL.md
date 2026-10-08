@@ -21,14 +21,15 @@ Everything runs from the repo root. `T=mods/signal-lance-qa/tool`.
 
 ## 2. Launch in waves
 
-Keep **3–4 testers running** at a time. For each planned session, in plan order (a hand 2 only after its hand 1 has ended):
+Keep **4–5 testers running** at a time. `node $T/next.mjs --batch <B>` lists what can start now; a hand 2 waits for its hand 1.
 
-1. `node $T/launch.mjs --batch <B> --session <id> --persona <p> --model <m> --device <d> --seed <n> --length <short|long> --knowledge <k> [--hand <k> --prev <previous hand id>]`
-   - It starts the browser session and prints **the brief**.
+1. `node $T/launch.mjs --batch <B> --plan <session id> --quiet 1`
+   - It starts the browser session, writes `qa-runs/<B>/<id>/brief.md` and prints the model.
    - Exit 1 with `PAUSED` → wait for the running testers, then try again. With `STOPPED` → launch nothing more; go to step 4.
-2. Spawn a background agent with **the brief, verbatim, as its whole prompt**:
-   - `model`: the session's model (`haiku` / `sonnet`)
-   - `subagent_type`: `qa-tester` when the plugin is installed, else `general-purpose`
+2. Spawn a background agent:
+   - prompt: "Work from the repo root. Your session brief is at qa-runs/<B>/<id>/brief.md: read it with the Read tool and follow it exactly. Your final message: your ≤150-word summary only."
+   - `model`: the plan's model (`haiku` / `sonnet`)
+   - `subagent_type`: `signal-lance-qa:qa-tester` (tools: Bash, Read). Never `general-purpose`: it can reach other tools (one queued a task card for the user).
    - `run_in_background`: true
 3. When an agent finishes, check its session ended: `node $T/qa.mjs <id> status` says `no running session` once it has. If it's still running (the agent stopped early), run `node $T/qa.mjs <id> end "(ended by the lead: tester stopped early)"`.
 
@@ -43,6 +44,7 @@ You may add **one extra persona per batch** for a gap you see: write `mods/signa
 
 ## 4. Analyse
 
+0. Write `qa-runs/<B>/analysis/known-artifacts.md`: tool or harness effects seen in this batch (things a tester could mistake for a game bug), and the build's recent fixes. The judge reads it.
 1. `node $T/collect.mjs --batch <B>` → `qa-runs/<B>/analysis/`
 2. Spawn **one Opus agent** (`model: opus`, foreground). Its prompt: "Read `mods/signal-lance-qa/prompts/judge.md` and do it for batch `<B>`." It writes `analysis/clusters.json`.
 3. `node $T/report.mjs --batch <B>` → `claude/signal-lance-qa-<B>.md` and `qa-runs/<B>/analysis/page.html`.
@@ -62,4 +64,6 @@ Commit the report (not `qa-runs/`).
 
 - Never paste a transcript, screenshot or findings file into your own context. `progress`, summaries and the analysis files are enough.
 - One batch at a time. A tester that misbehaves (reads source files, plays a different session) is ended and noted in the report.
-- Long relays: hand 2 starts from hand 1's `save-end.json` (launch does it), and reads hand 1's notebook.
+- Long relays: hand 2 starts from hand 1's `save-end.json` (launch does it), and reads hand 1's notebook. The game saves only between hunts, so a mid-hunt hand-off resumes a fresh copy of that hunt. Put that in known-artifacts.
+- **An interrupt from the user ends every running tester agent** (they can't be resumed). End their sessions and re-run them from scratch, discarding the partial data, so the batch stays comparable.
+- Watch summaries for tool artifacts (a tester says "no visible change" or "didn't move" when the game did act). Check one directly before believing it, fix the tool between batches, and record it in known-artifacts.

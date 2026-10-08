@@ -1,6 +1,6 @@
 # Signal Lance QA panel: plan
 
-**Status:** plan agreed 2026-10-08. **Step 1 (the `__qa` hook) is done:** `npm run smoke` in `mods/signal-lance-qa/` passes on iPhone, iPad and desktop. **Steps 2–4 done** (tool + watch pane, first tester, model comparison); step 4 settled decision 8. Branch `claude/charming-franklin-tmygre`.
+**Status:** plan agreed 2026-10-08. **Step 1 (the `__qa` hook) is done:** `npm run smoke` in `mods/signal-lance-qa/` passes on iPhone, iPad and desktop. **Steps 1–7 done** (2026-10-08). The first full batch, `r23-core-1008`, ran 28 sessions: 6 core personas × 3 devices, with short sessions and 2-hand relays, plus one lead-made persona. Report: [`signal-lance-qa-r23-core-1008.md`](signal-lance-qa-r23-core-1008.md); page: https://claude.ai/artifact/Pt739zDSj6A9GKxwEuTVyu. Step 4 ([`signal-lance-qa-models.md`](signal-lance-qa-models.md)) settled decision 8. Next: step 8. Branch `claude/charming-franklin-tmygre`.
 
 A Claude Code mod in which one lead agent runs a panel of tester agents. The testers play the built game in a real browser, each in a QA persona. They report what's missing, what's confusing, what UI/UX could be better and what's broken. The lead runs many short and long sessions, merges duplicate findings, and writes a report the design lead can read.
 
@@ -191,6 +191,14 @@ About 3 hands per long session to start.
 6. **The lead + `/sl-qa`.** Grid, waves, progress table, one extra persona, plugin wiring next to the existing `signal-lance` mod.
 7. **Analysis + report + web page.** The first full 18-session batch.
 8. **(Later)** a step in `signal-lance-build-round`; a standalone Agent SDK CLI for unattended runs.
+
+## Lessons from the first batches
+
+- **Tool artifacts look like game bugs.** Three showed up: reading the screen mid-move, missing panel-text changes, and touch drags sent to the wrong canvas. Each was fixed after its batch and recorded in `known-artifacts.md` for the judge. The judge then downgraded the affected clusters using the recorded game state.
+- **Agents play slowly in real time.** The scan clock runs in real time, so it drains faster for an agent than for a person.
+- **Testers quit early.** Even with budget for a whole hunt, most bailed after 2–8 turns. The prompt now says hunts are long. A future option is a `--quick` contract or a test-bed start for short sessions.
+- **Relays work,** but the game saves only between hunts, so hand 2 restarts any hunt that hand 1 left open.
+- **The checks caught nothing.** The rule checks found no violations in 42 sessions. That's a good sign for the rules, but a cheap place to add stronger checks (the HUD vs the state for EN, parts, objective distance).
 
 ## Open items
 
