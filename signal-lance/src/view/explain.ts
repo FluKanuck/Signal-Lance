@@ -61,13 +61,19 @@ window.addEventListener('pointerdown', e => {
   if (e.button === 2 || inCanvas(e.target)) return;
   clearTimeout(press.timer);
   press.id = e.pointerId; press.x = e.clientX; press.y = e.clientY; press.t = e.target as Element; press.fired = false;
-  if (!entryOf(press.t)) { press.id = -1; return; }
-  press.timer = setTimeout(() => { if (press.id !== -1 && explainEl(press.t)) press.fired = true; }, TUNE.LONGPRESS_MS);
+  const btn = press.t && (press.t as any).closest ? (press.t as Element).closest('button') : null;
+  if (!entryOf(press.t) && !btn) { press.id = -1; return; }
+  press.timer = setTimeout(() => { // a long-press never fires the control, even one with no card yet (R24 QA: ROUTE, TAKE JOB, module slots)
+    if (press.id === -1) return;
+    press.fired = true;
+    if (!explainEl(press.t) && btn) { const name = (btn.textContent || '').replace(/\s+/g, ' ').trim() || 'This control'; showExplainText(name, ['No explanation for this control yet. Tap it to use it.'], '(none) ' + name); }
+  }, TUNE.LONGPRESS_MS);
 }, true);
 window.addEventListener('pointermove', e => {
   if (e.pointerId === press.id && !press.fired && Math.hypot(e.clientX - press.x, e.clientY - press.y) > TUNE.DRAG_PX) { clearTimeout(press.timer); press.id = -1; }
 }, true);
 function up(e: PointerEvent) {
+  if (e.button === 2 && !inCanvas(e.target)) { e.stopPropagation(); e.preventDefault(); return; } // a right-click opens the card (contextmenu) and never fires the control
   if (press.id === -2) { press.id = -1; e.stopPropagation(); e.preventDefault(); return; } // the tap that closed the card
   if (e.pointerId !== press.id) return;
   clearTimeout(press.timer); press.id = -1;
@@ -77,4 +83,4 @@ window.addEventListener('pointerup', up, true);
 window.addEventListener('pointercancel', e => { if (e.pointerId === press.id) { clearTimeout(press.timer); press.id = -1; } }, true);
 window.addEventListener('click', e => { if (Date.now() < swallowUntil) { swallowUntil = 0; e.stopPropagation(); e.preventDefault(); } }, true);
 // desktop: right-click = long-press (the map's right-click is in input.ts)
-window.addEventListener('contextmenu', e => { e.preventDefault(); if (inCanvas(e.target)) return; hideExplain(); explainEl(e.target as Element); }, true);
+window.addEventListener('contextmenu', e => { e.preventDefault(); if (inCanvas(e.target)) return; hideExplain(); if (!explainEl(e.target as Element)) { const btn = (e.target as any).closest ? (e.target as Element).closest('button') : null; if (btn) { const name = (btn.textContent || '').replace(/\s+/g, ' ').trim() || 'This control'; showExplainText(name, ['No explanation for this control yet. Tap it to use it.'], '(none) ' + name); } } }, true);

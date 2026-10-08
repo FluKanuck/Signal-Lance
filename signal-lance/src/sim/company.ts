@@ -39,9 +39,9 @@ export function companyOn() { return !!G.co; }
 export function coCode(seed: number) { return (seed >>> 0).toString(36).toUpperCase(); }
 
 function makeOp(): Op {
-  const C = G.co, used = new Set([...C.ops, ...C.recruits].map(o => o.name));
+  const C = G.co, used = new Set([...C.ops, ...C.recruits].map(o => o.name.split(' ')[0])); // R24 QA: the screens name operators by first name, so first names are unique
   let name = '';
-  for (let i = 0; i < 50 && (!name || used.has(name)); i++) name = pick(FIRST) + ' ' + pick(LAST);
+  for (let i = 0; i < 50 && (!name || used.has(name.split(' ')[0])); i++) name = pick(FIRST) + ' ' + pick(LAST);
   return { id: 'O' + C.nextId++, name, skill: pick(TUNE.OP_SKILLS), xp: 0, lvl: 1, status: 'OK', bench: 0, hunts: 0, hurtIn: -1 };
 }
 // A new company: START_SUITS suits (fits[i] if given, else the default fit; undamaged), START_OPS operators, one seated in

@@ -28,7 +28,7 @@ function render() {
   b.innerHTML = forks.map(f => {
     const name = (N[f.node]?.name || f.node).replace('fork at ', '').toUpperCase(), wait = allyHolding() && G.ally.node === f.node;
     return '<span class="rf' + (wait ? ' wait' : '') + '"><b>' + (wait ? 'WAITING AT ' : 'ROUTE AT ') + name + ':</b> ' +
-      f.legs.map(l => '<button class="rleg' + (f.set === l.i ? ' on' : '') + '" data-l="' + l.i + '"' + (free ? '' : ' disabled') + '>' + (f.set === l.i ? '✓ ' : '') + (anchors().legs[l.i].name || 'GO') + '</button>').join('') + '</span>';
+      f.legs.map(l => '<button class="rleg' + (f.set === l.i ? ' on' : '') + '" data-g="ROUTE" data-l="' + l.i + '"' + (free ? '' : ' disabled') + '>' + (f.set === l.i ? '✓ ' : '') + (anchors().legs[l.i].name || 'GO') + '</button>').join('') + '</span>';
   }).join('');
   b.hidden = false;
 }

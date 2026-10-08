@@ -1854,6 +1854,10 @@ The permanent home of the TWEAK LOG and ASSUMPTIONS (moved verbatim from the top
    round24 cp C (r24-s3) | brief: the writing pass + fix list 4, 5, 7, 8, 9, 12, 13 | no tuning change (display only). Contract
            ledger gains start / earned / spent / ops / offered / news (books only, the runner's numbers unchanged). Runner CHECK OK.
            BUILD r24-s3 | -
+   QA r24-core-1008 (r24-s3, no BUILD bump) | testers: a long-press on a control with no glossary entry fired it (ROUTE bar,
+           TAKE JOB, module slots), a desktop right-click fired the control under the card, two operators shared a first name.
+           A long-press or right-click never fires a control now (a control with no entry shows a plain card). ROUTE bar buttons
+           read the ROUTE entry. First names are unique on a roster (+ recruits). No rule change. Runner CHECK OK | -
 ```
    round20 cp1 (r20-s1) | the live scan (brief) | NEW SCAN_MODE 'active', SCAN_TIME_RATE 1, SCAN_TIME_MAX 20, SCAN_TICK 0.25,
            SCAN_SPEED radar 3 / thermal 1.5 / EM 0.75, SCAN_BANDS [1, 3, 6] each, SCAN_AIM_CORE 4, SCAN_AIM_EDGE 10,

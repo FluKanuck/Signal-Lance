@@ -264,3 +264,16 @@ describe('the roster (R21 cp2)', () => {
     expect(G.co.credits).toBe(c0 + G.ct.earned - G.ct.spent + L.fee - L.wages - L.upkeep - L.hull);
   });
 });
+
+// R24 QA (two Ezra / Fen / Wren on one roster): the screens name operators by first name, so a roster and its recruits
+// never share a first name.
+describe('operator names', () => {
+  it('no two operators or recruits share a first name (200 companies)', () => {
+    for (let s = 1; s <= 200; s++) {
+      newCompany(s);
+      const firsts = [...G.co.ops, ...G.co.recruits].map(o => o.name.split(' ')[0]);
+      expect(new Set(firsts).size, 'seed ' + s + ': ' + firsts.join(', ')).toBe(firsts.length);
+    }
+    G.co = null;
+  });
+});
